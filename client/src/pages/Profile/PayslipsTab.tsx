@@ -132,7 +132,7 @@ export function PayslipsTab() {
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left">
-            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+            <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-6 py-4">Period</th>
                 <th className="px-6 py-4">File Name</th>
@@ -154,7 +154,7 @@ export function PayslipsTab() {
                   </td>
                   <td className="px-6 py-4 text-right font-semibold text-slate-900">{formatCurrency(p.amount, p.currency)}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${
+                    <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${
                       p.emailDeliveryStatus === "Sent"
                         ? "bg-green-50 text-green-600 border-green-200"
                         : p.generatedAt
@@ -171,14 +171,14 @@ export function PayslipsTab() {
                       <button
                         type="button"
                         onClick={() => openPayslip(p)}
-                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase transition-all flex items-center gap-1"
                       >
                         <Eye size={12} /> View
                       </button>
                       <button
                         type="button"
                         onClick={() => downloadPayslip(p)}
-                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase transition-all flex items-center gap-1"
                       >
                         <Download size={12} /> PDF
                       </button>

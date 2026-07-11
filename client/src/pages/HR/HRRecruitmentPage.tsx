@@ -277,7 +277,7 @@ function CandidateDetailModal({
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h2 className="text-3xl font-pmedium text-primary leading-none">{candidate.name}</h2>
-              <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${getStatusStyle(candidate.status || "")}`}>
+              <span className={`px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusStyle(candidate.status || "")}`}>
                 {candidate.status}
               </span>
             </div>
@@ -289,7 +289,7 @@ function CandidateDetailModal({
             <button
               onClick={() => onSendEmail(candidate)}
               disabled={busyId === candidate.id}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-semibold transition-all shadow-sm h-10 disabled:opacity-60"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-pmedium transition-all shadow-sm h-10 disabled:opacity-60"
             >
               <Mail size={14} /> {busyId === candidate.id ? "SENDING..." : "SEND EMAIL"}
             </button>
@@ -301,7 +301,7 @@ function CandidateDetailModal({
 
         <div className="p-8 space-y-8 overflow-y-auto flex-1 bg-white">
           <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+            <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
               <Users size={16} /> Basic Information
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/60">
@@ -342,12 +342,12 @@ function CandidateDetailModal({
                       href={resumeUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-blue-700 transition hover:bg-blue-100"
+                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-pmedium uppercase tracking-wider text-blue-700 transition hover:bg-blue-100"
                     >
                       <ExternalLink size={12} /> View Resume
                     </a>
                   ) : (
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">No file available</span>
+                    <span className="text-[11px] font-pmedium uppercase tracking-wider text-slate-400">No file available</span>
                   )}
                 </div>
               </div>
@@ -355,7 +355,7 @@ function CandidateDetailModal({
           </div>
 
           <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+            <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
               <Target size={16} /> Job-Specific Details
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8 bg-blue-50/30 p-5 rounded-2xl border border-blue-100">
@@ -379,7 +379,7 @@ function CandidateDetailModal({
           </div>
 
           {/* <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+            <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
               <Award size={16} /> Professional Background
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -417,7 +417,7 @@ function CandidateDetailModal({
 
           {customFieldEntries.length > 0 ? (
             <div>
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+                <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
                   <FileText size={16} /> Custom Fields
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-8 bg-purple-50/30 p-5 rounded-2xl border border-purple-100">
@@ -433,7 +433,7 @@ function CandidateDetailModal({
 
           {resumeUrl ? null : (
             <div>
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+              <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
                 <FileText size={16} /> Application Attachments
               </h3>
               <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
@@ -458,14 +458,14 @@ function CandidateDetailModal({
               <button
                 onClick={() => candidate.id && onReject(candidate.id)}
                 disabled={busyId === candidate.id}
-                className="flex-1 py-4 bg-white border border-red-200 text-red-600 rounded-4xl font-semibold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex-1 py-4 bg-white border border-red-200 text-red-600 rounded-4xl font-pmedium hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <XCircle size={18} /> REJECT CANDIDATE
               </button>
               <button
                 onClick={() => candidate.id && onAccept(candidate.id)}
                 disabled={busyId === candidate.id}
-                className="flex-1 py-4 bg-[#2563EB] text-white rounded-4xl font-semibold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex-1 py-4 bg-[#2563EB] text-white rounded-4xl font-pmedium shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <CheckCircle2 size={18} /> ACCEPT FOR SCREENING
               </button>
@@ -583,36 +583,36 @@ function AddCandidateModal({
           <FormSection title="Basic Information" icon={Users}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
                 <input type="text" placeholder="John Doe" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                 <input type="email" placeholder="john@example.com" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date of Birth</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                 <input type="date" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mobile Number <span className="text-red-400">*</span></label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Mobile Number <span className="text-red-400">*</span></label>
                 <input type="tel" placeholder="+91 00000 00000" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.mobileNumber} onChange={(e) => setForm({ ...form, mobileNumber: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country</label>
                 <input type="text" placeholder="India" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State</label>
                 <input type="text" placeholder="Maharashtra" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City</label>
                 <input type="text" placeholder="Mumbai" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Resume / CV <span className="text-red-400">*</span></label>
-                <label className="w-full px-3 py-3 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center gap-2 text-slate-500 font-semibold text-[11px] cursor-pointer hover:bg-white transition-all bg-white">
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resume / CV <span className="text-red-400">*</span></label>
+                <label className="w-full px-3 py-3 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center gap-2 text-slate-500 font-pmedium text-[11px] cursor-pointer hover:bg-white transition-all bg-white">
                   <FileText size={16} /> {form.resumeFile ? form.resumeFile.name : "Click to attach file (PDF/Doc)"}
                   <input type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" className="hidden" onChange={(event) => setForm({ ...form, resumeFile: event.target.files?.[0] || null })} />
                 </label>
@@ -623,14 +623,14 @@ function AddCandidateModal({
           <FormSection title="Custom Fields" icon={Target}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Department</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Department</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.department} onChange={(e) => handleDepartmentChange(e.target.value)}>
                   <option value="">Select department</option>
                   {departments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Candidate Source</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Candidate Source</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
                   <option value="Walk-in">Walk-in</option>
                   <option value="LinkedIn">LinkedIn</option>
@@ -641,11 +641,11 @@ function AddCandidateModal({
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Source Reference</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Source Reference</label>
                 <input type="text" placeholder={form.source === "LinkedIn" ? "https://linkedin.com/in/..." : form.source === "Walk-in" ? "Walk-in note or contact point" : "Reference or source details"} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.sourceReference} onChange={(e) => setForm({ ...form, sourceReference: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Contact Method</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Contact Method</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.contactMethod} onChange={(e) => setForm({ ...form, contactMethod: e.target.value })}>
                   <option value="In-person">In-person</option>
                   <option value="Phone">Phone</option>
@@ -655,11 +655,11 @@ function AddCandidateModal({
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Company</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Company</label>
                 <input type="text" placeholder="Optional" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.currentCompany} onChange={(e) => setForm({ ...form, currentCompany: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Position <span className="text-red-400">*</span></label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Position <span className="text-red-400">*</span></label>
                 {candidateJobOpenings.length > 0 ? (
                   <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.jobCode} onChange={(e) => handleJobChange(e.target.value)}>
                     <option value="">Select a live opening</option>
@@ -674,15 +674,15 @@ function AddCandidateModal({
                 )}
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Earliest Start Date</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Earliest Start Date</label>
                 <input type="date" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.earliestStartDate} onChange={(e) => setForm({ ...form, earliestStartDate: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Salary Expectations</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Salary Expectations</label>
                 <input type="text" placeholder="e.g. ₹8,00,000 CTC" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.expectedSalary} onChange={(e) => setForm({ ...form, expectedSalary: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Availability</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Availability</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })}>
                   <option>Full-time</option>
                   <option>Part-time</option>
@@ -696,41 +696,41 @@ function AddCandidateModal({
           <FormSection title="Additional Details" icon={Award}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employment History</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Employment History</label>
                 <textarea rows={2} placeholder="Past employers, titles, dates..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.employmentHistory} onChange={(e) => setForm({ ...form, employmentHistory: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Education</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Education</label>
                 <input type="text" placeholder="e.g. B.Tech IT (2021)" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Experience</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Experience</label>
                 <input type="text" placeholder="e.g. 3 Years" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Skills</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Skills</label>
                 <input type="text" placeholder="e.g. React, Node, Sales..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Certifications</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Certifications</label>
                 <input type="text" placeholder="e.g. AWS, PMP..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Notes</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Notes</label>
                 <textarea rows={2} placeholder="Walk-in context, LinkedIn note, call summary..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.sourceNotes} onChange={(e) => setForm({ ...form, sourceNotes: e.target.value })} />
               </div>
             </div>
           </FormSection>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-100">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+          <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
             Cancel
           </button>
           <button
             type="button"
             disabled={isSaving || !form.fullName || !form.email || !form.mobileNumber || !form.position}
             onClick={onSave}
-            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
             {isSaving ? "Saving..." : "Add to Pipeline"}
@@ -778,26 +778,26 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode =
           <FormSection title="Job Details" icon={Briefcase}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Job Code</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Code</label>
                 <input type="text" placeholder="e.g. HR-001" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.jobCode} onChange={(e) => setForm({ ...form, jobCode: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role / Designation <span className="text-red-400">*</span></label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role / Designation <span className="text-red-400">*</span></label>
                 <input type="text" placeholder="e.g. Senior Product Designer" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Department <span className="text-red-400">*</span></label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Department <span className="text-red-400">*</span></label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
                   <option value="">Select Dept</option>
                   {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vacancies</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Vacancies</label>
                 <input type="number" min="1" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.vacancyTotal} onChange={(e) => setForm({ ...form, vacancyTotal: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employment Type</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Employment Type</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value, isPaid: e.target.value === "intern" ? false : form.isPaid })}>
                   <option value="full_time">Full Time</option>
                   <option value="part_time">Part Time</option>
@@ -807,7 +807,7 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode =
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Paid Role</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Paid Role</label>
                 <div className="flex items-center gap-3 rounded-lg border border-slate-200/60 bg-white px-3 py-2">
                   <input type="checkbox" checked={form.isPaid} disabled={form.employmentType === "intern"} onChange={(e) => setForm({ ...form, isPaid: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]" />
                   <span className="text-[12px] font-semibold text-slate-700">{form.employmentType === "intern" ? "Unpaid internship" : "Paid opening"}</span>
@@ -815,18 +815,18 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode =
               </div>
               {form.employmentType === "intern" && (
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Internship Duration</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Internship Duration</label>
                   <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.internshipDurationMonths} onChange={(e) => setForm({ ...form, internshipDurationMonths: e.target.value })}>
                     {["2", "3", "4", "6"].map((months) => <option key={months} value={months}>{months} months</option>)}
                   </select>
                 </div>
               )}
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Location</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location</label>
                 <input type="text" placeholder="State" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Mode</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Mode</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}>
                   <option value="on_site">On Site</option>
                   <option value="remote">Remote</option>
@@ -834,33 +834,33 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode =
                 </select>
               </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">About the Job</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">About the Job</label>
                 <textarea rows={6} placeholder="Short overview shown at the top of the role page..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.aboutTheJob} onChange={(e) => setForm({ ...form, aboutTheJob: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Key Responsibilities</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Key Responsibilities</label>
                 <textarea rows={6} placeholder="Add the bullet points shown in the left description tab..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.keyResponsibilities} onChange={(e) => setForm({ ...form, keyResponsibilities: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Requirements</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Requirements</label>
                 <textarea rows={6} placeholder="List the must-have skills and experience..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Soft Skills</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Soft Skills</label>
                 <textarea rows={3} placeholder="Communication, teamwork, ownership..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.softSkills} onChange={(e) => setForm({ ...form, softSkills: e.target.value })} />
               </div>
             </div>
           </FormSection>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-100">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+          <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
             Cancel
           </button>
           <button
             type="button"
             disabled={!form.title || !form.department}
             onClick={onSave}
-            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             <Briefcase size={14} />
             {mode === "edit" ? "Update Job" : "Publish to Website"}
@@ -1495,7 +1495,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
           <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               onClick={() => { setActiveTab("candidates"); setSearchQuery(""); }}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === "candidates"
                   ? "bg-[#2563EB] text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -1505,7 +1505,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
             </button>
             <button
               onClick={() => { setActiveTab("jobs"); setSearchQuery(""); }}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === "jobs"
                   ? "bg-[#2563EB] text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -1522,8 +1522,8 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
               return (
                 <div key={card.key} className={card.class}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>
                     <Icon size={16} />
@@ -1553,7 +1553,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                   mode !== "careers" && (
                     <button
                       onClick={() => setIsCandidateModalOpen(true)}
-                      className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <Plus size={13} strokeWidth={2.5} /> ADD CANDIDATE
                     </button>
@@ -1562,7 +1562,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                   <div className="flex flex-wrap gap-2 justify-end">
                       <button
                         onClick={openCreateJobModal}
-                        className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                        className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                       >
                       <Plus size={13} strokeWidth={2.5} /> PUBLISH JOB
                     </button>
@@ -1582,7 +1582,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
             {activeTab === "candidates" && (
               <div className="overflow-x-auto flex-1">
                 <table className="w-full border-collapse">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Candidate Info</th>
                       <th className="px-5 py-4 text-left">Position Applied</th>
@@ -1622,17 +1622,17 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                             {/* <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">Exp: {can.exp}</p> */}
                           </td>
                           <td className="px-5 py-4 text-center">
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-wider">{can.source}</span>
+                            <span className="text-[10px] font-pmedium text-slate-500 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-wider">{can.source}</span>
                           </td>
                           <td className="px-5 py-4">
                             {can.status === "Applied" || can.status === "Converted to Employee" || can.status === "Rejected" ? (
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusStyle(can.status || "")}`}>
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusStyle(can.status || "")}`}>
                                 {can.status === "Applied" ? "Needs Screening" : can.status}
                               </span>
                             ) : (
                               <div className="relative w-40">
                                 <select
-                                  className={`w-full pl-3 pr-7 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider border appearance-none cursor-pointer outline-none transition-all ${getStatusStyle(can.status || "")}`}
+                                  className={`w-full pl-3 pr-7 py-1.5 rounded-md text-[10px] font-pmedium uppercase tracking-wider border appearance-none cursor-pointer outline-none transition-all ${getStatusStyle(can.status || "")}`}
                                   value={can.status}
                                   onChange={(e) => can.id && updateCandidateStatus(can.id, e.target.value)}
                                 >
@@ -1649,7 +1649,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => setViewingCandidate(can)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg font-pmedium text-[10px] uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
                               >
                                 <FileText size={11} /> {can.status === "Applied" ? "Review" : "Profile"}
                               </button>
@@ -1677,7 +1677,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
             {activeTab === "jobs" && (
               <div className="overflow-x-auto flex-1">
                 <table className="w-full border-collapse">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Job Title & ID</th>
                       <th className="px-5 py-4 text-left">Department</th>
@@ -1718,7 +1718,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                           <td className="px-5 py-4 text-center">
                             <button
                               onClick={() => handleToggleJobStatus(job)}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border transition-all ${
                                 job.isActive
                                   ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
                                   : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
@@ -1731,7 +1731,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                           <td className="px-5 py-4 text-center">
                             <button
                               onClick={() => handleToggleWebsitePost(job)}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border transition-all ${
                                 job.isPostedOnWebsite
                                   ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
                                   : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
@@ -1745,7 +1745,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                             <button
                               type="button"
                               onClick={() => openEditJobModal(job)}
-                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                             >
                               <AlignLeft size={12} />
                               Edit
@@ -1806,7 +1806,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                       <FileSpreadsheet size={18} />
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-900">Download Template</p>
+                      <p className="text-[11px] font-pmedium uppercase tracking-wider text-slate-900">Download Template</p>
                       <p className="text-[10px] text-slate-500 mt-1">Get the CSV with all required columns and example data.</p>
                     </div>
                   </div>
@@ -1823,7 +1823,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                       {isBulkUploading ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-900">Upload Bulk Data</p>
+                      <p className="text-[11px] font-pmedium uppercase tracking-wider text-slate-900">Upload Bulk Data</p>
                       <p className="text-[10px] text-slate-500 mt-1">Upload a completed CSV file to create or update job openings.</p>
                     </div>
                   </div>
@@ -1835,7 +1835,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                 onToggle={(event) => setIsBulkUploadInstructionsOpen(event.currentTarget.open)}
                 className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden"
               >
-                <summary className="cursor-pointer list-none px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center justify-between">
+                <summary className="cursor-pointer list-none px-4 py-3 text-[11px] font-pmedium uppercase tracking-wider text-slate-800 flex items-center justify-between">
                   <span>Read Instructions</span>
                   <ChevronDown size={14} className={`transition-transform ${isBulkUploadInstructionsOpen ? "rotate-180" : ""}`} />
                 </summary>

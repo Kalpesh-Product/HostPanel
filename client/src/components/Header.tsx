@@ -266,7 +266,7 @@ const Header = ({
           >
             <BellRing size={18} strokeWidth={2.25} />
             {computedUnseenCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-[18px] text-center">
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-pmedium leading-[18px] text-center">
                 {computedUnseenCount > 9 ? "9+" : computedUnseenCount}
               </span>
             )}

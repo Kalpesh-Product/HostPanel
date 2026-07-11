@@ -74,7 +74,7 @@ const STATUSES = ["Scheduled", "Due Soon", "Overdue", "Completed"] as const;
 function getStatusBadge(status?: string) {
   const s = status || "Scheduled";
   const base =
-    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pbold font-bold uppercase tracking-widest";
+    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest";
 
   if (s === "Scheduled") {
     return (
@@ -112,7 +112,7 @@ function getStatusBadge(status?: string) {
 }
 
 function getFrequencyBadge(freq?: string) {
-  const base = "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest";
+  const base = "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest";
   switch (freq) {
     case "Monthly": return <span className={`${base} bg-indigo-50 text-indigo-700`}>Monthly</span>;
     case "Quarterly": return <span className={`${base} bg-violet-50 text-violet-700`}>Quarterly</span>;
@@ -345,7 +345,7 @@ export default function AMCMaintenanceSchedulerPage() {
             <button
               type="button"
               onClick={() => setActiveTab("schedules")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === "schedules"
                   ? "bg-[#2563EB] text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -356,7 +356,7 @@ export default function AMCMaintenanceSchedulerPage() {
             <button
               type="button"
               onClick={() => setActiveTab("alerts")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === "alerts"
                   ? "bg-[#2563EB] text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -364,7 +364,7 @@ export default function AMCMaintenanceSchedulerPage() {
             >
               Upcoming Alerts
               {stats.dueSoon + stats.overdue > 0 ? (
-                <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[9px] font-pbold font-bold">
+                <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[9px] font-pmedium">
                   {stats.dueSoon + stats.overdue}
                 </span>
               ) : null}
@@ -386,8 +386,8 @@ export default function AMCMaintenanceSchedulerPage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -436,7 +436,7 @@ export default function AMCMaintenanceSchedulerPage() {
                 <button
                   type="button"
                   onClick={handleOpenCreate}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
                   Add AMC Schedule
@@ -447,7 +447,7 @@ export default function AMCMaintenanceSchedulerPage() {
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full table-auto text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-3 py-4 whitespace-nowrap">Schedule Code & Asset</th>
                     <th className="px-3 py-4 whitespace-nowrap">Maintenance Type</th>
@@ -473,7 +473,7 @@ export default function AMCMaintenanceSchedulerPage() {
                       return (
                         <tr key={id || s.scheduleCode || s.assetCode} className="hover:bg-blue-50/30 transition-all">
                           <td className="px-3 py-4">
-                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">
+                            <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-0.5">
                               {s.scheduleCode || id}
                             </p>
                             <p className="font-bold text-slate-900 text-sm">{s.assetName || "--"}</p>
@@ -507,7 +507,7 @@ export default function AMCMaintenanceSchedulerPage() {
                             <button
                               type="button"
                               onClick={() => handleSelectSchedule(s)}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                             >
                               View
                             </button>
@@ -520,7 +520,7 @@ export default function AMCMaintenanceSchedulerPage() {
               </table>
             </div>
 
-            <div className="px-3 py-3 border-t border-slate-100/60 text-[10px] font-bold text-slate-400">
+            <div className="px-3 py-3 border-t border-slate-100/60 text-[10px] font-pmedium text-slate-400">
               Showing {filteredSchedules.length} of {schedules.length} schedules
             </div>
           </div>
@@ -552,7 +552,7 @@ export default function AMCMaintenanceSchedulerPage() {
               <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4" />
-                  <span className="text-xs font-black uppercase tracking-widest">
+                  <span className="text-xs font-pmedium uppercase tracking-widest">
                     {selectedSchedule.scheduleCode || "Schedule Detail"}
                   </span>
                 </div>
@@ -564,7 +564,7 @@ export default function AMCMaintenanceSchedulerPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Asset</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Asset</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.assetName || "--"}</p>
                     <p className="text-[10px] text-slate-500">{selectedSchedule.assetCode || ""}</p>
                     {selectedSchedule.assetCategory ? (
@@ -572,31 +572,31 @@ export default function AMCMaintenanceSchedulerPage() {
                     ) : null}
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Department</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Department</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.department || "--"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Maintenance Type</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Maintenance Type</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.maintenanceType || selectedSchedule.type || "--"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Frequency</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Frequency</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.frequency || "--"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Technician</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Technician</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.technician || "--"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Status</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Status</p>
                     <div className="mt-1">{getStatusBadge(selectedSchedule.currentStatus || selectedSchedule.status)}</div>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Last Serviced</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Last Serviced</p>
                     <p className="font-bold text-slate-900">{formatDateDisplay(selectedSchedule.lastServiceDate)}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Next Service Due</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Next Service Due</p>
                     <p className={`font-bold ${
                       (selectedSchedule.currentStatus || selectedSchedule.status) === "Overdue" ? "text-red-600" :
                       (selectedSchedule.currentStatus || selectedSchedule.status) === "Due Soon" ? "text-amber-600" : "text-slate-900"
@@ -608,14 +608,14 @@ export default function AMCMaintenanceSchedulerPage() {
 
                 {selectedSchedule.notes ? (
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Notes</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Notes</p>
                     <p className="text-sm text-slate-700">{selectedSchedule.notes}</p>
                   </div>
                 ) : null}
 
                 {Array.isArray(selectedSchedule.history) && selectedSchedule.history.length > 0 ? (
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">Service History</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-2">Service History</p>
                     <div className="space-y-2">
                       {selectedSchedule.history.map((h, idx) => (
                         <div key={idx} className="flex items-start gap-2 text-xs">
@@ -635,7 +635,7 @@ export default function AMCMaintenanceSchedulerPage() {
                 <button
                   type="button"
                   onClick={handleCloseDetail}
-                  className="px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors"
+                  className="px-4 py-2 text-xs font-pmedium uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   Close
                 </button>
@@ -645,7 +645,7 @@ export default function AMCMaintenanceSchedulerPage() {
                     type="button"
                     onClick={() => handleComplete(selectedSchedule)}
                     disabled={isUpdating}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-pmedium uppercase tracking-wider hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
                   >
                     {isUpdating ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -689,7 +689,7 @@ export default function AMCMaintenanceSchedulerPage() {
                     <Calendar size={20} />
                     Add AMC Schedule
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                     Create a preventive servicing schedule for an asset
                   </p>
                 </div>
@@ -712,7 +712,7 @@ export default function AMCMaintenanceSchedulerPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Asset *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Asset *</label>
                       <select
                         className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none ${
                           formErrors.assetId ? "border-rose-300" : "border-slate-200"
@@ -737,11 +737,11 @@ export default function AMCMaintenanceSchedulerPage() {
                           </option>
                         ))}
                       </select>
-                      {formErrors.assetId ? <p className="text-[10px] font-bold text-rose-500 mt-1">{formErrors.assetId}</p> : null}
+                      {formErrors.assetId ? <p className="text-[10px] font-pmedium text-rose-500 mt-1">{formErrors.assetId}</p> : null}
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Maintenance Type *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Maintenance Type *</label>
                       <input
                         type="text"
                         className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none ${
@@ -754,11 +754,11 @@ export default function AMCMaintenanceSchedulerPage() {
                           if (formErrors.maintenanceType) setFormErrors({ ...formErrors, maintenanceType: undefined });
                         }}
                       />
-                      {formErrors.maintenanceType ? <p className="text-[10px] font-bold text-rose-500 mt-1">{formErrors.maintenanceType}</p> : null}
+                      {formErrors.maintenanceType ? <p className="text-[10px] font-pmedium text-rose-500 mt-1">{formErrors.maintenanceType}</p> : null}
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Frequency *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Frequency *</label>
                       <select
                         className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none ${
                           formErrors.frequency ? "border-rose-300" : "border-slate-200"
@@ -774,11 +774,11 @@ export default function AMCMaintenanceSchedulerPage() {
                         <option value="Half-Yearly">Half-Yearly</option>
                         <option value="Yearly">Yearly</option>
                       </select>
-                      {formErrors.frequency ? <p className="text-[10px] font-bold text-rose-500 mt-1">{formErrors.frequency}</p> : null}
+                      {formErrors.frequency ? <p className="text-[10px] font-pmedium text-rose-500 mt-1">{formErrors.frequency}</p> : null}
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Technician *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Technician *</label>
                       <input
                         type="text"
                         className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none ${
@@ -791,11 +791,11 @@ export default function AMCMaintenanceSchedulerPage() {
                           if (formErrors.technician) setFormErrors({ ...formErrors, technician: undefined });
                         }}
                       />
-                      {formErrors.technician ? <p className="text-[10px] font-bold text-rose-500 mt-1">{formErrors.technician}</p> : null}
+                      {formErrors.technician ? <p className="text-[10px] font-pmedium text-rose-500 mt-1">{formErrors.technician}</p> : null}
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Next Service Date *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Next Service Date *</label>
                       <input
                         type="date"
                         className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none ${
@@ -807,11 +807,11 @@ export default function AMCMaintenanceSchedulerPage() {
                           if (formErrors.nextServiceDate) setFormErrors({ ...formErrors, nextServiceDate: undefined });
                         }}
                       />
-                      {formErrors.nextServiceDate ? <p className="text-[10px] font-bold text-rose-500 mt-1">{formErrors.nextServiceDate}</p> : null}
+                      {formErrors.nextServiceDate ? <p className="text-[10px] font-pmedium text-rose-500 mt-1">{formErrors.nextServiceDate}</p> : null}
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Last Service Date</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Last Service Date</label>
                       <input
                         type="date"
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
@@ -821,7 +821,7 @@ export default function AMCMaintenanceSchedulerPage() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Notes</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Notes</label>
                       <textarea
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none resize-none"
                         rows={2}
@@ -849,14 +849,14 @@ export default function AMCMaintenanceSchedulerPage() {
                     <button
                       type="button"
                       onClick={handleCloseCreate}
-                      className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider"
+                      className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-pmedium text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
+                      className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
                     >
                       {isSaving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

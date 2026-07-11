@@ -29,7 +29,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${colors[s] || colors.pending}`}>
+    <span className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider ${colors[s] || colors.pending}`}>
       <UserMinus size={10} />
       {formatStatus(status)}
     </span>
@@ -148,8 +148,8 @@ export function ExitRequestTab() {
           return (
             <div key={card.key} className={card.cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16}/></div>
             </div>
@@ -163,7 +163,7 @@ export function ExitRequestTab() {
           type="button"
           onClick={() => setShowForm((p) => !p)}
           disabled={!canSubmit}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           {showForm ? "Cancel" : "New Exit Request"}
@@ -181,7 +181,7 @@ export function ExitRequestTab() {
               <LogOut size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-blue-600">Resignation</p>
+              <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">Resignation</p>
               <h2 className="text-lg font-pmedium text-slate-900">New Exit Request</h2>
             </div>
           </div>
@@ -196,7 +196,7 @@ export function ExitRequestTab() {
 
             {/* Requested Documents */}
             <div>
-              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+              <label className="flex items-center gap-2 text-xs font-pmedium uppercase tracking-wider text-slate-600 mb-2">
                 <FileText size={13} className="text-blue-600" />
                 Requested Documents to Return
               </label>
@@ -223,7 +223,7 @@ export function ExitRequestTab() {
 
             {/* Document Notes */}
             <div>
-              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="flex items-center gap-2 text-xs font-pmedium uppercase tracking-wider text-slate-600 mb-1.5">
                 <FileText size={13} className="text-blue-600" />
                 Document Notes
               </label>
@@ -239,14 +239,14 @@ export function ExitRequestTab() {
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setReason(""); setRequestedDocuments([]); setDocumentNotes(""); }}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-pmedium text-slate-600 transition hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSaving || !reason.trim()}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-pmedium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 <Send size={15} />
                 {isSaving ? "Submitting..." : "Submit Request"}
@@ -276,7 +276,7 @@ export function ExitRequestTab() {
       ) : (
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+            <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-6 py-4">Request Code</th>
                 <th className="px-6 py-4">Reason</th>

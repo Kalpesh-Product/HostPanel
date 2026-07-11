@@ -507,8 +507,8 @@ function AssetsSkeleton() {
                 return (
                   <div key={card.key} className={card.cardClass}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
                   </div>
@@ -558,7 +558,7 @@ function AssetsSkeleton() {
                   </div>
                   <button
                     onClick={() => { setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment }); setIsAddModalOpen(true); }}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> ADD ASSET
                   </button>
@@ -644,7 +644,7 @@ function AssetsSkeleton() {
                     <div key={asset.id || asset.recordId} className={`bg-white border p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${asset.status === 'Maintenance' ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 flex flex-col gap-1.5">
-                          <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{asset.id || asset.recordId}</span>
+                          <span className="font-mono text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{asset.id || asset.recordId}</span>
                           <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">{asset.name}</h3>
                           <p className="text-[12px] text-slate-500 font-medium flex items-center gap-1.5">{getCategoryIcon(asset.category)} {asset.category}</p>
                         </div>
@@ -677,13 +677,13 @@ function AssetsSkeleton() {
                             });
                             setShowTransferDialog(true);
                           }}
-                          className="px-4 py-2 bg-slate-50 border border-slate-200 text-indigo-600 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all flex items-center gap-1.5"
+                          className="px-4 py-2 bg-slate-50 border border-slate-200 text-indigo-600 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all flex items-center gap-1.5"
                         >
                           <ArrowRightLeft size={13} strokeWidth={2} /> Transfer
                         </button>
                         <button
                           onClick={() => setViewingAsset(asset)}
-                          className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                          className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
                         >
                           <Eye size={14} strokeWidth={2} /> View
                         </button>
@@ -717,7 +717,7 @@ function AssetsSkeleton() {
                   <div className="bg-blue-50 text-[#2563EB]"></div>
                   ADD ASSET
                 </h2>
-                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Register hardware, software, furniture, or infra</p>
+                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Register hardware, software, furniture, or infra</p>
               </div>
               <button onClick={() => setIsAddModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
             </div>
@@ -868,8 +868,8 @@ function AssetsSkeleton() {
               </div>
 
               <div className="pt-4 sm:pt-6 flex gap-3 sm:gap-4 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Cancel</button>
-                <button type="submit" disabled={isSaving} className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Create Asset'}</button>
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Cancel</button>
+                <button type="submit" disabled={isSaving} className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Create Asset'}</button>
               </div>
             </form>
           </div>
@@ -887,7 +887,7 @@ function AssetsSkeleton() {
                   {getStatusBadge(viewingAsset.status)}
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight pr-8">{viewingAsset.name}</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1">{getCategoryIcon(viewingAsset.category)} {viewingAsset.category}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1">{getCategoryIcon(viewingAsset.category)} {viewingAsset.category}</p>
               </div>
               <button onClick={() => setViewingAsset(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8"><X size={18} strokeWidth={2.5} /></button>
             </div>
@@ -895,14 +895,14 @@ function AssetsSkeleton() {
             <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 bg-blue-50/50 p-4 sm:p-5 rounded-2xl sm:rounded-[20px] border border-blue-100">
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Owning Department</p>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Owning Department</p>
                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm">
                     <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center"><Building2 size={14} /></div>
                     <span className="font-bold text-[#0F172A] text-[13px]">{viewingAsset.department}</span>
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm">
                     <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center"><User size={14} /></div>
                     <span className="font-bold text-[#0F172A] text-[13px]">{viewingAsset.assignedTo}</span>
@@ -911,7 +911,7 @@ function AssetsSkeleton() {
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl sm:rounded-[20px] p-4 sm:p-5">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Asset Details</p>
+                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-4">Asset Details</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className={statusPillClass("Serial Number")}>Serial Number</span>
@@ -960,7 +960,7 @@ function AssetsSkeleton() {
             </div>
 
             <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0">
-              <button onClick={() => setViewingAsset(null)} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-md hover:bg-slate-800 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CLOSE DETAILS</button>
+              <button onClick={() => setViewingAsset(null)} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-pmedium shadow-md hover:bg-slate-800 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CLOSE DETAILS</button>
             </div>
           </div>
         </div>
@@ -979,9 +979,9 @@ function AssetsSkeleton() {
 
             <div className="p-5 sm:p-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden">
               <div className="mb-6 p-4 bg-white border border-slate-200 shadow-sm rounded-xl">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Transferring</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Transferring</p>
                 <p className="text-[14px] font-bold text-[#0F172A] mb-1">{activeAssetForTransfer.name}</p>
-                <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{activeAssetForTransfer.id || activeAssetForTransfer.recordId}</span>
+                <span className="font-mono text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{activeAssetForTransfer.id || activeAssetForTransfer.recordId}</span>
               </div>
 
               <div className="space-y-4">
@@ -1031,8 +1031,8 @@ function AssetsSkeleton() {
             </div>
 
             <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-              <button onClick={() => setShowTransferDialog(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Cancel</button>
-              <button onClick={handleTransferAsset} disabled={isSaving} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Confirm'}</button>
+              <button onClick={() => setShowTransferDialog(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Cancel</button>
+              <button onClick={handleTransferAsset} disabled={isSaving} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Confirm'}</button>
             </div>
           </div>
         </div>

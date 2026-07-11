@@ -729,7 +729,7 @@ export function LeaveRequestsPage() {
                   <button
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id); setStatusFilter('All'); setDepartmentFilter('All'); }}
-                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                   >
                     {tab.label}
                     {tab.id === 'leave-requests' && pendingActionRequests > 0 && (
@@ -747,8 +747,8 @@ export function LeaveRequestsPage() {
                 return (
                   <div key={card.key} className={card.cardClass}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
                   </div>
@@ -848,7 +848,7 @@ export function LeaveRequestsPage() {
                   {!isActingManagerView && (
                     <button
                       onClick={() => setIsApplyModalOpen(true)}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <Plus size={13} strokeWidth={3} /> APPLY LEAVE
                     </button>
@@ -931,7 +931,7 @@ export function LeaveRequestsPage() {
                           </div>
                           <div>
                             <h3 className="text-[14px] font-bold text-[#0F172A] leading-tight mb-1">{item.employeeName}</h3>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                               {item.department || <span className="text-indigo-600 font-black">GLOBAL</span>} &bull; {item.requesterRole}
                             </p>
                           </div>
@@ -941,24 +941,24 @@ export function LeaveRequestsPage() {
                       <div>{getApprovalFlowBadge(item)}</div>
                       <div className="grid grid-cols-2 gap-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
                         <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Leave Type</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Leave Type</p>
                           {getLeaveTypeBadge(item.leaveType)}
                           <div className="mt-2">{getLeaveModeBadge(item)}</div>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Duration</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Duration</p>
                           <p className="text-[12px] font-bold text-[#0F172A] truncate flex items-center gap-1.5"><Calendar size={12} className="text-slate-400" /> {item.days} Day{item.days && item.days > 1 ? 's' : ''}</p>
                         </div>
                       </div>
                       {activeTab === 'company-leaves' && showCompanyTabs && item.actionedBy && (
-                        <div className="text-[10px] font-bold text-slate-500 border-t border-slate-100 pt-2 shrink-0">
+                        <div className="text-[10px] font-pmedium text-slate-500 border-t border-slate-100 pt-2 shrink-0">
                           <span className="uppercase tracking-widest opacity-80">Actioned By:</span> {item.actionedBy}
                         </div>
                       )}
                       <div className="flex gap-2 pt-2 border-t border-slate-100">
                         <button
                           onClick={() => { setViewingRequest(item); setIsRejecting(false); setRejectionReason(''); }}
-                          className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 bg-[#2563EB] text-white hover:bg-blue-700"
+                          className="flex-1 py-2.5 rounded-xl text-[12px] font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5 bg-[#2563EB] text-white hover:bg-blue-700"
                         >
                           <Eye size={14} /> {activeTab === 'leave-requests' ? 'Review Request' : 'View Record'}
                         </button>
@@ -997,23 +997,23 @@ export function LeaveRequestsPage() {
                         <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] flex items-center gap-2">
                           {activeTab === 'my-leaves' ? 'My Leave Details' : activeTab === 'leave-requests' ? 'Review Admin Request' : 'Leave Summary'}
                         </h2>
-                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">Request #{viewingRequest.id} &bull; {viewingRequest.requesterRole}</p>
+                        <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">Request #{viewingRequest.id} &bull; {viewingRequest.requesterRole}</p>
                       </div>
                       <button onClick={() => setViewingRequest(null)} className="w-9 h-9 sm:w-10 sm:h-10 bg-white border border-slate-200/60 shadow-sm rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={18} /></button>
                     </div>
                     <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden">
                       <div className="flex justify-between items-center pb-4 border-b border-slate-100">
                         <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Employee Details</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Employee Details</p>
                           <p className="font-bold text-[#0F172A] flex items-center gap-1.5"><User size={14} className={viewingRequest.requesterRole === 'Admin' ? 'text-indigo-600' : 'text-[#2563EB]'} /> {viewingRequest.employeeName}</p>
-                          {viewingRequest.employeeId && <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{viewingRequest.employeeId}</p>}
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">{viewingRequest.department || <span className="text-indigo-600 font-black">GLOBAL JURISDICTION</span>}</p>
+                          {viewingRequest.employeeId && <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{viewingRequest.employeeId}</p>}
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">{viewingRequest.department || <span className="text-indigo-600 font-black">GLOBAL JURISDICTION</span>}</p>
                         </div>
                         <div className="text-right">{getStatusBadge(viewingRequest.status)}</div>
                       </div>
                       <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Workflow State</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Workflow State</p>
                           <p className="text-[12px] font-semibold text-slate-600">Approval routing and final decision provenance.</p>
                         </div>
                         {getApprovalFlowBadge(viewingRequest)}
@@ -1021,7 +1021,7 @@ export function LeaveRequestsPage() {
                       {viewingRequest.status !== 'pending' && viewingRequest.actionedBy ? (
                         <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.status === 'approved' ? 'Approved By' : 'Rejected By'}</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.status === 'approved' ? 'Approved By' : 'Rejected By'}</p>
                             <p className="text-[13px] font-semibold text-[#0F172A]">{viewingRequest.actionedBy}</p>
                           </div>
                           <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">
@@ -1031,11 +1031,11 @@ export function LeaveRequestsPage() {
                       ) : null}
                       <div className="grid grid-cols-2 gap-3 sm:gap-4">
                         <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Request Type</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1.5">Request Type</p>
                           {getLeaveTypeBadge(viewingRequest.leaveType)}
                         </div>
                         <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 text-right">
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Total Duration</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1.5">Total Duration</p>
                           <p className="font-bold text-[#0F172A] text-lg leading-none">{viewingRequest.days} <span className="text-sm font-semibold text-slate-500">{viewingRequest.days && viewingRequest.days > 1 ? 'Days' : 'Day'}</span></p>
                         </div>
                         <div className="col-span-2 bg-slate-50/80 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
@@ -1046,7 +1046,7 @@ export function LeaveRequestsPage() {
                       </div>
                       <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Leave Mode</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Leave Mode</p>
                           <p className="text-[13px] font-semibold text-[#0F172A]">
                             {normalizeLeaveMode(viewingRequest.leaveMode || '') === 'half_day'
                               ? `Half Day${viewingRequest.halfDaySession ? ` | ${getHalfDaySessionLabel(viewingRequest.halfDaySession)}` : ''}`
@@ -1058,13 +1058,13 @@ export function LeaveRequestsPage() {
                       {isActionable && (
                         <div className={`p-4 rounded-2xl border flex justify-between items-center ${(viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0) ? 'bg-red-50/50 border-red-200' : 'bg-blue-50/50 border-blue-200/60'}`}>
                           <div>
-                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${(viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0) ? 'text-red-500' : 'text-blue-500'}`}>Admin Balance</p>
+                            <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${(viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0) ? 'text-red-500' : 'text-blue-500'}`}>Admin Balance</p>
                             <p className={`text-[14px] font-bold ${(viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0) ? 'text-red-700' : 'text-blue-700'}`}>{viewingRequest.requesterBalance} Quota Left</p>
                           </div>
                           {(viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0) ? (
-                            <div className="flex items-center gap-1.5 text-red-600 text-[10px] font-black uppercase bg-white px-2.5 py-1.5 rounded-lg border border-red-100 shadow-sm"><AlertCircle size={14} strokeWidth={2.5} /> Exceeded</div>
+                            <div className="flex items-center gap-1.5 text-red-600 text-[10px] font-pmedium uppercase bg-white px-2.5 py-1.5 rounded-lg border border-red-100 shadow-sm"><AlertCircle size={14} strokeWidth={2.5} /> Exceeded</div>
                           ) : (
-                            <div className="flex items-center gap-1.5 text-blue-600 text-[10px] font-black uppercase bg-white px-2.5 py-1.5 rounded-lg border border-blue-100 shadow-sm"><CheckCircle2 size={14} strokeWidth={2.5} /> Available</div>
+                            <div className="flex items-center gap-1.5 text-blue-600 text-[10px] font-pmedium uppercase bg-white px-2.5 py-1.5 rounded-lg border border-blue-100 shadow-sm"><CheckCircle2 size={14} strokeWidth={2.5} /> Available</div>
                           )}
                         </div>
                       )}
@@ -1078,26 +1078,26 @@ export function LeaveRequestsPage() {
                               <p className={`text-[13px] font-bold ${viewingRequest.medicalCertAttached ? 'text-emerald-900' : 'text-orange-900'}`}>
                                 {viewingRequest.medicalCertAttached ? (viewingRequest.medicalCertName || 'Medical_Certificate') : 'Missing Certificate'}
                               </p>
-                              <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${viewingRequest.medicalCertAttached ? 'text-emerald-600' : 'text-orange-600'}`}>
+                              <p className={`text-[10px] font-pmedium uppercase tracking-widest mt-1 ${viewingRequest.medicalCertAttached ? 'text-emerald-600' : 'text-orange-600'}`}>
                                 {viewingRequest.medicalCertAttached ? 'Document Verified' : 'Required (>2 Days)'}
                               </p>
                             </div>
                           </div>
                           {viewingRequest.medicalCertAttached && viewingRequest.medicalCertUrl ? (
-                            <a href={viewingRequest.medicalCertUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                            <a href={viewingRequest.medicalCertUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50">
                               Open
                             </a>
                           ) : null}
                         </div>
                       )}
                       <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Request Statement</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Request Statement</p>
                         <p className="text-[13px] font-semibold text-slate-700 leading-relaxed">{viewingRequest.reason}</p>
                       </div>
                       {viewingRequest.status === 'rejected' && viewingRequest.rejectionReason && (
                         <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl relative overflow-hidden">
                           <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500"></div>
-                          <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><XCircle size={14} /> Grounds for Rejection</p>
+                          <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><XCircle size={14} /> Grounds for Rejection</p>
                           <p className="text-[13px] font-semibold text-red-900 leading-relaxed">{viewingRequest.rejectionReason}</p>
                         </div>
                       )}
@@ -1114,8 +1114,8 @@ export function LeaveRequestsPage() {
                             value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
                           />
                           <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={() => setIsRejecting(false)} className="px-4 py-2.5 text-[11px] sm:text-[12px] font-bold text-slate-600 hover:bg-red-100/50 rounded-xl transition-all">CANCEL</button>
-                            <button onClick={handleReject} disabled={!rejectionReason.trim() || isSavingDecision} className="px-4 py-2.5 text-[11px] sm:text-[12px] font-black text-white bg-red-600 hover:bg-red-700 rounded-xl disabled:opacity-50 shadow-sm transition-all uppercase tracking-wider">{isSavingDecision ? 'SAVING...' : 'CONFIRM REJECT'}</button>
+                            <button onClick={() => setIsRejecting(false)} className="px-4 py-2.5 text-[11px] sm:text-[12px] font-pmedium text-slate-600 hover:bg-red-100/50 rounded-xl transition-all">CANCEL</button>
+                            <button onClick={handleReject} disabled={!rejectionReason.trim() || isSavingDecision} className="px-4 py-2.5 text-[11px] sm:text-[12px] font-pmedium text-white bg-red-600 hover:bg-red-700 rounded-xl disabled:opacity-50 shadow-sm transition-all uppercase tracking-wider">{isSavingDecision ? 'SAVING...' : 'CONFIRM REJECT'}</button>
                           </div>
                         </motion.div>
                       )}
@@ -1127,13 +1127,13 @@ export function LeaveRequestsPage() {
                             setIsRejecting(true);
                             if ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) setRejectionReason('Insufficient leave balance available.');
                             else if (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) setRejectionReason('A medical certificate must be provided for extended sick leave.');
-                          }} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-red-200/80 text-red-600 rounded-xl font-black hover:bg-red-50 shadow-sm transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">
+                          }} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-red-200/80 text-red-600 rounded-xl font-pmedium hover:bg-red-50 shadow-sm transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">
                             REJECT
                           </button>
                           <button
                             onClick={handleApprove}
                             disabled={isSavingDecision || (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) || ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0))}
-                            className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                            className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                           >
                             {isSavingDecision ? 'SAVING...' : (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) ? 'MISSING CERTIFICATE'
                             : ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) ? 'INSUFFICIENT BALANCE'
@@ -1142,7 +1142,7 @@ export function LeaveRequestsPage() {
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => { setViewingRequest(null); setIsRejecting(false); }} className="w-full py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-xl font-black hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">
+                        <button onClick={() => { setViewingRequest(null); setIsRejecting(false); }} className="w-full py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">
                           CLOSE PANEL
                         </button>
                       )}
@@ -1171,7 +1171,7 @@ export function LeaveRequestsPage() {
                     <div className="p-4 sm:p-6 bg-[#0F172A] border-b border-slate-800 flex justify-between items-center shrink-0">
                       <div>
                         <h2 className="text-lg sm:text-xl font-pmedium text-white flex items-center gap-2"><Calendar size={18} /> Apply for Leave</h2>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{isOwnerProfile ? 'Submit to HR & Manager for approval' : 'Submit to Founder / HR Manager for approval'}</p>
+                        <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">{isOwnerProfile ? 'Submit to HR & Manager for approval' : 'Submit to Founder / HR Manager for approval'}</p>
                       </div>
                       <button onClick={() => setIsApplyModalOpen(false)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={15} /></button>
                     </div>
@@ -1203,7 +1203,7 @@ export function LeaveRequestsPage() {
                                 end: mode.value === 'half_day' ? (prev.start || prev.end) : (mode.value === 'partial_day' ? '' : (prev.end || prev.start)),
                                 days: mode.value === 'half_day' ? (prev.start ? 0.5 : 0) : mode.value === 'partial_day' ? ((prev.partialDayHours || 1) / 8) : calculateInclusiveDays(prev.start, prev.end || prev.start),
                               }))}
-                              className={`px-3 py-2 rounded-xl border text-[11px] font-black uppercase tracking-wider transition-all ${formData.leaveMode === mode.value ? 'bg-[#0F172A] text-white border-[#0F172A]' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                              className={`px-3 py-2 rounded-xl border text-[11px] font-pmedium uppercase tracking-wider transition-all ${formData.leaveMode === mode.value ? 'bg-[#0F172A] text-white border-[#0F172A]' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
                             >
                               {mode.label}
                             </button>
@@ -1224,7 +1224,7 @@ export function LeaveRequestsPage() {
                                 { value: 'evening', label: 'PM', time: '2:30-6:30' },
                               ].map((session) => (
                                 <button key={session.value} type="button" onClick={() => setFormData((prev) => ({ ...prev, halfDaySession: session.value }))}
-                                  className={`px-2 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all ${formData.halfDaySession === session.value ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                  className={`px-2 py-2 rounded-xl border text-[10px] font-pmedium uppercase tracking-wider transition-all ${formData.halfDaySession === session.value ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
                                 >
                                   <span className="block">{session.label}</span>
                                   <span className="block mt-0.5 text-[8px] font-semibold normal-case tracking-normal opacity-80">{session.time}</span>
@@ -1262,7 +1262,7 @@ export function LeaveRequestsPage() {
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 items-start">
                           <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
                           <div>
-                            <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Capacity Warning</h4>
+                            <h4 className="text-[10px] font-pmedium text-amber-800 uppercase tracking-widest">Capacity Warning</h4>
                             <p className="text-[11px] font-semibold text-amber-700 mt-0.5">Other team members may be off during these dates.</p>
                           </div>
                         </div>
@@ -1271,18 +1271,18 @@ export function LeaveRequestsPage() {
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 items-start">
                           <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
                           <div>
-                            <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Department Capacity</h4>
+                            <h4 className="text-[10px] font-pmedium text-amber-800 uppercase tracking-widest">Department Capacity</h4>
                             <p className="text-[11px] font-semibold text-amber-700 mt-0.5">{departmentCapacityWarning.count} team members already on leave that day.</p>
                           </div>
                         </div>
                       )}
                       <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isBalanceExceeded ? 'bg-red-50 border-red-200' : requestedDays > 0 ? 'bg-blue-50/50 border-blue-200/60' : 'bg-slate-50 border-slate-200'}`}>
                         <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Duration</p>
+                          <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Duration</p>
                           <p className="text-lg font-black text-[#2563EB]">{requestedDays > 0 ? (formData.leaveMode === 'partial_day' ? `${formData.partialDayHours} ${formData.partialDayHours === 1 ? 'Hr' : 'Hrs'}` : `${requestedDays} ${requestedDays > 1 ? 'Days' : 'Day'}`) : '-'}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Balance</p>
+                          <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Balance</p>
                           <p className="text-xs font-bold text-[#0F172A]">{remainingBalance} Days Left</p>
                         </div>
                       </div>
@@ -1326,8 +1326,8 @@ export function LeaveRequestsPage() {
                         </div>
                       )}
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => setIsApplyModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-black hover:bg-slate-200 transition-all text-[10px] uppercase tracking-wider">CANCEL</button>
-                        <button type="submit" disabled={!isFormValid || isSubmittingLeave} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
+                        <button type="button" onClick={() => setIsApplyModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px] uppercase tracking-wider">CANCEL</button>
+                        <button type="submit" disabled={!isFormValid || isSubmittingLeave} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
                           {isSubmittingLeave ? 'SUBMITTING...' : 'SUBMIT REQUEST'} <Send size={13} />
                         </button>
                       </div>

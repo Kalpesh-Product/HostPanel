@@ -38,7 +38,7 @@ function DetailCard({ label, value, icon: Icon }: { label: string; value: string
     <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
       <div className="flex items-center gap-2 mb-1.5">
         <Icon size={13} className="text-blue-600 shrink-0" />
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</p>
+        <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">{label}</p>
       </div>
       <p className="text-[13px] font-semibold text-slate-900 break-words">{String(value || "-")}</p>
     </div>
@@ -53,7 +53,7 @@ function SectionShell({ eyebrow, title, icon: Icon, children }: { eyebrow: strin
           <Icon size={20} />
         </div>
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-blue-600">{eyebrow}</p>
+          <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">{eyebrow}</p>
           <h2 className="text-lg font-pmedium text-slate-900">{title}</h2>
         </div>
       </div>
@@ -278,7 +278,7 @@ export default function UserDetails() {
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              {/* <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-blue-600">My Profile</p> */}
+              {/* <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">My Profile</p> */}
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{profileName}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Complete employee profile including personal and employment details.

@@ -3249,7 +3249,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.daily}
             title={!visitorAccess.tabs.daily ? 'You do not have permission for Daily Visitors.' : undefined}
             onClick={() => setActiveTab('daily')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               activeTab === 'daily' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.daily ? 'cursor-not-allowed opacity-60' : ''}`}
           >
@@ -3264,7 +3264,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.history}
             title={!visitorAccess.tabs.history ? 'You do not have permission for Visitor History.' : undefined}
             onClick={() => setActiveTab('history')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
               activeTab === 'history' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.history ? 'cursor-not-allowed opacity-60' : ''}`}
           >
@@ -3275,7 +3275,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.bookings}
             title={!visitorAccess.tabs.bookings ? 'You do not have permission for Bookings.' : undefined}
             onClick={() => setActiveTab('bookings')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               activeTab === 'bookings' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.bookings ? 'text-slate-300 cursor-not-allowed' : ''}`}
           >
@@ -3286,7 +3286,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.clients}
             title={!visitorAccess.tabs.clients ? 'You do not have permission for Clients.' : undefined}
             onClick={() => setActiveTab('clients')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               activeTab === 'clients' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.clients ? 'text-slate-300 cursor-not-allowed' : ''}`}
           >
@@ -3297,19 +3297,19 @@ export default function VisitorsManagementPage() {
         {/* 3. STATS OVERVIEW */}
         <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-            <div className="min-w-0"><p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Currently Inside</p><p className="text-[15px] font-black text-slate-900">{liveVisitors.filter((v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ') === 'checked in').length}</p></div>
+            <div className="min-w-0"><p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Currently Inside</p><p className="text-[15px] font-pmedium text-slate-900">{liveVisitors.filter((v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ') === 'checked in').length}</p></div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><User size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-            <div className="min-w-0"><p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Daily Bookings</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.length}</p></div>
+            <div className="min-w-0"><p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Daily Bookings</p><p className="text-[15px] font-pmedium text-slate-900">{dailyBookings.length}</p></div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><CalendarDays size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-            <div className="min-w-0"><p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Payments Due</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.filter((booking) => booking.paymentStatus === 'Pending Payment').length}</p></div>
+            <div className="min-w-0"><p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Payments Due</p><p className="text-[15px] font-pmedium text-slate-900">{dailyBookings.filter((booking) => booking.paymentStatus === 'Pending Payment').length}</p></div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Wallet size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
-            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Checked Out</p><p className="text-[15px] font-black text-slate-900">{totalCheckedOutCount}</p></div>
+            <div className="min-w-0"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Checked Out</p><p className="text-[15px] font-pmedium text-slate-900">{totalCheckedOutCount}</p></div>
             <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><LogOut size={16} /></div>
           </div>
         </div>
@@ -3366,7 +3366,7 @@ export default function VisitorsManagementPage() {
                 disabled={!canOpenFrontdeskAction}
                 title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
                 onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
-                className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-bold shadow-sm transition-all whitespace-nowrap ${
+                className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap ${
                   canOpenFrontdeskAction
                     ? 'bg-[#2563EB] text-white hover:bg-blue-700 active:scale-95'
                     : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
@@ -3541,33 +3541,33 @@ export default function VisitorsManagementPage() {
                       )}
                       {bkg.invoiceFileUrl && (
                         <>
-                          <button onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                          <button onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-2xl text-[7px] font-pmedium uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
                             <Download size={12} /> Invoice
                           </button>
-                          <button onClick={() => { const win = window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer'); if (win) window.setTimeout(() => win.print?.(), 800); }} className="px-2.5 py-1 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                          <button onClick={() => { const win = window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer'); if (win) window.setTimeout(() => win.print?.(), 800); }} className="px-2.5 py-1 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-2xl text-[7px] font-pmedium uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
                             <Printer size={12} /> Print
                           </button>
                         </>
                       )}
                       {bkg.status === 'In Progress' ? (
                         <>
-                          <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
+                          <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
                             <Eye size={12} /> View
                           </button>
-                          <button onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                          <button onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-2xl text-[7px] font-pmedium uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
                             <Clock size={12} /> Extend Slot
                           </button>
                         </>
                       ) : bkg.status === 'Completed' || bkg.status === 'Cancelled' ? (
-                        <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
+                        <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
                           <Eye size={14} /> View
                         </button>
                       ) : (
                         <>
-                          <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
+                          <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
                             <Eye size={14} /> View
                           </button>
-                          <button onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                          <button onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-2xl text-[7px] font-pmedium uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
                             <CalendarIcon size={12} /> Reschedule
                           </button>
                           {bkg.status !== 'In Progress' && (
@@ -3740,29 +3740,29 @@ export default function VisitorsManagementPage() {
 
         {/* MODAL 1: GRAND UNIFIED "LOG VISITOR & BOOKING" TERMINAL */}
         {isLoggingVisitor && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <div className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]">
 
-              <div className="p-3 md:p-3.5 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
+              <div className="p-3 md:p-3.5 bg-white border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
                 <div>
-                  <h2 className="text-primary font-pmedium text-white leading-none flex items-center gap-1.5"><UserPlus size={15} /> Frontdesk Action Terminal</h2>
-                  <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mt-1.5">Select the correct workflow below</p>
-                  <p className="mt-1 text-[10px] font-semibold text-slate-300">
-                    Logged in as <span className="font-black text-white">{frontdeskProfile.name}</span> ({frontdeskProfile.role})
+                  <h2 className="text-primary font-pmedium leading-none flex items-center gap-1.5"><UserPlus size={15} /> Frontdesk Action Terminal</h2>
+                  <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mt-1.5">Select the correct workflow below</p>
+                  <p className="mt-1 text-[10px] font-pmedium text-slate-500">
+                    Logged in as <span className="font-pmedium text-slate-900">{frontdeskProfile.name}</span> ({frontdeskProfile.role})
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5 w-full md:w-auto bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5 w-full md:w-auto bg-slate-100 p-1 rounded-xl border border-slate-200">
                   <button
                     type="button"
                     disabled={!visitorAccess.modes.standard}
                     title={!visitorAccess.modes.standard ? 'You do not have permission for Standard Visitor.' : undefined}
                     onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
-                    className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
+                    className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
                   >Standard Visitor</button>
-                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.tour ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
-                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
-                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.verify_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
+                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
+                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
+                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
                 </div>
               </div>
 
@@ -3781,7 +3781,7 @@ export default function VisitorsManagementPage() {
                               key={mode}
                               type="button"
                               onClick={() => switchStandardVisitorMode(mode)}
-                                className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
+                                className={`rounded-lg px-2.5 py-2 text-[9px] font-pmedium uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
                                   ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                                   : 'text-slate-500 hover:text-slate-900'
                                 }`}
@@ -3814,14 +3814,14 @@ export default function VisitorsManagementPage() {
                                     onClick={() => applyExistingStandardVisitor(visitor)}
                                     className="rounded-xl border border-blue-100 bg-white px-3 py-3 text-left transition-all hover:border-blue-400 hover:bg-blue-50"
                                   >
-                                    <p className="text-xs font-black text-slate-900">{visitor.name || 'Visitor'}</p>
-                                    <p className="mt-1 text-[10px] font-bold text-slate-600">{visitor.phone || 'No phone'} | {visitor.email || 'No email'}</p>
-                                    <p className="mt-1 text-[10px] font-bold text-blue-700">{visitor.company || 'No company'}</p>
+                                    <p className="text-xs font-pmedium text-slate-900">{visitor.name || 'Visitor'}</p>
+                                    <p className="mt-1 text-[10px] font-pmedium text-slate-600">{visitor.phone || 'No phone'} | {visitor.email || 'No email'}</p>
+                                    <p className="mt-1 text-[10px] font-pmedium text-blue-700">{visitor.company || 'No company'}</p>
                                   </button>
                                 ))}
                               </div>
                             ) : hasStandardVisitorSearchQuery ? (
-                              <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-xs font-bold text-gray-500">
+                              <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-xs font-pmedium text-gray-500">
                                 No matching visitor found in history.
                               </p>
                             ) : null}
@@ -3829,7 +3829,7 @@ export default function VisitorsManagementPage() {
                         )}
                       </div>
                     )}
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4 flex items-center gap-2"><User size={16} /> Personal Details</h3>
+                    <h3 className="text-xs font-pmedium text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4 flex items-center gap-2"><User size={16} /> Personal Details</h3>
 
                     <div className="space-y-3.5">
                       <div className="space-y-1">
@@ -3868,7 +3868,7 @@ export default function VisitorsManagementPage() {
                                 setAttendeeCount(nextValue);
                               }}
                             />
-                            <p className="text-[10px] font-semibold text-gray-400">
+                            <p className="text-[10px] font-pmedium text-gray-400">
                               {selectedWalkInRoom
                                 ? attendeeCapacity
                                   ? `Room capacity is ${attendeeCapacity}. Enter a manual count and keep it at or below that number.`
@@ -3911,7 +3911,7 @@ export default function VisitorsManagementPage() {
                                 key={mode}
                                 type="button"
                                 onClick={() => switchStandardVisitorMode(mode)}
-                                className={`rounded-lg px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
+                                className={`rounded-lg px-2.5 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
                                     ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                                     : 'text-slate-500 hover:text-slate-900'
                                   }`}
@@ -3943,8 +3943,8 @@ export default function VisitorsManagementPage() {
                                       className="rounded-xl border border-blue-100 bg-white px-3 py-2.5 text-left transition-all hover:border-blue-400 hover:bg-blue-50"
                                     >
                                       <p className="text-[12px] font-semibold text-slate-900">{visitor.name || 'Visitor'}</p>
-                                      <p className="mt-1 text-[10px] font-bold text-slate-600">{visitor.phone || 'No phone'} | {visitor.email || 'No email'}</p>
-                                      <p className="mt-1 text-[10px] font-bold text-blue-700">{visitor.company || 'No company'}</p>
+                                      <p className="mt-1 text-[10px] font-pmedium text-slate-600">{visitor.phone || 'No phone'} | {visitor.email || 'No email'}</p>
+                                      <p className="mt-1 text-[10px] font-pmedium text-blue-700">{visitor.company || 'No company'}</p>
                                     </button>
                                   ))}
                                 </div>
@@ -4140,7 +4140,7 @@ export default function VisitorsManagementPage() {
                               hostGroupValue: type === 'standard' ? '' : prev.hostGroupValue,
                               hostUserId: type === 'standard' ? '' : prev.hostUserId,
                             }))}
-                            className={`rounded-lg px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 ${locked
+                            className={`rounded-lg px-2.5 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 ${locked
                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                   : form.standardVisitorType === type
                                     ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
@@ -4258,11 +4258,11 @@ export default function VisitorsManagementPage() {
                           <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5">
                             <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={18} />
                             <div className="space-y-1">
-                              <p className="text-[10px] font-bold text-blue-800 uppercase tracking-widest leading-relaxed">System will notify the host for approval.</p>
+                              <p className="text-[10px] font-pmedium text-blue-800 uppercase tracking-widest leading-relaxed">System will notify the host for approval.</p>
                               {visitorOverviewError ? (
                                 <p className="text-[10px] font-medium text-red-600">{visitorOverviewError}</p>
                               ) : (
-                                <p className="text-[10px] font-bold text-blue-700">Only present unit members in the selected group can be selected, including managers and other roles.</p>
+                                <p className="text-[10px] font-pmedium text-blue-700">Only present unit members in the selected group can be selected, including managers and other roles.</p>
                               )}
                             </div>
                           </div>
@@ -4479,7 +4479,7 @@ export default function VisitorsManagementPage() {
 
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5">
                         <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-[10px] font-bold text-blue-700 leading-relaxed">
+                        <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">
                           Visitor is checked in &amp; lead synced to CRM. All starred (*) fields required.
                         </p>
                       </div>
@@ -4507,7 +4507,7 @@ export default function VisitorsManagementPage() {
                                   key={mode}
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, clientBookingMode: mode, clientId: mode === 'new' ? '' : prev.clientId }))}
-                                  className={`rounded-lg px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'}`}
+                                  className={`rounded-lg px-2.5 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'}`}
                                 >
                                   {label}
                                 </button>
@@ -4528,7 +4528,7 @@ export default function VisitorsManagementPage() {
                                   <button
                                     type="button"
                                     onClick={() => refreshBookingClients(form.clientSearch)}
-                                    className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
+                                    className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[10px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
                                   >
                                     Search
                                   </button>
@@ -4543,8 +4543,8 @@ export default function VisitorsManagementPage() {
                                         className={`rounded-xl border p-3 text-left transition-all ${String(form.clientId) === String(client.id || client.recordId) ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-slate-50 hover:border-blue-200 hover:bg-white'}`}
                                       >
                                         <p className="text-[11px] font-black text-slate-950">{client.name || client.company}</p>
-                                        <p className="mt-1 text-[10px] font-bold text-slate-500">{client.phone || 'No phone'} • {client.email || 'No email'}</p>
-                                        <p className="mt-1 text-[9px] font-black uppercase tracking-widest text-blue-600">{client.clientCode || 'Client'} • {client.bookingCount || 0} bookings</p>
+                                        <p className="mt-1 text-[10px] font-pmedium text-slate-500">{client.phone || 'No phone'} • {client.email || 'No email'}</p>
+                                        <p className="mt-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-600">{client.clientCode || 'Client'} • {client.bookingCount || 0} bookings</p>
                                       </button>
                                     ))}
                                   </div>
@@ -4572,12 +4572,12 @@ export default function VisitorsManagementPage() {
                             </div>
 
                             {selectedBookingClient && (
-                              <p className="text-[10px] font-bold text-blue-700">Using saved client {selectedBookingClient.clientCode || selectedBookingClient.name}. Contact fields are auto-filled; choose the room, schedule, and payment details below.</p>
+                              <p className="text-[10px] font-pmedium text-blue-700">Using saved client {selectedBookingClient.clientCode || selectedBookingClient.name}. Contact fields are auto-filled; choose the room, schedule, and payment details below.</p>
                             )}
 
                             {form.clientBookingMode === 'new' && matchedSavedVisitors.length > 0 && (
                               <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
-                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Saved visitor matches</p>
+                                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Saved visitor matches</p>
                                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                   {matchedSavedVisitors.map((visitor) => (
                                     <button
@@ -4587,7 +4587,7 @@ export default function VisitorsManagementPage() {
                                       className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-left transition-all hover:border-blue-500 hover:bg-blue-50"
                                     >
                                       <p className="text-[12px] font-semibold text-slate-900">{visitor.name || 'Visitor'}</p>
-                                      <p className="mt-1 text-[10px] font-bold text-slate-500">{visitor.phone || 'No phone'} • {visitor.email || 'No email'}</p>
+                                      <p className="mt-1 text-[10px] font-pmedium text-slate-500">{visitor.phone || 'No phone'} • {visitor.email || 'No email'}</p>
                                     </button>
                                   ))}
                                 </div>
@@ -4721,7 +4721,7 @@ export default function VisitorsManagementPage() {
                                   </select>
                                 </div>
                                 <div className="rounded-xl bg-white px-4 py-3 text-right shadow-sm">
-                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seat Availability</p>
+                                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seat Availability</p>
                                   <p className="mt-1 text-xs font-bold text-blue-700">
                                     {deskSeatOptions.filter((seat) => seat.available).length} / {deskSeatOptions.length} available
                                   </p>
@@ -4826,7 +4826,7 @@ export default function VisitorsManagementPage() {
                             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className={statusPillClass("Alternative times")}>Alternative times</span>
-                                <span className="text-[10px] font-bold text-blue-700">{formatWalkInDateLabel(form.startDate, form.endDate)}</span>
+                                <span className="text-[10px] font-pmedium text-blue-700">{formatWalkInDateLabel(form.startDate, form.endDate)}</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {walkInAvailability.slotSuggestions.map((slot) => (
@@ -4834,7 +4834,7 @@ export default function VisitorsManagementPage() {
                                     key={`${slot.start}-${slot.end}`}
                                     type="button"
                                     onClick={() => setForm({ ...form, startTime: slot.start, endTime: slot.end })}
-                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
                                   >
                                     {formatTimeLabel(slot.start)} - {formatTimeLabel(slot.end)}
                                   </button>
@@ -4847,7 +4847,7 @@ export default function VisitorsManagementPage() {
                             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className={statusPillClass("Available seats")}>Available seats</span>
-                                <span className="text-[10px] font-bold text-blue-700">Desk Area</span>
+                                <span className="text-[10px] font-pmedium text-blue-700">Desk Area</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {walkInAvailability.seatSuggestions.map((seatNumber) => (
@@ -4855,7 +4855,7 @@ export default function VisitorsManagementPage() {
                                     key={seatNumber}
                                     type="button"
                                     onClick={() => setForm((prev) => ({ ...prev, seatNumber: String(seatNumber), attendees: 1 }))}
-                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
                                   >
                                     Seat {seatNumber}
                                   </button>
@@ -4874,7 +4874,7 @@ export default function VisitorsManagementPage() {
                             <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className={statusPillClass("Live Pricing")}>Live Pricing</span>
-                                <span className="text-[10px] font-bold text-slate-400">{selectedWalkInRoom?.capacity || 0} seats</span>
+                                <span className="text-[10px] font-pmedium text-slate-400">{selectedWalkInRoom?.capacity || 0} seats</span>
                               </div>
                               <p className="text-[12px] font-semibold text-blue-700">
                                 {selectedWalkInRoom?.pricePerHour > 0
@@ -4885,14 +4885,14 @@ export default function VisitorsManagementPage() {
                                 <button
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, discountType: 'amount' }))}
-                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all ${form.discountType === 'amount' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
+                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.discountType === 'amount' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                 >
                                   Amount
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, discountType: 'percent' }))}
-                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all ${form.discountType === 'percent' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
+                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.discountType === 'percent' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                 >
                                   Percent
                                 </button>
@@ -4948,7 +4948,7 @@ export default function VisitorsManagementPage() {
                                         className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition-all hover:border-blue-200 hover:bg-blue-50"
                                       >
                                         <span className="text-[12px] font-semibold text-slate-900">{room.name}</span>
-                                        <span className="text-[10px] font-bold text-slate-500">{room.floor} - {room.capacity} seats</span>
+                                        <span className="text-[10px] font-pmedium text-slate-500">{room.floor} - {room.capacity} seats</span>
                                       </button>
                                     ))
                                   ) : (
@@ -4966,7 +4966,7 @@ export default function VisitorsManagementPage() {
                                     key={mode}
                                     type="button"
                                     onClick={() => setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null })}
-                                    className={`rounded-lg border px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
+                                    className={`rounded-lg border px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                   >
                                     {mode}
                                   </button>
@@ -5000,7 +5000,7 @@ export default function VisitorsManagementPage() {
                                 </div>
                               )}
                               <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 space-y-1">
-                                <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">Summary</p>
+                                <p className="text-[10px] font-pmedium text-blue-700 uppercase tracking-widest">Summary</p>
                                 <p className="text-[12px] font-semibold text-blue-950">{selectedWalkInRoom?.name || 'Select a room'} - {selectedWalkInRoom?.floor || form.floor || 'Select floor'} {selectedWalkInRoom?.wing || form.wing || ''}{isDeskAreaSeatBooking ? ` - Seat ${form.seatNumber || '-'}` : ''} - {formatWalkInDateLabel(form.startDate, form.endDate) || 'Select dates'}</p>
                                 <p className="text-[12px] font-medium text-blue-900/80">{walkInAvailability.reason}</p>
                               </div>
@@ -5012,18 +5012,18 @@ export default function VisitorsManagementPage() {
 
                   {visitorMode === 'verify_booking' && (
                     <div className="space-y-2.5 animate-in fade-in h-full flex flex-col bg-gray-50 rounded-lg border border-gray-200 p-2.5 text-[10px]">
-                      <h3 className="text-xs font-black text-blue-600 uppercase tracking-widest border-b border-blue-200 pb-2 mb-2 flex items-center gap-2"><Search size={16} /> Online Booking Lookup</h3>
+                      <h3 className="text-xs font-pmedium text-blue-600 uppercase tracking-widest border-b border-blue-200 pb-2 mb-2 flex items-center gap-2"><Search size={16} /> Online Booking Lookup</h3>
 
                       <div className="flex gap-3">
                         <input type="text" placeholder="Enter booking ID..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-blue-500 outline-none uppercase shadow-sm text-xs" value={form.bookingId} onChange={e => setForm({ ...form, bookingId: e.target.value })} />
-                        <button onClick={handleVerifySearch} disabled={!form.bookingId || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission to verify booking IDs.' : undefined} className="btn-pill px-6 bg-gray-900 text-white hover:bg-black disabled:bg-gray-300 transition-all shadow-md">FETCH</button>
+                        <button onClick={handleVerifySearch} disabled={!form.bookingId || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission to verify booking IDs.' : undefined} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-6 bg-gray-900 text-white hover:bg-black disabled:bg-gray-300 transition-all shadow-md">FETCH</button>
                       </div>
 
                       {verifiedBooking && (
                         <div className="flex-1 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4 animate-in slide-in-from-bottom-2">
                           <div className="flex justify-between items-start border-b border-gray-100 pb-4">
                             <div>
-                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Matched Booking</p>
+                              <p className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Matched Booking</p>
                               <p className="font-bold text-gray-900 text-lg mt-1">{verifiedBooking.resource}</p>
                               <p className="text-xs font-bold text-gray-500">{verifiedBooking.date} • {verifiedBooking.time}</p>
                             </div>
@@ -5033,25 +5033,25 @@ export default function VisitorsManagementPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <p className="text-[10px] font-black text-gray-500 uppercase">Booked By / Primary Attendee</p>
+                            <p className="text-[10px] font-pmedium text-gray-500 uppercase">Booked By / Primary Attendee</p>
                             <p className="font-bold text-gray-900">{verifiedBooking.bookedBy} <span className="text-gray-400 text-xs">({verifiedBooking.company})</span></p>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="rounded-xl bg-gray-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Booking ID</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Booking ID</p>
                               <p className="mt-1 font-black text-gray-900">{verifiedBooking.id}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Attendees</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Attendees</p>
                               <p className="mt-1 font-black text-gray-900">{verifiedBooking.attendees || '1'}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Email</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Email</p>
                               <p className="mt-1 font-bold text-gray-900">{verifiedBooking.email || 'Not provided'}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Payment Mode</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Mode</p>
                               <p className="mt-1 font-bold text-gray-900">{verifiedBooking.paymentMode || 'Not set'}</p>
                             </div>
                           </div>
@@ -5066,7 +5066,7 @@ export default function VisitorsManagementPage() {
                                 {['Cash', 'GPay (UPI)'].map(method => (
                                   <button
                                     key={method} type="button" onClick={() => setForm({ ...form, paymentMode: method })}
-                                    className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all border ${form.paymentMode === method ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-700'}`}
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-pmedium transition-all border ${form.paymentMode === method ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-700'}`}
                                   >
                                     {method}
                                   </button>
@@ -5091,23 +5091,23 @@ export default function VisitorsManagementPage() {
                     onClick={handleProcessAction}
                     disabled={isSubmittingVisitor || isVisitorOverviewLoading || !visitorAccess.modes.standard || isReadOnlySession}
                     title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
-                    className="flex-1 px-8 py-2.5 bg-[#2563EB] text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-8 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 size={14} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
                   </button>
                 )}
                 {visitorMode === 'tour' && (
-                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="btn-pill flex-1 py-3 bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
+                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
                     <Building size={18} /> SYNC LEAD & START TOUR
                   </button>
                 )}
                 {visitorMode === 'walkin_booking' && (
-                  <button disabled={!walkInAvailability.available || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="btn-pill flex-[2] py-3 bg-blue-600 text-white shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
+                  <button disabled={!walkInAvailability.available || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-[2] py-3 bg-blue-600 text-white shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
                     <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
                 {visitorMode === 'verify_booking' && (
-                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="btn-pill flex-[2] py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
+                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-[2] py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
                     <CheckCircle2 size={18} /> {verifiedBooking?.status === 'Pending Payment' ? 'MARK PAID & CHECK IN' : 'CONFIRM ENTRY'}
                   </button>
                 )}
@@ -5121,7 +5121,7 @@ export default function VisitorsManagementPage() {
             <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-2xl">
               <div className="bg-emerald-50 px-6 py-5 border-b border-emerald-100 flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Booking Confirmed</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Booking Confirmed</p>
                   <h3 className="mt-1 text-2xl font-black text-emerald-950">Walk-in booking saved</h3>
                   <p className="mt-1 text-sm font-semibold text-emerald-900/80">Move to verification and fetch the booking ID.</p>
                 </div>
@@ -5138,25 +5138,25 @@ export default function VisitorsManagementPage() {
               </div>
               <div className="p-6 space-y-3.5">
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Booking ID</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Booking ID</p>
                   <p className="mt-1 text-2xl font-black tracking-[0.2em] text-emerald-700">{bookingConfirmation.bookingId}</p>
-                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-gray-500">This ID is already saved and ready to verify.</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-gray-500">This ID is already saved and ready to verify.</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Room</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Room</p>
                     <p className="mt-1 text-sm font-black text-gray-900">{bookingConfirmation.roomName}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Total</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Total</p>
                     <p className="mt-1 text-sm font-black text-gray-900">{formatCurrency(bookingConfirmation.totalAmount || 0)}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Payment Mode</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Mode</p>
                     <p className="mt-1 text-sm font-black text-gray-900">{bookingConfirmation.paymentMode || 'Cash'}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Transaction</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Transaction</p>
                     <p className="mt-1 text-sm font-black text-gray-900">{bookingConfirmation.transactionId || 'Not required'}</p>
                   </div>
                 </div>
@@ -5176,7 +5176,7 @@ export default function VisitorsManagementPage() {
                     setBookingConfirmation(null);
                     setAvailabilityStatus('idle');
                   }}
-                  className="w-full rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700"
+                  className="w-full rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-pmedium text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700"
                 >
                   GO TO VERIFY BOOKING
                 </button>
@@ -5192,7 +5192,7 @@ export default function VisitorsManagementPage() {
               <div className="p-6 md:p-8 bg-indigo-600 text-white flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-xl font-black flex items-center gap-2"><Clock size={20} /> Extend Booking</h2>
-                  <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest mt-1">{extendingBooking.resource} • {extendingBooking.bookedBy}</p>
+                  <p className="text-[10px] font-pmedium text-indigo-200 uppercase tracking-widest mt-1">{extendingBooking.resource} • {extendingBooking.bookedBy}</p>
                 </div>
                 <button onClick={() => { setIsExtendModalOpen(false); setExtendAvailability('idle'); }} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={16} /></button>
               </div>
@@ -5201,12 +5201,12 @@ export default function VisitorsManagementPage() {
 
                 <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center">
                   <div>
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-0.5">Current End Time</p>
+                    <p className="text-[10px] font-pmedium text-indigo-400 uppercase tracking-widest mb-0.5">Current End Time</p>
                     <p className="text-lg font-black text-indigo-900">{extendingBooking.time.split(' - ')[1].replace(' (Extended)', '')}</p>
                   </div>
                   <ArrowRight size={20} className="text-indigo-300" />
                   <div className="text-right">
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-0.5">New End Time *</p>
+                    <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mb-0.5">New End Time *</p>
                     <input required type="time" step={WALK_IN_SLOT_STEP * 60} min={(() => {
                       const startTime = extendingBooking?.raw?.startTime || extendingBooking?.startTime || '';
                       const startMinutes = timeToMinutes(startTime);
@@ -5216,7 +5216,7 @@ export default function VisitorsManagementPage() {
                 </div>
 
                 {extendAvailability === 'idle' && extendForm.newEndTime && (
-                  <button type="button" onClick={handleCheckExtendAvailability} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-black text-xs hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
+                  <button type="button" onClick={handleCheckExtendAvailability} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-pmedium text-xs hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
                     <Search size={14} /> Check Availability & Calculate
                   </button>
                 )}
@@ -5232,7 +5232,7 @@ export default function VisitorsManagementPage() {
                     <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
                     <div>
                       <p className="text-xs font-black text-red-700">Extension Blocked</p>
-                      <p className="text-[10px] font-bold text-red-600 mt-1">Another booking conflicts with this extension window (including the 5-minute cleanup buffer).</p>
+                      <p className="text-[10px] font-pmedium text-red-600 mt-1">Another booking conflicts with this extension window (including the 5-minute cleanup buffer).</p>
                     </div>
                   </div>
                 )}
@@ -5240,7 +5240,7 @@ export default function VisitorsManagementPage() {
                 {extendAvailability === 'available' && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 space-y-3.5">
                     <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl">
-                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Extra Charges Calculation</p>
+                      <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mb-3">Extra Charges Calculation</p>
                       <div className="flex justify-between text-xs font-bold text-gray-600 mb-2">
                         <span>Extra Hours ({extendPricing.extraHours}h)</span>
                         <span>{formatCurrency(extendPricing.base)}</span>
@@ -5256,7 +5256,7 @@ export default function VisitorsManagementPage() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Collect Payment</p>
+                      <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Collect Payment</p>
                       <div className="flex gap-2">
                         {['Cash', 'GPay (UPI)'].map(mode => (
                           <button key={mode} type="button" onClick={() => setExtendForm({ ...extendForm, paymentMode: mode })} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${extendForm.paymentMode === mode ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}>
@@ -5269,8 +5269,8 @@ export default function VisitorsManagementPage() {
                 )}
 
                 <div className="pt-2 flex gap-3">
-                  <button type="button" onClick={() => { setIsExtendModalOpen(false); setExtendAvailability('idle'); }} className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-black hover:bg-gray-200 transition-all text-xs">CANCEL</button>
-                  <button type="submit" disabled={extendAvailability !== 'available'} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-xl font-black shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="button" onClick={() => { setIsExtendModalOpen(false); setExtendAvailability('idle'); }} className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-xs">CANCEL</button>
+                  <button type="submit" disabled={extendAvailability !== 'available'} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-xl font-pmedium shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     COLLECT & EXTEND <CheckCircle2 size={16} />
                   </button>
                 </div>
@@ -5288,7 +5288,7 @@ export default function VisitorsManagementPage() {
                   <div className="p-3 bg-red-100 text-red-600 rounded-xl"><XCircle size={24} /></div>
                   <div>
                     <h2 className="text-xl font-black text-red-900 leading-none">Cancel Booking</h2>
-                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-1">{cancellingBooking.id}</p>
+                    <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mt-1">{cancellingBooking.id}</p>
                   </div>
                 </div>
                 <button onClick={() => setCancellingBooking(null)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
@@ -5325,8 +5325,8 @@ export default function VisitorsManagementPage() {
               </div>
 
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
-                <button onClick={() => setCancellingBooking(null)} className="btn-pill flex-1 py-4 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">ABORT</button>
-                <button disabled={!cancelForm.reason || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={handleCancelUpcoming} className="btn-pill flex-1 py-4 bg-red-600 text-white shadow-lg shadow-red-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
+                <button onClick={() => setCancellingBooking(null)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-4 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">ABORT</button>
+                <button disabled={!cancelForm.reason || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={handleCancelUpcoming} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-4 bg-red-600 text-white shadow-lg shadow-red-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
               </div>
             </div>
           </div>
@@ -5341,7 +5341,7 @@ export default function VisitorsManagementPage() {
                   <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><CalendarDays size={24} /></div>
                   <div>
                     <h2 className="text-xl font-black text-amber-900 leading-none">Reschedule Booking</h2>
-                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mt-1">{reschedulingBooking.resource}</p>
+                    <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mt-1">{reschedulingBooking.resource}</p>
                   </div>
                 </div>
                 <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
@@ -5350,11 +5350,11 @@ export default function VisitorsManagementPage() {
               <div className="p-8 space-y-6">
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center gap-4">
                   <div className="flex-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Booked Slot</p>
+                    <p className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest mb-1">Current Booked Slot</p>
                     <p className="font-bold text-gray-900">{reschedulingBooking.date} • {reschedulingBooking.time}</p>
                   </div>
                   <div className="flex-1 border-l-2 border-gray-200 pl-4">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Resource</p>
+                    <p className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest mb-1">Resource</p>
                     <p className="font-bold text-blue-600">{reschedulingBooking.resource}</p>
                   </div>
                 </div>
@@ -5373,7 +5373,7 @@ export default function VisitorsManagementPage() {
                     <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
                       <div className="flex justify-between items-center">
                         <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Available Time Slots</label>
-                        <span className="text-[10px] font-black text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><Check size={10} /> Live Master Calendar Sync</span>
+                        <span className="text-[10px] font-pmedium text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><Check size={10} /> Live Master Calendar Sync</span>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[150px] overflow-y-auto pr-2">
                         {['09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00'].map((slot, idx) => {
@@ -5426,7 +5426,7 @@ export default function VisitorsManagementPage() {
 
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
                 <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
-                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime} onClick={handleRescheduleUpcoming} className="flex-1 py-4 bg-amber-500 text-white rounded-2xl font-black shadow-lg shadow-amber-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
+                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime} onClick={handleRescheduleUpcoming} className="flex-1 py-4 bg-amber-500 text-white rounded-2xl font-pmedium shadow-lg shadow-amber-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
                   <CheckCircle2 size={18} /> UPDATE BOOKING SLOT
                 </button>
               </div>
@@ -5572,7 +5572,7 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {viewingVisitor.status === 'Checked In' && (
-                  <button disabled={isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={() => handleCheckOut(viewingVisitor.id)} className="btn-pill flex-1 py-2.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
+                  <button disabled={isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={() => handleCheckOut(viewingVisitor.id)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-2.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
                     <LogOut size={15} /> CHECK OUT
                   </button>
                 )}
@@ -5591,7 +5591,7 @@ export default function VisitorsManagementPage() {
                     {viewingBooking.resource}
                     <span className={statusPillClass(viewingBooking.status)}>{viewingBooking.status}</span>
                   </h2>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">
+                  <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mt-2">
                     {viewingBooking.company}
                   </p>
                 </div>
@@ -5603,19 +5603,19 @@ export default function VisitorsManagementPage() {
               <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
                 <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4">
                   <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Booked By</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Booked By</p>
                     <p className="text-lg font-black text-gray-900">{viewingBooking.bookedBy}</p>
                     <p className="text-xs font-bold text-gray-500">{viewingBooking.company}</p>
                   </div>
                   <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Schedule</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Schedule</p>
                     <p className="text-lg font-black text-gray-900">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}</p>
                     <p className="text-xs font-bold text-gray-500">{viewingBooking.time}</p>
                     {viewingBooking.isExtended && (
                       <div className="pt-2 space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Original Slot</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Original Slot</p>
                         <p className="text-xs font-bold text-gray-400 line-through decoration-gray-300">{viewingBooking.originalDateLabel || viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)} â€¢ {viewingBooking.originalTime || viewingBooking.time}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-purple-600 mt-2">Extended Slot</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-purple-600 mt-2">Extended Slot</p>
                         <p className="text-xs font-bold text-purple-700">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)} â€¢ {viewingBooking.time}</p>
                       </div>
                     )}
@@ -5624,11 +5624,11 @@ export default function VisitorsManagementPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Payment Status</p>
+                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Status</p>
                     <p className={`mt-2 text-sm font-black ${normalizeText(viewingBooking.paymentStatus).includes('pending') || normalizeText(viewingBooking.paymentStatus).includes('unpaid') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingBooking.paymentStatus || 'Pending Payment'}</p>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4 md:col-span-1">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Amount Breakdown</p>
+                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Amount Breakdown</p>
                     <div className="mt-3 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-gray-500">Base Amount</span>
@@ -5659,62 +5659,62 @@ export default function VisitorsManagementPage() {
                     </div>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Payment Mode</p>
+                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Mode</p>
                     <p className="mt-2 text-sm font-black text-gray-900">{viewingBooking.paymentMode || 'Not set'}</p>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Attendees</p>
+                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Attendees</p>
                     <p className="mt-2 text-sm font-black text-gray-900">{viewingBooking.attendees || 0}</p>
                   </div>
                 </div>
 
                 <div className="rounded-3xl bg-gray-50 border border-gray-100 p-5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Contact & Source</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 mb-3">Contact & Source</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Phone</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Phone</p>
                       <p className="mt-1 font-bold text-gray-900">{viewingBooking.phone || 'Not provided'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Email</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Email</p>
                       <p className="mt-1 font-bold text-gray-900 break-all">{viewingBooking.email || 'Not provided'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Finance Status</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Finance Status</p>
                       <p className="mt-1 font-bold text-gray-900">{viewingBooking.financeStatus || 'Not set'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Source Reference</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Source Reference</p>
                       <p className="mt-1 font-bold text-gray-900 break-all">{viewingBooking.sourceReference || 'Frontdesk'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Booking Type</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Booking Type</p>
                       <p className="mt-1 font-bold text-gray-900">{viewingBooking.bookingType || 'External'}</p>
                     </div>
                   </div>
                   <div className="mt-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Notes</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Notes</p>
                     <p className="mt-1 text-sm font-medium text-gray-700 leading-relaxed">{viewingBooking.notes || 'No booking notes added.'}</p>
                   </div>
                 </div>
               </div>
 
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 shrink-0">
-                <button onClick={() => setViewingBooking(null)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-600 hover:bg-gray-100 transition-all">
+                <button onClick={() => setViewingBooking(null)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-pmedium text-gray-600 hover:bg-gray-100 transition-all">
                   CLOSE
                 </button>
                 {viewingBooking.status === 'In Progress' ? (
                   <>
-                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="flex-1 py-4 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-2xl font-black hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="flex-1 py-4 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-2xl font-pmedium hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
                       <Clock size={18} /> EXTEND SLOT
                     </button>
                   </>
                 ) : viewingBooking.status !== 'Completed' && viewingBooking.status !== 'Cancelled' && (
                   <>
-                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); setViewingBooking(null); }} className="flex-1 py-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl font-black hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); setViewingBooking(null); }} className="flex-1 py-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl font-pmedium hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
                       <CalendarIcon size={18} /> RESCHEDULE
                     </button>
-                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-pmedium shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                       <XCircle size={18} /> CANCEL
                     </button>
                   </>
@@ -5733,7 +5733,7 @@ export default function VisitorsManagementPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-2xl font-black leading-none text-slate-950">{viewingClient.name || viewingClient.company || 'Client'}</h2>
                     {viewingClient.company && (
-                      <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                      <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium text-slate-600">
                         {viewingClient.company}
                       </span>
                     )}
@@ -5743,7 +5743,7 @@ export default function VisitorsManagementPage() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{viewingClient.phone || viewingClient.email || 'No contact'} • {viewingClient.bookingCount || 0} bookings</p>
+                  <p className="mt-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{viewingClient.phone || viewingClient.email || 'No contact'} • {viewingClient.bookingCount || 0} bookings</p>
                 </div>
                 <button onClick={() => setViewingClient(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm transition-all hover:text-red-500">
                   <X size={20} />
@@ -5753,23 +5753,23 @@ export default function VisitorsManagementPage() {
               <div className="flex-1 space-y-4 overflow-y-auto p-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Phone</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
                     <p className="mt-2 text-sm font-black text-slate-900">{viewingClient.phone || 'Not provided'}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Email</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
                     <p className="mt-2 break-all text-sm font-black text-slate-900">{viewingClient.email || 'Not provided'}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Bookings</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Bookings</p>
                     <p className="mt-2 text-xl font-black text-slate-900">{viewingClient.bookingCount || 0}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Value</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Value</p>
                     <p className="mt-2 text-xl font-black text-slate-900">{formatCurrency(viewingClient.totalBookedAmount || 0)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Source</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Source</p>
                     <p className="mt-2 text-sm font-black text-slate-900">
                       {normalizeText(viewingClient.source) === 'visitor-conversion' ? 'Visitor Conversion' : 'Walk-in Booking'}
                     </p>
@@ -5778,7 +5778,7 @@ export default function VisitorsManagementPage() {
 
                 <div className="rounded-3xl border border-slate-100 bg-white">
                   <div className="border-b border-slate-100 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Booking History</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Booking History</p>
                   </div>
                   <div className="divide-y divide-slate-100">
                     {(viewingClient.bookings || []).map((booking) => (
@@ -5795,7 +5795,7 @@ export default function VisitorsManagementPage() {
                           <div className="text-right">
                             <p className="text-sm font-black text-slate-900">{formatCurrency(booking.totalAmount || booking.amountDue || 0)}</p>
                             {Number(booking.discountAmount || 0) > 0 && (
-                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                              <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">
                                 Disc. {formatCurrency(booking.discountAmount)}{booking.discountType === 'percent' ? ` (${Number(booking.discountValue || 0)}%)` : ''}
                               </p>
                             )}
@@ -5803,7 +5803,7 @@ export default function VisitorsManagementPage() {
                           <button
                             type="button"
                             onClick={() => { setViewingBooking(booking); setViewingClient(null); }}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                           >
                             View
                           </button>
@@ -5818,7 +5818,7 @@ export default function VisitorsManagementPage() {
               </div>
 
               <div className="shrink-0 border-t border-slate-100 bg-slate-50 p-6">
-                <button onClick={() => setViewingClient(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-black text-slate-600 transition-all hover:bg-slate-100">
+                <button onClick={() => setViewingClient(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition-all hover:bg-slate-100">
                   CLOSE
                 </button>
               </div>

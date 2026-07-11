@@ -29,11 +29,11 @@ function normalizeAsset(asset: any): Asset {
 function StatusBadge({ status }: { status?: string }) {
   switch ((status || '').toLowerCase()) {
     case 'active':
-      return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><ShieldCheck size={12} /> Active</span>;
+      return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded-lg text-[10px] font-pmedium uppercase tracking-wider"><ShieldCheck size={12} /> Active</span>;
     case 'maintenance':
-      return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><Wrench size={12} /> In Maintenance</span>;
+      return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-[10px] font-pmedium uppercase tracking-wider"><Wrench size={12} /> In Maintenance</span>;
     case 'decommissioned':
-      return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><Box size={12} /> Decommissioned</span>;
+      return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-lg text-[10px] font-pmedium uppercase tracking-wider"><Box size={12} /> Decommissioned</span>;
     default:
       return null;
   }
@@ -114,7 +114,7 @@ export function AssignedAssetsTab() {
             <div key={asset.id || asset.recordId} className="bg-white border border-slate-200/60 p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all hover:shadow-md">
               <div className="flex justify-between items-start gap-3">
                 <div className="flex-1 flex flex-col gap-1.5">
-                  <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{asset.id}</span>
+                  <span className="font-mono text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{asset.id}</span>
                   <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">{asset.name}</h3>
                   <p className="text-[12px] text-slate-500 font-medium">{asset.category || '--'}</p>
                 </div>
@@ -125,13 +125,13 @@ export function AssignedAssetsTab() {
 
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <div>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Department</span>
+                  <span className="text-[9px] text-slate-400 font-pmedium uppercase tracking-wider block mb-0.5">Department</span>
                   <span className="text-[11px] font-semibold text-[#0F172A] truncate flex items-center gap-1" title={asset.department}>
                     <Building2 size={10} className="text-slate-400 shrink-0" /> {asset.department || '--'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Location</span>
+                  <span className="text-[9px] text-slate-400 font-pmedium uppercase tracking-wider block mb-0.5">Location</span>
                   <span className="text-[11px] font-semibold text-slate-700 truncate flex items-center gap-1" title={asset.location}>
                     <MapPin size={10} className="text-slate-400 shrink-0" /> {asset.location || '--'}
                   </span>

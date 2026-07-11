@@ -13,7 +13,7 @@ const HostFooter = () => {
         </div>
       </div>
 
-      <div className="flex w-full flex-col items-center justify-center bg-gray-50 px-4 py-4 text-[10px] font-semibold text-gray-800 md:flex-row md:text-xs">
+      <div className="flex w-full flex-col items-center justify-center bg-gray-50 px-4 py-4 text-[10px] font-pmedium text-gray-800 md:flex-row md:text-xs">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
             <FaGlobe className="text-[12px]" />

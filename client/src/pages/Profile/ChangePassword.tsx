@@ -202,7 +202,7 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
             <KeyRound size={20} />
           </div>
           <div>
-            {/* <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-blue-600">Security</p> */}
+            {/* <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">Security</p> */}
             <h2 className="text-lg font-pmedium text-slate-900">Update Password</h2>
           </div>
         </div>
@@ -309,7 +309,7 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 mb-5">
           <div className="flex items-center gap-2">
             <Lock size={14} className="text-blue-600" />
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Password Requirements</span>
+            <span className="text-xs font-pmedium uppercase tracking-wider text-slate-600">Password Requirements</span>
           </div>
           <ul className="text-xs text-slate-500 list-disc pl-5 space-y-1">
             <li>Must be at least 8 characters long.</li>
@@ -348,7 +348,7 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
             disabled={isReadOnlySession}
             title={isReadOnlySession ? "Read-only staff view — changes are disabled" : undefined}
             onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-pmedium text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             <Trash2 size={16} /> Delete My Account
           </button>
@@ -433,7 +433,7 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
                   setDeleteConfirmText("");
                   setDeleteError("");
                 }}
-                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-pmedium text-slate-600 transition hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -441,7 +441,7 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
                 type="button"
                 disabled={isDeleting || !canConfirmDelete || isReadOnlySession}
                 onClick={handleDeleteAccount}
-                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-pmedium text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 <Trash2 size={16} />{" "}
                 {isDeleting ? "Deleting..." : isFounder ? "Delete My Account & Team" : "Confirm Delete"}

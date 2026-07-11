@@ -6,7 +6,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { CheckCircle2, Edit3, Layers, Search, Target, XCircle } from "lucide-react";
+import { CheckCircle2, Edit3, Layers, Plus, Search, Target, XCircle } from "lucide-react";
 import { statusPillClass } from '../../../lib/status-pill';
 
 function formatDate(raw) {
@@ -140,7 +140,7 @@ export default function NomadListingsOverview() {
                   type="button"
                   disabled={isRequesting}
                   onClick={() => requestCompaniesListing()}
-                  className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                  className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                 >
                   {isRequesting ? "Sending..." : "Request to be listed"}
                 </button>
@@ -152,22 +152,22 @@ export default function NomadListingsOverview() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Listings</p>
-                <p className="text-[15px] font-black text-slate-900">{totalListings}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Listings</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{totalListings}</p>
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Layers size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Active</p>
-                <p className="text-[15px] font-black text-slate-900">{activeListings}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Active</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{activeListings}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-1">Inactive</p>
-                <p className="text-[15px] font-black text-slate-900">{inactiveListings}</p>
+                <p className="text-[10px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Inactive</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{inactiveListings}</p>
               </div>
               <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><XCircle size={16} /></div>
             </div>
@@ -233,9 +233,9 @@ export default function NomadListingsOverview() {
                   <button
                     type="button"
                     onClick={handleAddClick}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
-                    Add Product
+                    <Plus size={13} strokeWidth={3} /> ADD PRODUCT
                   </button>
                 </div>
               </div>

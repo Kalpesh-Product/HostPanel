@@ -1092,14 +1092,14 @@ export function OrganizationPage() {
 
         {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-          <button onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+          <button onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
             <Shield size={16} className="inline mr-1"/> PLATFORM USERS
           </button>
           <button
             title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
             disabled={!canAccessDepartmentsTab}
             onClick={() => { setActiveTab('departments'); setView('list'); }}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
               !canAccessDepartmentsTab
                 ? 'text-slate-300 cursor-not-allowed'
                 : activeTab === 'departments'
@@ -1114,15 +1114,15 @@ export function OrganizationPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Platform Users</p>
-            <p className="text-[15px] font-black text-slate-900">{teamMembers.length}</p>
+            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Platform Users</p>
+            <p className="text-[15px] font-pmedium text-slate-900">{teamMembers.length}</p>
           </div>
           <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Shield size={16}/></div>
         </div>
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Total Depts</p>
-            <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
+            <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Total Depts</p>
+            <p className={`text-[15px] font-pmedium ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
               {canAccessDepartmentsTab ? departments.length : '--'}
             </p>
           </div>
@@ -1130,8 +1130,8 @@ export function OrganizationPage() {
         </div>
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Global Headcount</p>
-            <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
+            <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Global Headcount</p>
+            <p className={`text-[15px] font-pmedium ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
               {canAccessDepartmentsTab ? totalEmployees : '--'}
             </p>
           </div>
@@ -1152,19 +1152,19 @@ export function OrganizationPage() {
             setShowTeamMemberModal(true);
           }}>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Quick Action</p>
-            <p className="text-[15px] font-black text-slate-900 flex items-center gap-1.5">
+            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Quick Action</p>
+            <p className="text-[15px] font-pmedium text-slate-900 flex items-center gap-1.5">
               {!canAddUserOnCurrentPlan ? <Lock size={12} /> : null}
               Add User
             </p>
-            {/* <p className="text-[10px] font-semibold text-slate-400 mt-1">{addUserHoverMessage}</p>
+            {/* <p className="text-[10px] font-pmedium text-slate-400 mt-1">{addUserHoverMessage}</p>
             {isBasicPlanWorkspace && (
-              <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+              <p className="text-[10px] font-pmedium text-slate-400 mt-0.5">
                 {activeSuperAdminCount} of {basicPlanAdditionalUserLimit} additional user added
               </p>
             )}
             {isProfessionalPlanWorkspace && (
-              <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+              <p className="text-[10px] font-pmedium text-slate-400 mt-0.5">
                 {activeMemberCount} of {professionalPlanMaxUsers} users added
               </p>
             )} */}
@@ -1232,12 +1232,12 @@ export function OrganizationPage() {
                   <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" />
                 </div>
                 {isBasicPlanWorkspace && (
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest whitespace-nowrap">
                     {activeSuperAdminCount}/{basicPlanAdditionalUserLimit} additional user added
                   </p>
                 )}
                 {isProfessionalPlanWorkspace && (
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest whitespace-nowrap">
                     {activeMemberCount}/{professionalPlanMaxUsers} users added
                   </p>
                 )}
@@ -1248,7 +1248,7 @@ export function OrganizationPage() {
                     setShowTeamMemberModal(true);
                   }}
                   disabled={!canAddUserOnCurrentPlan}
-                  className={`bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${
+                  className={`bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${
                     !canAddUserOnCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''
                   }`}>
                   <Plus size={13} strokeWidth={3} /> ADD USER
@@ -1508,7 +1508,7 @@ export function OrganizationPage() {
               <button
                 type="button"
                 onClick={() => openDepartmentModal(null)}
-                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
               >
                 <Plus size={13} strokeWidth={3} /> CREATE DEPARTMENT
               </button>
@@ -1523,7 +1523,7 @@ export function OrganizationPage() {
               <div className="p-3.5 flex flex-col flex-1">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="text-[15px] font-bold text-slate-900 transition-colors">{dept.name}</h3>
+                    <h3 className="text-[15px] font-pmedium text-slate-900 transition-colors">{dept.name}</h3>
                     <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{dept.description}</p>
                   </div>
                   </div>
@@ -1567,7 +1567,7 @@ export function OrganizationPage() {
       {/* ========================================== */}
       {activeTab === 'departments' && view === 'detail' && selectedDepartment && (
         <div className="animate-in slide-in-from-bottom-4 duration-300">
-          <button onClick={() => setView('list')} className="mb-4 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-[11px] transition-all flex items-center gap-2 shadow-sm">
+          <button onClick={() => setView('list')} className="mb-4 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-pmedium text-[11px] transition-all flex items-center gap-2 shadow-sm">
             <ArrowLeft size={16} /> Directory
           </button>
 
@@ -1586,7 +1586,7 @@ export function OrganizationPage() {
                 {canAssignManagerByAccess ? (
                   <button
                     onClick={() => setShowAssignManagerModal(true)}
-                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[12px] transition-all shadow-sm hover:bg-slate-50"
+                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[12px] transition-all shadow-sm hover:bg-slate-50"
                   >
                     Assign Manager
                   </button>
@@ -1594,7 +1594,7 @@ export function OrganizationPage() {
                 <button
                   onClick={() => setShowEmployeeModal(true)}
                   disabled={!canInviteUsersByAccess}
-                  className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-pmedium text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <UserPlus size={16}/> Add Employee
                 </button>
@@ -1603,7 +1603,7 @@ export function OrganizationPage() {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-100">
                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Assigned Manager</p>
+                 <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-2">Assigned Manager</p>
                  {selectedDepartment.managerName ? (
                    <p className="font-bold text-emerald-700 flex items-center gap-2"><CheckCircle2 size={16}/> {selectedDepartment.managerName}</p>
                  ) : (
@@ -1611,7 +1611,7 @@ export function OrganizationPage() {
                  )}
                </div>
                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Manager Transfer</p>
+                 <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-1.5">Manager Transfer</p>
                  <p className="font-bold text-slate-800 leading-relaxed text-[12px]">
                    Change the department head when a manager leaves or access needs to move to another department lead.
                  </p>
@@ -1619,7 +1619,7 @@ export function OrganizationPage() {
             </div>
             {Array.isArray(selectedDepartment.actingManagers) && selectedDepartment.actingManagers.length > 0 ? (
               <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-                <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest mb-3">Active Acting Managers</p>
+                <p className="text-[11px] font-pmedium text-blue-600 uppercase tracking-widest mb-3">Active Acting Managers</p>
                 <div className="flex flex-wrap gap-3">
                   {selectedDepartment.actingManagers.map((assignment) => (
                     <div key={assignment.id || assignment.assignedUserId} className="flex items-center gap-3 rounded-2xl bg-white border border-blue-100 px-4 py-3">
@@ -1633,7 +1633,7 @@ export function OrganizationPage() {
                         <button
                           type="button"
                           onClick={() => handleRemoveActingManager(assignment.assignedUserId)}
-                          className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-[11px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                          className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-[11px] font-pmedium uppercase tracking-widest hover:bg-red-100 transition-colors"
                         >
                           Remove
                         </button>
@@ -1764,11 +1764,11 @@ export function OrganizationPage() {
             <div className="p-6 sm:p-8 space-y-4">
               <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-blue-600">Default Role</p>
+                  <p className="text-[11px] font-pmedium uppercase tracking-widest text-blue-600">Default Role</p>
                   <p className="text-sm font-semibold text-slate-800 mt-1">Employee</p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-blue-600">Default Department</p>
+                  <p className="text-[11px] font-pmedium uppercase tracking-widest text-blue-600">Default Department</p>
                   <p className="text-sm font-semibold text-slate-800 mt-1">{selectedDepartment.name}</p>
                 </div>
               </div>
@@ -1784,8 +1784,8 @@ export function OrganizationPage() {
               </div>
             </div>
             <div className="p-5 sm:p-6 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
-              <button onClick={handleAddEmployee} disabled={!employeeFormData.name || !employeeFormData.email || isAddingEmployee} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+              <button onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-sm hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
+              <button onClick={handleAddEmployee} disabled={!employeeFormData.name || !employeeFormData.email || isAddingEmployee} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                 {isAddingEmployee ? (
                   <>
                     <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
@@ -1839,7 +1839,7 @@ export function OrganizationPage() {
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
                     />
                   </div>
-                  <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Core Modules</p>
+                  <p className="mt-3 text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Core Modules</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {workspaceModuleOptions.map((module) => {
                       const selected = newDepartmentForm.moduleIds.includes(module.id);
@@ -1933,7 +1933,7 @@ export function OrganizationPage() {
                   <button
                     type="button"
                     onClick={handleCreateDepartmentForFounder}
-                    className="mt-3 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-blue-700"
+                    className="mt-3 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium uppercase tracking-wider text-white hover:bg-blue-700"
                   >
                     Create Department
                   </button>
@@ -1951,14 +1951,14 @@ export function OrganizationPage() {
                   setShowDepartmentModal(false);
                   setExpandedDepartmentKey('');
                 }}
-                className="w-full sm:w-auto px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors shadow-sm"
+                className="w-full sm:w-auto px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-sm hover:bg-slate-50 transition-colors shadow-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateDepartmentForFounder}
                 disabled={!canManageDepartments || !canCreateDepartmentByAccess}
-                className="w-full sm:w-auto px-5 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-5 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 Create Department
               </button>
@@ -1983,7 +1983,7 @@ export function OrganizationPage() {
             </div>
               <div className="p-6 max-h-[50vh] overflow-y-auto">
                 <div className="mb-6">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Primary Manager</p>
+                  <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-3">Primary Manager</p>
                 {selectedDepartment.employees?.filter((tm) => ['manager', 'admin', 'super_admin', 'super-admin'].includes(normalizeRoleValue(tm.role)) && tm.status !== 'invited').length === 0 ? (
                   <div className="text-center py-10">
                     <Shield size={32} className="mx-auto text-slate-300 mb-3"/>
@@ -2004,7 +2004,7 @@ export function OrganizationPage() {
                         <div>
                           <div className="font-bold text-slate-900 text-sm">{manager.name}</div>
                           {manager.employeeId && (
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
+                            <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
                               {manager.employeeId}
                             </div>
                           )}
@@ -2019,7 +2019,7 @@ export function OrganizationPage() {
 
                 {canManageActingAssignments ? (
                   <div className="border-t border-slate-100 pt-6">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Acting Managers</p>
+                    <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-3">Acting Managers</p>
                     <p className="text-xs text-slate-500 leading-relaxed mb-4">
                       Acting managers get temporary department-manager mode for this department only. Attendance shows department employee records only, and leave requests stay limited to approval actions for this department.
                     </p>
@@ -2051,7 +2051,7 @@ export function OrganizationPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveActingManager(member.userId || member.id)}
-                                  className="ml-auto px-3 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                                  className="ml-auto px-3 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-pmedium uppercase tracking-widest hover:bg-red-100 transition-colors"
                                 >
                                   Remove
                                 </button>
@@ -2060,7 +2060,7 @@ export function OrganizationPage() {
                                   type="button"
                                   onClick={() => handleAssignActingManager(member)}
                                   disabled={!canAssignActingManagerByAccess}
-                                  className="ml-auto px-3 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="ml-auto px-3 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-pmedium uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   Assign
                                 </button>
@@ -2182,7 +2182,7 @@ export function OrganizationPage() {
             </div>
 
             <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex gap-2.5 shrink-0">
-              <button onClick={() => setShowTeamMemberModal(false)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[12px] hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+              <button onClick={() => setShowTeamMemberModal(false)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
               <button
                 onClick={handleSendInvite}
                 disabled={
@@ -2193,7 +2193,7 @@ export function OrganizationPage() {
                   (teamMemberFormData.role !== 'super-admin' && teamMemberFormData.departments.length === 0) ||
                   (teamMemberFormData.role === 'super-admin' && !canInviteSuperAdmin)
                 }
-                className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {isSendingInvite ? (
                   <>

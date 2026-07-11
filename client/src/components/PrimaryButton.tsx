@@ -46,7 +46,7 @@ const PrimaryButton = ({
       title={isReadOnlySession ? "Read-only staff view — changes are disabled" : undefined}
       className={` flex items-center justify-center gap-2 ${
         isDisabled ? "cursor-not-allowed bg-slate-300" : "bg-[#2563EB] hover:bg-blue-700"
-      } motion-preset-slide-up-sm rounded-xl text-white font-semibold transition ${
+      } motion-preset-slide-up-sm rounded-xl text-white font-pmedium transition ${
         fontSize ? fontSize : "text-sm leading-5"
       } ${externalStyles ?? ""} ${padding ? padding : "px-8 py-2"} ${className ?? ""}`}
       onClick={isReadOnlySession ? undefined : onClick ?? handleSubmit}

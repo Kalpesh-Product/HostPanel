@@ -221,14 +221,14 @@ function isDateInFiscalYear(value: string | Date | null | undefined, fiscalYear 
 }
 
 function getStatusBadge(status: string) {
-  if (!status) return <span className="px-2 py-1 bg-slate-50 text-slate-500 border border-slate-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">Unknown</span>;
+  if (!status) return <span className="px-2 py-1 bg-slate-50 text-slate-500 border border-slate-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">Unknown</span>;
   if (status.includes('Paid') || status.includes('Completed') || status.includes('Confirmed') || status.includes('Generated') || status.includes('Done'))
-    return <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{status}</span>;
+    return <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">{status}</span>;
   if (status.includes('Pending') || status.includes('Awaiting') || status.includes('Submitted'))
-    return <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider animate-pulse">{status}</span>;
+    return <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider animate-pulse">{status}</span>;
   if (status.includes('Rejected') || status.includes('Failed'))
-    return <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{status}</span>;
-  return <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{status}</span>;
+    return <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">{status}</span>;
+  return <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">{status}</span>;
 }
 
 /* ───────────────────── Report builders ───────────────────── */
@@ -935,7 +935,7 @@ export function BillingPaymentsPage() {
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-bold uppercase tracking-wider"
+                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-pmedium uppercase tracking-wider"
               >
                 Retry
               </button>
@@ -951,7 +951,7 @@ export function BillingPaymentsPage() {
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                     activeTab === tab.key
                       ? 'bg-[#2563EB] text-white shadow-sm'
                       : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -974,8 +974,8 @@ export function BillingPaymentsPage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className={`text-[15px] font-black ${card.isCurrency ? 'text-blue-600' : 'text-slate-900'}`}>{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[15px] font-pmedium ${card.isCurrency ? 'text-blue-600' : 'text-slate-900'}`}>{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -1021,7 +1021,7 @@ export function BillingPaymentsPage() {
 
                 {activeTab === 'tenant' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Company</th>
                         <th className="px-6 py-5">Package</th>
@@ -1045,7 +1045,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 hidden sm:table-cell">
                             {bill.invoiceNumber ? (
                               <div className="space-y-0.5">
-                                <p className="text-[10px] font-bold text-blue-600">{bill.invoiceNumber}</p>
+                                <p className="text-[10px] font-pmedium text-blue-600">{bill.invoiceNumber}</p>
                                 <p className="text-[9px] font-semibold text-slate-400">{bill.invoiceStatus}</p>
                               </div>
                             ) : (
@@ -1056,7 +1056,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingTenantBill(bill)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
                             >
                               <Eye size={10} /> View
                             </button>
@@ -1073,7 +1073,7 @@ export function BillingPaymentsPage() {
 
                 {activeTab === 'bookings' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Booked By</th>
                         <th className="px-6 py-5">Room</th>
@@ -1100,7 +1100,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingBooking(booking)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
                             >
                               <Eye size={10} /> View
                             </button>
@@ -1117,7 +1117,7 @@ export function BillingPaymentsPage() {
 
                 {activeTab === 'payroll' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Employee</th>
                         <th className="px-6 py-5">Department</th>
@@ -1141,7 +1141,7 @@ export function BillingPaymentsPage() {
                             <td className="px-6 py-5 hidden sm:table-cell">
                               {emp.bankDetails?.bankName ? (
                                 <div className="space-y-0.5">
-                                  <p className="text-[10px] font-bold text-slate-700">{emp.bankDetails.bankName}</p>
+                                  <p className="text-[10px] font-pmedium text-slate-700">{emp.bankDetails.bankName}</p>
                                   <p className="text-[9px] font-semibold text-slate-400">{emp.bankDetails.accountHolderName} | {emp.bankDetails.accountNumber}</p>
                                 </div>
                               ) : (
@@ -1152,7 +1152,7 @@ export function BillingPaymentsPage() {
                             <td className="px-6 py-5 text-center">
                               <button
                                 onClick={() => setViewingEmployee(emp)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
                               >
                                 <Eye size={10} /> View
                               </button>
@@ -1170,7 +1170,7 @@ export function BillingPaymentsPage() {
 
                 {activeTab === 'extraCredits' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Tenant</th>
                         <th className="px-6 py-5">Credits</th>
@@ -1190,7 +1190,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(cr.totalAmount || 0)}</td>
                           <td className="px-6 py-5 hidden sm:table-cell">
                             {cr.invoiceNumber ? (
-                              <p className="text-[10px] font-bold text-blue-600">{cr.invoiceNumber}</p>
+                              <p className="text-[10px] font-pmedium text-blue-600">{cr.invoiceNumber}</p>
                             ) : (
                               <span className="text-[9px] font-bold text-slate-400 uppercase">Pending</span>
                             )}
@@ -1199,7 +1199,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingExtraCredit(cr)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
                             >
                               <Eye size={10} /> View
                             </button>
@@ -1216,7 +1216,7 @@ export function BillingPaymentsPage() {
 
                 {activeTab === 'history' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Date</th>
                         <th className="px-6 py-5">Entity</th>
@@ -1231,9 +1231,9 @@ export function BillingPaymentsPage() {
                         <tr key={tx.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 font-bold text-slate-700 text-xs">{tx.date || '-'}</td>
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{tx.entity}</td>
-                          <td className="px-6 py-5"><span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[9px] font-black uppercase tracking-wider">{tx.type}</span></td>
+                          <td className="px-6 py-5"><span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[9px] font-pmedium uppercase tracking-wider">{tx.type}</span></td>
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(tx.amount)}</td>
-                          <td className="px-6 py-5 hidden sm:table-cell text-[10px] font-bold text-slate-500">{tx.ref || '-'}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-[10px] font-pmedium text-slate-500">{tx.ref || '-'}</td>
                           <td className="px-6 py-5 text-[10px] font-medium text-slate-600 max-w-[200px] truncate">{tx.details || '-'}</td>
                         </tr>
                       )) : (
@@ -1257,49 +1257,49 @@ export function BillingPaymentsPage() {
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">Tenant Security Deposit</span>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">Tenant Security Deposit</span>
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingTenantBill.company}</h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase mt-0.5">ID: {viewingTenantBill.recordId || viewingTenantBill.id}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">ID: {viewingTenantBill.recordId || viewingTenantBill.id}</p>
               </div>
               <button onClick={() => setViewingTenantBill(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
               <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
                 <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-600">Security Deposit</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Security Deposit</p>
                   <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingTenantBill.securityDepositAmount || 0)}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Monthly Rent</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Monthly Rent</p>
                   <p className="text-lg font-black text-gray-900 mt-1">{formatCurrency(viewingTenantBill.monthlyRent || 0)}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Contract</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Contract</p>
                   <p className="text-lg font-black text-gray-900 mt-1">{viewingTenantBill.contractDurationMonths || 0} months</p>
-                  <p className="text-[10px] font-semibold text-gray-400">{viewingTenantBill.seats} seats</p>
+                  <p className="text-[10px] font-pmedium text-gray-400">{viewingTenantBill.seats} seats</p>
                 </div>
               </div>
               <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Package</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Package</p>
                     <p className="font-black text-gray-900">{viewingTenantBill.packageName || viewingTenantBill.package || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Cycle</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Cycle</p>
                     <p className="font-black text-gray-900">{viewingTenantBill.cycle || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Due Date</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Due Date</p>
                     <p className="font-bold text-gray-700">{viewingTenantBill.dueDate || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Contract</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Total Contract</p>
                     <p className="font-black text-gray-900">{formatCurrency(viewingTenantBill.totalContractAmount || 0)}</p>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Invoice Status</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Invoice Status</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold">Status:</span>
                     {getStatusBadge(viewingTenantBill.invoiceStatus || 'Pending')}
@@ -1318,7 +1318,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleMarkTenantPaid(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Paid'}
                 </button>
@@ -1328,7 +1328,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleGenerateTenantInvoice(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <FileText size={12} /> {isProcessingAction ? 'Processing...' : 'Generate Invoice'}
                 </button>
@@ -1338,7 +1338,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleSendTenantInvoice(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <Send size={12} /> {isProcessingAction ? 'Processing...' : 'Send Invoice'}
                 </button>
@@ -1347,7 +1347,7 @@ export function BillingPaymentsPage() {
                 <button
                   type="button"
                   onClick={() => window.open(viewingTenantBill.invoiceFileUrl, '_blank', 'noopener,noreferrer')}
-                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
                   <FileText size={12} /> View Invoice
                 </button>
@@ -1357,7 +1357,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleResetTenantInvoice(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <XCircle size={12} /> Reset
                 </button>
@@ -1373,48 +1373,48 @@ export function BillingPaymentsPage() {
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-300 border-amber-400/30 mb-2 inline-block">Meeting Room Booking</span>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-amber-500/20 text-amber-300 border-amber-400/30 mb-2 inline-block">Meeting Room Booking</span>
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Calendar size={20} /> {viewingBooking.bookedByName || 'Guest Booking'}</h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase mt-0.5">Code: {viewingBooking.bookingCode || viewingBooking.recordId || viewingBooking.id}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">Code: {viewingBooking.bookingCode || viewingBooking.recordId || viewingBooking.id}</p>
               </div>
               <button onClick={() => setViewingBooking(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
               <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
                 <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Total Amount</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-600">Total Amount</p>
                   <p className="text-xl font-black text-amber-900 mt-1">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amount || 0)}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Room</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Room</p>
                   <p className="text-lg font-black text-gray-900 mt-1">{viewingBooking.roomName || viewingBooking.resourceName || '-'}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Payment Mode</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Mode</p>
                   <p className="text-lg font-black text-gray-900 mt-1">{viewingBooking.paymentMode || '-'}</p>
                 </div>
               </div>
               <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Date</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Date</p>
                     <p className="font-black text-gray-900">{viewingBooking.date || viewingBooking.dateLabel || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Time</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Time</p>
                     <p className="font-black text-gray-900">{viewingBooking.startTime || viewingBooking.timeSlot || '-'}{viewingBooking.endTime ? ` - ${viewingBooking.endTime}` : ''}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Transaction ID</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Transaction ID</p>
                     <p className="font-bold text-gray-700">{viewingBooking.transactionId || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Booking Source</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Booking Source</p>
                     <p className="font-bold text-gray-700">{viewingBooking.bookingSource || '-'}</p>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Invoice & Payment</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Invoice & Payment</p>
                   <div className="flex flex-wrap gap-3">
                     <span className="text-xs font-bold">Invoice: {getStatusBadge(viewingBooking.invoiceStatus || 'Pending')}</span>
                     <span className="text-xs font-bold">Payment: {getStatusBadge(viewingBooking.paymentStatus || 'Pending')}</span>
@@ -1429,7 +1429,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleGenerateBookingInvoice(viewingBooking)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <FileText size={12} /> {isProcessingAction ? 'Processing...' : 'Generate Invoice'}
                 </button>
@@ -1439,7 +1439,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleSendBookingInvoice(viewingBooking)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <Send size={12} /> {isProcessingAction ? 'Processing...' : 'Send Invoice'}
                 </button>
@@ -1448,7 +1448,7 @@ export function BillingPaymentsPage() {
                 <button
                   type="button"
                   onClick={() => window.open(viewingBooking.invoiceFileUrl, '_blank', 'noopener,noreferrer')}
-                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
                   <FileText size={12} /> View Invoice
                 </button>
@@ -1458,7 +1458,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleResetBookingInvoice(viewingBooking)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <XCircle size={12} /> Reset
                 </button>
@@ -1474,40 +1474,40 @@ export function BillingPaymentsPage() {
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest bg-green-500/20 text-green-300 border-green-400/30 mb-2 inline-block">Payroll</span>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-green-500/20 text-green-300 border-green-400/30 mb-2 inline-block">Payroll</span>
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><User size={20} /> {viewingEmployee.name || 'Employee'}</h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase mt-0.5">{viewingEmployee.department} | {viewingEmployee.employeeId || viewingEmployee.profileId || ''}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingEmployee.department} | {viewingEmployee.employeeId || viewingEmployee.profileId || ''}</p>
               </div>
               <button onClick={() => setViewingEmployee(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
               <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-gray-100 bg-white">
                 <div className="rounded-2xl border border-green-100 bg-green-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-green-600">Net Salary</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-green-600">Net Salary</p>
                   <p className="text-xl font-black text-green-900 mt-1">{formatCurrency(viewingEmployee.financials?.netSalary || 0)}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Status</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
                   <div className="mt-1">{getStatusBadge(viewingEmployee.payment?.status || viewingEmployee.financials?.paymentStatus || 'Pending')}</div>
                 </div>
               </div>
               <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Bank Details</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Bank Details</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Bank</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.bankName || viewingEmployee.bankName || '-'}</p></div>
-                  <div><p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Account Holder</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.accountHolderName || viewingEmployee.accountHolderName || '-'}</p></div>
-                  <div><p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Account Number</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.accountNumber || viewingEmployee.accountNumberMasked || viewingEmployee.accountNumber || '-'}</p></div>
-                  <div><p className="text-[9px] font-black uppercase tracking-widest text-gray-400">IFSC</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.ifscCode || viewingEmployee.ifscCode || '-'}</p></div>
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Bank</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.bankName || viewingEmployee.bankName || '-'}</p></div>
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Account Holder</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.accountHolderName || viewingEmployee.accountHolderName || '-'}</p></div>
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Account Number</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.accountNumber || viewingEmployee.accountNumberMasked || viewingEmployee.accountNumber || '-'}</p></div>
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">IFSC</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.ifscCode || viewingEmployee.ifscCode || '-'}</p></div>
                 </div>
                 {viewingEmployee.payslip?.id && (
                   <div className="border-t border-gray-100 pt-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Payslip</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Payslip</p>
                     <p className="text-xs font-bold text-blue-600">ID: {viewingEmployee.payslip.id}</p>
                     {(viewingEmployee.payslip.fileUrl || viewingEmployee.payslip.payslipUrl || viewingEmployee.payslip.url) && (
                       <button
                         type="button"
                         onClick={() => window.open(viewingEmployee.payslip.fileUrl || viewingEmployee.payslip.payslipUrl || viewingEmployee.payslip.url, '_blank', 'noopener,noreferrer')}
-                        className="mt-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                        className="mt-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                       >
                         <FileText size={12} /> View Payslip
                       </button>
@@ -1522,7 +1522,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleMarkPayrollPaid(viewingEmployee)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Paid'}
                 </button>
@@ -1532,7 +1532,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleGeneratePayslip(viewingEmployee)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <FileText size={12} /> {isProcessingAction ? 'Processing...' : 'Generate Payslip'}
                 </button>
@@ -1542,7 +1542,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleSendPayrollPayslip(viewingEmployee)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <Send size={12} /> {isProcessingAction ? 'Processing...' : 'Send Payslip'}
                 </button>
@@ -1558,7 +1558,7 @@ export function BillingPaymentsPage() {
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest bg-purple-500/20 text-purple-300 border-purple-400/30 mb-2 inline-block">Extra Credit Request</span>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-purple-500/20 text-purple-300 border-purple-400/30 mb-2 inline-block">Extra Credit Request</span>
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><CreditCard size={20} /> {viewingExtraCredit.tenantCompanyName || viewingExtraCredit.tenantCompanyCode || 'Extra Credit'}</h2>
               </div>
               <button onClick={() => setViewingExtraCredit(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
@@ -1566,36 +1566,36 @@ export function BillingPaymentsPage() {
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
               <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-gray-100 bg-white">
                 <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Credits Requested</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-purple-600">Credits Requested</p>
                   <p className="text-xl font-black text-purple-900 mt-1">{viewingExtraCredit.requestedCredits || 0}</p>
                 </div>
                 <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Total Amount</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-600">Total Amount</p>
                   <p className="text-xl font-black text-amber-900 mt-1">{formatCurrency(viewingExtraCredit.totalAmount || 0)}</p>
                 </div>
               </div>
               <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Tenant Code</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Tenant Code</p>
                     <p className="font-black text-gray-900">{viewingExtraCredit.tenantCompanyCode || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Status</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Status</p>
                     <div>{getStatusBadge(getCreditRequestStatusLabel(viewingExtraCredit.status))}</div>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Transaction ID</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Transaction ID</p>
                     <p className="font-bold text-gray-700">{viewingExtraCredit.paymentTransactionId || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Invoice</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Invoice</p>
                     <p className="font-bold text-blue-600">{viewingExtraCredit.invoiceNumber || 'Pending'}</p>
                   </div>
                 </div>
                 {viewingExtraCredit.paymentFailureReason && (
                   <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-red-600 mb-1">Failure Reason</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600 mb-1">Failure Reason</p>
                     <p className="text-xs font-bold text-red-700">{viewingExtraCredit.paymentFailureReason}</p>
                   </div>
                 )}
@@ -1608,7 +1608,7 @@ export function BillingPaymentsPage() {
                     type="button"
                     onClick={() => handleCreditFinanceAction(viewingExtraCredit, 'COMPLETED')}
                     disabled={isProcessingAction}
-                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                   >
                     <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Completed'}
                   </button>
@@ -1616,7 +1616,7 @@ export function BillingPaymentsPage() {
                     type="button"
                     onClick={() => handleCreditFinanceAction(viewingExtraCredit, 'REJECTED')}
                     disabled={isProcessingAction}
-                    className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                   >
                     <XCircle size={12} /> Reject
                   </button>
@@ -1626,7 +1626,7 @@ export function BillingPaymentsPage() {
                 <button
                   type="button"
                   onClick={() => window.open(viewingExtraCredit.invoiceFileUrl, '_blank', 'noopener,noreferrer')}
-                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
                   <FileText size={12} /> View Invoice
                 </button>

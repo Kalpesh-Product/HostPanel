@@ -33,7 +33,7 @@ function formatDate(dateStr?: string) {
 }
 
 function getStatusBadge(status?: string) {
-  const base = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pbold font-bold uppercase tracking-widest";
+  const base = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest";
   switch (status) {
     case "Open":
       return <span className={`${base} bg-amber-50 text-amber-700`}><AlertCircle className="w-3 h-3" />Open</span>;
@@ -258,7 +258,7 @@ export default function ITRepairLogsPage() {
                 key={tab}
                 type="button"
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === tab
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -283,8 +283,8 @@ export default function ITRepairLogsPage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -326,7 +326,7 @@ export default function ITRepairLogsPage() {
                 <button
                   type="button"
                   onClick={handleOpenCreate}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
                   Log IT Repair
@@ -337,7 +337,7 @@ export default function ITRepairLogsPage() {
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full table-auto text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-3 py-4 whitespace-nowrap">Log & Asset</th>
                     <th className="px-3 py-4 whitespace-nowrap">Issue Type</th>
@@ -356,11 +356,11 @@ export default function ITRepairLogsPage() {
                     filteredLogs.map((log) => (
                       <tr key={log._id || log.repairLogCode} className="hover:bg-blue-50/30 transition-all">
                         <td className="px-3 py-4">
-                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">{log.repairLogCode || "--"}</p>
+                          <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-0.5">{log.repairLogCode || "--"}</p>
                           <p className="font-bold text-slate-900 text-sm">{log.assetName || "--"}</p>
                         </td>
                         <td className="px-3 py-4">
-                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-700">
+                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-pmedium text-slate-700">
                             {log.issueType || "--"}
                           </span>
                         </td>
@@ -375,7 +375,7 @@ export default function ITRepairLogsPage() {
                           <button
                             type="button"
                             onClick={() => viewLog(log)}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors"
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors"
                           >
                             View
                           </button>
@@ -387,7 +387,7 @@ export default function ITRepairLogsPage() {
               </table>
             </div>
 
-            <div className="px-3 py-3 border-t border-slate-100/60 text-[10px] font-bold text-slate-400">
+            <div className="px-3 py-3 border-t border-slate-100/60 text-[10px] font-pmedium text-slate-400">
               Showing {filteredLogs.length} of {logs.length} logs
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function ITRepairLogsPage() {
                     <FileText size={20} />
                     {selectedSchedule.repairLogCode || "Log Detail"}
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">IT Repair Log Detail</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">IT Repair Log Detail</p>
                 </div>
                 <button type="button" onClick={() => { setSelectedSchedule(null); setSelectedLog(null); }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X className="w-4 h-4" />
@@ -424,49 +424,49 @@ export default function ITRepairLogsPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Asset</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Asset</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.assetName || "--"}</p>
                     <p className="text-[10px] text-slate-500">{selectedSchedule.assetCode || ""}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Issue Type</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Issue Type</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.issueType || "--"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Assigned To</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Assigned To</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.assignedTo || "Unassigned"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Status</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Status</p>
                     <div className="mt-1">{getStatusBadge(selectedSchedule.status)}</div>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Created</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Created</p>
                     <p className="font-bold text-slate-900">{formatDate(selectedSchedule.createdAt)}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Requested By</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Requested By</p>
                     <p className="font-bold text-slate-900">{selectedSchedule.requestedBy || "--"}</p>
                   </div>
                 </div>
 
                 {selectedSchedule.issueDescription ? (
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Issue Description</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Issue Description</p>
                     <p className="text-sm text-slate-700">{selectedSchedule.issueDescription}</p>
                   </div>
                 ) : null}
 
                 {selectedSchedule.resolutionNote ? (
                   <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-1">Resolution Note</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600 mb-1">Resolution Note</p>
                     <p className="text-sm text-emerald-800">{selectedSchedule.resolutionNote}</p>
                   </div>
                 ) : null}
 
                 {selectedSchedule.notes ? (
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Notes</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500 mb-1">Notes</p>
                     <p className="text-sm text-slate-700">{selectedSchedule.notes}</p>
                   </div>
                 ) : null}
@@ -476,7 +476,7 @@ export default function ITRepairLogsPage() {
                 <button
                   type="button"
                   onClick={() => { setSelectedSchedule(null); setSelectedLog(null); }}
-                  className="px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors"
+                  className="px-4 py-2 text-xs font-pmedium uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   Close
                 </button>
@@ -485,7 +485,7 @@ export default function ITRepairLogsPage() {
                     type="button"
                     onClick={() => handleStatusUpdate(selectedSchedule, nextAction(selectedSchedule.status)!.next)}
                     disabled={isUpdating}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-pmedium uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
                   >
                     {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                     {isUpdating ? "Updating..." : nextAction(selectedSchedule.status)!.label}
@@ -517,7 +517,7 @@ export default function ITRepairLogsPage() {
                     <Monitor size={20} />
                     Log IT Repair
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Track network, device, and system repairs</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Track network, device, and system repairs</p>
                 </div>
                 <button type="button" onClick={() => setShowCreate(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X className="w-4 h-4" />
@@ -535,7 +535,7 @@ export default function ITRepairLogsPage() {
                   ) : null}
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Asset *</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Asset *</label>
                     <select
                       className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none ${formErrors.assetId ? "border-rose-300" : "border-slate-200"}`}
                       value={form.assetId}
@@ -553,7 +553,7 @@ export default function ITRepairLogsPage() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Issue Type *</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Issue Type *</label>
                     <select
                       className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none ${formErrors.issueType ? "border-rose-300" : "border-slate-200"}`}
                       value={form.issueType}
@@ -565,7 +565,7 @@ export default function ITRepairLogsPage() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Issue Description *</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Issue Description *</label>
                     <textarea
                       className={`w-full px-4 py-2.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none resize-none ${formErrors.issueDescription ? "border-rose-300" : "border-slate-200"}`}
                       rows={3}
@@ -576,7 +576,7 @@ export default function ITRepairLogsPage() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Assigned To</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Assigned To</label>
                     <select
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
                       value={form.assignedTo}
@@ -592,7 +592,7 @@ export default function ITRepairLogsPage() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Notes</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-1.5 block">Notes</label>
                     <textarea
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none resize-none"
                       rows={2}
@@ -603,8 +603,8 @@ export default function ITRepairLogsPage() {
                   </div>
 
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setShowCreate(false)} className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider">Cancel</button>
-                    <button type="submit" disabled={isSaving} className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors">
+                    <button type="button" onClick={() => setShowCreate(false)} className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-pmedium text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider">Cancel</button>
+                    <button type="submit" disabled={isSaving} className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors">
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                       {isSaving ? "Creating..." : "Create Log"}
                     </button>

@@ -183,13 +183,13 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
         <div className="flex items-start gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/70 bg-white/80 text-[#0F172A] shadow-sm">{iconFor(resource)}</div>
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate max-w-[120px]">{resource.name || resource.resourceCode || "Space"}</p>
+            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 truncate max-w-[120px]">{resource.name || resource.resourceCode || "Space"}</p>
             <p className="text-[11px] font-bold leading-tight text-slate-800">{kindLabel(resource)}{resource.capacity ? ` · ${resource.capacity} seats` : ""}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
           {packageLocked && <Lock size={10} className="text-indigo-500" />}
-          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${badge}`}>{label}</span>
+          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${badge}`}>{label}</span>
         </div>
       </div>
       <div className="mt-2 rounded-xl bg-white/70 p-2 space-y-0.5">
@@ -653,7 +653,7 @@ export default function SalesArchitecturePage() {
             { key: "maintenance", label: "Maintenance", dot: "bg-slate-300",   active: "bg-slate-500 text-white border-slate-500",    idle: "bg-white text-slate-500 border-slate-200 hover:border-slate-400" },
           ].map(({ key, label, dot, active, idle }) => (
             <button key={key} type="button" onClick={() => setSpaceFilter(key)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-bold uppercase tracking-wider transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-pmedium uppercase tracking-wider transition-all ${
                 spaceFilter === key ? active : idle
               }`}
             >
@@ -673,7 +673,7 @@ export default function SalesArchitecturePage() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 shrink-0 text-amber-500" size={16} />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Error</p>
+              <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Error</p>
               <p className="mt-0.5 text-[12px] font-semibold">{error}</p>
             </div>
           </div>
@@ -692,7 +692,7 @@ export default function SalesArchitecturePage() {
         ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
           <div key={label} className={cardClass}>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{label}</p>
               <p className="text-[15px] font-pmedium text-primary">{value}</p>
             </div>
             <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
@@ -723,12 +723,12 @@ export default function SalesArchitecturePage() {
             </div>
             {assignableIds.length > 0 && (
               <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); setIsAssignModalOpen(true); }}
-                className="px-3 py-2.5 bg-[#2563EB] text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
+                className="px-3 py-2.5 bg-[#2563EB] text-white rounded-lg font-pmedium text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
               ><ArrowRight size={14} /> Assign</button>
             )}
             {selectedResources.some((r) => r.assignmentLabel && !packageLockedIds.has(String(r.recordId || r.id))) && (
               <button onClick={releaseAssignment} disabled={saving}
-                className="px-3 py-2.5 bg-rose-600 text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-rose-700 transition-all whitespace-nowrap disabled:opacity-60"
+                className="px-3 py-2.5 bg-rose-600 text-white rounded-lg font-pmedium text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-rose-700 transition-all whitespace-nowrap disabled:opacity-60"
               ><RotateCcw size={14} /> Release</button>
             )}
           </div>
@@ -740,12 +740,12 @@ export default function SalesArchitecturePage() {
               <div className="mb-3 flex items-center gap-2">
                 <MapIcon size={18} className="text-blue-600" />
                 <h2 className="text-[15px] font-pmedium text-primary">{selectedBuilding} {selectedFloor === "All" ? "— All Floors" : `Floor ${selectedFloor}`}</h2>
-                <span className="ml-auto text-[10px] font-bold text-slate-500">{filtered.length} spaces</span>
+                <span className="ml-auto text-[10px] font-pmedium text-slate-500">{filtered.length} spaces</span>
               </div>
 
               {bookingOnly.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Meeting & Conference Rooms</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Meeting & Conference Rooms</p>
                   <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-3">
                     {bookingOnly.map((r) => {
                       const id = String(r.recordId || r.id);
@@ -762,10 +762,10 @@ export default function SalesArchitecturePage() {
                     <section key={wing}>
                       <div className="mb-2 flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Wing {wing}</p>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Wing {wing}</p>
                           <h3 className="mt-0.5 text-[15px] font-pmedium text-primary">Desks & Cabins</h3>
                         </div>
-                        <p className="text-[10px] font-bold text-slate-500">{items.length} spaces</p>
+                        <p className="text-[10px] font-pmedium text-slate-500">{items.length} spaces</p>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {items.length > 0 ? items.map((r) => {
@@ -788,25 +788,25 @@ export default function SalesArchitecturePage() {
         {viewMode === "dashboard" && (
           <div className="p-3 sm:p-4 lg:p-5 space-y-3">
             <div className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Floor Dashboard</p>
+              <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Floor Dashboard</p>
               <h2 className="text-[15px] font-pmedium text-primary">{selectedBuilding} Floor {selectedFloor}</h2>
               <p className="text-[12px] font-medium text-slate-500 mt-1">Utilization: <span className="font-black text-blue-600">{usagePct}%</span> ({floorStats.assigned}/{floorStats.total} seats assigned)</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Floor Inventory</p>
+                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Floor Inventory</p>
                 <p className="text-3xl font-black text-slate-900">{floorStats.total}</p>
               </div>
               <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 rounded-[2rem] shadow-sm text-white">
-                <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest mb-3">Available</p>
+                <p className="text-[10px] font-pmedium text-emerald-100 uppercase tracking-widest mb-3">Available</p>
                 <p className="text-3xl font-black text-white">{floorStats.available}</p>
               </div>
               <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-[2rem] shadow-sm text-white">
-                <p className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest mb-3">Tenant Assigned</p>
+                <p className="text-[10px] font-pmedium text-indigo-100 uppercase tracking-widest mb-3">Tenant Assigned</p>
                 <p className="text-3xl font-black text-white">{floorStats.tenantAssigned}</p>
               </div>
               <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-5 rounded-[2rem] shadow-sm text-white">
-                <p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest mb-3">Dept Assigned</p>
+                <p className="text-[10px] font-pmedium text-amber-100 uppercase tracking-widest mb-3">Dept Assigned</p>
                 <p className="text-3xl font-black text-white">{floorStats.deptAssigned}</p>
               </div>
             </div>
@@ -817,7 +817,7 @@ export default function SalesArchitecturePage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Floor</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Floor</p>
                       <p className="text-xl font-black text-slate-900">{f.floor}</p>
                     </div>
                     <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center"><LayoutGrid size={18} /></div>
@@ -858,8 +858,8 @@ export default function SalesArchitecturePage() {
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-[15px] font-black text-slate-900">{value}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
             </div>
@@ -869,7 +869,7 @@ export default function SalesArchitecturePage() {
          <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">Tenant Space Allocation</h3>
           <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
-            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
+            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
           ><ArrowRight size={14} /> Assign Space</button>
         </div>
 
@@ -975,7 +975,7 @@ export default function SalesArchitecturePage() {
                       <Building2 size={18} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-200">Assignment Details</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-200">Assignment Details</p>
                       <h3 className="text-[16px] font-black">{viewTenant.companyName || viewTenant.name}</h3>
                     </div>
                   </div>
@@ -989,7 +989,7 @@ export default function SalesArchitecturePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Contract info */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Contract Info</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Contract Info</p>
                       <div className="space-y-2.5">
                         {[
                           { label: "Contact Person", value: viewTenant.contactName || "--" },
@@ -1009,7 +1009,7 @@ export default function SalesArchitecturePage() {
 
                     {/* Package info */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Package Details</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Package Details</p>
                       <div className="space-y-2.5">
                         {[
                           { label: "Package", value: viewTenant.packageDetails?.packageName || viewTenant.planType || "--" },
@@ -1031,7 +1031,7 @@ export default function SalesArchitecturePage() {
                   {/* Assigned spaces */}
                   <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Assigned Space Blocks</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-600">Assigned Space Blocks</p>
                       <span className="bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-[9px] font-black">
                         {viewTenantResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} total seats
                       </span>
@@ -1087,7 +1087,7 @@ export default function SalesArchitecturePage() {
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">{label}</p>
                 <p className="text-[15px] font-pmedium text-primary">{value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
@@ -1098,7 +1098,7 @@ export default function SalesArchitecturePage() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">Department Space Allocation</h3>
           <button onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
-            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
+            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
           ><ArrowRight size={14} /> Assign Space</button>
         </div>
 
@@ -1199,7 +1199,7 @@ export default function SalesArchitecturePage() {
               const Icon = tab.icon;
               return (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
                 ><Icon size={14} /> {tab.label}</button>
               );
             })}
@@ -1219,7 +1219,7 @@ export default function SalesArchitecturePage() {
               <div className="p-5 bg-blue-600 text-white flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-[15px] font-pmedium flex items-center gap-1.5"><Building2 size={18} /> Assign Space</h2>
-                  <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">Select available spaces for this tenant</p>
+                  <p className="text-[10px] font-pmedium text-blue-200 uppercase tracking-widest mt-0.5">Select available spaces for this tenant</p>
                 </div>
                 <button onClick={() => setIsAssignModalOpen(false)} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={14} /></button>
               </div>
@@ -1274,7 +1274,7 @@ export default function SalesArchitecturePage() {
                       if (!items.length) return null;
                       return (
                         <div className="space-y-1.5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title} <span className="text-emerald-600">({items.reduce((s,r)=>s+Math.max(1,Number(r.capacity||1)),0)} seats)</span></p>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{title} <span className="text-emerald-600">({items.reduce((s,r)=>s+Math.max(1,Number(r.capacity||1)),0)} seats)</span></p>
                           <div className="grid grid-cols-2 gap-2">
                             {items.map((r) => {
                               const id = String(r.recordId || r.id);
@@ -1291,8 +1291,8 @@ export default function SalesArchitecturePage() {
                                     <div className="flex items-center gap-1.5">
                                       <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/70 bg-white/80 text-[#0F172A] shadow-sm">{iconFor(r)}</div>
                                       <div className="min-w-0">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">{r.name || r.resourceCode || "Space"}</p>
-                                        <p className="text-[10px] font-bold leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
+                                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 truncate">{r.name || r.resourceCode || "Space"}</p>
+                                        <p className="text-[10px] font-pmedium leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
                                       </div>
                                     </div>
                                     {isSelected && <CheckCircle2 size={14} className="text-blue-500 shrink-0" />}
@@ -1321,10 +1321,10 @@ export default function SalesArchitecturePage() {
 
                 {assignableIds.length > 0 && (
                   <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5">Selected ({selectedSeatCount} seats)</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500 mb-1.5">Selected ({selectedSeatCount} seats)</p>
                     <div className="flex flex-wrap gap-1">
                       {assignableResources.map((r) => (
-                        <span key={r.recordId} className="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">{r.name || r.resourceCode}</span>
+                        <span key={r.recordId} className="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-pmedium">{r.name || r.resourceCode}</span>
                       ))}
                     </div>
                   </div>
@@ -1332,10 +1332,10 @@ export default function SalesArchitecturePage() {
 
                 <div className="flex gap-3 pt-2 border-t border-slate-100">
                   <button onClick={() => { setIsAssignModalOpen(false); clearSelection(); }}
-                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-[10px]"
+                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px]"
                   >Cancel</button>
                   <button onClick={saveAssignment} disabled={!canSave}
-                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
                 </div>
               </div>
@@ -1350,7 +1350,7 @@ export default function SalesArchitecturePage() {
               <div className="p-5 bg-amber-600 text-white flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-[15px] font-pmedium flex items-center gap-1.5"><Briefcase size={18} /> Assign Space to Department</h2>
-                  <p className="text-[10px] font-bold text-amber-200 uppercase tracking-widest mt-0.5">Select a department and pick available spaces</p>
+                  <p className="text-[10px] font-pmedium text-amber-200 uppercase tracking-widest mt-0.5">Select a department and pick available spaces</p>
                 </div>
                 <button onClick={() => { setIsDeptAssignModalOpen(false); clearSelection(); }} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={14} /></button>
               </div>
@@ -1404,7 +1404,7 @@ export default function SalesArchitecturePage() {
 
                 {/* Available spaces as small cards (like architecture page) */}
                 <div className="space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     Available Spaces
                     <span className="text-emerald-600 ml-1">({desks.filter((r) => !r.assignmentLabel && r.status === "Active" &&
                       (selectedFloor === "All" || r.floor === selectedFloor) &&
@@ -1431,7 +1431,7 @@ export default function SalesArchitecturePage() {
                             if (items.length === 0) return null;
                             return (
                               <div key={wing}>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Wing {wing}</p>
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Wing {wing}</p>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                   {items.map((r) => {
                                     const id = String(r.recordId || r.id);
@@ -1448,8 +1448,8 @@ export default function SalesArchitecturePage() {
                                           <div className="flex items-center gap-1.5">
                                             <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/70 bg-white/80 text-[#0F172A] shadow-sm">{iconFor(r)}</div>
                                             <div className="min-w-0">
-                                              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 truncate">{r.name || r.resourceCode || "Space"}</p>
-                                              <p className="text-[10px] font-bold leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
+                                              <p className="text-[8px] font-pmedium uppercase tracking-widest text-slate-400 truncate">{r.name || r.resourceCode || "Space"}</p>
+                                              <p className="text-[10px] font-pmedium leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
                                             </div>
                                           </div>
                                           {isSelected && <CheckCircle2 size={14} className="text-amber-500 shrink-0" />}
@@ -1471,10 +1471,10 @@ export default function SalesArchitecturePage() {
                 {/* Selected summary */}
                 {assignableIds.length > 0 && (
                   <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1.5">Selected ({selectedSeatCount} seats)</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600 mb-1.5">Selected ({selectedSeatCount} seats)</p>
                     <div className="flex flex-wrap gap-1">
                       {assignableResources.map((r) => (
-                        <span key={r.recordId} className="bg-white border border-amber-200 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold">{r.name || r.resourceCode}</span>
+                        <span key={r.recordId} className="bg-white border border-amber-200 text-amber-700 px-2 py-0.5 rounded text-[10px] font-pmedium">{r.name || r.resourceCode}</span>
                       ))}
                     </div>
                   </div>
@@ -1482,7 +1482,7 @@ export default function SalesArchitecturePage() {
 
                 <div className="flex gap-3 pt-2 border-t border-slate-100">
                   <button onClick={() => { setIsDeptAssignModalOpen(false); clearSelection(); }}
-                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-[10px]"
+                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px]"
                   >Cancel</button>
                   <button onClick={() => {
                     if (!deptAssignSelectedId || assignableIds.length === 0) return;
@@ -1494,7 +1494,7 @@ export default function SalesArchitecturePage() {
                     saveAssignment();
                     setIsDeptAssignModalOpen(false);
                   }} disabled={!deptAssignSelectedId || assignableIds.length === 0 || saving}
-                    className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl font-bold shadow-sm hover:bg-amber-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-amber-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Assign to Department</>}</button>
                 </div>
               </div>

@@ -30,7 +30,7 @@ interface SummaryData {
 /* ───────────────────── Helper Functions ───────────────────── */
 
 function getStatusBadge(status: string = "") {
-  const base = "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border";
+  const base = "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border";
   const v = status.toLowerCase().trim();
   switch (v) {
     case "active":
@@ -272,7 +272,7 @@ export default function HRDocumentsPage(): React.ReactElement {
     <button
       key={tab.key}
       onClick={() => { setActiveTab(tab.key); setSearchQuery(""); }}
-      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
         activeTab === tab.key
           ? "bg-[#2563EB] text-white shadow-sm"
           : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -294,11 +294,11 @@ export default function HRDocumentsPage(): React.ReactElement {
                   className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accentClass}`}
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
                     {isLoading ? (
                       <div className="h-[22px] w-16 bg-slate-200 rounded animate-pulse" />
                     ) : (
-                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     )}
                   </div>
                   <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>
@@ -353,7 +353,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                 <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="pl-3 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer shadow-sm min-w-[100px]"
+                  className="pl-3 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer shadow-sm min-w-[100px]"
                 >
                   {departmentOptions.map((dept) => (
                     <option key={dept} value={dept}>{dept}</option>
@@ -367,7 +367,7 @@ export default function HRDocumentsPage(): React.ReactElement {
             {/* Table */}
             <div className="overflow-x-auto flex-1">
               <table className="w-full border-collapse">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4 text-left">Emp ID</th>
                     <th className="px-5 py-4 text-left">Employee Info</th>
@@ -417,7 +417,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                                 key={doc.id}
                                 type="button"
                                 onClick={() => setPreviewFile({ ...doc, employeeName: record.name })}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-semibold text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-[#2563EB] transition-all"
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-pmedium text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-[#2563EB] transition-all"
                               >
                                 <FileText size={10} className="text-[#2563EB]" />
                                 <span className="truncate max-w-[100px]">{doc.name}</span>
@@ -434,7 +434,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                           <button
                             type="button"
                             onClick={() => setViewingDocsFor(record)}
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 mx-auto"
+                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg text-[10px] font-pmedium uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 mx-auto"
                           >
                             <FolderClosed size={12} /> Open Folder
                           </button>
@@ -488,7 +488,7 @@ export default function HRDocumentsPage(): React.ReactElement {
 
             {/* Document list */}
             <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-white">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-5">
+              <h3 className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-5">
                 Files on Record ({viewingDocsFor.documents.length})
               </h3>
 
@@ -545,7 +545,7 @@ export default function HRDocumentsPage(): React.ReactElement {
               <button
                 type="button"
                 onClick={() => { setViewingDocsFor(null); setPreviewFile(null); }}
-                className="w-full py-3 bg-white border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all"
+                className="w-full py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all"
               >
                 Close
               </button>
@@ -568,7 +568,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                   <button
                     type="button"
                     onClick={() => downloadDocument(previewFile.url, previewFile.name)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-semibold transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-pmedium transition-all"
                   >
                     <Download size={14} /> Download
                   </button>
@@ -600,7 +600,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                       <button
                         type="button"
                         onClick={() => openDocumentUrl(previewFile.url)}
-                        className="mt-5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-semibold hover:bg-blue-700 transition-colors"
+                        className="mt-5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-pmedium hover:bg-blue-700 transition-colors"
                       >
                         Open in new tab
                       </button>

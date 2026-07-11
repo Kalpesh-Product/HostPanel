@@ -314,7 +314,7 @@ export function FinancePage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? 'bg-[#2563EB] text-white shadow-sm'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -329,32 +329,32 @@ export function FinancePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Total Budget</p>
-                <p className="text-[15px] font-black text-slate-900">{formatCurrency(totalAllocated)}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Total Budget</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalAllocated)}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><DollarSign size={16}/></div>
             </div>
 
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Spent (YTD)</p>
-                <p className="text-[15px] font-black text-slate-900">{formatCurrency(totalSpent)}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Spent (YTD)</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalSpent)}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><TrendingUp size={16}/></div>
             </div>
 
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Action Required</p>
-                <p className="text-[15px] font-black text-slate-900">{pendingActions} Req</p>
+                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Action Required</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{pendingActions} Req</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><AlertCircle size={16}/></div>
             </div>
             
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Financial Year</p>
-                <p className="text-[15px] font-black text-slate-900">{selectedFY}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Financial Year</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{selectedFY}</p>
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Calendar size={16}/></div>
             </div>
@@ -570,16 +570,16 @@ export function FinancePage() {
             </div>
             <div className="p-6 overflow-y-auto">
               <div className="mb-6 p-6 bg-blue-50 rounded-2xl border border-blue-100">
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Total Requested Amount</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Total Requested Amount</p>
                 <p className="text-4xl font-black text-blue-900">{formatCurrency(viewingRequest.type === 'annual' ? viewingRequest.requestedBudget : viewingRequest.amount)}</p>
               </div>
               <p className="text-sm font-medium text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100 italic">"{viewingRequest.reason || 'No description provided.'}"</p>
             </div>
             {viewingRequest.status === 'Pending' && (
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Discuss')} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs uppercase hover:bg-slate-300 transition-colors">Discuss</button>
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Rejected')} className="px-5 py-2.5 bg-red-100 text-red-600 rounded-2xl font-bold text-xs uppercase hover:bg-red-200 transition-colors">Reject</button>
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="px-5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm">Approve</button>
+                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Discuss')} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-pmedium text-xs uppercase hover:bg-slate-300 transition-colors">Discuss</button>
+                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Rejected')} className="px-5 py-2.5 bg-red-100 text-red-600 rounded-2xl font-pmedium text-xs uppercase hover:bg-red-200 transition-colors">Reject</button>
+                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="px-5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm">Approve</button>
               </div>
             )}
           </div>
@@ -598,11 +598,11 @@ export function FinancePage() {
             <div className="p-6 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Budget</p>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Total Budget</p>
                   <p className="text-xl font-black text-slate-900">{formatCurrency((viewingDeptOverview.approvedBudget || 0) + (viewingDeptOverview.extraGrantedYTD || 0))}</p>
                 </div>
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl">
-                  <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Spent YTD</p>
+                  <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Spent YTD</p>
                   <p className="text-xl font-black text-blue-900">{formatCurrency(viewingDeptOverview.spentYTD)}</p>
                 </div>
               </div>

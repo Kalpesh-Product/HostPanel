@@ -233,8 +233,8 @@ export default function WorkspaceSettingsPage() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900 truncate">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900 truncate">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
                 </div>
@@ -252,7 +252,7 @@ export default function WorkspaceSettingsPage() {
                     <Plus className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Create New Unit</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Create New Unit</p>
                     <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
                       Keep the same founder onboarding flow and create a new branch unit under the same business.
                     </p>
@@ -265,7 +265,7 @@ export default function WorkspaceSettingsPage() {
                     openPasswordGate();
                   }}
                   disabled={!canCreateWorkspace}
-                  className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-bold shadow-sm transition-all whitespace-nowrap ${
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap ${
                     canCreateWorkspace
                       ? "bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95"
                       : "cursor-not-allowed bg-slate-200 text-slate-500"
@@ -298,7 +298,7 @@ export default function WorkspaceSettingsPage() {
                     <div className="text-[11px] font-medium leading-6 text-slate-600">
                       Founder password verification runs first, then branch unit onboarding opens.
                     </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[#2563EB] flex items-center gap-1.5">
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] flex items-center gap-1.5">
                       <LockKeyhole size={13} strokeWidth={3} />
                       Password Gated
                     </div>
@@ -310,7 +310,7 @@ export default function WorkspaceSettingsPage() {
             {/* <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unit Snapshot</p>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit Snapshot</p>
                   <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
                     Current founder-level view of active unit and shared totals.
                   </p>
@@ -319,7 +319,7 @@ export default function WorkspaceSettingsPage() {
                   <button
                     type="button"
                     onClick={() => navigate("/company-settings/workspace-management")}
-                    className="inline-flex h-8.5 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
+                    className="inline-flex h-8.5 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-pmedium text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
                   >
                     <PanelsTopLeft className="h-4 w-4" />
                     OPEN MANAGEMENT
@@ -357,7 +357,7 @@ export default function WorkspaceSettingsPage() {
           <aside className="space-y-4">
             <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Linked Units</p>
+                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Linked Units</p>
               </div>
               <div className="p-3 sm:p-4 lg:p-5">
                 {isLoadingOverview ? (
@@ -387,7 +387,7 @@ export default function WorkspaceSettingsPage() {
                             </p>
                           </div>
                           {workspace.isActiveWorkspace ? (
-                            <span className="rounded-full bg-blue-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#2563EB]">
+                            <span className="rounded-full bg-blue-100 px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-[#2563EB]">
                             Active
                           </span>
                         ) : null}
@@ -401,7 +401,7 @@ export default function WorkspaceSettingsPage() {
 
             <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Creation flow notes</p>
+                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Creation flow notes</p>
               </div>
               <div className="p-3 sm:p-4 lg:p-5">
                 <div className="grid gap-3.5">
@@ -463,14 +463,14 @@ export default function WorkspaceSettingsPage() {
                   type="button"
                   onClick={closePasswordGate}
                   disabled={isSubmitting}
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1e4fd1] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 text-sm font-pmedium text-white shadow-sm transition hover:bg-[#1e4fd1] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   {isSubmitting ? "Verifying..." : "Continue"}

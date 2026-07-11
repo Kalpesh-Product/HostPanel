@@ -663,7 +663,7 @@ export function DepartmentAssetsPage() {
             ].map((stat) => (
               <div key={stat.label} className={`bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex justify-between items-center border-l-4 border-l-${stat.color}-500`}>
                 <div>
-                  <p className={`text-[10px] font-black text-${stat.color}-500 uppercase tracking-widest mb-1`}>{stat.label}</p>
+                  <p className={`text-[10px] font-pmedium text-${stat.color}-500 uppercase tracking-widest mb-1`}>{stat.label}</p>
                   <p className={`text-4xl font-black text-${stat.color}-600`}>{stat.count}</p>
                 </div>
                 <div className={`p-4 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600`}>{stat.icon}</div>
@@ -700,7 +700,7 @@ export function DepartmentAssetsPage() {
 
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
-                <thead className="bg-white text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 sticky top-0 z-10">
+                <thead className="bg-white text-[10px] font-pmedium text-gray-400 uppercase tracking-widest border-b border-gray-100 sticky top-0 z-10">
                   <tr>
                     <th className="px-8 py-5">Asset Info</th>
                     <th className="px-8 py-5">Type</th>
@@ -719,14 +719,14 @@ export function DepartmentAssetsPage() {
                       <tr key={asset.id} className="hover:bg-blue-50/30 transition-all group">
                         <td className="px-8 py-5">
                           <div className="font-bold text-gray-900">{asset.name}</div>
-                          <div className="text-[10px] font-bold text-[#2563EB] tracking-wider uppercase mt-0.5">{asset.assetCode || asset.id}</div>
-                          <div className="mt-2 flex flex-wrap gap-2 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                          <div className="text-[10px] font-pmedium text-[#2563EB] tracking-wider uppercase mt-0.5">{asset.assetCode || asset.id}</div>
+                          <div className="mt-2 flex flex-wrap gap-2 text-[9px] font-pmedium uppercase tracking-widest text-gray-500">
                             <span className="px-2 py-1 rounded-md bg-gray-50 border border-gray-100">Location: {asset.location || '--'}</span>
                             <span className="px-2 py-1 rounded-md bg-blue-50 border border-blue-100 text-[#2563EB]">Owning Dept: {asset.department || deptLabel}</span>
                           </div>
                         </td>
                         <td className="px-8 py-5">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${asset.category === 'Hardware' ? 'bg-slate-100 text-slate-700' : 'bg-purple-50 text-purple-700'}`}>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-pmedium uppercase tracking-widest ${asset.category === 'Hardware' ? 'bg-slate-100 text-slate-700' : 'bg-purple-50 text-purple-700'}`}>
                             {getAssetCategoryLabel(asset.category)}
                           </span>
                         </td>
@@ -735,10 +735,10 @@ export function DepartmentAssetsPage() {
                         </td>
                         <td className="px-8 py-5">
                           <div className="font-bold text-gray-900">{meta.primary}</div>
-                          {meta.departmentBadge ? <div className="mt-1"><span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#2563EB]">{meta.departmentBadge}</span></div> : null}
+                          {meta.departmentBadge ? <div className="mt-1"><span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wide text-[#2563EB]">{meta.departmentBadge}</span></div> : null}
                         </td>
                         <td className="px-8 py-5 text-center">
-                          <span className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${getStatusStyle(state)}`}>{state}</span>
+                          <span className={`px-3 py-1.5 rounded-md text-[9px] font-pmedium uppercase tracking-widest border ${getStatusStyle(state)}`}>{state}</span>
                         </td>
                         <td className="px-8 py-5">
                           <span className="text-sm font-bold text-gray-600">{asset.issueDate}</span>
@@ -746,7 +746,7 @@ export function DepartmentAssetsPage() {
                         <td className="px-8 py-5 text-center">
                           <div className="flex items-center justify-center gap-2">
                             {state === 'Available' ? (
-                              <button onClick={() => { setAssignmentData({ assetId: asset.id || '', assignmentType: 'department', department: '', employee: '', quantity: '1' }); setShowAssignDialog(true); }} className="px-3 py-1.5 bg-blue-50 text-[#2563EB] border border-blue-100 hover:border-blue-200 hover:bg-blue-100 rounded-full text-[10px] font-black tracking-wide transition-all shadow-sm">Assign</button>
+                              <button onClick={() => { setAssignmentData({ assetId: asset.id || '', assignmentType: 'department', department: '', employee: '', quantity: '1' }); setShowAssignDialog(true); }} className="px-3 py-1.5 bg-blue-50 text-[#2563EB] border border-blue-100 hover:border-blue-200 hover:bg-blue-100 rounded-full text-[10px] font-pmedium tracking-wide transition-all shadow-sm">Assign</button>
                             ) : null}
                             <button onClick={() => setViewingAsset(asset)} className="p-2 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-200 rounded-lg transition-all shadow-sm"><Eye size={16} /></button>
                           </div>
@@ -777,7 +777,7 @@ export function DepartmentAssetsPage() {
           <div className="bg-white rounded-4xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-start bg-white shrink-0">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] uppercase text-[#2563EB]"><UserPlus size={14} strokeWidth={2.5} /> Assign asset</div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-pmedium tracking-[0.18em] uppercase text-[#2563EB]"><UserPlus size={14} strokeWidth={2.5} /> Assign asset</div>
                 <h2 className="mt-3 text-xl sm:text-2xl font-black text-slate-900 leading-tight">Assign tracked assets without losing department context</h2>
                 <p className="text-xs sm:text-sm font-medium text-slate-500 mt-2 max-w-2xl">Pick any trackable asset, choose the target, and keep the department ledger in sync.</p>
               </div>
@@ -790,7 +790,7 @@ export function DepartmentAssetsPage() {
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Select asset</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.22em]">Select asset</label>
                       <div className="relative">
                         <select className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-900 focus:border-[#2563EB] focus:bg-white outline-none appearance-none cursor-pointer transition-all" value={assignmentData.assetId} onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                           const next = visibleAssets.find((a) => a.id === e.target.value);
@@ -803,11 +803,11 @@ export function DepartmentAssetsPage() {
                       </div>
                     </div>
                     <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3">
-                      <p className="text-[10px] font-black text-[#2563EB] uppercase tracking-[0.2em]">Department scope</p>
+                      <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-[0.2em]">Department scope</p>
                       <p className="text-sm font-medium text-[#2563EB] mt-1">Choose the department or employee this asset is assigned to. The record stays visible in its owning department.</p>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Assignment target</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.22em]">Assignment target</label>
                       <div className="relative">
                         <select className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-900 focus:border-[#2563EB] focus:bg-white outline-none appearance-none cursor-pointer transition-all" value={selectedAssetRequiresEmployeeAssignment ? 'employee' : assignmentData.assignmentType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssignmentData((prev) => ({ ...prev, assignmentType: e.target.value, department: e.target.value === 'department' ? prev.department : '', employee: e.target.value === 'employee' ? prev.employee : '', quantity: e.target.value === 'employee' ? '1' : selectedAssignmentAsset ? String(selectedAssignmentAsset.quantity || 1) : prev.quantity }))} disabled={selectedAssetRequiresEmployeeAssignment}>
                           <option value="department">Department</option>
@@ -818,7 +818,7 @@ export function DepartmentAssetsPage() {
                       {selectedAssetRequiresEmployeeAssignment ? <p className="text-[11px] font-medium text-slate-400">This transferred asset can only be assigned to an employee in {deptLabel}.</p> : null}
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">{(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? 'Employee' : 'Department'}</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.22em]">{(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? 'Employee' : 'Department'}</label>
                       <div className="relative">
                         <select className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-900 focus:border-[#2563EB] focus:bg-white outline-none appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 transition-all" value={(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? assignmentData.employee : assignmentData.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssignmentData((prev) => ({ ...prev, ...((selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? { employee: e.target.value } : { department: e.target.value }) }))} disabled={(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? !assignmentEmployeeOptions.length : !assignmentDepartmentOptions.length}>
                           {(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? (
@@ -831,7 +831,7 @@ export function DepartmentAssetsPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Quantity to transfer</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.22em]">Quantity to transfer</label>
                       {(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-sm font-semibold text-slate-900">1 item</p></div>
                       ) : (
@@ -845,10 +845,10 @@ export function DepartmentAssetsPage() {
               <aside className="border-t lg:border-t-0 lg:border-l border-slate-100 bg-slate-50/60 p-5 sm:p-6 lg:p-7 flex flex-col min-h-0">
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Assigned assets</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.22em]">Assigned assets</p>
                     <p className="text-sm font-medium text-slate-500">Current assignments in {deptLabel}</p>
                   </div>
-                  <span className="text-[10px] font-black text-[#2563EB] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">{assignedAssets.length} total</span>
+                  <span className="text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">{assignedAssets.length} total</span>
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
                   {assignedAssets.length > 0 ? assignedAssets.map((a) => {
@@ -858,19 +858,19 @@ export function DepartmentAssetsPage() {
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-900 truncate">{a.name}</p>
                           <p className="text-[11px] font-medium text-slate-500 truncate">Assigned to {meta.primary}</p>
-                          {meta.departmentBadge ? <span className="mt-1 inline-flex rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#2563EB]">{meta.departmentBadge}</span> : null}
+                          {meta.departmentBadge ? <span className="mt-1 inline-flex rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-pmedium uppercase tracking-wide text-[#2563EB]">{meta.departmentBadge}</span> : null}
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[11px] font-black text-slate-700">Qty {a.quantity || 1}</p>
-                          <p className="text-[10px] font-black text-[#2563EB] uppercase tracking-[0.2em]">{a.issueDate}</p>
+                          <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-[0.2em]">{a.issueDate}</p>
                         </div>
                       </div>
                     );
                   }) : <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-5 text-center"><p className="text-sm font-medium text-slate-500">No assets are assigned yet.</p></div>}
                 </div>
                 <div className="pt-4 mt-4 border-t border-slate-200/80 flex flex-col sm:flex-row gap-3">
-                  <button onClick={() => setShowAssignDialog(false)} className="flex-1 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all">Cancel</button>
-                  <button disabled={!assignmentData.assetId || isSaving || ((selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? !assignmentData.employee : !assignmentData.department) || (!(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) && (!assignmentData.quantity || Number(assignmentData.quantity) <= 0 || Number(assignmentData.quantity) > maxAssignableQuantity))} onClick={handleAssignAsset} className="flex-1 py-3 rounded-xl bg-[#2563EB] text-sm font-semibold text-white shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'Saving...' : 'Confirm'}</button>
+                  <button onClick={() => setShowAssignDialog(false)} className="flex-1 py-3 rounded-xl border border-slate-200 bg-white text-sm font-pmedium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all">Cancel</button>
+                  <button disabled={!assignmentData.assetId || isSaving || ((selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? !assignmentData.employee : !assignmentData.department) || (!(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) && (!assignmentData.quantity || Number(assignmentData.quantity) <= 0 || Number(assignmentData.quantity) > maxAssignableQuantity))} onClick={handleAssignAsset} className="flex-1 py-3 rounded-xl bg-[#2563EB] text-sm font-pmedium text-white shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'Saving...' : 'Confirm'}</button>
                 </div>
               </aside>
             </div>
@@ -902,9 +902,9 @@ export function DepartmentAssetsPage() {
                 { label: 'Current Status', value: getAssetState(viewingAsset, deptLabel), isStatus: true },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between items-center pb-3 border-b border-gray-50">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{row.label}</span>
+                  <span className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">{row.label}</span>
                   {row.isStatus ? (
-                    <span className={`px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${getStatusStyle(row.value)}`}>{row.value}</span>
+                    <span className={`px-3 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-widest border ${getStatusStyle(row.value)}`}>{row.value}</span>
                   ) : (
                     <span className="font-bold text-gray-900">{row.value}</span>
                   )}
@@ -913,8 +913,8 @@ export function DepartmentAssetsPage() {
             </div>
             <div className="px-8 pb-8 pt-2 bg-white border-t border-gray-100">
               <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={handleTransferBackToOwningDept} disabled={!canTransferBackToOwningDept || isSaving} className="flex-1 py-3 rounded-2xl bg-[#2563EB] text-white font-black shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'Saving...' : 'Transfer Back to Owning Dept'}</button>
-                <button onClick={() => setViewingAsset(null)} className="flex-1 py-3 rounded-2xl border border-gray-200 bg-white text-gray-700 font-black hover:bg-gray-50 transition-all">Close</button>
+                <button onClick={handleTransferBackToOwningDept} disabled={!canTransferBackToOwningDept || isSaving} className="flex-1 py-3 rounded-2xl bg-[#2563EB] text-white font-pmedium shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'Saving...' : 'Transfer Back to Owning Dept'}</button>
+                <button onClick={() => setViewingAsset(null)} className="flex-1 py-3 rounded-2xl border border-gray-200 bg-white text-gray-700 font-pmedium hover:bg-gray-50 transition-all">Close</button>
               </div>
             </div>
           </div>
@@ -927,38 +927,38 @@ export function DepartmentAssetsPage() {
             <div className="p-8 bg-slate-950 text-white border-b border-slate-800 flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-2xl font-black leading-none flex items-center gap-2"><UploadCloud size={24} /> Bulk Upload Assets</h2>
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-2">Import many assets from Excel or CSV</p>
+                <p className="text-[10px] font-pmedium text-slate-300 uppercase tracking-widest mt-2">Import many assets from Excel or CSV</p>
               </div>
               <button onClick={() => setIsBulkUploadOpen(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all"><X size={20} /></button>
             </div>
             <div className="p-8 space-y-5 overflow-y-auto flex-1 bg-slate-50/60">
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-                <p className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest">Ownership locked</p>
+                <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest">Ownership locked</p>
                 <p className="text-sm font-semibold text-[#2563EB] mt-1">Imported assets will be owned by {deptLabel}.</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Required</p><p className="mt-2 text-sm font-semibold text-slate-700">`name`</p></div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Optional</p><p className="mt-2 text-sm font-semibold text-slate-700">`category`, `quantity`, `ownershipType`, `rentDurationMonths`, `serialNumber`, `brandModel`, `purchaseDate`, `location`, `value`, `notes`, `status`</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Required</p><p className="mt-2 text-sm font-semibold text-slate-700">`name`</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Optional</p><p className="mt-2 text-sm font-semibold text-slate-700">`category`, `quantity`, `ownershipType`, `rentDurationMonths`, `serialNumber`, `brandModel`, `purchaseDate`, `location`, `value`, `notes`, `status`</p></div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={downloadBulkTemplate} className="flex-1 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"><Download size={16} /> Download Template</button>
-                <button onClick={() => bulkUploadInputRef.current?.click()} disabled={isSaving} className="flex-1 py-3 rounded-2xl bg-[#2563EB] text-sm font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"><UploadCloud size={16} /> {isSaving ? 'Importing...' : 'Choose File'}</button>
+                <button onClick={downloadBulkTemplate} className="flex-1 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-pmedium text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"><Download size={16} /> Download Template</button>
+                <button onClick={() => bulkUploadInputRef.current?.click()} disabled={isSaving} className="flex-1 py-3 rounded-2xl bg-[#2563EB] text-sm font-pmedium text-white shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"><UploadCloud size={16} /> {isSaving ? 'Importing...' : 'Choose File'}</button>
               </div>
               {bulkUploadSummary && (
                 <div className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
-                  <p className="text-[10px] font-black text-green-700 uppercase tracking-widest">Import summary</p>
+                  <p className="text-[10px] font-pmedium text-green-700 uppercase tracking-widest">Import summary</p>
                   <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-black text-slate-400 uppercase">Rows</p><p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.totalRows}</p></div>
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-black text-slate-400 uppercase">Processed</p><p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.processedRows}</p></div>
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-black text-slate-400 uppercase">Created</p><p className="mt-1 font-bold text-green-700">{bulkUploadSummary.createdCount}</p></div>
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-black text-slate-400 uppercase">Failed</p><p className="mt-1 font-bold text-rose-700">{bulkUploadSummary.failedCount}</p></div>
+                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Rows</p><p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.totalRows}</p></div>
+                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Processed</p><p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.processedRows}</p></div>
+                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Created</p><p className="mt-1 font-bold text-green-700">{bulkUploadSummary.createdCount}</p></div>
+                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Failed</p><p className="mt-1 font-bold text-rose-700">{bulkUploadSummary.failedCount}</p></div>
                   </div>
                   {bulkUploadSummary.failedRows?.length ? <div className="mt-3 rounded-xl bg-white p-3 border border-green-100"><ul className="space-y-1 text-xs font-medium text-slate-600">{bulkUploadSummary.failedRows.map((r) => <li key={r}>{r}</li>)}</ul></div> : null}
                 </div>
               )}
             </div>
             <div className="p-6 bg-white border-t border-slate-100 shrink-0">
-              <button onClick={() => setIsBulkUploadOpen(false)} className="w-full py-3 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-600 hover:bg-slate-50 transition-all">Close</button>
+              <button onClick={() => setIsBulkUploadOpen(false)} className="w-full py-3 rounded-2xl border border-slate-200 bg-white text-sm font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Close</button>
             </div>
           </div>
         </div>
@@ -970,19 +970,19 @@ export function DepartmentAssetsPage() {
             <div className="p-8 bg-blue-50 border-b border-blue-100 flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-2xl font-black text-blue-900 leading-none flex items-center gap-2"><Box size={24} /> Add Asset</h2>
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-2">Create a new department asset record</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-2">Create a new department asset record</p>
               </div>
               <button onClick={() => setIsAddModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-900 shadow-sm hover:scale-110"><X size={20} /></button>
             </div>
             <form onSubmit={handleCreateAsset} className="p-8 space-y-6 overflow-y-auto flex-1">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Asset Name</label>
+                <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Asset Name</label>
                 <input type="text" required value={assetForm.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm({ ...assetForm, name: e.target.value })} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none" placeholder="e.g. Office Laptop" />
               </div>
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3"><p className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest">Department Locked</p><p className="text-sm font-semibold text-[#2563EB] mt-1">{deptLabel} will own this asset entry.</p></div>
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3"><p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest">Department Locked</p><p className="text-sm font-semibold text-[#2563EB] mt-1">{deptLabel} will own this asset entry.</p></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Category</label>
                   <div className="relative">
                     <select className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer" value={assetForm.category} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm({ ...assetForm, category: e.target.value })}>
                       {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -991,7 +991,7 @@ export function DepartmentAssetsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Status</label>
                   <div className="relative">
                     <select className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer" value={assetForm.status} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm({ ...assetForm, status: e.target.value })}>
                       <option value="Active">Active</option>
@@ -1002,23 +1002,23 @@ export function DepartmentAssetsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Serial Number</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Serial Number</label>
                   <input type="text" className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none" value={assetForm.serialNumber} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm({ ...assetForm, serialNumber: e.target.value })} placeholder="IT asset tag or serial number" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Brand / Model</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Brand / Model</label>
                   <input type="text" className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none" value={assetForm.brandModel} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm({ ...assetForm, brandModel: e.target.value })} placeholder="e.g. Dell Latitude 5440" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Purchase Date</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Purchase Date</label>
                   <input type="date" className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none" value={assetForm.purchaseDate} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm({ ...assetForm, purchaseDate: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Quantity</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Quantity</label>
                   <input type="number" min={1} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none" value={assetForm.quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setAssetForm({ ...assetForm, quantity: v }); }} required />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ownership Type</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Ownership Type</label>
                   <div className="relative">
                     <select className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer" value={assetForm.ownershipType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm({ ...assetForm, ownershipType: e.target.value, rentDurationMonths: e.target.value === 'Rented' ? assetForm.rentDurationMonths : '' })}>
                       <option value="Owned">Owned</option>
@@ -1029,12 +1029,12 @@ export function DepartmentAssetsPage() {
                 </div>
                 {assetForm.ownershipType === 'Rented' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rent Duration (Months)</label>
+                    <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Rent Duration (Months)</label>
                     <input type="number" min={1} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none" value={assetForm.rentDurationMonths} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm({ ...assetForm, rentDurationMonths: e.target.value })} placeholder="e.g. 12" required />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Floor</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Floor</label>
                   <div className="relative">
                     <select className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer" value={assetForm.floor} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm({ ...assetForm, floor: e.target.value })}>
                       <option value="">Select floor</option>
@@ -1044,7 +1044,7 @@ export function DepartmentAssetsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Wing</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Wing</label>
                   <div className="relative">
                     <select className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer" value={assetForm.wing} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm({ ...assetForm, wing: e.target.value })}>
                       <option value="">Select wing</option>
@@ -1054,21 +1054,21 @@ export function DepartmentAssetsPage() {
                   </div>
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Location Preview</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Location Preview</label>
                   <div className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-700">{getLocationLabel(assetForm.floor, assetForm.wing) || 'Select floor and wing'}</div>
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Value</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Value</label>
                   <input type="text" inputMode="numeric" pattern="[0-9]*" value={assetForm.value} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm({ ...assetForm, value: e.target.value.replace(/\D+/g, '') })} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none" placeholder="e.g. 45000" />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</label>
+                  <label className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest">Notes</label>
                   <textarea rows={3} value={assetForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setAssetForm({ ...assetForm, notes: e.target.value })} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-medium text-gray-700 focus:border-[#2563EB] outline-none resize-none" placeholder="Optional notes for handover, warranty, condition, or storage" />
                 </div>
               </div>
               <div className="flex gap-4 pt-4 border-t border-gray-100">
                 <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
-                <button type="submit" disabled={!assetForm.name || isSaving} className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'SAVING...' : 'CREATE ASSET'}</button>
+                <button type="submit" disabled={!assetForm.name || isSaving} className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-pmedium shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'SAVING...' : 'CREATE ASSET'}</button>
               </div>
             </form>
           </div>

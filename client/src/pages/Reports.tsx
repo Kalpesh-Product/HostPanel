@@ -398,8 +398,8 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
         {statCards.map((card) => (
           <div key={card.label} className={card.cardClass}>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-              <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
             </div>
           </div>
         ))}
@@ -461,7 +461,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
 
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+            <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4">Report Title</th>
                 <th className="px-5 py-4">Department</th>
@@ -489,13 +489,13 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-50 text-slate-700 border border-slate-200">{report.department || 'General'}</span>
+                      <span className="px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider bg-slate-50 text-slate-700 border border-slate-200">{report.department || 'General'}</span>
                     </td>
                     <td className="px-5 py-4">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${catStyle.bg} ${catStyle.text} border ${catStyle.border}`}>{report.category}</span>
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider ${catStyle.bg} ${catStyle.text} border ${catStyle.border}`}>{report.category}</span>
                     </td>
                     <td className="px-5 py-4">
-                      <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">{report.dataWindow || 'Monthly'}</span>
+                      <span className="px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">{report.dataWindow || 'Monthly'}</span>
                     </td>
                     <td className="px-5 py-4"><p className="text-[13px] font-bold text-[#0F172A]">{report.generatedBy}</p></td>
                     <td className="px-5 py-4">
@@ -505,7 +505,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                     </td>
                     <td className="px-5 py-4"><span className="text-[12px] font-semibold text-slate-500">{report.generatedDate}</span></td>
                     <td className="px-5 py-4">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getFormatStyle(report.format)}`}>{report.format}</span>
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getFormatStyle(report.format)}`}>{report.format}</span>
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-center gap-1.5">
@@ -541,7 +541,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                       <p className="text-[11px] font-semibold text-slate-500">{report.generatedBy}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${catStyle.bg} ${catStyle.text} border ${catStyle.border} shrink-0 ml-2`}>{report.category}</span>
+                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider ${catStyle.bg} ${catStyle.text} border ${catStyle.border} shrink-0 ml-2`}>{report.category}</span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-500">Department: <span className="text-slate-700">{report.department || 'General'}</span></div>
                 <div className="grid grid-cols-3 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
@@ -569,7 +569,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
           <div className="flex flex-col items-center gap-2 border-t border-slate-100/70 bg-white/70 px-4 py-5">
             <p className="text-[12px] font-semibold text-slate-500">Showing {reports.length} of {pagination?.total || reports.length} reports.</p>
             <button type="button" onClick={handleLoadMoreReports} disabled={isLoadingMoreReports}
-              className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
+              className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-2.5 text-[12px] font-pmedium uppercase tracking-wider text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
               {isLoadingMoreReports ? 'Loading...' : 'Load More Reports'}
             </button>
           </div>
@@ -601,9 +601,9 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                 <RowDetail label="Period" value={viewingReport.period} icon={<Calendar size={14} className="text-slate-400" />} />
                 <RowDetail label="Date" value={viewingReport.generatedDate} valueClass="text-slate-500 text-[12px]" />
                 <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Format / Size</span>
+                  <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Format / Size</span>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${getFormatStyle(viewingReport.format)}`}>{viewingReport.format}</span>
+                    <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${getFormatStyle(viewingReport.format)}`}>{viewingReport.format}</span>
                     <span className="text-[11px] font-semibold text-slate-400">{viewingReport.size}</span>
                   </div>
                 </div>
@@ -614,16 +614,16 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                 )}
                 {viewingReport.description && (
                   <div className="space-y-2 pt-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Eye size={12} /> Summary</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Eye size={12} /> Summary</span>
                     <div className="p-4 bg-slate-50 border border-slate-100/60 rounded-2xl italic font-semibold text-slate-700 text-[13px] leading-relaxed">&ldquo;{viewingReport.description}&rdquo;</div>
                   </div>
                 )}
                 {Array.isArray(viewingReport.monthlyData) && viewingReport.monthlyData.length > 0 && (
                   <div className="space-y-2 pt-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monthly Data</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Monthly Data</span>
                     <div className="border border-slate-200 rounded-2xl overflow-hidden">
                       <table className="w-full text-left">
-                        <thead className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <thead className="bg-slate-50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                           <tr><th className="px-3 py-2">Month</th><th className="px-3 py-2">Metric</th><th className="px-3 py-2">Value</th></tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -641,10 +641,10 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                 )}
                 {Array.isArray(viewingReport.reportRows) && viewingReport.reportRows.length > 0 && (
                   <div className="space-y-2 pt-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Report Details</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Report Details</span>
                     <div className="border border-slate-200 rounded-2xl overflow-hidden">
                       <table className="w-full text-left">
-                        <thead className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <thead className="bg-slate-50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                           <tr><th className="px-3 py-2">Label</th><th className="px-3 py-2">Value</th></tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -664,12 +664,12 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                 <div className={`grid grid-cols-1 ${isViewingExcelReport ? '' : 'sm:grid-cols-2'} gap-3`}>
                   {!isViewingExcelReport && (
                     <button onClick={() => handleViewReport(viewingReport)}
-                      className="w-full py-4 bg-white border border-slate-200 text-[#0F172A] rounded-xl font-black text-[13px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                      className="w-full py-4 bg-white border border-slate-200 text-[#0F172A] rounded-xl font-pmedium text-[13px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                       <Eye size={16} /> View
                     </button>
                   )}
                   <button onClick={() => handleDownload(viewingReport, viewingReport.format)} disabled={isDownloadingReportId === viewingReport.recordId}
-                    className="w-full py-4 bg-[#2563EB] text-white rounded-xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    className="w-full py-4 bg-[#2563EB] text-white rounded-xl font-pmedium text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                     <Download size={16} /> {isDownloadingReportId === viewingReport.recordId ? 'Downloading...' : `Download ${viewingReport.format}`}
                   </button>
                 </div>
@@ -722,7 +722,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                   {isLoadingDepartmentReports && <p className="text-xs font-semibold text-blue-600">Loading department reports...</p>}
                 </PickerField>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Format</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Format</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => setDownloadPickerFormat('PDF')}
                       className={`py-2.5 rounded-xl border font-black text-xs uppercase tracking-widest transition-all ${downloadPickerFormat === 'PDF' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-slate-200 text-slate-600'}`}>PDF</button>
@@ -733,7 +733,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
               </div>
               <div className="p-6 md:p-7 bg-slate-50/50 border-t border-slate-100/60 sticky bottom-0">
                 <button onClick={handlePickerDownload} disabled={!selectedDepartmentReportId || isLoadingDepartmentReports || Boolean(isDownloadingReportId)}
-                  className="w-full py-4 bg-[#2563EB] text-white rounded-xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                  className="w-full py-4 bg-[#2563EB] text-white rounded-xl font-pmedium text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                   <Download size={16} /> {isDownloadingReportId ? 'Downloading...' : `Download ${downloadPickerFormat}`}
                 </button>
               </div>
@@ -763,9 +763,9 @@ function RowDetail({ label, value, valueClass, icon, badge }: {
   const catStyle = badge ? getCategoryStyle(value) : undefined;
   return (
     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">{label}</span>
       {badge ? (
-        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${catStyle?.bg} ${catStyle?.text} border ${catStyle?.border}`}>{value}</span>
+        <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider ${catStyle?.bg} ${catStyle?.text} border ${catStyle?.border}`}>{value}</span>
       ) : (
         <span className={`font-bold text-[#0F172A] text-[13px] ${valueClass || ''} flex items-center gap-1.5`}>{icon}{icon ? <>{value}</> : value}</span>
       )}
@@ -776,7 +776,7 @@ function RowDetail({ label, value, valueClass, icon, badge }: {
 function PickerField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</label>
+      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{label}</label>
       <div className="relative">{children}</div>
     </div>
   );

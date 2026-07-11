@@ -171,7 +171,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+          className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
         >
           Add Field
         </button>
@@ -232,7 +232,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
             <button
               type="button"
               onClick={handleAdd}
-              className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
+              className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
             >
               Add Field
             </button>
@@ -242,7 +242,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
                 reset();
                 setOpen(false);
               }}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
             >
               Cancel
             </button>
@@ -404,6 +404,37 @@ const toMediaToken = (media: any) => {
   return "";
 };
 
+// Footer social links: shown disabled in the form until the user enables the
+// ones they want; only enabled socials with a link render on the website footer.
+const SOCIAL_PLATFORMS = [
+  { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/yourhandle" },
+  { key: "facebook", label: "Facebook", placeholder: "https://facebook.com/yourpage" },
+  { key: "twitter", label: "Twitter / X", placeholder: "https://x.com/yourhandle" },
+  { key: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/company/yourcompany" },
+  { key: "whatsapp", label: "WhatsApp", placeholder: "WhatsApp number with country code e.g. 919876543210" },
+];
+
+const buildDefaultSocials = () =>
+  SOCIAL_PLATFORMS.reduce(
+    (acc: Record<string, { enabled: boolean; link: string }>, platform) => {
+      acc[platform.key] = { enabled: false, link: "" };
+      return acc;
+    },
+    {},
+  );
+
+const normalizeSocials = (value: any) =>
+  SOCIAL_PLATFORMS.reduce(
+    (acc: Record<string, { enabled: boolean; link: string }>, platform) => {
+      acc[platform.key] = {
+        enabled: value?.[platform.key]?.enabled === true,
+        link: String(value?.[platform.key]?.link || "").trim(),
+      };
+      return acc;
+    },
+    {},
+  );
+
 const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   companyId: String(formValues?.companyId || meta?.companyId || "").trim(),
   companyName: String(formValues?.companyName || meta?.companyName || "").trim(),
@@ -413,6 +444,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   about: Array.isArray(formValues?.about)
     ? formValues.about.map((item: any) => ({ text: String(item?.text || "").trim() }))
     : [{ text: "" }],
+  aboutTitle: String(formValues?.aboutTitle || "").trim(),
   productTitle: String(formValues?.productTitle || "").trim(),
   products: Array.isArray(formValues?.products)
     ? formValues.products.map((item: any) => ({
@@ -491,6 +523,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   address: String(formValues?.address || "").trim(),
   registeredCompanyName: String(formValues?.registeredCompanyName || "").trim(),
   copyrightText: String(formValues?.copyrightText || "").trim(),
+  socials: normalizeSocials(formValues?.socials),
   pageNavItems: Array.isArray(formValues?.pageNavItems)
     ? formValues.pageNavItems.map((item: any) => ({
         name: String(item?.name || "").trim(),
@@ -783,6 +816,7 @@ const CreateWebsite = () => {
       gallery: [],
       // about
       about: [{ text: "" }],
+      aboutTitle: "",
       // products
       productTitle: "",
       products: [defaultProduct],
@@ -806,6 +840,7 @@ const CreateWebsite = () => {
       // footer
       registeredCompanyName: "",
       copyrightText: "",
+      socials: buildDefaultSocials(),
       pageNavItems: DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
         name,
         slug: String(name).toLowerCase().replace(/\s+/g, "-"),
@@ -1151,6 +1186,7 @@ const CreateWebsite = () => {
                         : String(item?.text || "").trim(),
                     }))
                   : [{ text: "" }],
+            aboutTitle: String(draftData?.aboutTitle || found?.aboutTitle || "").trim(),
             productTitle: String(draftData?.productTitle || found?.productTitle || "").trim(),
             products:
               Array.isArray(draftData?.products) && draftData.products.length
@@ -1244,6 +1280,7 @@ const CreateWebsite = () => {
               draftData?.registeredCompanyName || found?.registeredCompanyName || "",
             ).trim(),
             copyrightText: String(draftData?.copyrightText || found?.copyrightText || "").trim(),
+            socials: normalizeSocials(draftData?.socials || found?.socials),
             pageNavItems:
               Array.isArray(draftData?.pageNavItems) && draftData.pageNavItems.length
                 ? migrateNavItems(draftData.pageNavItems)
@@ -1712,7 +1749,7 @@ const CreateWebsite = () => {
     fd.set("dorms", JSON.stringify(values.dorms || []));
 
     for (const key of Array.from(fd.keys())) {
-      if (/^(products|testimonials)\.\d+\./.test(key)) fd.delete(key);
+      if (/^(products|testimonials)\.\d+\.|^socials\./.test(key)) fd.delete(key);
     }
 
     fd.set("about", JSON.stringify(values.about.map((p) => p.text)));
@@ -1784,6 +1821,8 @@ const CreateWebsite = () => {
       });
       appendFileIfPresent(`productPageHomeCardImage_${index}`, item?.homeCardImage);
     });
+    fd.set("aboutTitle", String(values.aboutTitle || "").trim());
+    fd.set("socials", JSON.stringify(normalizeSocials(values.socials)));
     fd.set("aboutPageIntro", values.aboutPageIntro || "");
     fd.set("aboutPageOverview", values.aboutPageOverview || "");
     fd.set("aboutPageStory", values.aboutPageStory || "");
@@ -1919,6 +1958,7 @@ const CreateWebsite = () => {
       about: (formValues?.about || [])
         .map((item: any) => String(item?.text || "").trim())
         .filter(Boolean),
+      aboutTitle: String(formValues?.aboutTitle || "").trim(),
       aboutPageIntro: String(formValues?.aboutPageIntro || "").trim(),
       aboutPageOverview: String(formValues?.aboutPageOverview || "").trim(),
       aboutPageStory: String(formValues?.aboutPageStory || "").trim(),
@@ -2061,6 +2101,7 @@ const CreateWebsite = () => {
       contactTitle: String(formValues?.contactTitle || "Contact Us").trim(),
       registeredCompanyName: String(formValues?.registeredCompanyName || "").trim(),
       copyrightText: String(formValues?.copyrightText || "").trim(),
+      socials: normalizeSocials(formValues?.socials),
       email: String(formValues?.websiteEmail || "").trim(),
       phone: String(formValues?.phone || "").trim(),
       address: String(formValues?.address || "").trim(),
@@ -2476,6 +2517,7 @@ const CreateWebsite = () => {
       gallery: [],
 
       about: [{ text: "" }],
+      aboutTitle: "",
 
       productTitle: "",
       products: [defaultProduct],
@@ -2493,6 +2535,7 @@ const CreateWebsite = () => {
 
       registeredCompanyName: "",
       copyrightText: "",
+      socials: buildDefaultSocials(),
     });
   };
 
@@ -2620,7 +2663,7 @@ const CreateWebsite = () => {
                       }
                       setActiveMainPageTab(index);
                     }}
-                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                       isLocked
                         ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-400"
                         : activeMainPageTab === index
@@ -2687,7 +2730,7 @@ const CreateWebsite = () => {
                     </TextField>
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                       onClick={() => {
                         const optionName = String(selectedProductPageOption || "").trim();
                         if (!optionName) return;
@@ -2733,7 +2776,7 @@ const CreateWebsite = () => {
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
+                      className="px-3 py-1.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
                       onClick={() => {
                         const newPageNumber = (values?.productDropdownPages || []).length + 1;
                         const newName = `Product ${newPageNumber}`;
@@ -2780,7 +2823,7 @@ const CreateWebsite = () => {
                           key={item.id}
                           type="button"
                           onClick={() => setActiveProductPageTab(index)}
-                          className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                          className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                             activeProductPageTab === index
                               ? "bg-[#2563EB] text-white shadow-sm"
                               : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -3145,16 +3188,16 @@ const CreateWebsite = () => {
 
                         {/* FAQ is now global — edit from the Home/Products section */}
                         <div>
-                          <div className="flex items-center justify-between py-2 border-b border-slate-200 mb-2">
-                            <span className="text-sm font-semibold text-slate-700">FAQ (Frequently Asked Questions)</span>
+                          <div className="py-4 border-b-default border-borderGray">
+                            <span className="text-subtitle font-pmedium">FAQ Section</span>
                           </div>
-                          <p className="text-xs text-slate-500">FAQs are shared across all product pages. Edit them in the <strong>FAQ</strong> section in the Home Section Cards area below.</p>
+                          <p className="mt-3 text-xs text-slate-500">FAQs are shared across all product pages. Edit them in the <strong>FAQ</strong> section in the Home Section Cards area below.</p>
                         </div>
 
                         {/* Inclusions for this product page */}
                         <div>
-                          <div className="flex items-center justify-between mb-3 border-b border-slate-200 pb-2">
-                            <span className="text-sm font-semibold text-slate-700">Product Page Inclusions</span>
+                          <div className="py-4 border-b-default border-borderGray flex items-center justify-between mb-3">
+                            <span className="text-subtitle font-pmedium">Inclusions Section</span>
                             <span className="text-xs text-slate-400">Toggle per amenity</span>
                           </div>
                           <Controller
@@ -3748,7 +3791,7 @@ const CreateWebsite = () => {
                     </p>
                     <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-[10px] font-pmedium uppercase tracking-wide text-slate-500">
                           Default Fields
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -3763,7 +3806,7 @@ const CreateWebsite = () => {
                         </div>
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-[10px] font-pmedium uppercase tracking-wide text-slate-500">
                           Custom Fields
                         </p>
                         <p className="mt-0.5 text-[10px] text-slate-500">
@@ -3780,7 +3823,7 @@ const CreateWebsite = () => {
                       These appear on the Apply Now form after the Resume upload and stay enabled.
                     </p>
                     <div className="mt-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      <p className="text-[10px] font-pmedium uppercase tracking-wide text-slate-500">
                         Added Fields Preview
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -3809,7 +3852,7 @@ const CreateWebsite = () => {
                           key={field.fieldKey}
                           className="flex flex-col gap-2 border-t border-borderGray py-3 first:border-0 md:flex-row md:items-center"
                         >
-                          <span className="inline-flex w-fit rounded bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          <span className="inline-flex w-fit rounded bg-slate-100 px-2 py-1 text-[10px] font-pmedium uppercase tracking-wide text-slate-500">
                             {String(field.type || "text")}
                           </span>
                           <Controller
@@ -3829,7 +3872,7 @@ const CreateWebsite = () => {
                               type="button"
                               disabled={index === 0}
                               onClick={() => moveCareersField(index, index - 1)}
-                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-pmedium text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Move ${field.label || field.type} up`}
                             >
                               ↑
@@ -3838,7 +3881,7 @@ const CreateWebsite = () => {
                               type="button"
                               disabled={index === careersFieldItems.length - 1}
                               onClick={() => moveCareersField(index, index + 1)}
-                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-pmedium text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Move ${field.label || field.type} down`}
                             >
                               ↓
@@ -3847,7 +3890,7 @@ const CreateWebsite = () => {
                           <button
                             type="button"
                             onClick={() => removeCareersField(index)}
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-red-500 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                            className="px-3 py-1.5 bg-white border border-slate-200 text-red-500 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                           >
                             Remove
                           </button>
@@ -4089,6 +4132,36 @@ const CreateWebsite = () => {
                   )}
                 />
 
+                {/* companyLogo (single) */}
+                <Controller
+                  name="companyLogo"
+                  control={control}
+                  render={({ field }) => (
+                    <UploadFileInput
+                      id="companyLogo"
+                      value={field.value}
+                      label="Company Logo"
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+
+                {/* heroImages (multiple) */}
+                <Controller
+                  name="heroImages"
+                  control={control}
+                  render={({ field }) => (
+                    <UploadMultipleFilesInput
+                      {...field}
+                      name="heroImages" // important so FormData picks the files
+                      label="Carousel Images"
+                      maxFiles={5}
+                      allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                      id="heroImages"
+                    />
+                  )}
+                />
+
                 <Controller
                   name="title"
                   control={control}
@@ -4148,37 +4221,6 @@ const CreateWebsite = () => {
                     />
                   )}
                 />
-
-                {/* companyLogo (single) */}
-
-                <Controller
-                  name="companyLogo"
-                  control={control}
-                  render={({ field }) => (
-                    <UploadFileInput
-                      id="companyLogo"
-                      value={field.value}
-                      label="Company Logo"
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
-
-                {/* heroImages (multiple) */}
-                <Controller
-                  name="heroImages"
-                  control={control}
-                  render={({ field }) => (
-                    <UploadMultipleFilesInput
-                      {...field}
-                      name="heroImages" // important so FormData picks the files
-                      label="Carousel Images"
-                      maxFiles={5}
-                      allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
-                      id="heroImages"
-                    />
-                  )}
-                />
               </div>
             </div>
             )}
@@ -4213,9 +4255,23 @@ const CreateWebsite = () => {
             {activeSections.includes("about") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium">About</span>
+                <span className="text-subtitle font-pmedium">About Section</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
+                <Controller
+                  name="aboutTitle"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      value={field.value || ""}
+                      size="small"
+                      label="About Section Heading"
+                      fullWidth
+                      placeholder="About Our Vision"
+                    />
+                  )}
+                />
                 {aboutFields.map((field, index) => (
                   <div
                     key={field.id}
@@ -4271,8 +4327,25 @@ const CreateWebsite = () => {
             {/* PRODUCTS */}
             {activeSections.includes("products") && (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium">Our Products Pages</span>
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+                <span className="text-subtitle font-pmedium">Our Products Section</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const productsTabIndex = (values?.pageNavItems || []).findIndex(
+                      (item) =>
+                        String(item?.slug || "").trim().toLowerCase() === "products",
+                    );
+                    if (productsTabIndex >= 0) setActiveMainPageTab(productsTabIndex);
+                    document
+                      .getElementById("scrollable-content")
+                      ?.scrollTo({ top: 0, behavior: "smooth" });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="text-[#2563EB] text-sm font-pmedium hover:underline inline-flex items-center gap-1 transition-all"
+                >
+                  Go to Products Tab →
+                </button>
               </div>
               <div className="grid grid-cols-1 gap-4 p-4">
                 <Controller
@@ -4371,11 +4444,12 @@ const CreateWebsite = () => {
 
             {/* Home Inclusions â€" toggle amenities shown below Our Products on home page */}
             {productPageFields.length > 0 ? (
-            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-slate-800">Home Inclusions</p>
+            <div className="col-span-2">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+                <span className="text-subtitle font-pmedium">Home Inclusions Section</span>
                 <span className="text-xs text-slate-400">Shown below Our Products on home page</span>
               </div>
+              <div className="p-4">
               <Controller
                 name="inclusions"
                 control={control}
@@ -4419,16 +4493,18 @@ const CreateWebsite = () => {
                   );
                 }}
               />
+              </div>
             </div>
             ) : null}
 
             {/* Global FAQ â€" shown on all product pages and product detail pages */}
             {productPageFields.length > 0 ? (
-            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-slate-800">FAQ (Shown on all product &amp; detail pages)</p>
-                <span className="text-xs text-slate-400">Max 10</span>
+            <div className="col-span-2">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+                <span className="text-subtitle font-pmedium">FAQ Section</span>
+                <span className="text-xs text-slate-400">Shown on all product &amp; detail pages · Max 10</span>
               </div>
+              <div className="p-4">
               <Controller
                 name="faqs"
                 control={control}
@@ -4461,6 +4537,7 @@ const CreateWebsite = () => {
                   );
                 }}
               />
+              </div>
             </div>
             ) : null}
 
@@ -4657,9 +4734,9 @@ const CreateWebsite = () => {
 
             {/* GALLERY */}
             {activeSections.includes("gallery") && (
-            <div>
+            <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium">Gallery</span>
+                <span className="text-subtitle font-pmedium">Gallery Section</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -4703,7 +4780,7 @@ const CreateWebsite = () => {
             {activeSections.includes("testimonials") && (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium">Testimonials</span>
+                <span className="text-subtitle font-pmedium">Testimonials Section</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -4744,67 +4821,48 @@ const CreateWebsite = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Controller
-                        name={`testimonials.${index}.name`}
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
-                            label="Name"
-                            fullWidth
-                            inputProps={{
-                              maxLength: CHAR_LIMITS.testimonialName,
-                            }}
-                            helperText={getHelperText(
-                              errors?.testimonials?.[index]?.name?.message,
-                              values?.testimonials?.[index]?.name,
-                              CHAR_LIMITS.testimonialName,
-                            )}
-                            error={!!errors?.testimonials?.[index]?.name}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name={`testimonials.${index}.jobPosition`}
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
-                            label="Job Position"
-                            fullWidth
-                            inputProps={{
-                              maxLength: CHAR_LIMITS.testimonialJobPosition,
-                            }}
-                            helperText={getHelperText(
-                              errors?.testimonials?.[index]?.jobPosition
-                                ?.message,
-                              values?.testimonials?.[index]?.jobPosition,
-                              CHAR_LIMITS.testimonialJobPosition,
-                            )}
-                            error={!!errors?.testimonials?.[index]?.jobPosition}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name={`testimonials.${index}.rating`}
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            type="number"
-                            size="small"
-                            label="Rating (1-5)"
-                            fullWidth
-                            inputProps={{ min: 1, max: 5 }}
-                            helperText={
-                              errors?.testimonials?.[index]?.rating?.message
-                            }
-                            error={!!errors?.testimonials?.[index]?.rating}
-                          />
-                        )}
-                      />
+                      {/* Left: name + rating stacked; Right: testimony */}
+                      <div className="flex flex-col gap-4">
+                        <Controller
+                          name={`testimonials.${index}.name`}
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              size="small"
+                              label="Name"
+                              fullWidth
+                              inputProps={{
+                                maxLength: CHAR_LIMITS.testimonialName,
+                              }}
+                              helperText={getHelperText(
+                                errors?.testimonials?.[index]?.name?.message,
+                                values?.testimonials?.[index]?.name,
+                                CHAR_LIMITS.testimonialName,
+                              )}
+                              error={!!errors?.testimonials?.[index]?.name}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name={`testimonials.${index}.rating`}
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              type="number"
+                              size="small"
+                              label="Rating (1-5)"
+                              fullWidth
+                              inputProps={{ min: 1, max: 5 }}
+                              helperText={
+                                errors?.testimonials?.[index]?.rating?.message
+                              }
+                              error={!!errors?.testimonials?.[index]?.rating}
+                            />
+                          )}
+                        />
+                      </div>
                       <Controller
                         name={`testimonials.${index}.testimony`}
                         control={control}
@@ -4815,7 +4873,7 @@ const CreateWebsite = () => {
                             label="Testimony"
                             fullWidth
                             multiline
-                            minRows={3}
+                            minRows={4}
                             inputProps={{
                               maxLength: CHAR_LIMITS.testimonialTestimony,
                             }}
@@ -4829,20 +4887,6 @@ const CreateWebsite = () => {
                         )}
                       />
                     </div>
-
-                    {/* testimonialImages_${index} (single) */}
-                    <Controller
-                      name={`testimonials.${index}.file`}
-                      control={control}
-                      render={({ field }) => (
-                        <UploadFileInput
-                          value={field.value}
-                          label="Testimonial Image"
-                          onChange={field.onChange}
-                          id={`testimonial-file-${index}`}
-                        />
-                      )}
-                    />
                   </div>
                 ))}
 
@@ -4861,11 +4905,11 @@ const CreateWebsite = () => {
 
             {/* Logo Carousel — shown just before Contact & Footer on home page */}
             {activeSections.includes("contact") && (
-            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">Logo Carousel</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Shown just before Contact &amp; Footer on home page</p>
+            <div className="col-span-2">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-subtitle font-pmedium">Logo Carousel Section</span>
+                  <span className="text-xs text-slate-400">Shown just before Contact &amp; Footer on home page</span>
                 </div>
                 <Controller
                   name="logoCarousel.enabled"
@@ -4883,7 +4927,7 @@ const CreateWebsite = () => {
                   )}
                 />
               </div>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 p-4">
                 <Controller
                   name="logoCarousel.title"
                   control={control}
@@ -4922,7 +4966,7 @@ const CreateWebsite = () => {
             {activeSections.includes("contact") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium">Contact</span>
+                <span className="text-subtitle font-pmedium">Contact Section</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -5060,7 +5104,7 @@ const CreateWebsite = () => {
             {activeSections.includes("footer") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium">Footer</span>
+                <span className="text-subtitle font-pmedium">Footer Section</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -5105,6 +5149,68 @@ const CreateWebsite = () => {
                     />
                   )}
                 />
+
+                {/* Footer social links — enable the ones to show on the website footer */}
+                <div>
+                  <div className="py-2 border-b-default border-borderGray">
+                    <span className="text-subtitle font-pmedium">Social Links</span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Select the socials you want on the website footer and add
+                    their links. Only enabled socials with a link are shown.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {SOCIAL_PLATFORMS.map((platform) => (
+                      <Controller
+                        key={`social-${platform.key}`}
+                        name={`socials.${platform.key}`}
+                        control={control}
+                        render={({ field }) => {
+                          const current = field.value || { enabled: false, link: "" };
+                          return (
+                            <div className="flex items-center gap-3">
+                              <label className="flex w-28 shrink-0 cursor-pointer items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={current.enabled === true}
+                                  onChange={(e) =>
+                                    field.onChange({
+                                      ...current,
+                                      enabled: e.target.checked,
+                                    })
+                                  }
+                                  className="h-4 w-4 rounded border-slate-300 accent-slate-800"
+                                />
+                                <span
+                                  className={`text-xs font-medium ${
+                                    current.enabled ? "text-slate-700" : "text-slate-400"
+                                  }`}
+                                >
+                                  {platform.label}
+                                </span>
+                              </label>
+                              <TextField
+                                value={current.link || ""}
+                                onChange={(e) =>
+                                  field.onChange({ ...current, link: e.target.value })
+                                }
+                                size="small"
+                                fullWidth
+                                disabled={current.enabled !== true}
+                                label={
+                                  platform.key === "whatsapp"
+                                    ? "WhatsApp Number"
+                                    : `${platform.label} Link`
+                                }
+                                placeholder={platform.placeholder}
+                              />
+                            </div>
+                          );
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
             )}
@@ -5121,14 +5227,14 @@ const CreateWebsite = () => {
                 <button
                   type="button"
                   onClick={openPreview}
-                  className="px-8 py-2.5 bg-green-500 border border-slate-200 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-green-600 transition-all"
+                  className="px-8 py-2.5 bg-green-500 border border-slate-200 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-green-600 transition-all"
                 >
                   Preview
                 </button>
                 <button
                   type="button"
                   onClick={resetFormToEmpty}
-                  className="px-8 py-2.5 bg-red-500 border border-slate-200 text-slate-100 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-red-600 transition-all"
+                  className="px-8 py-2.5 bg-red-500 border border-slate-200 text-slate-100 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-red-600 transition-all"
                 >
                   Reset
                 </button>
@@ -5136,7 +5242,7 @@ const CreateWebsite = () => {
                   type="button"
                   onClick={() => setShowConfirmPopup(true)}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
+                  className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                 >
                   {isWebsiteSubmitting ? (
                     <>{effectiveEditMode ? "Submitting..." : "Publishing..."}</>
@@ -5206,14 +5312,14 @@ const CreateWebsite = () => {
                   type="button"
                   onClick={() => setShowConfirmPopup(false)}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50"
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                  className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                   onClick={() => {
                     if (isWebsiteSubmitting || isRedirectingAfterCreate) return;
                     setShowConfirmPopup(false);

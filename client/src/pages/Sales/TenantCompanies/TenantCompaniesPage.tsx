@@ -2744,11 +2744,11 @@ export default function TenantCompaniesPage() {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Pending Setup': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wider"><Clock size={12} /> Pending Setup</span>;
-      case 'Pending Space Assignment': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-black uppercase tracking-wider"><LayoutGrid size={12} /> Pending Space Assignment</span>;
-      case 'Active': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>;
-      case 'Expiring Soon': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-black uppercase tracking-wider"><AlertTriangle size={12} /> Expiring Soon</span>;
-      case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-black uppercase tracking-wider"><XCircle size={12} /> Expired</span>;
+      case 'Pending Setup': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><Clock size={12} /> Pending Setup</span>;
+      case 'Pending Space Assignment': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><LayoutGrid size={12} /> Pending Space Assignment</span>;
+      case 'Active': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>;
+      case 'Expiring Soon': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><AlertTriangle size={12} /> Expiring Soon</span>;
+      case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><XCircle size={12} /> Expired</span>;
       default: return null;
     }
   };
@@ -2757,7 +2757,7 @@ export default function TenantCompaniesPage() {
     <div className="flex items-center justify-center min-h-screen bg-[#F8FAFC]">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Loading Tenant Companies...</p>
+        <p className="text-sm font-pmedium text-slate-500 uppercase tracking-widest">Loading Tenant Companies...</p>
       </div>
     </div>
   );
@@ -2804,14 +2804,14 @@ export default function TenantCompaniesPage() {
             <button
               type="button"
               onClick={() => setActiveTab('companies')}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'companies' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'companies' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               Tenant companies
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('requests')}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'requests' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'requests' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               Extra credits requests
             </button>
@@ -2824,8 +2824,8 @@ export default function TenantCompaniesPage() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass}`}><Icon size={16} /></div>
                 </div>
@@ -2855,7 +2855,7 @@ export default function TenantCompaniesPage() {
               <div className="flex flex-wrap items-center gap-1 w-10px xl:w-auto">
                 <button
                   onClick={openAddCompanyModal}
-                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-black text-[10px] hover:bg-blue-700 shadow-sm transition-all flex items-end justify-center gap-1.5"
+                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] hover:bg-blue-700 shadow-sm transition-all flex items-end justify-center gap-1.5"
                 >
                   <Plus size={14} /> ADD TENANT COMPANY
                 </button>
@@ -2864,7 +2864,7 @@ export default function TenantCompaniesPage() {
 
             <div className={`overflow-x-auto flex-1 ${activeTab === 'companies' ? '' : 'hidden'}`}>
               <table className="w-full text-left">
-                <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
+                <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                   <tr>
                     <th className="px-3.5 py-2">Company Info</th>
                     <th className="px-3.5 py-2">Contact Details</th>
@@ -2884,14 +2884,14 @@ export default function TenantCompaniesPage() {
                           </div>
                           <div>
                             <p className="font-pmedium text-primary text-sm max-w-37.5 truncate" title={tenant.companyName}>{tenant.companyName}</p>
-                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">{tenant.id}</p>
+                            <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{tenant.id}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3.5 py-2 space-y-1">
                         <p className="font-bold text-slate-800 text-xs">{tenant.contactName}</p>
-                        <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5"><Mail size={10} /> {tenant.email}</p>
-                        <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5"><Phone size={10} /> {tenant.phone}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> {tenant.email}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Phone size={10} /> {tenant.phone}</p>
                       </td>
                       <td className="px-3.5 py-2">
                         <div className="flex items-center gap-2 mb-1">
@@ -2904,10 +2904,10 @@ export default function TenantCompaniesPage() {
                         </div>
                       </td>
                       <td className="px-3.5 py-2 space-y-1.5">
-                        <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-black uppercase tracking-wider">
+                        <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-pmedium uppercase tracking-wider">
                           {tenant.packageName || tenant.package}
                         </span>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-600">
+                        <div className="flex items-center gap-1 text-[10px] font-pmedium text-slate-600">
                           <CreditCard size={12} className="text-slate-400" /> {tenant.creditsRemaining ?? 0} / {tenant.creditsAllocated ?? 0} Cr
                         </div>
                       </td>
@@ -2981,7 +2981,7 @@ export default function TenantCompaniesPage() {
 
                   <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left">
-                      <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
+                      <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                         <tr>
                           <th className="px-3.5 py-2">Tenant</th>
                           <th className="px-3.5 py-2">Requested credits</th>
@@ -3001,35 +3001,35 @@ export default function TenantCompaniesPage() {
                                 </div>
                                 <div>
                                   <p className="font-black text-slate-900 text-sm max-w-45 truncate" title={request.tenantCompanyName}>{request.tenantCompanyName}</p>
-                                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">{request.tenantCompanyCode}</p>
+                                  <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{request.tenantCompanyCode}</p>
                                 </div>
                               </div>
                             </td>
                             <td className="px-3.5 py-2">
                               <div className="space-y-1.5">
                                 <p className="text-lg font-black text-slate-950">{formatInteger(request.requestedCredits)} <span className="text-xs text-slate-400">CR</span></p>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">{formatCurrency(request.totalAmount || 0)} at {formatCurrency(request.ratePerCredit || 0)} / CR</p>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Current balance: {formatInteger(request.currentCredits || 0)} CR</p>
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">{formatCurrency(request.totalAmount || 0)} at {formatCurrency(request.ratePerCredit || 0)} / CR</p>
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Current balance: {formatInteger(request.currentCredits || 0)} CR</p>
                               </div>
                             </td>
                             <td className="px-3.5 py-2">
-                              <span className={`inline-flex rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${getCreditRequestStatusClass(request.status)}`}>
+                              <span className={`inline-flex rounded-full border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest ${getCreditRequestStatusClass(request.status)}`}>
                                 {getCreditRequestStatusLabel(request.status)}
                               </span>
-                              <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Invoice {request.invoiceStatus || 'Pending'}</p>
+                              <p className="mt-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Invoice {request.invoiceStatus || 'Pending'}</p>
                               {request.paymentTransactionId && (
-                                <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">TXN {request.paymentTransactionId}</p>
+                                <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">TXN {request.paymentTransactionId}</p>
                               )}
                             </td>
                             <td className="px-3.5 py-2">
                               <p className="font-bold text-slate-800 text-xs">{request.invoiceNumber || 'Pending'}</p>
                               {request.invoiceFileUrl ? (
-                                <a href={request.invoiceFileUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline">View invoice</a>
+                                <a href={request.invoiceFileUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:underline">View invoice</a>
                               ) : (
                                 <p className="mt-1 text-[10px] font-medium text-slate-400">Finance will attach the invoice file here.</p>
                               )}
                               {request.paymentProofFileUrl && (
-                                <a href={request.paymentProofFileUrl} target="_blank" rel="noreferrer" className="mt-2 block text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-700">View proof</a>
+                                <a href={request.paymentProofFileUrl} target="_blank" rel="noreferrer" className="mt-2 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400 hover:text-slate-700">View proof</a>
                               )}
                             </td>
                             <td className="px-3.5 py-2">
@@ -3043,14 +3043,14 @@ export default function TenantCompaniesPage() {
                                     <button
                                       type="button"
                                       onClick={() => handleCreditRequestAction(request, 'APPROVED_AWAITING_PAYMENT')}
-                                      className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-green-700 transition-all hover:bg-green-100"
+                                      className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-green-700 transition-all hover:bg-green-100"
                                     >
                                       Approve
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleCreditRequestAction(request, 'REJECTED')}
-                                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-700 transition-all hover:bg-rose-100"
+                                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-rose-700 transition-all hover:bg-rose-100"
                                     >
                                       Reject
                                     </button>
@@ -3060,7 +3060,7 @@ export default function TenantCompaniesPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleCreditRequestAction(request, 'PAYMENT_CONFIRMED')}
-                                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-700 transition-all hover:bg-blue-100"
+                                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-blue-700 transition-all hover:bg-blue-100"
                                   >
                                     Verify payment
                                   </button>
@@ -3069,7 +3069,7 @@ export default function TenantCompaniesPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleCreditRequestAction(request, 'COMPLETED')}
-                                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:bg-emerald-100"
+                                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-emerald-700 transition-all hover:bg-emerald-100"
                                   >
                                     Add credits
                                   </button>
@@ -3115,14 +3115,14 @@ export default function TenantCompaniesPage() {
                     <button
                       type="button"
                       onClick={downloadBulkTemplate}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:border-slate-300 hover:bg-white"
+                      className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-pmedium uppercase tracking-widest text-slate-700 transition-all hover:border-slate-300 hover:bg-white"
                     >
                       <Download size={14} /> Download template
                     </button>
                     <button
                       type="button"
                       onClick={() => bulkUploadInputRef.current?.click()}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-blue-700 transition-all hover:border-blue-300 hover:bg-blue-100"
+                      className="flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[11px] font-pmedium uppercase tracking-widest text-blue-700 transition-all hover:border-blue-300 hover:bg-blue-100"
                     >
                       <UploadCloud size={14} /> Choose file
                     </button>
@@ -3145,36 +3145,36 @@ export default function TenantCompaniesPage() {
                         <h3 className="mt-0.5 text-[13px] font-bold text-slate-900">{bulkUploadFileName || 'No file selected yet'}</h3>
                       </div>
                       {isBulkImporting && (
-                        <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-blue-700">Importing</span>
+                        <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">Importing</span>
                       )}
                     </div>
 
                     {bulkUploadSummary && (
                       <div className="mt-3 grid gap-2 sm:grid-cols-3">
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Created</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Created</p>
                           <p className="mt-0.5 text-[13px] font-bold text-slate-900">{bulkUploadSummary.created}</p>
                         </div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Failed</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Failed</p>
                           <p className="mt-0.5 text-[13px] font-bold text-slate-900">{bulkUploadSummary.failed}</p>
                         </div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">File</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">File</p>
                           <p className="mt-0.5 text-[12px] font-semibold text-slate-900 break-all">{bulkUploadSummary.fileName}</p>
                         </div>
                       </div>
                     )}
 
                     {bulkUploadError && (
-                      <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-rose-700">
+                      <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-rose-700">
                         {bulkUploadError}
                       </div>
                     )}
 
                     {bulkUploadSummary?.errors?.length > 0 && (
                       <div className="mt-3 max-h-36 overflow-y-auto rounded-xl border border-amber-200 bg-amber-50 p-3">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-amber-700">Row errors</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-700">Row errors</p>
                         <ul className="mt-1.5 space-y-1 text-[11px] font-medium text-amber-800">
                           {bulkUploadSummary.errors.map((errorText) => (
                             <li key={errorText}>{errorText}</li>
@@ -3187,14 +3187,14 @@ export default function TenantCompaniesPage() {
                       <button
                         type="button"
                         onClick={() => { setIsBulkUploadOpen(false); setBulkUploadError(''); setBulkUploadSummary(null); setBulkUploadFileName(''); }}
-                        className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:bg-slate-200"
+                        className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-slate-700 transition-all hover:bg-slate-200"
                       >
                         Close
                       </button>
                       <button
                         type="button"
                         onClick={() => bulkUploadInputRef.current?.click()}
-                        className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white transition-all hover:bg-blue-700"
+                        className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-blue-700"
                       >
                         Select file
                       </button>
@@ -3213,7 +3213,7 @@ export default function TenantCompaniesPage() {
                     <h2 className="text-base font-pmedium text-primary flex items-center gap-2">
                       {activeModal === 'add' ? <><Building size={18} /> Add Tenant Company</> : activeModal === 'edit' ? <><Edit size={18} /> Edit Tenant Details</> : <><RefreshCw size={18} /> Renew Contract</>}
                     </h2>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">
                       {activeModal === 'renew' && selectedTenant ? `Renewing: ${selectedTenant.companyName}` : activeModal === 'edit' && selectedTenant ? `Editing: ${selectedTenant.companyName}` : 'Register a new corporate client'}
                     </p>
                   </div>
@@ -3224,26 +3224,26 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-5 space-y-3">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">5. Profile & Contact</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">5. Profile & Contact</h3>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Company Name *</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company Name *</label>
                         <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyName} onChange={e => setCompanyForm({ ...companyForm, companyName: e.target.value })} />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Business Type</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Business Type</label>
                         <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.businessType} onChange={e => setCompanyForm({ ...companyForm, businessType: e.target.value })} />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Contact Person *</label>
+                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Contact Person *</label>
                           <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.contactName} onChange={e => setCompanyForm({ ...companyForm, contactName: e.target.value })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Email *</label>
+                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email *</label>
                           <input required type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.email} onChange={e => setCompanyForm({ ...companyForm, email: e.target.value })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone *</label>
+                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone *</label>
                           <input required type="tel" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.phone} onChange={e => setCompanyForm({ ...companyForm, phone: e.target.value })} />
                         </div>
                       </div>
@@ -3251,7 +3251,7 @@ export default function TenantCompaniesPage() {
                   )}
 
                   <div className="order-3 space-y-3">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                    <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5">
                       <CreditCard size={14} />
                       Billing Details
                     </h3>
@@ -3259,13 +3259,13 @@ export default function TenantCompaniesPage() {
                       Calculated from desk allocation and contract duration. Security deposit is fixed at 25% of the total contract amount.
                     </p>
                     {formError && (
-                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-rose-700">
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest text-rose-700">
                         {formError}
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Contract Duration</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Contract Duration</label>
                         <input
                           type="number"
                           min="0"
@@ -3289,13 +3289,13 @@ export default function TenantCompaniesPage() {
                           }}
                         />
                         {isContractDurationInvalid && (
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-rose-600">
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">
                             Contract duration must be at least 3 months.
                           </p>
                         )}
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Monthly Rent</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Rent</label>
                         <input
                           type="text"
                           className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-semibold text-slate-900 outline-none"
@@ -3304,7 +3304,7 @@ export default function TenantCompaniesPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Contract Amount</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Contract Amount</label>
                         <input
                           type="text"
                           className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-semibold text-slate-900 outline-none"
@@ -3313,7 +3313,7 @@ export default function TenantCompaniesPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Security Deposit Amount</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Amount</label>
                         <input
                           type="text"
                           className="w-full px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[12px] font-semibold text-emerald-900 outline-none"
@@ -3322,7 +3322,7 @@ export default function TenantCompaniesPage() {
                         />
                       </div>
                       <div className="space-y-1 md:col-span-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Security Deposit Paid</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Paid</label>
                         <select
                           className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                           value={companyForm.billingDetails?.securityDepositPaidStatus || 'Pending'}
@@ -3335,7 +3335,7 @@ export default function TenantCompaniesPage() {
                     </div>
                     {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                          <div className="space-y-1">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Floor</label>
+                           <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor</label>
                            <select
                              className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
                              value={customPackageFloor}
@@ -3353,7 +3353,7 @@ export default function TenantCompaniesPage() {
                            </select>
                          </div>
                          <div className="space-y-1">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Wing</label>
+                           <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Wing</label>
                            <select
                              className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
                              value={customPackageWing}
@@ -3370,7 +3370,7 @@ export default function TenantCompaniesPage() {
                            </select>
                          </div>
                          <div className="space-y-1">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Block Mix</label>
+                           <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Block Mix</label>
                            <select
                              className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
                              value={customPackageBlockMix}
@@ -3389,8 +3389,8 @@ export default function TenantCompaniesPage() {
                     {/* <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                            <div className="mb-3 flex items-center justify-between gap-3">
-                             <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
-                             <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700">{customPackageVisibleOpenAreaResources.length}</span>
+                             <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
+                             <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">{customPackageVisibleOpenAreaResources.length}</span>
                            </div>
                            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                              {customPackageVisibleOpenAreaResources.length > 0 ? customPackageVisibleOpenAreaResources.map((resource) => {
@@ -3400,10 +3400,10 @@ export default function TenantCompaniesPage() {
                                  <button key={resourceKey || resource.resourceCode} type="button" onClick={() => toggleLocationMapping(resource)} className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all ${selected ? 'border-emerald-300 bg-white shadow-sm' : 'border-emerald-100 bg-white/80 hover:border-emerald-200'}`}>
                                    <div className="flex items-center justify-between gap-3">
                                      <div>
-                                       <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                       <p className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-emerald-500">{resource.floor || '--'} / {resource.wing || '--'} - {resource.inventoryMode === 'single' ? 'Single' : 'Area'}</p>
+                                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                       <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-500">{resource.floor || '--'} / {resource.wing || '--'} - {resource.inventoryMode === 'single' ? 'Single' : 'Area'}</p>
                                      </div>
-                                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700">{selected ? 'Selected' : `${Number(resource.capacity || 1)} seats`}</span>
+                                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">{selected ? 'Selected' : `${Number(resource.capacity || 1)} seats`}</span>
                                    </div>
                                  </button>
                                );
@@ -3414,8 +3414,8 @@ export default function TenantCompaniesPage() {
                          </div>
                          <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
                            <div className="mb-3 flex items-center justify-between gap-3">
-                             <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
-                             <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">{customPackageVisibleCabinAreaResources.length}</span>
+                             <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
+                             <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">{customPackageVisibleCabinAreaResources.length}</span>
                            </div>
                            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                              {customPackageVisibleCabinAreaResources.length > 0 ? customPackageVisibleCabinAreaResources.map((resource) => {
@@ -3425,10 +3425,10 @@ export default function TenantCompaniesPage() {
                                  <button key={resourceKey || resource.resourceCode} type="button" onClick={() => toggleLocationMapping(resource)} className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all ${selected ? 'border-blue-300 bg-white shadow-sm' : 'border-blue-100 bg-white/80 hover:border-blue-200'}`}>
                                    <div className="flex items-center justify-between gap-3">
                                      <div>
-                                       <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                       <p className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-blue-500">{resource.floor || '--'} / {resource.wing || '--'} - {resource.inventoryMode === 'single' ? 'Single' : 'Area'}</p>
+                                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-700">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                       <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-500">{resource.floor || '--'} / {resource.wing || '--'} - {resource.inventoryMode === 'single' ? 'Single' : 'Area'}</p>
                                      </div>
-                                     <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">{selected ? 'Selected' : `${Number(resource.capacity || 1)} seats`}</span>
+                                     <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">{selected ? 'Selected' : `${Number(resource.capacity || 1)} seats`}</span>
                                    </div>
                                  </button>
                                );
@@ -3440,8 +3440,8 @@ export default function TenantCompaniesPage() {
                        </div> */}
                     {/* <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
                          <div className="flex items-center justify-between gap-3">
-                           <p className="text-[10px] font-black uppercase tracking-widest text-sky-700">Single Open Desks</p>
-                           <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-sky-700">{customPackageVisibleSingleOpenDeskResources.length}</span>
+                           <p className="text-[10px] font-pmedium uppercase tracking-widest text-sky-700">Single Open Desks</p>
+                           <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-sky-700">{customPackageVisibleSingleOpenDeskResources.length}</span>
                          </div>
                          <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
                            {customPackageVisibleSingleOpenDeskResources.length > 0 ? customPackageVisibleSingleOpenDeskResources.map((resource) => {
@@ -3451,10 +3451,10 @@ export default function TenantCompaniesPage() {
                                <button key={resourceKey || resource.resourceCode} type="button" onClick={() => toggleLocationMapping(resource)} className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all ${selected ? 'border-sky-300 bg-white shadow-sm' : 'border-sky-100 bg-white/80 hover:border-sky-200'}`}>
                                  <div className="flex items-center justify-between gap-3">
                                    <div>
-                                     <p className="text-[10px] font-black uppercase tracking-widest text-sky-700">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                     <p className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-sky-500">{resource.floor || '--'} / {resource.wing || '--'} - Single open desk</p>
+                                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-sky-700">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                     <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-sky-500">{resource.floor || '--'} / {resource.wing || '--'} - Single open desk</p>
                                    </div>
-                                   <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-sky-700">{selected ? 'Selected' : 'Add'}</span>
+                                   <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-[9px] font-pmedium uppercase tracking-widest text-sky-700">{selected ? 'Selected' : 'Add'}</span>
                                  </div>
                                </button>
                              );
@@ -3467,22 +3467,22 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-6 space-y-3">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">6. Customer Details</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">6. Customer Details</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1 md:col-span-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Name</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Name</label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocName} onChange={(e) => updateCompanySection('pocDetails', 'hoPocName', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Email</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Email</label>
                           <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'hoPocEmail', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Phone</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Phone</label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'hoPocPhone', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sector</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Sector</label>
                           {!showCustomSector ? (
                             <div className="space-y-2">
                               <select
@@ -3499,7 +3499,7 @@ export default function TenantCompaniesPage() {
                               <button
                                 type="button"
                                 onClick={() => { setShowCustomSector(true); updateCompanySection('customerDetails', 'sector', ''); }}
-                                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                                className="text-[10px] font-pmedium text-indigo-600 hover:text-indigo-800 transition-colors"
                               >
                                 + Add custom sector
                               </button>
@@ -3517,7 +3517,7 @@ export default function TenantCompaniesPage() {
                               <button
                                 type="button"
                                 onClick={() => { setShowCustomSector(false); updateCompanySection('customerDetails', 'sector', ''); }}
-                                className="text-[10px] font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                                className="text-[10px] font-pmedium text-slate-500 hover:text-slate-700 transition-colors"
                               >
                                 Cancel &amp; pick from list
                               </button>
@@ -3528,7 +3528,7 @@ export default function TenantCompaniesPage() {
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO Country</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO Country</label>
                           <select
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoCountry}
@@ -3540,7 +3540,7 @@ export default function TenantCompaniesPage() {
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO State</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO State</label>
                           <select
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoState}
@@ -3552,7 +3552,7 @@ export default function TenantCompaniesPage() {
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO City</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO City</label>
                           <select
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoCity}
@@ -3569,22 +3569,22 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-4 space-y-3">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">4. Company Details</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">4. Company Details</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Building Name</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Building Name</label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.buildingName} onChange={(e) => updateCompanySection('companyDetails', 'buildingName', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unit No</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit No</label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.unitNo} onChange={(e) => updateCompanySection('companyDetails', 'unitNo', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cabin Desks</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Cabin Desks</label>
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.cabinDesks} onChange={(e) => updateCompanySection('companyDetails', 'cabinDesks', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
                           <input
                             type="number"
                             min="0"
@@ -3598,11 +3598,11 @@ export default function TenantCompaniesPage() {
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Open Desks</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Open Desks</label>
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.openDesks} onChange={(e) => updateCompanySection('companyDetails', 'openDesks', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rate Per Open Desk</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Open Desk</label>
                           <input
                             type="number"
                             min="0"
@@ -3616,7 +3616,7 @@ export default function TenantCompaniesPage() {
                           )}
                         </div>
                         <div className="space-y-1 md:col-span-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
                           <select className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={companyForm.companyDetails.status} onChange={(e) => updateCompanySection('companyDetails', 'status', e.target.value)}>
                             <option>Active</option>
                             <option>Expiring Soon</option>
@@ -3629,22 +3629,22 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-7 space-y-3">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">7. Agreement Details</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">7. Agreement Details</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Annual Increment</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual Increment</label>
                           <input type="number" min="0" readOnly className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-bold text-emerald-900 outline-none cursor-not-allowed" value={companyForm.agreementDetails.annualIncrement} onChange={(e) => updateCompanySection('agreementDetails', 'annualIncrement', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Per Desk Meeting Credits</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Per Desk Meeting Credits</label>
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.perDeskMeetingCredits} onChange={(e) => updateCompanySection('agreementDetails', 'perDeskMeetingCredits', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Meeting Credits</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Meeting Credits</label>
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.totalMeetingCredits} onChange={(e) => updateCompanySection('agreementDetails', 'totalMeetingCredits', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Start Date</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date</label>
                           <input type="date" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.startDate} onChange={(e) => setCompanyForm((prev) => ({
                             ...prev,
                             startDate: e.target.value,
@@ -3655,11 +3655,11 @@ export default function TenantCompaniesPage() {
                           }))} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">End Date</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date</label>
                           <input type="date" className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.endDate} readOnly />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lock-in Period</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Lock-in Period</label>
                           <input type="number" min="0" readOnly className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.lockInPeriod} />
                         </div>
 
@@ -3669,18 +3669,18 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-8 space-y-3">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">8. POC Details</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">8. POC Details</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Local POC Name</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Name</label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocName} onChange={(e) => updateCompanySection('pocDetails', 'localPocName', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Local POC Email</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Email</label>
                           <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'localPocEmail', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Local POC Phone</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Phone</label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'localPocPhone', e.target.value)} />
                         </div>
                       </div>
@@ -3689,16 +3689,16 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-2 space-y-3">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5">
                         <Briefcase size={14} />
                         2. Selected Package Details
                       </h3>
                       {isTenantPackageLocked && (
-                        <p className="text-[10px] font-bold text-indigo-400">This package is locked to the company, so the package details stay read-only here.</p>
+                        <p className="text-[10px] font-pmedium text-indigo-400">This package is locked to the company, so the package details stay read-only here.</p>
                       )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1 md:col-span-2">
-                          <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Package Name</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Package Name</label>
                           <input
                             type="text"
                             disabled={isTenantPackageLocked}
@@ -3707,11 +3707,11 @@ export default function TenantCompaniesPage() {
                             onChange={(e) => updateCompanySection('packageDetails', 'packageName', e.target.value)}
                           />
                           {!companyForm.pricingPackageId && (
-                            <p className="text-[10px] font-bold text-indigo-400">Name the custom package before you save the selected areas and desks.</p>
+                            <p className="text-[10px] font-pmedium text-indigo-400">Name the custom package before you save the selected areas and desks.</p>
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Total Seats</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Total Seats</label>
                           <input
                             type="number"
                             min="0"
@@ -3721,7 +3721,7 @@ export default function TenantCompaniesPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Open Desks</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Open Desks</label>
                           <input
                             type="number"
                             min="0"
@@ -3731,7 +3731,7 @@ export default function TenantCompaniesPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Cabin Desks</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Cabin Desks</label>
                           <input
                             type="number"
                             min="0"
@@ -3742,7 +3742,7 @@ export default function TenantCompaniesPage() {
                         </div>
                         {Number(companyForm.packageDetails.openDesks || 0) > 0 && (
                           <div className="space-y-1">
-                            <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Rate Per Open Desk</label>
+                            <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Rate Per Open Desk</label>
                             <input
                               type="number"
                               min="0"
@@ -3765,7 +3765,7 @@ export default function TenantCompaniesPage() {
                         )}
                         {Number(companyForm.packageDetails.cabinDesks || 0) > 0 && (
                           <div className="space-y-1">
-                            <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
+                            <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
                             <input
                               type="number"
                               min="0"
@@ -3787,7 +3787,7 @@ export default function TenantCompaniesPage() {
                           </div>
                         )}
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Credits Per Seat</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Credits Per Seat</label>
                           <input
                             type="number"
                             min="0"
@@ -3798,7 +3798,7 @@ export default function TenantCompaniesPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Monthly Total Credits</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Monthly Total Credits</label>
                           <input
                             type="number"
                             min="0"
@@ -3809,20 +3809,20 @@ export default function TenantCompaniesPage() {
                         </div>
                         <div className="md:col-span-2 rounded-2xl border border-indigo-100 bg-white p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Selected Location Mapping</p>
-                            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-700">
+                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Selected Location Mapping</p>
+                            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-indigo-700">
                               {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length} selected
                             </span>
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length > 0 ? (
                               locationLabelsFromValue(companyForm.packageDetails.locationMappings).map((label, index) => (
-                                <span key={`${label}-${index}`} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                                <span key={`${label}-${index}`} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-indigo-700">
                                   {label}
                                 </span>
                               ))
                             ) : (
-                              <span className="text-[10px] font-bold text-indigo-400">
+                              <span className="text-[10px] font-pmedium text-indigo-400">
                                 {isCustomPackageSelected ? 'Choose a floor and wing to start selecting areas. Block mix only changes which sections are shown.' : 'Package locations will appear here.'}
                               </span>
                             )}
@@ -3834,10 +3834,10 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-9 space-y-4">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">9. Credit Configuration</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">9. Credit Configuration</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Credits Per Seat</label>
+                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Credits Per Seat</label>
                           <input
                             type="number"
                             min="0"
@@ -3847,7 +3847,7 @@ export default function TenantCompaniesPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Monthly Total Credits</label>
+                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Monthly Total Credits</label>
                           <input
                             type="number"
                             min="0"
@@ -3857,7 +3857,7 @@ export default function TenantCompaniesPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Credit Reset Cycle</label>
+                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Credit Reset Cycle</label>
                           <select disabled={isTenantPackageLocked} className="w-full px-4 py-3.5 bg-white border-2 border-sky-100 rounded-xl font-bold text-sky-900 focus:border-sky-600 outline-none cursor-pointer shadow-sm disabled:cursor-not-allowed disabled:bg-sky-50" value={companyForm.creditConfiguration.creditResetCycle} onChange={(e) => {
                             updateCompanySection('creditConfiguration', 'creditResetCycle', e.target.value);
                             updateCompanySection('packageDetails', 'creditResetCycle', e.target.value);
@@ -3868,15 +3868,15 @@ export default function TenantCompaniesPage() {
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Purchased Credits</label>
+                          <label className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-widest">Purchased Credits</label>
                           <input type="number" min="0" className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-bold text-emerald-900 focus:border-emerald-600 outline-none" value={companyForm.addOnCredits.purchasedCredits} onChange={(e) => updateCompanySection('addOnCredits', 'purchasedCredits', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Remaining Credits</label>
+                          <label className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-widest">Remaining Credits</label>
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[12px] font-semibold text-emerald-900 outline-none" value={calculateRemainingCredits(companyForm)} readOnly />
                         </div>
                         <div className="space-y-1 md:col-span-3">
-                          <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Credit Usage Tracking</label>
+                          <label className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-widest">Credit Usage Tracking</label>
                           <textarea rows="3" disabled={isTenantPackageLocked} className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-medium text-emerald-900 focus:border-emerald-600 outline-none disabled:cursor-not-allowed disabled:bg-emerald-100/60" value={companyForm.creditConfiguration.creditUsageTracking} onChange={(e) => {
                             updateCompanySection('creditConfiguration', 'creditUsageTracking', e.target.value);
                             updateCompanySection('packageDetails', 'creditUsageTracking', e.target.value);
@@ -3887,10 +3887,10 @@ export default function TenantCompaniesPage() {
                   )}
 
                   <div className="order-1 space-y-4">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5"><Briefcase size={14} /> 1. Package Selection & Allocation</h3>
+                    <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5"><Briefcase size={14} /> 1. Package Selection & Allocation</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-5 bg-indigo-50 border border-indigo-100 rounded-2xl">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest"> Select Package</label>
+                        <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest"> Select Package</label>
                         <select
                           className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-bold text-indigo-900 focus:border-indigo-600 outline-none cursor-pointer shadow-sm disabled:bg-indigo-50 disabled:text-indigo-500"
                           value={isCustomPackageSelected ? '__custom__' : (companyForm.pricingPackageId || '')}
@@ -3903,7 +3903,7 @@ export default function TenantCompaniesPage() {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1">Credits Allocated (Auto)</label>
+                        <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest flex items-center gap-1">Credits Allocated (Auto)</label>
                         <input required type="number" min="0" disabled={Boolean(selectedTenantPackage)} className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-black text-indigo-700 outline-none disabled:bg-indigo-100/50 disabled:cursor-not-allowed" value={companyForm.creditsAllocated} onChange={e => setCompanyForm({ ...companyForm, creditsAllocated: parseInt(e.target.value) || 0, planType: 'Custom', pricingPackageId: '__custom__' })} />
                         <p className="text-[9px] font-bold text-indigo-400 mt-1">Credits used for meeting room bookings.</p>
                       </div>
@@ -3912,15 +3912,15 @@ export default function TenantCompaniesPage() {
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                               <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-100 text-indigo-700"><LayoutGrid size={10} /></div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Custom Package Builder</p>
+                              <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Custom Package Builder</p>
                             </div>
-                            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-700">
+                            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-indigo-700">
                               {customPackageSelectedResourceKeys.size} selected
                             </span>
                           </div>
                           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Floor</label>
+                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor</label>
                               <select
                                 className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
                                 value={customPackageFloor}
@@ -3938,7 +3938,7 @@ export default function TenantCompaniesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Wing</label>
+                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Wing</label>
                               <select
                                 className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
                                 value={customPackageWing}
@@ -3955,7 +3955,7 @@ export default function TenantCompaniesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Block Mix</label>
+                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Block Mix</label>
                               <select
                                 className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
                                 value={customPackageBlockMix}
@@ -3978,9 +3978,9 @@ export default function TenantCompaniesPage() {
                                   <div className="mb-2 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2">
                                       <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><LayoutGrid size={10} /></div>
-                                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
+                                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
                                     </div>
-                                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
                                       {customPackageOpenSelectedCount}/{customPackageVisibleOpenAreaResources.length}
                                     </span>
                                   </div>
@@ -3993,11 +3993,11 @@ export default function TenantCompaniesPage() {
                                           <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
                                           <div className="min-w-0 flex-1">
                                             <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                            <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                            <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                             {seatLabels.length > 0 && (
                                               <div className="mt-2 flex flex-wrap gap-1.5">
                                                 {seatLabels.map((seatLabel) => (
-                                                  <span key={`${resource.recordId || resource.resourceCode}-${seatLabel}`} className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                                  <span key={`${resource.recordId || resource.resourceCode}-${seatLabel}`} className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
                                                     {seatLabel}
                                                   </span>
                                                 ))}
@@ -4015,9 +4015,9 @@ export default function TenantCompaniesPage() {
                                   <div className="mb-2 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2">
                                       <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-100 text-blue-700"><LayoutGrid size={10} /></div>
-                                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
+                                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
                                     </div>
-                                    <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                    <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
                                       {customPackageCabinSelectedCount}/{customPackageVisibleCabinAreaResources.length}
                                     </span>
                                   </div>
@@ -4030,11 +4030,11 @@ export default function TenantCompaniesPage() {
                                           <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
                                           <div className="min-w-0 flex-1">
                                             <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                            <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                            <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                             {seatLabels.length > 0 && (
                                               <div className="mt-2 flex flex-wrap gap-1.5">
                                                 {seatLabels.map((seatLabel) => (
-                                                  <span key={`${resource.recordId || resource.resourceCode}-${seatLabel}`} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                                  <span key={`${resource.recordId || resource.resourceCode}-${seatLabel}`} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
                                                     {seatLabel}
                                                   </span>
                                                 ))}
@@ -4052,9 +4052,9 @@ export default function TenantCompaniesPage() {
                                   <div className="mb-2 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2">
                                       <div className="flex h-5 w-5 items-center justify-center rounded-md bg-sky-100 text-sky-700"><LayoutGrid size={10} /></div>
-                                      <p className="text-[10px] font-black uppercase tracking-widest text-sky-700">Single Open Desks</p>
+                                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-sky-700">Single Open Desks</p>
                                     </div>
-                                    <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-sky-700">
+                                    <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-sky-700">
                                       {customPackageVisibleSingleOpenDeskResources.length}
                                     </span>
                                   </div>
@@ -4066,7 +4066,7 @@ export default function TenantCompaniesPage() {
                                           <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
                                           <div className="min-w-0 flex-1">
                                             <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                            <p className="text-[10px] font-bold text-slate-400">{resource.floor || '--'} / {resource.wing || '--'} - Single open desk</p>
+                                            <p className="text-[10px] font-pmedium text-slate-400">{resource.floor || '--'} / {resource.wing || '--'} - Single open desk</p>
                                           </div>
                                         </label>
                                       );
@@ -4093,16 +4093,16 @@ export default function TenantCompaniesPage() {
                         </div>
                       )}
                       <div className="md:col-span-2 rounded-xl border border-indigo-100 bg-white p-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Selected Location Mapping</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Selected Location Mapping</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length > 0 ? (
                             locationLabelsFromValue(companyForm.packageDetails.locationMappings).map((label, index) => (
-                              <span key={`${label}-${index}`} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                              <span key={`${label}-${index}`} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-indigo-700">
                                 {label}
                               </span>
                             ))
                           ) : (
-                            <span className="text-[10px] font-bold text-indigo-400">No location selected yet.</span>
+                            <span className="text-[10px] font-pmedium text-indigo-400">No location selected yet.</span>
                           )}
                         </div>
                       </div>
@@ -4111,10 +4111,10 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div className="order-10 space-y-4">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5"><FileText size={14} /> 10. Upload Document</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5"><FileText size={14} /> 10. Upload Document</h3>
                       <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5">
                         <div className="space-y-3">
-                          <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest">Upload Agreement Document *</label>
+                          <label className="block text-[10px] font-pmedium text-amber-700 uppercase tracking-widest">Upload Agreement Document *</label>
                           <div className="rounded-xl border border-amber-200 bg-white p-3 shadow-sm">
                             <input
                               type="file"
@@ -4124,7 +4124,7 @@ export default function TenantCompaniesPage() {
                               className="block w-full text-sm font-medium text-slate-700 border-none outline-none focus:ring-0 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-xs file:font-black file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
                             />
                           </div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600">
                             {hasExistingAgreementDocuments
                               ? `${tenantAgreementDocuments.length} existing document${tenantAgreementDocuments.length === 1 ? '' : 's'} attached`
                               : 'One agreement document is required before saving.'}
@@ -4133,14 +4133,14 @@ export default function TenantCompaniesPage() {
                         {agreementFiles.length > 0 && (
                           <div className="mt-4 flex flex-wrap gap-2">
                             {agreementFiles.map((file) => (
-                              <span key={`${file.name}-${file.lastModified}`} className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                              <span key={`${file.name}-${file.lastModified}`} className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">
                                 {file.name}
                               </span>
                             ))}
                           </div>
                         )}
                         {!hasExistingAgreementDocuments && agreementFiles.length === 0 && (
-                          <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                          <p className="mt-3 text-[10px] font-pmedium uppercase tracking-widest text-amber-600">
                             Upload one agreement document to enable saving.
                           </p>
                         )}
@@ -4149,8 +4149,8 @@ export default function TenantCompaniesPage() {
                   )}
 
                   <div className="order-11 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
-                    <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-[11px] hover:bg-slate-200 transition-all">CANCEL</button>
-                    <button type="submit" disabled={!canSaveTenantCompany || isSaving || billingSummary.hasValidationError || isContractDurationInvalid} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+                    <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-200 transition-all">CANCEL</button>
+                    <button type="submit" disabled={!canSaveTenantCompany || isSaving || billingSummary.hasValidationError || isContractDurationInvalid} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
                       SUBMIT &amp; SEND TO FINANCE <Save size={14} />
                     </button>
                   </div>
@@ -4173,7 +4173,7 @@ export default function TenantCompaniesPage() {
                        <h2 className="text-base font-pmedium text-primary">{selectedTenant.companyName}</h2>
                        {getStatusBadge(selectedTenant.status)}
                      </div>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tenant ID: {selectedTenant.id}</p>
+                     <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">Tenant ID: {selectedTenant.id}</p>
                    </div>
                  </div>
                  <div className="flex items-center gap-2">
@@ -4182,7 +4182,7 @@ export default function TenantCompaniesPage() {
                 onClick={() => handleExportCompaniesReport('PDF')}
                 disabled={Boolean(isExportingReport)}
                 title="Export PDF"
-                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
                 
@@ -4192,7 +4192,7 @@ export default function TenantCompaniesPage() {
                 onClick={() => handleExportCompaniesReport('Excel')}
                 disabled={Boolean(isExportingReport)}
                 title="Export Excel"
-                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
                 
@@ -4226,78 +4226,78 @@ export default function TenantCompaniesPage() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Start</p>
+                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Start</p>
                         <p className="text-xs font-bold text-slate-900">{selectedTenant.contractStart || selectedTenant.agreementDetails?.startDate || 'N/A'}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Contract End</p>
+                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract End</p>
                         <p className="text-xs font-bold text-slate-900">{selectedTenant.contractEnd || selectedTenant.agreementDetails?.endDate || 'N/A'}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-blue-500">Base Credits</p>
+                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Base Credits</p>
                         <p className="text-base font-black text-blue-600">{selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? selectedTenantBillingDisplay.credits ?? 0}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-violet-500">Purchased</p>
+                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-violet-500">Purchased</p>
                         <p className="text-base font-black text-violet-600">+{selectedTenantBillingDisplay.purchasedCredits ?? 0}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-500">Credits Used</p>
+                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-500">Credits Used</p>
                         <p className="text-base font-black text-emerald-600">{selectedTenantBillingDisplay.creditsUsed ?? 0}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Credits Remaining</p>
+                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Credits Remaining</p>
                         <p className="text-base font-black text-slate-900">{formatInteger(selectedTenantBillingDisplay.creditsRemaining ?? 0)}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Area</p>
+                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Area</p>
                         <p className="text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
                       </div>
                     </div>
 
                     <div className="grid gap-3 lg:grid-cols-2">
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Sales Package Summary</h3>
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Sales Package Summary</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Package Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.packageDetails?.packageName || selectedTenant.package || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Location Blocks</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageLocationLabels?.length ? selectedTenant.packageLocationLabels.join(', ') : 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900">{formatInteger(selectedTenant.packageDetails?.totalSeats || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Package Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.packageDetails?.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Location Blocks</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageLocationLabels?.length ? selectedTenant.packageLocationLabels.join(', ') : 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900">{formatInteger(selectedTenant.packageDetails?.totalSeats || 0)}</p></div>
                         </div>
                       </div>
 
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Billing Snapshot</h3>
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Billing Snapshot</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.monthlyRent || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Total Contract Amount</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.totalContractAmount || selectedTenant.packagePrice || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.securityDepositAmount || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900">{selectedTenant.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.monthlyRent || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Contract Amount</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.totalContractAmount || selectedTenant.packagePrice || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.securityDepositAmount || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900">{selectedTenant.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid gap-3 lg:grid-cols-2">
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Customer Profile</h3>
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Customer Profile</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Company Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.clientName || selectedTenant.companyName}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.sector || selectedTenant.businessType || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCountry || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoState || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCity || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Company Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.clientName || selectedTenant.companyName}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.sector || selectedTenant.businessType || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCountry || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoState || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCity || 'N/A'}</p></div>
                         </div>
                       </div>
 
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Manager Assignment</h3>
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Manager Assignment</h3>
                         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400">Current Manager</p>
+                            <p className="text-[10px] font-pmedium text-slate-400">Current Manager</p>
                             <p className="text-xs font-bold text-slate-900">{selectedTenant.contactName || 'No manager assigned'}</p>
                             <p className="text-[10px] text-slate-500">{selectedTenant.email || 'Assign one manager from the employee list below.'}</p>
                           </div>
-                          <span className="inline-flex w-max rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-blue-600">
+                          <span className="inline-flex w-max rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-pmedium uppercase tracking-wider text-blue-600">
                             {selectedTenant.contactName ? 'Manager Active' : 'Pending Assignment'}
                           </span>
                         </div>
@@ -4306,7 +4306,7 @@ export default function TenantCompaniesPage() {
 
                     <div className="grid gap-3 lg:grid-cols-2">
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Company Details</h3>
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Company Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Building</p><p className="text-sm font-bold text-slate-900">{selectedTenant.companyDetails?.buildingName || 'N/A'}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Unit No.</p><p className="text-sm font-bold text-slate-900">{selectedTenant.companyDetails?.unitNo || 'N/A'}</p></div>
@@ -4318,7 +4318,7 @@ export default function TenantCompaniesPage() {
                       </div>
 
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Package & Credits</h3>
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Package & Credits</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Plan Type</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Package Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.packageName || selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
@@ -4332,7 +4332,7 @@ export default function TenantCompaniesPage() {
 
                     <div className="grid gap-4 lg:grid-cols-2">
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">POC Details</h3>
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">POC Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.localPocName || 'N/A'}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Email</p><p className="text-sm font-bold text-slate-900 break-all">{selectedTenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
@@ -4344,7 +4344,7 @@ export default function TenantCompaniesPage() {
                       </div>
 
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Agreement Details</h3>
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Agreement Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Annual Increment</p><p className="text-sm font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Meeting Credits</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || 0}</p></div>
@@ -4356,19 +4356,19 @@ export default function TenantCompaniesPage() {
 
                     <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                       <div className="mb-3 flex flex-col gap-2 border-b border-slate-100 pb-2 lg:flex-row lg:items-end lg:justify-between">
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Agreement Documents</h3>
+                        <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Agreement Documents</h3>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <label className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
+                          <label className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
                             Choose File(s)
                             <input type="file" multiple accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg" className="hidden" onChange={handleAgreementFilesChange} />
                           </label>
                           <button type="button" onClick={handleUploadAgreementDocuments} disabled={!agreementFiles.length || isAgreementUploading}
-                            className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >{isAgreementUploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
                       </div>
                       {agreementFiles.length > 0 && (
-                        <p className="mb-3 text-[9px] font-bold uppercase tracking-widest text-blue-600">Selected {agreementFiles.length} file{agreementFiles.length > 1 ? 's' : ''}</p>
+                        <p className="mb-3 text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Selected {agreementFiles.length} file{agreementFiles.length > 1 ? 's' : ''}</p>
                       )}
                       {(selectedTenant.agreementDocuments || []).length > 0 ? (
                         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -4380,7 +4380,7 @@ export default function TenantCompaniesPage() {
                                 <div className="rounded-xl bg-blue-50 p-1.5 text-blue-600"><FileText size={14} /></div>
                                 <div className="min-w-0 flex-1">
                                   <p className="truncate text-xs font-bold text-slate-900">{document.name}</p>
-                                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
+                                  <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
                                 </div>
                               </div>
                             </a>
@@ -4392,7 +4392,7 @@ export default function TenantCompaniesPage() {
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-500">Contract details are view-only for administration.</span>
+                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-pmedium text-slate-500">Contract details are view-only for administration.</span>
                     </div>
                   </div>
                 )}
@@ -4400,8 +4400,8 @@ export default function TenantCompaniesPage() {
                 {activeDetailTab === 'employees' && (
                   <div className="space-y-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Managed Employees</h3>
-                      <button onClick={() => setEmployeeModalOpen(true)} className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600 transition-all hover:bg-blue-100">
+                      <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Managed Employees</h3>
+                      <button onClick={() => setEmployeeModalOpen(true)} className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium text-blue-600 transition-all hover:bg-blue-100">
                         <Plus size={12} /> Add Employee
                       </button>
                     </div>
@@ -4409,10 +4409,10 @@ export default function TenantCompaniesPage() {
                     <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Employee Directory</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Employee Directory</p>
                           <p className="mt-0.5 text-xs font-bold text-slate-900">{normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length} managed {normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length === 1 ? 'employee' : 'employees'}</p>
                         </div>
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-600"><Users size={11} /> Active roster</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-600"><Users size={11} /> Active roster</span>
                       </div>
 
                       {normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length > 0 ? (
@@ -4430,10 +4430,10 @@ export default function TenantCompaniesPage() {
                                     <div className="min-w-0">
                                       <div className="flex flex-wrap items-center gap-1.5">
                                         <h4 className="text-xs font-black text-slate-950">{buildEmployeeName(employee)}</h4>
-                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${isManager ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{employee.role || 'Employee'}</span>
-                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusMeta.className}`}>{statusMeta.label}</span>
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${isManager ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{employee.role || 'Employee'}</span>
+                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${statusMeta.className}`}>{statusMeta.label}</span>
                                       </div>
-                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-semibold text-slate-500">
+                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-pmedium text-slate-500">
                                         <span className="inline-flex items-center gap-1"><Mail size={11} /> {employee.email || 'No email'}</span>
                                         {employee.phone && <span className="inline-flex items-center gap-1"><Phone size={11} /> {employee.phone}</span>}
                                         <span className="inline-flex items-center gap-1"><Briefcase size={11} /> {employee.designation || 'No designation'}</span>
@@ -4442,15 +4442,15 @@ export default function TenantCompaniesPage() {
                                   </div>
 
                                   <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
-                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
+                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
                                     {employee.status === 'Active' && !isManager && (
-                                      <button onClick={() => handleAssignManager(employee.id)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
+                                      <button onClick={() => handleAssignManager(employee.id)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
                                     )}
                                     {employee.status === 'Active' && isManager && (
-                                      <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
+                                      <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-blue-700">Current Manager</span>
                                     )}
                                     {employee.status === 'Active' && (
-                                      <button onClick={() => handleDeactivateEmployee(employee.id)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
+                                      <button onClick={() => handleDeactivateEmployee(employee.id)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
                                     )}
                                   </div>
                                 </div>
@@ -4481,12 +4481,12 @@ export default function TenantCompaniesPage() {
                       <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 shadow-sm">
                         <div className="flex items-center justify-between gap-2">
                           <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Latest Credit Entry</p>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Latest Credit Entry</p>
                             <h4 className="mt-0.5 text-sm font-black text-blue-950">{selectedTenant.creditHistory[0]?.roomName || selectedTenant.creditHistory[0]?.resource || selectedTenant.creditHistory[0]?.type || 'Meeting Room Booking'}</h4>
                           </div>
-                          <span className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">{selectedTenant.creditHistory[0]?.bookingCode || 'No code'}</span>
+                          <span className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">{selectedTenant.creditHistory[0]?.bookingCode || 'No code'}</span>
                         </div>
-                        <div className="mt-2 grid gap-2 md:grid-cols-4 text-[10px] font-bold text-blue-900">
+                        <div className="mt-2 grid gap-2 md:grid-cols-4 text-[10px] font-pmedium text-blue-900">
                           <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Scheduled Date: {selectedTenant.creditHistory[0]?.scheduledDate || selectedTenant.creditHistory[0]?.date || '—'}</div>
                           <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Booked By: {selectedTenant.creditHistory[0]?.bookedBy || '—'}</div>
                           <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Schedule: {selectedTenant.creditHistory[0]?.startTime || '—'} - {selectedTenant.creditHistory[0]?.endTime || '—'}</div>
@@ -4499,7 +4499,7 @@ export default function TenantCompaniesPage() {
                     {Array.isArray(selectedTenant.creditHistory) && selectedTenant.creditHistory.length > 0 ? (
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                         <table className="w-full text-left">
-                          <thead className="border-b border-slate-200 bg-slate-50 text-[9px] font-black uppercase text-slate-500">
+                          <thead className="border-b border-slate-200 bg-slate-50 text-[9px] font-pmedium uppercase text-slate-500">
                             <tr>
                               <th className="px-3 py-2">Booked On</th>
                               <th className="px-3 py-2">Booking / Room</th>
@@ -4513,7 +4513,7 @@ export default function TenantCompaniesPage() {
                           <tbody className="divide-y divide-slate-100">
                             {selectedTenant.creditHistory.map((history) => (
                               <tr key={history.id}>
-                                <td className="px-3 py-2 text-[10px] font-bold text-slate-500">{history.date}</td>
+                                <td className="px-3 py-2 text-[10px] font-pmedium text-slate-500">{history.date}</td>
                                 <td className="px-3 py-2">
                                   <p className="text-xs font-bold text-slate-900">{history.roomName || history.resource || history.type}</p>
                                   <p className="text-[10px] text-slate-500">{history.bookingCode || history.type}</p>
@@ -4526,7 +4526,7 @@ export default function TenantCompaniesPage() {
                                 </td>
                                 <td className="px-3 py-2 text-[10px] font-medium text-slate-600">{history.location || '—'}{history.wing ? ` • Wing ${history.wing}` : ''}</td>
                                 <td className="px-3 py-2">
-                                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${history.status === 'Active' || history.status === 'Completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : history.status === 'Cancelled' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{history.status || 'Booked'}</span>
+                                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${history.status === 'Active' || history.status === 'Completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : history.status === 'Cancelled' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{history.status || 'Booked'}</span>
                                 </td>
                                 <td className={`px-3 py-2 text-right text-xs font-black ${Number(history.credited || 0) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{Number(history.credited || 0) > 0 ? `+${history.credited}` : history.credited || history.debited || 0}</td>
                                 <td className="px-3 py-2 text-right text-xs font-black text-emerald-600">{formatInteger(history.remainingCredits ?? selectedTenantBillingDisplay.creditsRemaining ?? 0)}</td>
@@ -4543,40 +4543,40 @@ export default function TenantCompaniesPage() {
 
                 {activeDetailTab === 'space' && (
                   <div className="space-y-3">
-                    <h3 className="mb-1 text-xs font-black uppercase tracking-wider text-slate-900">Tenant Occupied Area</h3>
+                    <h3 className="mb-1 text-xs font-pmedium uppercase tracking-wider text-slate-900">Tenant Occupied Area</h3>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
                       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
                         <MapPin className="mb-1 text-amber-500" size={18} />
                         <p className="px-2 text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
-                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Area</p>
+                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Area</p>
                       </div>
                       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
                         <LayoutGrid className="mb-1 text-blue-500" size={18} />
                         <p className="text-2xl font-black text-slate-900">{selectedTenantBillingDisplay.openDeskCount ?? selectedTenant.spaceAssigned?.openDesks ?? 0}</p>
-                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Open Desks</p>
+                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Open Desks</p>
                       </div>
                       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
                         <Building2 className="mb-1 text-purple-500" size={18} />
                         <p className="text-2xl font-black text-slate-900">{selectedTenantBillingDisplay.cabinDeskCount ?? selectedTenant.spaceAssigned?.cabinDesks ?? 0}</p>
-                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Cabin Desks</p>
+                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Cabin Desks</p>
                       </div>
                       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
                         <Users className="mb-1 text-sky-500" size={18} />
                         <p className="text-2xl font-black text-slate-900">{selectedTenantBillingDisplay.totalSeats ?? selectedTenant.spaceAssigned?.totalSeats ?? 0}</p>
-                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Total Seats</p>
+                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Total Seats</p>
                       </div>
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Assigned Space Breakdown</h3>
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Assigned Space Breakdown</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Assigned Floor</p><p className="text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Assigned Floor</p><p className="text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || 'N/A'}</p></div>
                           <div>
-                            <p className="mb-0.5 text-[10px] font-bold text-slate-400">Assigned Seats</p>
+                            <p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Assigned Seats</p>
                             <div className="mt-0.5 flex flex-wrap gap-1.5">
                               {(selectedTenantSeatLabels.length > 0 ? selectedTenantSeatLabels : selectedTenantArchitectureSnapshot.assignedResources.map((r) => r.name || r.resourceCode || r.id).filter(Boolean)).length > 0 ? (selectedTenantSeatLabels.length > 0 ? selectedTenantSeatLabels : selectedTenantArchitectureSnapshot.assignedResources.map((r) => r.name || r.resourceCode || r.id).filter(Boolean)).map((seat) => (
-                                <span key={seat} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-700">{seat}</span>
+                                <span key={seat} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">{seat}</span>
                               )) : (
                                 <span className="text-xs font-bold text-slate-300">N/A</span>
                               )}
@@ -4586,10 +4586,10 @@ export default function TenantCompaniesPage() {
                       </div>
 
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Location Labels</h3>
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Location Labels</h3>
                         <div className="flex flex-wrap gap-1.5">
                           {Array.isArray(selectedTenant.packageLocationLabels) && selectedTenant.packageLocationLabels.length > 0 ? selectedTenant.packageLocationLabels.map((label) => (
-                            <span key={label} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">{label}</span>
+                            <span key={label} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">{label}</span>
                           )) : (
                             <span className="text-xs font-medium text-slate-400">No assigned location labels.</span>
                           )}
@@ -4599,19 +4599,19 @@ export default function TenantCompaniesPage() {
 
                     {selectedTenantArchitectureSnapshot.assignedResources.length > 0 && (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <h3 className="mb-3 text-[9px] font-black uppercase tracking-widest text-slate-500">Assigned Seats by Area</h3>
+                        <h3 className="mb-3 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Assigned Seats by Area</h3>
                         <div className="space-y-3">
                           {selectedTenantArchitectureSnapshot.assignedAreaGroups.map((group) => (
                             <div key={`${group.label}-${group.floor}-${group.wing}`} className="rounded-xl border border-orange-100 bg-orange-50/50 p-2.5">
                               <div className="flex items-center justify-between gap-3">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600">{group.label}</p>
-                                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-orange-700 shadow-sm">
+                                <p className="text-[9px] font-pmedium uppercase tracking-widest text-orange-600">{group.label}</p>
+                                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-orange-700 shadow-sm">
                                   {formatInteger(group.seats.length || selectedTenantSeatLabels.length || selectedTenantBillingDisplay.totalSeats || 0)} seats
                                 </span>
                               </div>
                               <div className="mt-2 flex flex-wrap gap-1.5">
                                 {(group.seats.length > 0 ? group.seats.map((r) => r.name || r.resourceCode || r.id).filter(Boolean) : selectedTenantSeatLabels).map((seatLabel) => (
-                                  <span key={seatLabel} className="rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-[10px] font-bold text-orange-800 shadow-sm">{seatLabel}</span>
+                                  <span key={seatLabel} className="rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-orange-800 shadow-sm">{seatLabel}</span>
                                 ))}
                               </div>
                             </div>
@@ -4632,27 +4632,27 @@ export default function TenantCompaniesPage() {
                     </div>
                     <form onSubmit={handleAddEmployee} className="p-4 space-y-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Name</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name</label>
                         <input type="text" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} required
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Employee name" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email</label>
                         <input type="email" value={employeeForm.email} onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })} required
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="employee@company.com" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone</label>
                         <input type="text" value={employeeForm.phone} onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Phone number" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Designation</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
                         <input type="text" value={employeeForm.designation} onChange={(e) => setEmployeeForm({ ...employeeForm, designation: e.target.value })}
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Designation" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tenant Role</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tenant Role</label>
                         <select value={employeeForm.role} onChange={(e) => setEmployeeForm({ ...employeeForm, role: e.target.value })}
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100">
                           <option value="Employee">Employee</option>
@@ -4661,9 +4661,9 @@ export default function TenantCompaniesPage() {
                       </div>
                       <div className="flex justify-end gap-2 pt-2">
                         <button type="button" onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '' }); }}
-                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-pmedium text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
                         <button type="submit" disabled={isSaving}
-                          className="rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          className="rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
                           {isSaving ? 'Adding...' : 'Add Employee'}
                         </button>
                       </div>
@@ -4677,7 +4677,7 @@ export default function TenantCompaniesPage() {
                   <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
                     <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-4">
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Employee Profile</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee Profile</p>
                         <h3 className="mt-0.5 text-xl font-black text-slate-900">{selectedEmployee.name}</h3>
                         <p className="mt-0.5 text-xs font-bold text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
                       </div>
@@ -4685,24 +4685,24 @@ export default function TenantCompaniesPage() {
                     </div>
 
                     <div className="grid gap-3 p-4 md:grid-cols-2">
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{selectedEmployee.email}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.tenantCompanyName || selectedTenant?.companyName || 'Tenant Company'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{selectedEmployee.email}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.tenantCompanyName || selectedTenant?.companyName || 'Tenant Company'}</p></div>
                     </div>
 
                     <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-4">
-                      <button onClick={() => { setEditingEmployee(selectedEmployee); setEmployeeEditForm({ name: selectedEmployee?.name || '', phone: selectedEmployee?.phone || '', designation: selectedEmployee?.designation || '', role: selectedEmployee?.role || 'Employee' }); }} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
+                      <button onClick={() => { setEditingEmployee(selectedEmployee); setEmployeeEditForm({ name: selectedEmployee?.name || '', phone: selectedEmployee?.phone || '', designation: selectedEmployee?.designation || '', role: selectedEmployee?.role || 'Employee' }); }} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
                       <button onClick={() => { if (selectedEmployee?.status === 'Active') handleDeactivateEmployee(selectedEmployee.id); }}
                         disabled={selectedEmployee?.status !== 'Active'}
-                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >Deactivate</button>
-                      <button onClick={() => handleDeleteEmployee(selectedEmployee.id)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
-                      <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
+                      <button onClick={() => handleDeleteEmployee(selectedEmployee.id)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
+                      <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
                     </div>
                   </div>
                 </div>
@@ -4717,25 +4717,25 @@ export default function TenantCompaniesPage() {
                     </div>
                     <form onSubmit={handleEmployeeEditSave} className="space-y-4 p-6">
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Full Name</label>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Full Name</label>
                         <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.name} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, name: e.target.value })} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Phone (Optional)</label>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Phone (Optional)</label>
                         <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.phone} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, phone: e.target.value })} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Designation</label>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Designation</label>
                         <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.designation} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, designation: e.target.value })} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Tenant Role</label>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Tenant Role</label>
                         <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.role} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, role: e.target.value })}>
                           <option value="Employee">Employee</option>
                           <option value="Manager">Manager</option>
                         </select>
                       </div>
-                      <button type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
+                      <button type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-pmedium text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
                     </form>
                   </div>
                 </div>

@@ -190,7 +190,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
             <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
           </p>
         </div>
-        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
+        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
           Upgrade ↑
         </span>
         <ArrowRight size={14} className="text-accent flex-shrink-0" />

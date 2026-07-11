@@ -190,7 +190,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
             <strong>Custom Plan</strong> for Finance, HR, AI tools, Maintenance, IT & More.
           </p>
         </div>
-        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-blue-600 text-white border-blue-600 whitespace-nowrap">
+        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-blue-600 text-white border-blue-600 whitespace-nowrap">
           Upgrade ↑
         </span>
         <ArrowRight size={14} className="text-blue-600 flex-shrink-0" />

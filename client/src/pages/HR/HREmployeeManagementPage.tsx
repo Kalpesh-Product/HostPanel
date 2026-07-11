@@ -1671,21 +1671,21 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50"><UserCheck size={12}/>Joined</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-emerald-600 bg-emerald-50"><UserCheck size={12}/>Joined</span>;
       case 'inactive':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Disabled</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Disabled</span>;
       case 'terminated':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Terminated</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Terminated</span>;
       case 'pending':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50"><Clock size={12}/>Pending</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-amber-600 bg-amber-50"><Clock size={12}/>Pending</span>;
       case 'invite_sent':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50"><Mail size={12}/>Invite Sent</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-orange-600 bg-orange-50"><Mail size={12}/>Invite Sent</span>;
       case 'registered':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Registered</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Registered</span>;
       case 'probation':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50"><AlertCircle size={12}/>Probation</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-purple-600 bg-purple-50"><AlertCircle size={12}/>Probation</span>;
       default:
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100">{status || 'Unknown'}</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-slate-600 bg-slate-100">{status || 'Unknown'}</span>;
     }
   };
 
@@ -1756,8 +1756,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accentClass}`}
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>
                     <CardIcon size={16} />
@@ -1787,7 +1787,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <FormSection title="Personal Details" icon={Users}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
                       <input
                         type="text"
                         value={addForm.fullName}
@@ -1798,7 +1798,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       {addFormErrors.fullName && <span className="text-[10px] font-medium text-red-500">{addFormErrors.fullName}</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                       <input
                         type="email"
                         value={addForm.email}
@@ -1809,7 +1809,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       {addFormErrors.email && <span className="text-[10px] font-medium text-red-500">{addFormErrors.email}</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                       <input
                         type="tel"
                         value={addForm.phone}
@@ -1820,7 +1820,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       {addFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{addFormErrors.phone}</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date of Birth</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                       <input
                         type="date"
                         value={addForm.dateOfBirth}
@@ -1829,7 +1829,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
                       <input
                         type="text"
                         value={addForm.emergencyContactName}
@@ -1839,7 +1839,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
                       <input
                         type="tel"
                         value={addForm.emergencyContactPhone}
@@ -1849,7 +1849,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Address</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
                       <textarea
                         value={addForm.currentAddress}
                         onChange={(e) => handleAddFieldChange("currentAddress", e.target.value)}
@@ -1865,7 +1865,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <FormSection title="Employment Details" icon={Briefcase}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role <span className="text-red-400">*</span></label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role <span className="text-red-400">*</span></label>
                       <select
                         value={addForm.role}
                         onChange={(e) => handleAddRoleChange(e.target.value)}
@@ -1879,7 +1879,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       {addFormErrors.role && <span className="text-[10px] font-medium text-red-500">{addFormErrors.role}</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employment Type</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Employment Type</label>
                       <select
                         value={addForm.employmentType}
                         onChange={(e) => handleAddEmploymentTypeChange(e.target.value)}
@@ -1891,7 +1891,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Mode</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Mode</label>
                       <select
                         value={addForm.workMode}
                         onChange={(e) => handleAddFieldChange("workMode", e.target.value)}
@@ -1903,7 +1903,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Joining Date <span className="text-red-400">*</span></label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Joining Date <span className="text-red-400">*</span></label>
                       <input
                         type="date"
                         value={addForm.joiningDate}
@@ -1913,7 +1913,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       {addFormErrors.joiningDate && <span className="text-[10px] font-medium text-red-500">{addFormErrors.joiningDate}</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Job Title</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Title</label>
                       <input
                         type="text"
                         value={addForm.jobTitle}
@@ -1923,7 +1923,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Location</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Location</label>
                       <input
                         type="text"
                         value={addForm.workLocation}
@@ -1933,7 +1933,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Probation Period</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Probation Period</label>
                       <select
                         value={addForm.probationDays}
                         onChange={(e) => handleAddFieldChange("probationDays", e.target.value)}
@@ -1945,7 +1945,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Notice Period (Days)</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Notice Period (Days)</label>
                       <input
                         type="number"
                         value={addForm.noticePeriodDays}
@@ -1954,7 +1954,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Manager</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Manager</label>
                       <select
                         value={addForm.managerUserId}
                         onChange={(e) => handleAddFieldChange("managerUserId", e.target.value)}
@@ -1989,7 +1989,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       {!addForm.internshipIsUnpaid && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Duration (Months)</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Duration (Months)</label>
                             <input
                               type="number"
                               value={addForm.internshipDurationMonths}
@@ -2001,7 +2001,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                             />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">End Date</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date</label>
                             <input
                               type="date"
                               value={addForm.internshipEndDate}
@@ -2016,7 +2016,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
                   {/* Departments */}
                   <div className="mt-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Departments <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2 block">Departments <span className="text-red-400">*</span></label>
                     {getDepartmentSelectionMode(addForm.role) === "all" ? (
                       <>
                         <input
@@ -2059,7 +2059,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   {(!isInternshipEmploymentType(addForm.employmentType) || !addForm.internshipIsUnpaid) ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Annual CTC (₹)</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual CTC (₹)</label>
                         <input
                           type="number"
                           value={addForm.salaryAmount}
@@ -2069,7 +2069,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bank Name</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
                         <select
                           value={addForm.bankNameSelection}
                           onChange={(e) => handleAddFieldChange("bankNameSelection", e.target.value)}
@@ -2084,7 +2084,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       </div>
                       {addForm.bankNameSelection === BANK_NAME_CUSTOM_OPTION && (
                         <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
                           <input
                             type="text"
                             value={addForm.bankNameCustom}
@@ -2095,7 +2095,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         </div>
                       )}
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Account Holder Name</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Holder Name</label>
                         <input
                           type="text"
                           value={addForm.accountHolderName}
@@ -2105,7 +2105,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Account Number</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Number</label>
                         <input
                           type="text"
                           value={addForm.accountNumber}
@@ -2115,7 +2115,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">IFSC Code</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">IFSC Code</label>
                         <input
                           type="text"
                           value={addForm.ifscCode}
@@ -2139,7 +2139,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <FormSection title="IDs & Documents" icon={FileSpreadsheet}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID Type</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Type</label>
                       <select
                         value={addForm.nationalIdType}
                         onChange={(e) => handleAddFieldChange("nationalIdType", e.target.value)}
@@ -2152,7 +2152,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID Number</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Number</label>
                       <input
                         type="text"
                         value={addForm.nationalIdNumber}
@@ -2162,7 +2162,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
                       <input
                         type="text"
                         value={addForm.taxId}
@@ -2172,7 +2172,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
                       <input
                         type="text"
                         value={addForm.providentFundNumber}
@@ -2189,14 +2189,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <button
                     type="button"
                     onClick={() => { resetAddForm(); setShowAddForm(false); }}
-                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={addFormSubmitting}
-                    className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                    className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                   >
                     {addFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                     {addFormSubmitting ? "Saving..." : "Save & Invite"}
@@ -2234,7 +2234,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <select
                         value={deptFilter}
                         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                       >
                         <option>All Departments</option>
                         {availableDepartments.map((department) => (
@@ -2249,7 +2249,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <select
                         value={roleFilter}
                         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                       >
                         <option>All Roles</option>
                         {roleFilterOptions.map((role) => (
@@ -2261,7 +2261,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {/* Add Employee button */}
                     <button
                       onClick={() => { setIsAddModalOpen(true); resetAddForm(); }}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <UserPlus size={13} strokeWidth={2.5} /> ADD EMPLOYEE
                     </button>
@@ -2298,7 +2298,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 {/* Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-5 py-4 text-left">Employee ID</th>
                         <th className="px-5 py-4 text-left">Employee Name</th>
@@ -2385,7 +2385,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
                                   if (statusKey === "invite_sent") {
                                     return (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-orange-600 bg-orange-50">
                                         <Clock size={12} /> Access Pending
                                       </span>
                                     );
@@ -2400,7 +2400,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                                             <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-5" />
                                           </span>
                                         </label>
-                                        <span className="text-[10px] font-bold text-blue-600">Access Pending</span>
+                                        <span className="text-[10px] font-pmedium text-blue-600">Access Pending</span>
                                       </div>
                                     );
                                   }
@@ -2414,7 +2414,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
                                   if (!accessTargetId && !isCurrentLoggedInEmployee) {
                                     return (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider text-slate-500 bg-slate-50">
                                         <Lock size={12} /> Not Linked
                                       </span>
                                     );
@@ -2429,7 +2429,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                                             <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-0" />
                                           </span>
                                         </label>
-                                        <span className="text-[10px] font-bold text-amber-600">Access Pending</span>
+                                        <span className="text-[10px] font-pmedium text-amber-600">Access Pending</span>
                                       </div>
                                     );
                                   }
@@ -2477,7 +2477,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                                           </span>
                                         </span>
                                       </label>
-                                      <span className={`text-[10px] font-bold ${labelColor}`}>{labelText}</span>
+                                      <span className={`text-[10px] font-pmedium ${labelColor}`}>{labelText}</span>
                                     </div>
                                   );
                                 })()}
@@ -2495,13 +2495,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               {visibleTransferredEmployees.length > 0 && (
                 <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
                   <div className="px-5 py-4 border-b border-slate-100/60 bg-slate-50/50">
-                    <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <h3 className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest flex items-center gap-2">
                       <Building size={14} /> Transferred Employees ({visibleTransferredEmployees.length})
                     </h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
-                      <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                         <tr>
                           <th className="px-5 py-4 text-left">Name</th>
                           <th className="px-5 py-4 text-left">Email</th>
@@ -2563,7 +2563,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <button
                   key={tab}
                   onClick={() => setViewTab(tab)}
-                  className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${
+                  className={`px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest border-b-2 transition-all ${
                     viewTab === tab ? "text-[#2563EB] border-[#2563EB]" : "text-slate-400 border-transparent hover:text-slate-600"
                   }`}
                 >
@@ -2578,7 +2578,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <div className="grid grid-cols-2 gap-4">
                   {employeeViewRows.slice(0, 12).map((row) => (
                     <div key={row.label} className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{row.label}</span>
+                      <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">{row.label}</span>
                       <span className="text-[12px] font-semibold text-slate-800">{row.value}</span>
                     </div>
                   ))}
@@ -2588,7 +2588,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <div className="grid grid-cols-2 gap-4">
                   {employeeViewRows.slice(12).map((row) => (
                     <div key={row.label} className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{row.label}</span>
+                      <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">{row.label}</span>
                       <span className="text-[12px] font-semibold text-slate-800">{row.value}</span>
                     </div>
                   ))}
@@ -2619,11 +2619,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <button
                 onClick={handleDownloadEmployeeReport}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-1.5"
               >
                 <Download size={13} /> Download Report
               </button>
-              <button onClick={() => setViewingEmployee(null)} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
+              <button onClick={() => setViewingEmployee(null)} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
                 Close
               </button>
             </div>
@@ -2648,30 +2648,30 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Personal Info" icon={Users}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
                     <input type="text" value={editForm.fullName} onChange={(e) => setEditForm((p) => ({ ...p, fullName: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.fullName && <span className="text-[10px] font-medium text-red-500">{editFormErrors.fullName}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                     <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.email && <span className="text-[10px] font-medium text-red-500">{editFormErrors.email}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                     <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{editFormErrors.phone}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date of Birth</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                     <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((p) => ({ ...p, dateOfBirth: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Address</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
                     <input type="text" value={editForm.currentAddress} onChange={(e) => setEditForm((p) => ({ ...p, currentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
                     <select value={editForm.country} onChange={(e) => setEditForm((p) => ({ ...p, country: e.target.value, state: "", city: "" }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.country ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select Country</option>
                       {countryOptions.map((country) => (<option key={country} value={country}>{country}</option>))}
@@ -2679,7 +2679,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {editFormErrors.country && <span className="text-[10px] font-medium text-red-500">{editFormErrors.country}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
                     <select value={editForm.state} onChange={(e) => setEditForm((p) => ({ ...p, state: e.target.value, city: "" }))} disabled={!editForm.country} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.state ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select State</option>
                       {stateOptions.map((state) => (<option key={state} value={state}>{state}</option>))}
@@ -2687,7 +2687,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {editFormErrors.state && <span className="text-[10px] font-medium text-red-500">{editFormErrors.state}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
                     <select value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))} disabled={!editForm.state} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.city ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select City</option>
                       {cityOptions.map((city) => (<option key={city} value={city}>{city}</option>))}
@@ -2695,11 +2695,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {editFormErrors.city && <span className="text-[10px] font-medium text-red-500">{editFormErrors.city}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
                     <input type="text" value={editForm.emergencyContactName} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
                     <input type="tel" value={editForm.emergencyContactPhone} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                 </div>
@@ -2708,7 +2708,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Job Details" icon={Briefcase}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role <span className="text-red-400">*</span></label>
                     <select value={editForm.role} onChange={(e) => handleEditRoleChange(e.target.value)} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.role ? "border-red-300 bg-red-50" : "border-slate-300"}`}>
                       <option value="">Select Role</option>
                       {Object.keys(ROLE_LABEL_TO_VALUE).map((label) => (<option key={label} value={label}>{label}</option>))}
@@ -2716,7 +2716,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {editFormErrors.role && <span className="text-[10px] font-medium text-red-500">{editFormErrors.role}</span>}
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
                     {getDepartmentSelectionMode(editForm.role) === "all" ? (
                       <>
                         <input
@@ -2753,24 +2753,24 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Joining Date <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Joining Date <span className="text-red-400">*</span></label>
                     <input type="date" value={editForm.joiningDate} onChange={(e) => setEditForm((p) => ({ ...p, joiningDate: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.joiningDate ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.joiningDate && <span className="text-[10px] font-medium text-red-500">{editFormErrors.joiningDate}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employment Type</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Employment Type</label>
                     <select value={editForm.employmentType} onChange={(e) => { const v = e.target.value; setEditForm((p) => ({ ...p, employmentType: v, internshipIsUnpaid: isInternshipEmploymentType(v) ? p.internshipIsUnpaid : false })); }} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                       {EMPLOYMENT_TYPE_OPTIONS.map((opt) => (<option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Mode</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Mode</label>
                     <select value={editForm.workMode} onChange={(e) => setEditForm((p) => ({ ...p, workMode: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                       {WORK_MODE_OPTIONS.map((opt) => (<option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Job Role / Code</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role / Code</label>
                     <select
                       value={editForm.jobCode}
                       onChange={(e) => {
@@ -2793,11 +2793,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Designation</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
                     <input type="text" value={editForm.jobTitle} onChange={(e) => setEditForm((p) => ({ ...p, jobTitle: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Job Code</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Code</label>
                     <input
                       type="text"
                       value={editForm.jobCode}
@@ -2807,7 +2807,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Manager</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Manager</label>
                     <select value={editForm.managerUserId} onChange={(e) => setEditForm((p) => ({ ...p, managerUserId: e.target.value }))} disabled={String(editForm.role || "").trim().toLowerCase() !== "employee"} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed">
                       <option value="">No Manager</option>
                       {managerOptions.map((mgr) => (
@@ -2824,11 +2824,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Bank Details" icon={FileText}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Location</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Location</label>
                   <input type="text" value={editForm.workLocation} onChange={(e) => setEditForm((p) => ({ ...p, workLocation: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bank Name</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
                   <select value={editForm.bankNameSelection} onChange={(e) => setEditForm((p) => ({ ...p, bankNameSelection: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                     <option value="">Select Bank</option>
                     {bankNameOptions.map((bank) => (
@@ -2839,27 +2839,27 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 </div>
                 {editForm.bankNameSelection === BANK_NAME_CUSTOM_OPTION && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
                     <input type="text" value={editForm.bankNameCustom} onChange={(e) => setEditForm((p) => ({ ...p, bankNameCustom: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Account Holder Name</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Holder Name</label>
                   <input type="text" value={editForm.accountHolderName} onChange={(e) => setEditForm((p) => ({ ...p, accountHolderName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Account Number</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Number</label>
                   <input type="text" value={editForm.accountNumber} onChange={(e) => setEditForm((p) => ({ ...p, accountNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">IFSC Code</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">IFSC Code</label>
                   <input type="text" value={editForm.ifscCode} onChange={(e) => setEditForm((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID Type</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Type</label>
                   <select value={editForm.nationalIdType} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdType: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                     <option value="">Select Type</option>
                     {NATIONAL_ID_TYPES.map((type) => (
@@ -2868,15 +2868,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID Number</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Number</label>
                   <input type="text" value={editForm.nationalIdNumber} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
                   <input type="text" value={editForm.taxId} onChange={(e) => setEditForm((p) => ({ ...p, taxId: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
                   <input type="text" value={editForm.providentFundNumber} onChange={(e) => setEditForm((p) => ({ ...p, providentFundNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 </div>
@@ -2885,19 +2885,19 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Documents" icon={FileSpreadsheet}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID File</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID File</label>
                     <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, identityProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
                   </div>
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Address Proof</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Address Proof</label>
                     <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, addressProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
                   </div>
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bank Proof</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Proof</label>
                     <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, bankProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
                   </div>
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Other Documents</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Other Documents</label>
                     <input type="file" multiple onChange={(e) => setEditForm((p) => ({ ...p, otherDocuments: Array.from(e.target.files || []) }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
                   </div>
                 </div>
@@ -2905,8 +2905,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
             </div>
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
-              <button onClick={handleSaveEdit} disabled={editFormSubmitting} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleSaveEdit} disabled={editFormSubmitting} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                 {editFormSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 {editFormSubmitting ? "Saving..." : "Save Changes"}
               </button>
@@ -2942,7 +2942,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Personal Info" icon={Users}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
                     <input
                       type="text"
                       value={addForm.fullName}
@@ -2952,7 +2952,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.fullName && <span className="text-[10px] font-medium text-red-500">{addFormErrors.fullName}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                     <input
                       type="email"
                       value={addForm.email}
@@ -2962,7 +2962,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.email && <span className="text-[10px] font-medium text-red-500">{addFormErrors.email}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                     <input
                       type="tel"
                       value={addForm.phone}
@@ -2972,7 +2972,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{addFormErrors.phone}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date of Birth</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                     <input
                       type="date"
                       value={addForm.dateOfBirth}
@@ -2981,7 +2981,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Address</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
                     <input
                       type="text"
                       value={addForm.currentAddress}
@@ -2991,7 +2991,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.country}
                       onChange={(e) => handleAddFieldChange("country", e.target.value)}
@@ -3003,7 +3003,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.country && <span className="text-[10px] font-medium text-red-500">{addFormErrors.country}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.state}
                       onChange={(e) => handleAddFieldChange("state", e.target.value)}
@@ -3016,7 +3016,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.state && <span className="text-[10px] font-medium text-red-500">{addFormErrors.state}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.city}
                       onChange={(e) => handleAddFieldChange("city", e.target.value)}
@@ -3029,7 +3029,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.city && <span className="text-[10px] font-medium text-red-500">{addFormErrors.city}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
                     <input
                       type="text"
                       value={addForm.emergencyContactName}
@@ -3038,7 +3038,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
                     <input
                       type="tel"
                       value={addForm.emergencyContactPhone}
@@ -3052,7 +3052,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Job Details" icon={Briefcase}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.role}
                       onChange={(e) => handleAddRoleChange(e.target.value)}
@@ -3066,7 +3066,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.role && <span className="text-[10px] font-medium text-red-500">{addFormErrors.role}</span>}
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
                     {getDepartmentSelectionMode(addForm.role) === "all" ? (
                       <>
                         <input
@@ -3103,7 +3103,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Joining Date <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Joining Date <span className="text-red-400">*</span></label>
                     <input
                       type="date"
                       value={addForm.joiningDate}
@@ -3113,7 +3113,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.joiningDate && <span className="text-[10px] font-medium text-red-500">{addFormErrors.joiningDate}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employment Type</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Employment Type</label>
                     <select
                       value={addForm.employmentType}
                       onChange={(e) => handleAddEmploymentTypeChange(e.target.value)}
@@ -3125,7 +3125,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Mode</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Mode</label>
                     <select
                       value={addForm.workMode}
                       onChange={(e) => handleAddFieldChange("workMode", e.target.value)}
@@ -3137,7 +3137,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Job Role</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role</label>
                     <select
                       value={addForm.jobCode}
                       onChange={(e) => {
@@ -3159,7 +3159,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Job Code</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Code</label>
                     <input
                       type="text"
                       value={addForm.jobCode}
@@ -3169,7 +3169,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Designation</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
                     <input
                       type="text"
                       value={addForm.jobTitle}
@@ -3179,7 +3179,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Manager</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Manager</label>
                     <select
                       value={addForm.managerUserId}
                       onChange={(e) => handleAddFieldChange("managerUserId", e.target.value)}
@@ -3200,7 +3200,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Bank Details" icon={FileText}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Annual CTC</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual CTC</label>
                   <input
                     type="number"
                     value={addForm.salaryAmount}
@@ -3210,7 +3210,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bank Name</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
                   <select
                     value={addForm.bankNameSelection}
                     onChange={(e) => handleAddFieldChange("bankNameSelection", e.target.value)}
@@ -3225,7 +3225,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 </div>
                 {addForm.bankNameSelection === BANK_NAME_CUSTOM_OPTION && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
                     <input
                       type="text"
                       value={addForm.bankNameCustom}
@@ -3236,7 +3236,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Account Holder Name</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Holder Name</label>
                   <input
                     type="text"
                     value={addForm.accountHolderName}
@@ -3245,7 +3245,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Account Number</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Number</label>
                   <input
                     type="text"
                     value={addForm.accountNumber}
@@ -3254,7 +3254,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">IFSC Code</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">IFSC Code</label>
                   <input
                     type="text"
                     value={addForm.ifscCode}
@@ -3267,7 +3267,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID Type</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Type</label>
                   <select
                     value={addForm.nationalIdType}
                     onChange={(e) => handleAddFieldChange("nationalIdType", e.target.value)}
@@ -3280,7 +3280,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID Number</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Number</label>
                   <input
                     type="text"
                     value={addForm.nationalIdNumber}
@@ -3289,7 +3289,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
                   <input
                     type="text"
                     value={addForm.taxId}
@@ -3298,7 +3298,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
                   <input
                     type="text"
                     value={addForm.providentFundNumber}
@@ -3312,7 +3312,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               <FormSection title="Documents" icon={FileSpreadsheet}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">National ID File</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID File</label>
                   <input
                     type="file"
                     onChange={(e) => handleAddFieldChange("identityProof", e.target.files?.[0] || null)}
@@ -3320,7 +3320,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Address Proof</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Address Proof</label>
                   <input
                     type="file"
                     onChange={(e) => handleAddFieldChange("addressProof", e.target.files?.[0] || null)}
@@ -3328,7 +3328,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bank Proof</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Proof</label>
                   <input
                     type="file"
                     onChange={(e) => handleAddFieldChange("bankProof", e.target.files?.[0] || null)}
@@ -3336,7 +3336,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Other Documents</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Other Documents</label>
                   <input
                     type="file"
                     multiple
@@ -3351,7 +3351,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <button
                   type="button"
                   onClick={() => { resetAddForm(); setIsAddModalOpen(false); }}
-                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                 >
                   Cancel
                 </button>
@@ -3359,7 +3359,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   type="button"
                   disabled={addFormSubmitting}
                   onClick={() => { void submitAddForm(true); }}
-                  className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                  className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
                   {addFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <MailOpen size={14} />}
                   {addFormSubmitting ? "Saving..." : "Save & Invite"}
@@ -3385,13 +3385,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <div className="p-6 max-h-[60vh] overflow-y-auto space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role</label>
                   <select value={accessForm.role} onChange={(e) => setAccessForm((p) => ({ ...p, role: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                     {Object.entries(ROLE_LABEL_TO_VALUE).slice(0, 5).map(([label]) => (<option key={label} value={label}>{label}</option>))}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Department</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Department</label>
                   <select value={accessForm.departments[0] || ""} onChange={(e) => setAccessForm((p) => ({ ...p, departments: [e.target.value] }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                     <option value="">Select Department</option>
                     {availableDepartments.map((d) => (<option key={d} value={d}>{d}</option>))}
@@ -3400,7 +3400,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               </div>
               {accessCoreSections.map((section) => (
                 <div key={section.key}>
-                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{section.title}</h4>
+                  <h4 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">{section.title}</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {section.modules.map((mod) => {
                       const isSelected = accessForm.selectedModules.includes(mod.key);
@@ -3424,8 +3424,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               ))}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <button onClick={() => setManagingAccessFor(null)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
-              <button onClick={handleSaveAccess} disabled={isSavingAccess} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-1.5">
+              <button onClick={() => setManagingAccessFor(null)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleSaveAccess} disabled={isSavingAccess} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-1.5">
                 {isSavingAccess ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 {isSavingAccess ? "Saving..." : "Save Access"}
               </button>
@@ -3470,7 +3470,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       ))}
                     </div>
                   )}
-                  <button onClick={() => { setIsBulkUploadModalOpen(false); setBulkImportSummary(null); }} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
+                  <button onClick={() => { setIsBulkUploadModalOpen(false); setBulkImportSummary(null); }} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
                     Done
                   </button>
                 </div>
@@ -3482,10 +3482,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </div>
                   {bulkImportError && <p className="text-[11px] font-medium text-red-500">{bulkImportError}</p>}
                   <div className="flex gap-3">
-                    <button onClick={() => { setBulkSpreadsheetName(""); setBulkSpreadsheetRows([]); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+                    <button onClick={() => { setBulkSpreadsheetName(""); setBulkSpreadsheetRows([]); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
                       Change File
                     </button>
-                    <button onClick={handleBulkImport} disabled={isBulkImporting || bulkSpreadsheetRows.length === 0} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
+                    <button onClick={handleBulkImport} disabled={isBulkImporting || bulkSpreadsheetRows.length === 0} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
                       {isBulkImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
                       {isBulkImporting ? "Importing..." : `Import ${bulkSpreadsheetRows.length} Rows`}
                     </button>

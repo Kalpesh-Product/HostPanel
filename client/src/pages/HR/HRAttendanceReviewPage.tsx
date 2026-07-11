@@ -148,7 +148,7 @@ function StatusBadge({ status }: { status?: string }) {
     slate: "bg-slate-100 text-slate-600 border-slate-200",
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${colorMap[color] || colorMap.slate}`}>
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${colorMap[color] || colorMap.slate}`}>
       {status && ["present", "approved"].includes(status.toLowerCase()) ? <CheckCircle2 size={12} /> : null}
       {status && status.toLowerCase() === "pending" ? <Clock size={12} /> : null}
       {status && ["absent", "rejected"].includes(status.toLowerCase()) ? <XCircle size={12} /> : null}
@@ -401,11 +401,11 @@ function EmployeeAttendanceDetailView({
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-[12px]">
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Check In</p>
+                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Check In</p>
                         <p className="font-semibold text-slate-800">{record.checkIn ? formatTime12h(record.checkIn) : "--"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Check Out</p>
+                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Check Out</p>
                         <p className="font-semibold text-slate-800">{record.checkOut ? formatTime12h(record.checkOut) : "--"}</p>
                       </div>
                     </div>
@@ -489,25 +489,25 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
               </div>
 
               <div className="bg-slate-50 rounded-xl p-3 space-y-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Reason</p>
                 <p className="text-[12px] text-slate-700">{record.reason || "No reason provided"}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Original Check In</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Original Check In</p>
                   <p className="text-[13px] font-bold text-slate-600">{record.originalCheckIn ? formatTime12h(record.originalCheckIn) : "--"}</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Original Check Out</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Original Check Out</p>
                   <p className="text-[13px] font-bold text-slate-600">{record.originalCheckOut ? formatTime12h(record.originalCheckOut) : "--"}</p>
                 </div>
                 <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">Requested Check In</p>
+                  <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-wider mb-1">Requested Check In</p>
                   <p className="text-[13px] font-bold text-amber-700">{record.requestedCheckIn ? formatTime12h(record.requestedCheckIn) : "--"}</p>
                 </div>
                 <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">Requested Check Out</p>
+                  <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-wider mb-1">Requested Check Out</p>
                   <p className="text-[13px] font-bold text-amber-700">{record.requestedCheckOut ? formatTime12h(record.requestedCheckOut) : "--"}</p>
                 </div>
               </div>
@@ -515,7 +515,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
               {record.status?.toLowerCase() === "pending" && (
                 <div className="space-y-3 pt-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider block mb-1">
                       Rejection Reason <span className="text-slate-300">(required if rejecting)</span>
                     </label>
                     <textarea
@@ -530,7 +530,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                     <button
                       onClick={() => onAction(record.correctionId || record.id || "", "approved")}
                       disabled={acting}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-[11px] font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-[11px] font-pmedium hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {acting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                       Approve
@@ -544,7 +544,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                         onAction(record.correctionId || record.id || "", "rejected", rejectionReason.trim());
                       }}
                       disabled={acting}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-xl text-[11px] font-bold hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-xl text-[11px] font-pmedium hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {acting ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
                       Reject
@@ -555,14 +555,14 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
 
               {record.status?.toLowerCase() === "rejected" && record.rejectionReason && (
                 <div className="bg-rose-50 rounded-xl p-3 border border-rose-100">
-                  <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider mb-1">Rejection Reason</p>
+                  <p className="text-[10px] font-pmedium text-rose-500 uppercase tracking-wider mb-1">Rejection Reason</p>
                   <p className="text-[12px] text-rose-700">{record.rejectionReason}</p>
                 </div>
               )}
 
               {record.status?.toLowerCase() === "approved" && record.actionedBy && (
                 <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-                  <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-1">Approved By</p>
+                  <p className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-wider mb-1">Approved By</p>
                   <p className="text-[12px] text-emerald-700">{record.actionedBy}</p>
                 </div>
               )}
@@ -994,7 +994,7 @@ export default function HRAttendanceReviewPage() {
               <button
                 key={tab.key}
                 onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
-                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -1012,10 +1012,10 @@ export default function HRAttendanceReviewPage() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">
                       {card.label}
                     </p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>
                     <Icon size={16} />
@@ -1058,7 +1058,7 @@ export default function HRAttendanceReviewPage() {
                 <button
                   type="button"
                   onClick={() => setShowGeofenceModal(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700"
                 >
                   <MapPin size={13} />
                   Geofence
@@ -1087,7 +1087,7 @@ export default function HRAttendanceReviewPage() {
             <div className="overflow-x-auto">
               {activeTab === "attendance-master" ? (
                 <table className="w-full">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Emp ID</th>
                       <th className="px-5 py-4 text-left">Employee</th>
@@ -1157,7 +1157,7 @@ export default function HRAttendanceReviewPage() {
                 </table>
               ) : (
                 <table className="w-full">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Employee</th>
                       <th className="px-5 py-4 text-left">Department</th>
@@ -1261,7 +1261,7 @@ export default function HRAttendanceReviewPage() {
             >
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-4 sm:px-5">
                 <div className="max-w-2xl">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Geofencing</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Geofencing</p>
                   <h3 className="mt-1.5 text-lg font-black tracking-tight text-slate-900">Define the office boundary</h3>
                   <p className="mt-1.5 text-[12px] leading-5 text-slate-500">
                     Paste a map link, check it, and the preview will update.
@@ -1316,7 +1316,7 @@ export default function HRAttendanceReviewPage() {
 
                 <div className="grid gap-3">
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Map URL</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Map URL</p>
                     <input
                       type="text"
                       value={geofenceMapUrl}
@@ -1326,13 +1326,13 @@ export default function HRAttendanceReviewPage() {
                     />
                     <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-600">
                       <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                        <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Latitude</span>
+                        <span className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Latitude</span>
                         <span className="mt-1 block truncate text-slate-900">
                           {geofenceConfig.latitude != null ? geofenceConfig.latitude.toFixed(6) : "--"}
                         </span>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                        <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Longitude</span>
+                        <span className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Longitude</span>
                         <span className="mt-1 block truncate text-slate-900">
                           {geofenceConfig.longitude != null ? geofenceConfig.longitude.toFixed(6) : "--"}
                         </span>
@@ -1349,7 +1349,7 @@ export default function HRAttendanceReviewPage() {
                     <button
                       type="button"
                       onClick={handleCheckGeofenceUrl}
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-700"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-[11px] font-pmedium uppercase tracking-widest text-white transition-colors hover:bg-blue-700"
                     >
                       <MapPin size={13} />
                       Check
@@ -1357,7 +1357,7 @@ export default function HRAttendanceReviewPage() {
                     <button
                       type="button"
                       onClick={handleUseCurrentLocation}
-                      className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-blue-700 transition-colors hover:bg-blue-100"
+                      className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-pmedium uppercase tracking-widest text-blue-700 transition-colors hover:bg-blue-100"
                     >
                       <Navigation size={13} />
                       Use current location
@@ -1367,7 +1367,7 @@ export default function HRAttendanceReviewPage() {
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Radius</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Radius</p>
                         <p className="mt-1 text-2xl font-black tracking-tight text-slate-900">{Math.round(geofenceConfig.radiusMeters || 150)}m</p>
                       </div>
                     </div>
@@ -1375,14 +1375,14 @@ export default function HRAttendanceReviewPage() {
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(-100)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         -100m
                       </button>
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(-25)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         -25m
                       </button>
@@ -1398,14 +1398,14 @@ export default function HRAttendanceReviewPage() {
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(25)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         +25m
                       </button>
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(100)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         +100m
                       </button>
@@ -1419,7 +1419,7 @@ export default function HRAttendanceReviewPage() {
                     <button
                       type="button"
                       onClick={() => setShowGeofenceModal(false)}
-                      className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600 transition-colors hover:bg-slate-50"
+                      className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-[0.28em] text-slate-600 transition-colors hover:bg-slate-50"
                     >
                       Close
                     </button>
@@ -1427,7 +1427,7 @@ export default function HRAttendanceReviewPage() {
                       type="button"
                       onClick={handleSaveGeofence}
                       disabled={geofenceSaving}
-                      className="flex-1 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.28em] text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-60"
+                      className="flex-1 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-[0.28em] text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-60"
                     >
                       {geofenceSaving ? "Saving..." : "Save geofence"}
                     </button>

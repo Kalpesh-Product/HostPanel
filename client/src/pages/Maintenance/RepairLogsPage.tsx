@@ -94,7 +94,7 @@ function StatusBadge({ status }: { status: string }) {
   const isDone = status === "Resolved" || status === "Closed";
   const isActive = status === "In Progress";
   const base =
-    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pbold font-bold uppercase tracking-widest";
+    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest";
 
   if (isDone)
     return (
@@ -377,7 +377,7 @@ export default function RepairLogsPage() {
           {error ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700 flex items-center justify-between gap-4">
               <span>{error}</span>
-              <button type="button" onClick={loadLogs} className="text-xs font-black uppercase tracking-widest text-red-600 hover:text-red-700">
+              <button type="button" onClick={loadLogs} className="text-xs font-pmedium uppercase tracking-widest text-red-600 hover:text-red-700">
                 Retry
               </button>
             </div>
@@ -398,7 +398,7 @@ export default function RepairLogsPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === tab.id
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -423,8 +423,8 @@ export default function RepairLogsPage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -464,7 +464,7 @@ export default function RepairLogsPage() {
                 </div>
                 <button
                   onClick={openFormModal}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={14} />
                   Log Repair
@@ -475,7 +475,7 @@ export default function RepairLogsPage() {
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full table-auto text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-3 py-4 whitespace-nowrap">Log</th>
                     <th className="px-3 py-4 whitespace-nowrap">Asset</th>
@@ -489,31 +489,31 @@ export default function RepairLogsPage() {
                   {visibleLogs.map((log) => (
                     <tr key={log._id || log.repairLogCode} className="transition hover:bg-cyan-50/30">
                       <td className="px-3 py-4">
-                        <div className="font-mono text-[11px] font-black uppercase tracking-widest text-cyan-700">
+                        <div className="font-mono text-[11px] font-pmedium uppercase tracking-widest text-cyan-700">
                           {log.repairLogCode || log._id?.slice(-6).toUpperCase()}
                         </div>
                         <div className="mt-1 text-xs font-semibold text-slate-500">{log.requestedBy}</div>
                       </td>
                       <td className="px-3 py-4">
                         <div className="font-bold text-slate-900">{log.assetName}</div>
-                        <div className="mt-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                        <div className="mt-1 flex items-center gap-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                           <Building2 size={12} />
                           {log.assetCode}
                         </div>
                       </td>
                       <td className="px-3 py-4">
-                        <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-700">
+                        <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-700">
                           {log.issueType}
                         </div>
                         <div className="mt-2 line-clamp-2 text-sm text-slate-600">{log.issueDescription}</div>
                       </td>
                       <td className="px-3 py-4">
                         <div className="text-sm font-semibold text-slate-900">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">To: </span>
+                          <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">To: </span>
                           {log.assignedTo || "--"}
                         </div>
                         {log.sourceTicketCode ? (
-                          <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-cyan-700">
+                          <div className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-cyan-700">
                             From ticket {log.sourceTicketCode}
                           </div>
                         ) : null}
@@ -525,7 +525,7 @@ export default function RepairLogsPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedLog(log)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 transition hover:bg-slate-50"
                         >
                           View <ArrowRight size={12} />
                         </button>
@@ -563,7 +563,7 @@ export default function RepairLogsPage() {
             >
               <div className="flex items-start justify-between gap-4 bg-slate-900 px-5 py-4 text-white shrink-0">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">Repair Log Detail</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-cyan-300">Repair Log Detail</p>
                   <h3 className="mt-1 text-xl font-black">{selectedLog.repairLogCode || selectedLog._id?.slice(-6).toUpperCase()}</h3>
                 </div>
                 <button
@@ -578,42 +578,42 @@ export default function RepairLogsPage() {
               <div className="overflow-y-auto flex-1 space-y-4 p-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Asset</div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Asset</div>
                     <div className="mt-1 font-bold text-slate-900">{selectedLog.assetName}</div>
-                    <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <div className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       {selectedLog.assetCode}
                     </div>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned To</div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Assigned To</div>
                     <div className="mt-1 font-bold text-slate-900 flex items-center gap-1.5">
                       <User size={14} /> {selectedLog.assignedTo || "Unassigned"}
                     </div>
-                    <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <div className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       Requested by {selectedLog.requestedBy}
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-slate-100 bg-white p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Issue Type</div>
-                  <div className="mt-1 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-700">
+                  <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Issue Type</div>
+                  <div className="mt-1 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-700">
                     {selectedLog.issueType}
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-slate-100 bg-white p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Issue Description</div>
+                  <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Issue Description</div>
                   <div className="mt-2 text-sm leading-6 text-slate-700">{selectedLog.issueDescription}</div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-100 bg-white p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Created</div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Created</div>
                     <div className="mt-2 text-sm font-semibold text-slate-700">{formatDate(selectedLog.createdAt)}</div>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-white p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Status</div>
                     <div className="mt-2">
                       <StatusBadge status={selectedLog.status} />
                     </div>
@@ -625,7 +625,7 @@ export default function RepairLogsPage() {
                             type="button"
                             onClick={() => handleStatusChange(action.nextStatus)}
                             disabled={isUpdating}
-                            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {isUpdating ? "Updating..." : action.label}
                           </button>
@@ -637,7 +637,7 @@ export default function RepairLogsPage() {
 
                 {selectedLog.sourceTicketCode ? (
                   <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-cyan-700">Source Ticket</div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-cyan-700">Source Ticket</div>
                     <div className="mt-1 text-sm font-semibold text-cyan-900">
                       {selectedLog.sourceTicketCode}
                       {selectedLog.sourceTicketTitle ? ` - ${selectedLog.sourceTicketTitle}` : ""}
@@ -647,14 +647,14 @@ export default function RepairLogsPage() {
 
                 {selectedLog.notes ? (
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Notes</div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-700">Notes</div>
                     <div className="mt-2 text-sm leading-6 text-indigo-950">{selectedLog.notes}</div>
                   </div>
                 ) : null}
 
                 {selectedLog.resolutionNote ? (
                   <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Resolution</div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Resolution</div>
                     <div className="mt-2 text-sm leading-6 text-emerald-950">{selectedLog.resolutionNote}</div>
                   </div>
                 ) : null}
@@ -664,7 +664,7 @@ export default function RepairLogsPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedLog(null)}
-                  className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-xs font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+                  className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
                 >
                   Close
                 </button>
@@ -695,7 +695,7 @@ export default function RepairLogsPage() {
                     <Wrench size={20} />
                     Maintenance Repair Log
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                     Log the issue, choose the asset, and assign it.
                   </p>
                 </div>
@@ -724,7 +724,7 @@ export default function RepairLogsPage() {
                   <>
                     <div className="grid gap-4 md:grid-cols-2">
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-widest text-slate-500">Asset *</span>
+                        <span className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Asset *</span>
                         <select
                           required
                           value={formState.assetId}
@@ -741,13 +741,13 @@ export default function RepairLogsPage() {
                       </label>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
-                          <span className="text-xs font-black uppercase tracking-widest text-slate-500">Asset Code</span>
+                          <span className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Asset Code</span>
                           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
                             {formState.assetCode || "Auto"}
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <span className="text-xs font-black uppercase tracking-widest text-slate-500">Department</span>
+                          <span className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Department</span>
                           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
                             Maintenance
                           </div>
@@ -757,7 +757,7 @@ export default function RepairLogsPage() {
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-widest text-slate-500">Issue Type *</span>
+                        <span className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Issue Type *</span>
                         <select
                           required
                           value={formState.issueType}
@@ -770,7 +770,7 @@ export default function RepairLogsPage() {
                         </select>
                       </label>
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-widest text-slate-500">Assign To</span>
+                        <span className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Assign To</span>
                         <input
                           type="text"
                           value={formState.assignedTo}
@@ -782,7 +782,7 @@ export default function RepairLogsPage() {
                     </div>
 
                     <label className="block space-y-2">
-                      <span className="text-xs font-black uppercase tracking-widest text-slate-500">Issue Description *</span>
+                      <span className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Issue Description *</span>
                       <textarea
                         required
                         rows={4}
@@ -794,7 +794,7 @@ export default function RepairLogsPage() {
                     </label>
 
                     <label className="block space-y-2">
-                      <span className="text-xs font-black uppercase tracking-widest text-slate-500">Notes</span>
+                      <span className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Notes</span>
                       <textarea
                         rows={2}
                         value={formState.notes}
@@ -810,14 +810,14 @@ export default function RepairLogsPage() {
                   <button
                     type="button"
                     onClick={() => setIsFormOpen(false)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-700 shadow-sm transition-all hover:bg-slate-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isLoadingOptions || isSaving}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
                     {isSaving ? "Saving..." : "Submit Repair Log"}

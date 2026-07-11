@@ -309,7 +309,7 @@ const CompanyProfile = () => {
                   <>
                     <label
                       htmlFor="companyLogoUpload"
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-pmedium text-blue-700 transition hover:bg-blue-100"
                     >
                       Change Image
                     </label>
@@ -317,7 +317,7 @@ const CompanyProfile = () => {
                       type="button"
                       onClick={handleUpload}
                       disabled={uploading}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-pmedium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       {uploading ? "Uploading..." : "Save Image"}
                     </button>
@@ -339,7 +339,7 @@ const CompanyProfile = () => {
       <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
         <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            {/* <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-blue-600">Company Information</p> */}
+            {/* <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">Company Information</p> */}
             <h2 className="mt-1 text-xl font-pmedium text-slate-900">Unit & Company Information</h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">Read-only company information synced from your workspace setup.</p>
           </div>
@@ -362,7 +362,7 @@ const CompanyProfile = () => {
 
               return (
                 <div key={fieldConfig.name} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{fieldConfig.label}</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">{fieldConfig.label}</p>
                   <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{value}</p>
                 </div>
               );

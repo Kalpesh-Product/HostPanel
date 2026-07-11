@@ -138,29 +138,29 @@ export default function CompanyLeads() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Website Leads</p>
-                <p className="text-[15px] font-black text-slate-900">{leadStats[0]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Website Leads</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{leadStats[0]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Pending</p>
-                <p className="text-[15px] font-black text-slate-900">{leadStats[1]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{leadStats[1]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Contacted</p>
-                <p className="text-[15px] font-black text-slate-900">{leadStats[2]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Contacted</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{leadStats[2]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><BadgeCheck size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
-                <p className="text-[15px] font-black text-slate-900">{leadStats[3]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{leadStats[3]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
             </div>
@@ -314,11 +314,11 @@ export default function CompanyLeads() {
                   {/* Core contact fields */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Phone</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
                       <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedLead.mobileNumber || "Not shared"}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Email</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
                       <p className="mt-0.5 break-all text-[12px] font-bold text-slate-900">{selectedLead.email || "Not shared"}</p>
                     </div>
                     {(() => {
@@ -327,23 +327,23 @@ export default function CompanyLeads() {
                       const product = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "");
                       return product ? (
                         <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Product / Service</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Product / Service</p>
                           <p className="mt-0.5 text-[12px] font-bold text-slate-900">{product}</p>
                         </div>
                       ) : null;
                     })()}
                     {selectedLead.noOfPeople && (
                       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">No. of People</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">No. of People</p>
                         <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedLead.noOfPeople}</p>
                       </div>
                     )}
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Received On</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received On</p>
                       <p className="mt-0.5 text-[12px] font-bold text-slate-900">{formatDateLabel(selectedLead.recievedDate || selectedLead.createdAt)}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Received Via</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received Via</p>
                       <p className="mt-0.5 text-[12px] font-bold text-slate-900">
                         {(() => {
                           const s = (selectedLead.source || "").toLowerCase();
@@ -398,11 +398,11 @@ export default function CompanyLeads() {
                     if (!fields.length) return null;
                     return (
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 px-0.5">Booking / Enquiry Details</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-2 px-0.5">Booking / Enquiry Details</p>
                         <div className="grid grid-cols-2 gap-2">
                           {fields.map(({ label, value }) => (
                             <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{label}</p>
                               <p className="mt-0.5 text-[12px] font-bold text-slate-900">{value}</p>
                             </div>
                           ))}
@@ -414,7 +414,7 @@ export default function CompanyLeads() {
                   {/* Message */}
                   {selectedLead.message && (
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">Message</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Message</p>
                       <p className="text-[12px] font-medium leading-5 text-slate-700">{selectedLead.message}</p>
                     </div>
                   )}
@@ -424,10 +424,10 @@ export default function CompanyLeads() {
                 {/* Sticky Footer */}
                 <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-end gap-2 shrink-0">
                   <button type="button" onClick={() => { handleStatusChange(selectedLead._id, "Closed"); setSelectedLeadId(null); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-emerald-700"
                   ><CheckCircle2 size={12} /> Close Lead</button>
                   <button type="button" onClick={() => { handleStatusChange(selectedLead._id, "Rejected"); setSelectedLeadId(null); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-rose-700"
                   ><X size={12} /> Reject Lead</button>
                 </div>
 

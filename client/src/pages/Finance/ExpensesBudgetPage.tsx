@@ -1160,10 +1160,10 @@ export function ExpensesBudgetPage() {
 
   const getStatusBadge = (status: string) => {
     if (status.includes('Active') || status.includes('Approved') || status.includes('Uploaded'))
-      return <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{status}</span>;
+      return <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">{status}</span>;
     if (status.includes('Pending') || status.includes('Awaiting'))
-      return <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider animate-pulse">{status}</span>;
-    return <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{status}</span>;
+      return <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider animate-pulse">{status}</span>;
+    return <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">{status}</span>;
   };
 
   if (!hasLoadedFinanceSnapshot && isLoadingFinance) return <TablePageSkeleton rows={6} columns={6} />;
@@ -1217,7 +1217,7 @@ export function ExpensesBudgetPage() {
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-bold uppercase tracking-wider"
+                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-pmedium uppercase tracking-wider"
               >
                 Retry
               </button>
@@ -1242,7 +1242,7 @@ export function ExpensesBudgetPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -1262,8 +1262,8 @@ export function ExpensesBudgetPage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className={`text-[15px] font-black ${card.isCurrency ? 'text-blue-600' : 'text-slate-900'}`}>{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[15px] font-pmedium ${card.isCurrency ? 'text-blue-600' : 'text-slate-900'}`}>{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -1305,7 +1305,7 @@ export function ExpensesBudgetPage() {
 
                 {activeTab === 'estimated' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Date & ID</th>
                         <th className="px-6 py-5">Dept</th>
@@ -1323,7 +1323,7 @@ export function ExpensesBudgetPage() {
                         return (
                           <tr key={budget.id} className="hover:bg-blue-50/30 transition-all">
                             <td className="px-6 py-5 space-y-0.5">
-                              <p className="text-[9px] sm:text-[10px] font-black text-blue-600 uppercase">{budget.id}</p>
+                              <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-600 uppercase">{budget.id}</p>
                               <p className="text-[10px] sm:text-xs font-bold text-slate-500">{budget.date}</p>
                             </td>
                             <td className="px-6 py-5">
@@ -1346,7 +1346,7 @@ export function ExpensesBudgetPage() {
                             </td>
                             <td className="px-6 py-5 text-center">{getStatusBadge(budget.status)}</td>
                             <td className="px-6 py-5 text-center">
-                              <button onClick={() => setViewingBudget(budget)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
+                              <button onClick={() => setViewingBudget(budget)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
                                 <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
                               </button>
                             </td>
@@ -1366,7 +1366,7 @@ export function ExpensesBudgetPage() {
 
                 {activeTab === 'extra' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Date & ID</th>
                         <th className="px-6 py-5">Dept</th>
@@ -1380,7 +1380,7 @@ export function ExpensesBudgetPage() {
                       {visibleExtraBudgets.map((extra) => (
                         <tr key={extra.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 space-y-0.5">
-                            <p className="text-[9px] sm:text-[10px] font-black text-amber-600 uppercase">{extra.id}</p>
+                            <p className="text-[9px] sm:text-[10px] font-pmedium text-amber-600 uppercase">{extra.id}</p>
                             <p className="text-[10px] sm:text-xs font-bold text-slate-500">{extra.date}</p>
                           </td>
                           <td className="px-6 py-5">
@@ -1392,7 +1392,7 @@ export function ExpensesBudgetPage() {
                           </td>
                           <td className="px-6 py-5 text-center">{getStatusBadge(extra.status)}</td>
                           <td className="px-6 py-5 text-center">
-                            <button onClick={() => setViewingExtra(extra)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
+                            <button onClick={() => setViewingExtra(extra)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
                               <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Review</span>
                             </button>
                           </td>
@@ -1411,7 +1411,7 @@ export function ExpensesBudgetPage() {
 
                 {activeTab === 'ledger' && (
                   <>
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-6 py-5">Date & ID</th>
                         <th className="px-6 py-5">Dept & Vendor</th>
@@ -1425,7 +1425,7 @@ export function ExpensesBudgetPage() {
                       {visibleLedger.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 space-y-0.5">
-                            <p className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase">{log.id}</p>
+                            <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase">{log.id}</p>
                             <p className="text-[10px] sm:text-xs font-bold text-slate-900 flex items-center gap-1">
                               <CheckCircle2 size={10} className="sm:w-3 sm:h-3 text-green-500" />
                               <span className="leading-snug">{log.dateLabel || log.paidDate}</span>
@@ -1433,7 +1433,7 @@ export function ExpensesBudgetPage() {
                           </td>
                           <td className="px-6 py-5 space-y-0.5">
                             <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1"><Building2 size={10} className="sm:w-3 sm:h-3 text-slate-400" /> {log.department}</p>
-                            <p className="text-[9px] sm:text-[10px] font-bold text-slate-600">{log.vendor}</p>
+                            <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-600">{log.vendor}</p>
                           </td>
                           <td className="px-6 py-5 hidden md:table-cell">
                             <p className="font-bold text-slate-800 text-xs truncate max-w-[150px]">{log.item}</p>
@@ -1446,7 +1446,7 @@ export function ExpensesBudgetPage() {
                               <button
                                 type="button"
                                 onClick={() => setViewingExpense(log)}
-                                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm"
+                                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm"
                               >
                                 <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View Details</span>
                               </button>
@@ -1454,7 +1454,7 @@ export function ExpensesBudgetPage() {
                                 <button
                                   type="button"
                                   onClick={() => window.open(log.invoiceUrl, '_blank', 'noopener,noreferrer')}
-                                  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm"
+                                  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm"
                                 >
                                   <FileText size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Invoice</span>
                                 </button>
@@ -1462,7 +1462,7 @@ export function ExpensesBudgetPage() {
                                 <button
                                   type="button"
                                   disabled
-                                  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm cursor-not-allowed"
+                                  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm cursor-not-allowed"
                                 >
                                   <FileText size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Invoice</span>
                                 </button>
@@ -1494,13 +1494,13 @@ export function ExpensesBudgetPage() {
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-[96vw] 2xl:max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[96vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
                   Annual Budget Request
                 </span>
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
                   <PieChart size={20} /> Budget Review
                 </h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase mt-0.5">ID: {viewingBudget.id}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">ID: {viewingBudget.id}</p>
               </div>
               <button onClick={() => setViewingBudget(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
                 <X size={16} />
@@ -1510,28 +1510,28 @@ export function ExpensesBudgetPage() {
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
               <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-100 bg-white">
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Department</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Department</p>
                   <p className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-1.5 mt-0.5">
                     <Building2 size={14} className="text-[#2563EB] shrink-0" /> {viewingBudget.department}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-600">Total Requested</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Total Requested</p>
                   <p className="text-xl sm:text-2xl font-black text-blue-900 mt-0.5">{formatCurrency(viewingBudget.requested)}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Submitted By</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Submitted By</p>
                   <p className="text-sm font-black text-gray-900 mt-0.5">{viewingBudget.submittedByName || 'Dept. Manager'}</p>
-                  <p className="text-[10px] font-semibold text-gray-400">{viewingBudget.date}</p>
+                  <p className="text-[10px] font-pmedium text-gray-400">{viewingBudget.date}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Status</p>
-                  <span className={`mt-1.5 inline-flex px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest w-fit ${viewingBudget.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-200' : viewingBudget.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>{viewingBudget.status}</span>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
+                  <span className={`mt-1.5 inline-flex px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest w-fit ${viewingBudget.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-200' : viewingBudget.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>{viewingBudget.status}</span>
                 </div>
               </div>
 
               <div className="px-6 sm:px-8 py-4 border-b border-gray-100 bg-white">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
                   <FileText size={11} /> Business Justification
                 </p>
                 <p className="text-xs sm:text-sm font-medium text-gray-700 leading-relaxed">
@@ -1541,7 +1541,7 @@ export function ExpensesBudgetPage() {
 
               <div className="px-4 sm:px-8 py-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                  <h4 className="text-[10px] sm:text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-[10px] sm:text-xs font-pmedium text-gray-900 uppercase tracking-widest flex items-center gap-2">
                     <Calendar size={13} className="text-[#2563EB]" /> Monthly Expense Plan
                     {Array.isArray(viewingBudget.monthlyBreakdown) && (
                       <span className="ml-1 text-gray-400 font-bold normal-case tracking-normal">
@@ -1550,7 +1550,7 @@ export function ExpensesBudgetPage() {
                     )}
                   </h4>
                   {viewingBudget.status === 'Pending Review' && (
-                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                    <span className="text-[9px] font-pmedium uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
                       Vendor & payment details unlock after approval
                     </span>
                   )}
@@ -1561,14 +1561,14 @@ export function ExpensesBudgetPage() {
                     <table className="w-full table-fixed text-left" style={{ minWidth: viewingBudget.status === 'Active' ? '1280px' : '920px' }}>
                       <thead className="sticky top-0 z-10">
                         <tr className="border-b border-slate-200 bg-slate-50">
-                          <th className="w-[290px] px-4 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Expense</th>
-                          <th className="px-4 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Description</th>
-                          <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-black uppercase tracking-widest text-slate-500">Projected</th>
-                          <th className="w-[120px] px-4 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Due</th>
+                          <th className="w-[290px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
+                          <th className="px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</th>
+                          <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
+                          <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
                           {viewingBudget.status === 'Active' && <>
-                            <th className="w-[220px] px-4 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Vendor</th>
-                            <th className="w-[160px] px-4 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Payment</th>
-                            <th className="w-[160px] px-4 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Invoice</th>
+                            <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
+                            <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
+                            <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Invoice</th>
                           </>}
                         </tr>
                       </thead>
@@ -1586,22 +1586,22 @@ export function ExpensesBudgetPage() {
                                 <tr className="border-y border-blue-100 bg-blue-50/80">
                                   <td colSpan={colSpan} className="px-4 py-3">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
-                                      <span className="flex min-w-0 items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-900">
+                                      <span className="flex min-w-0 items-center gap-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-900">
                                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
                                           <Calendar size={13} />
                                         </span>
                                         {m.month}{m.title ? ` — ${m.title}` : ''}
                                       </span>
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-700">
+                                        <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-slate-700">
                                           Projected <span className="text-[#2563EB]">{formatCurrency(projected)}</span>
                                         </span>
                                         {viewingBudget.status === 'Active' && actual > 0 && (
-                                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">
+                                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pmedium text-emerald-700">
                                             Used {formatCurrency(actual)}
                                           </span>
                                         )}
-                                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
                                           {expenses.length} planned{extraExpenses.length > 0 ? ` + ${extraExpenses.length} extra` : ''}
                                         </span>
                                       </div>
@@ -1613,7 +1613,7 @@ export function ExpensesBudgetPage() {
                                     <td className="px-4 py-4 align-top">
                                       <div className="flex items-start gap-2">
                                         {expense._isExtra && (
-                                          <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-700">Extra</span>
+                                          <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
                                         )}
                                         <div className="min-w-0 flex-1">
                                           <div className="flex min-w-0 items-start justify-between gap-3">
@@ -1622,7 +1622,7 @@ export function ExpensesBudgetPage() {
                                               <button
                                                 type="button"
                                                 onClick={() => openExpenseDetails(expense, m, eIdx, viewingBudget.department)}
-                                                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
+                                                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
                                               >
                                                 <Eye size={11} /> Details
                                               </button>
@@ -1631,7 +1631,7 @@ export function ExpensesBudgetPage() {
                                         </div>
                                       </div>
                                       {expense.vendorName ? (
-                                        <div className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                                        <div className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
                                           Vendor: {expense.vendorName}
                                         </div>
                                       ) : null}
@@ -1651,14 +1651,14 @@ export function ExpensesBudgetPage() {
                                           <div className="min-w-0">
                                             <p className="break-words text-xs font-black text-slate-900">{expense.vendorName}</p>
                                             {expense.vendorContact && <p className="mt-0.5 break-words text-[10px] font-medium text-slate-400">{expense.vendorContact}</p>}
-                                            {(expense.poId || expense.vendorId) && <p className="mt-0.5 break-words text-[9px] font-bold uppercase tracking-wider text-blue-600">PO: {expense.poId || expense.vendorId}</p>}
+                                            {(expense.poId || expense.vendorId) && <p className="mt-0.5 break-words text-[9px] font-pmedium uppercase tracking-wider text-blue-600">PO: {expense.poId || expense.vendorId}</p>}
                                           </div>
                                         ) : (
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Not Assigned</span>
+                                          <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Not Assigned</span>
                                         )}
                                       </td>
                                       <td className="px-4 py-4 align-top">
-                                        <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${(expense.paymentStatus || '').includes('Done') || (expense.paymentStatus || '').includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : (expense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : (expense.paymentStatus || '').includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                        <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${(expense.paymentStatus || '').includes('Done') || (expense.paymentStatus || '').includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : (expense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : (expense.paymentStatus || '').includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                                           {expense.paymentStatus || 'Planned'}
                                         </span>
                                       </td>
@@ -1673,7 +1673,7 @@ export function ExpensesBudgetPage() {
                                             )}
                                           </div>
                                         ) : (
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Pending</span>
+                                          <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Pending</span>
                                         )}
                                       </td>
                                     </>}
@@ -1704,16 +1704,16 @@ export function ExpensesBudgetPage() {
 
             {viewingBudget.status === 'Pending Review' ? (
               <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-black hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                   <XCircle size={14} /> REJECT REQUEST
                 </button>
-                <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-black shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                   APPROVE BUDGET <CheckCircle2 size={14} />
                 </button>
               </div>
             ) : (
               <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
-                <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-black hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
               </div>
             )}
           </div>
@@ -1726,7 +1726,7 @@ export function ExpensesBudgetPage() {
           <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-5xl xl:max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
-                <p className="text-[9px] sm:text-[10px] font-black text-blue-300 uppercase tracking-widest">{viewingExpense.monthTitle || viewingExpense.month || 'Expense'}</p>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-300 uppercase tracking-widest">{viewingExpense.monthTitle || viewingExpense.month || 'Expense'}</p>
                 <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mt-1"><DollarSign size={18} className="sm:w-5 sm:h-5 text-blue-400" /> {viewingExpense.expenseLabel || viewingExpense.title || 'Expense Details'}</h2>
                 <p className="text-[11px] sm:text-xs text-slate-400 mt-2 max-w-2xl">{viewingExpense.description || 'No description provided.'}</p>
               </div>
@@ -1738,66 +1738,66 @@ export function ExpensesBudgetPage() {
             <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto bg-white space-y-5">
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Projected</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Projected</p>
                   <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{formatCurrency(viewingExpense.projectedAmount || 0)}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Actual</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Actual</p>
                   <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{formatCurrency(viewingExpense.actualAmount || 0)}</p>
                 </div>
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Line Item</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Line Item</p>
                   <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{viewingExpense.expenseLabel || viewingExpense.title || 'Expense 1'}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Status</p>
                   <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{viewingExpense.paymentStatus || 'Planned'}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-gray-200 p-4 sm:p-5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Vendor Details</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500 mb-3">Vendor Details</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">ID</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorId || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorName || 'Not assigned'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Contact Person</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorContactPerson || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Phone</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPhone || 'Not set'}</p></div>
-                    <div className="sm:col-span-2"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Email</p><p className="font-bold text-gray-900 mt-1 break-words">{viewingExpense.vendorEmail || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorCategory || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Payment Terms</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPaymentTerms || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">GSTIN</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorGstin || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">PAN Number</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPanNumber || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Bank Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorBankName || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Account Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorAccountName || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Account Number</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorAccountNumber || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">IFSC Code</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorIfscCode || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">UPI ID</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorUpiId || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Website</p><p className="font-bold text-gray-900 mt-1 break-words">{viewingExpense.vendorWebsite || 'Not set'}</p></div>
-                    <div className="sm:col-span-2"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Address</p><p className="font-medium text-gray-700 mt-1 whitespace-pre-line">{viewingExpense.vendorAddress || 'Not set'}</p></div>
-                    <div className="sm:col-span-2"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Notes</p><p className="font-medium text-gray-700 mt-1 whitespace-pre-line">{viewingExpense.notes || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">ID</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorId || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorName || 'Not assigned'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Contact Person</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorContactPerson || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Phone</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPhone || 'Not set'}</p></div>
+                    <div className="sm:col-span-2"><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Email</p><p className="font-bold text-gray-900 mt-1 break-words">{viewingExpense.vendorEmail || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Category</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorCategory || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Payment Terms</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPaymentTerms || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">GSTIN</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorGstin || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">PAN Number</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPanNumber || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Bank Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorBankName || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Account Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorAccountName || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Account Number</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorAccountNumber || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">IFSC Code</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorIfscCode || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">UPI ID</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorUpiId || 'Not set'}</p></div>
+                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Website</p><p className="font-bold text-gray-900 mt-1 break-words">{viewingExpense.vendorWebsite || 'Not set'}</p></div>
+                    <div className="sm:col-span-2"><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Address</p><p className="font-medium text-gray-700 mt-1 whitespace-pre-line">{viewingExpense.vendorAddress || 'Not set'}</p></div>
+                    <div className="sm:col-span-2"><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Notes</p><p className="font-medium text-gray-700 mt-1 whitespace-pre-line">{viewingExpense.notes || 'Not set'}</p></div>
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 p-4 sm:p-5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Invoice & Status</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500 mb-3">Invoice & Status</p>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Payment Status</span>
-                      <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${(viewingExpense.paymentStatus || '').includes('Paid') || (viewingExpense.paymentStatus || '').includes('Done') ? 'bg-green-50 text-green-700 border-green-200' : (viewingExpense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Payment Status</span>
+                      <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-widest border ${(viewingExpense.paymentStatus || '').includes('Paid') || (viewingExpense.paymentStatus || '').includes('Done') ? 'bg-green-50 text-green-700 border-green-200' : (viewingExpense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                         {viewingExpense.paymentStatus || 'Planned'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Invoice Number</span>
+                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Invoice Number</span>
                       <span className="font-bold text-gray-900 text-right">{viewingExpense.invoiceNumber || 'Not uploaded'}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Invoice File</span>
+                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Invoice File</span>
                       <span className="font-bold text-gray-900 text-right">{viewingExpense.invoiceNumber || (viewingExpense.invoiceUrl ? 'Uploaded' : 'Not uploaded')}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Month</span>
+                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Month</span>
                       <span className="font-bold text-gray-900 text-right">{viewingExpense.monthTitle || viewingExpense.month || 'Unknown'}</span>
                     </div>
                   </div>
@@ -1807,7 +1807,7 @@ export function ExpensesBudgetPage() {
                         type="button"
                         onClick={() => handleMarkPaidForExpense(viewingExpense)}
                         disabled={isUpdatingExpense}
-                        className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-blue-700 hover:bg-blue-200 transition-all disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest text-blue-700 hover:bg-blue-200 transition-all disabled:opacity-60"
                       >
                         <CheckCircle2 size={14} />
                         {isUpdatingExpense ? 'Marking...' : 'Mark Paid'}
@@ -1828,7 +1828,7 @@ export function ExpensesBudgetPage() {
             <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2"><AlertCircle size={18} className="sm:w-5 sm:h-5" /> Extra Budget</h2>
-                <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase">{viewingExtra.id}</p>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-400 uppercase">{viewingExtra.id}</p>
               </div>
               <button onClick={() => setViewingExtra(null)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
@@ -1836,17 +1836,17 @@ export function ExpensesBudgetPage() {
             <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto flex-1 bg-white space-y-4 sm:space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-gray-100">
                 <div>
-                  <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase mb-1">Department</p>
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Department</p>
                   <p className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2"><Building2 size={16} className="sm:w-5 sm:h-5 text-amber-500" /> {viewingExtra.department}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase mb-1">Requested</p>
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Requested</p>
                   <p className="text-2xl sm:text-3xl font-black text-amber-600">{formatCurrency(viewingExtra.requested)}</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase mb-2 flex items-center gap-1.5"><FileText size={12} className="sm:w-3.5 sm:h-3.5" /> Justification</p>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2 flex items-center gap-1.5"><FileText size={12} className="sm:w-3.5 sm:h-3.5" /> Justification</p>
                 <div className="text-xs sm:text-sm font-medium text-gray-800 leading-relaxed bg-gray-50 border border-gray-200 p-3 sm:p-5 rounded-xl whitespace-pre-line">
                   {viewingExtra.details}
                 </div>
@@ -1861,16 +1861,16 @@ export function ExpensesBudgetPage() {
 
             {viewingExtra.status === 'Pending Review' ? (
               <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                <button onClick={() => { setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="flex-1 py-3 sm:py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-black hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={() => { setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="flex-1 py-3 sm:py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                   <XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT
                 </button>
-                <button onClick={handleApproveExtra} className="flex-[2] py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-black shadow-md shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={handleApproveExtra} className="flex-[2] py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-md shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                   APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
                 </button>
               </div>
             ) : (
               <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0">
-                <button onClick={() => setViewingExtra(null)} className="w-full py-3 sm:py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-black hover:bg-gray-100 transition-all text-xs sm:text-sm">CLOSE</button>
+                <button onClick={() => setViewingExtra(null)} className="w-full py-3 sm:py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium hover:bg-gray-100 transition-all text-xs sm:text-sm">CLOSE</button>
               </div>
             )}
           </div>
@@ -1884,7 +1884,7 @@ export function ExpensesBudgetPage() {
             <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-lg sm:text-xl font-black flex items-center gap-2"><Receipt size={18} className="sm:w-5 sm:h-5" /> Invoice</h2>
-                <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase">{viewingInvoice.department}</p>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-400 uppercase">{viewingInvoice.department}</p>
               </div>
               <button onClick={() => setViewingInvoice(null)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
@@ -1893,7 +1893,7 @@ export function ExpensesBudgetPage() {
               <FileText size={40} className="mx-auto text-[#2563EB] mb-4 w-10 h-10 sm:w-12 sm:h-12" />
               <p className="font-bold text-gray-900 mb-2 text-sm sm:text-base">{viewingInvoice.invoice}</p>
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 mb-6">PO: {viewingInvoice.refPoId}</p>
-              <button className="w-full py-3 sm:py-3.5 bg-blue-50 text-[#2563EB] border border-blue-200 rounded-xl font-black text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
+              <button className="w-full py-3 sm:py-3.5 bg-blue-50 text-[#2563EB] border border-blue-200 rounded-xl font-pmedium text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
                 <DownloadCloud size={14} className="sm:w-4 sm:h-4" /> DOWNLOAD
               </button>
             </div>
@@ -1908,25 +1908,25 @@ export function ExpensesBudgetPage() {
             <div className="p-4 sm:p-6 lg:p-8 bg-red-600 text-white flex justify-between items-center">
               <div>
                 <h2 className="text-lg sm:text-xl font-black flex items-center gap-2"><XCircle size={18} className="sm:w-5 sm:h-5" /> Deny Request</h2>
-                <p className="text-[9px] sm:text-[10px] font-black text-red-200 uppercase">{rejectingRequest.department} Dept</p>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-red-200 uppercase">{rejectingRequest.department} Dept</p>
               </div>
               <button onClick={() => setRejectingRequest(null)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-slate-900 transition-all"><X size={16} /></button>
             </div>
 
             <form onSubmit={handleRejectConfirm} className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-white">
               <div className="p-3 sm:p-4 bg-red-50 rounded-xl border border-red-100">
-                <p className="text-[9px] sm:text-[10px] font-black text-red-400 uppercase mb-1">Amount</p>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-red-400 uppercase mb-1">Amount</p>
                 <p className="text-xl sm:text-2xl font-black text-red-600">{formatCurrency(rejectingRequest.requested || rejectingRequest.amount)}</p>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase">Reason for Rejection *</label>
+                <label className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase">Reason for Rejection *</label>
                 <textarea required rows={3} placeholder="Explain why this request is denied..." className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl font-medium text-gray-700 focus:border-red-500 outline-none resize-none text-sm" value={rejectReason} onChange={e => setRejectReason(e.target.value)} />
               </div>
 
               <div className="flex gap-3 sm:gap-4 pt-2">
-                <button type="button" onClick={() => setRejectingRequest(null)} className="flex-1 py-3 sm:py-3.5 bg-gray-100 text-gray-700 rounded-xl font-black hover:bg-gray-200 transition-all text-xs sm:text-sm">Cancel</button>
-                <button type="submit" className="flex-[2] py-3 sm:py-3.5 bg-red-600 text-white rounded-xl font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button type="button" onClick={() => setRejectingRequest(null)} className="flex-1 py-3 sm:py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-xs sm:text-sm">Cancel</button>
+                <button type="submit" className="flex-[2] py-3 sm:py-3.5 bg-red-600 text-white rounded-xl font-pmedium shadow-lg shadow-red-200 hover:bg-red-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                   Confirm
                 </button>
               </div>

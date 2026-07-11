@@ -76,7 +76,7 @@ const PlanCard = ({
           }
     }
   >
-    <h3 className="text-[20px] md:text-[17px] lg:text-[15px] font-bold text-[#0f1b35] text-center mt-1">
+    <h3 className="text-[20px] md:text-[17px] lg:text-[15px] font-pmedium text-[#0f1b35] text-center mt-1">
       {plan.title}
     </h3>
 
@@ -552,7 +552,7 @@ const FinalizeSetupPage: React.FC = () => {
       <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 md:pt-8 pb-8">
         <div className="w-full max-w-[900px] mx-auto">
           <div className="mb-5 sm:mb-6">
-            <p className="text-[10px] font-bold tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
+            <p className="text-[10px] font-pmedium tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
               Progress
             </p>
             <div className="flex flex-col md:flex-row md:items-center w-full gap-4 md:gap-0">
@@ -673,7 +673,7 @@ const FinalizeSetupPage: React.FC = () => {
               type="button"
               onClick={handleCompleteSetup}
               disabled={isSubmitting}
-              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
+              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-pmedium inline-flex items-center justify-center gap-2"
             >
               {isSubmitting ? "Saving..." : "Finish"} <ArrowRight size={16} />
             </button>
@@ -686,7 +686,7 @@ const FinalizeSetupPage: React.FC = () => {
           <div className="w-full max-w-fit max-h-[90vh] overflow-y-auto rounded-[32px] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6 border border-[#dbe5f2] my-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <p className="text-[15px] font-bold uppercase tracking-[0.18em] text-[#6d9bff] mb-2">
+                <p className="text-[15px] font-pmedium uppercase tracking-[0.18em] text-[#6d9bff] mb-2">
                   Upgrade Plan
                 </p>
                   <h2 className="font-['Poppins'] text-[22px] sm:text-[26px] md:text-[30px] font-bold text-[#111b33] uppercase mb-2 tracking-normal">
@@ -744,7 +744,7 @@ const FinalizeSetupPage: React.FC = () => {
                 onClick={() => {
                   setIsUpgradeModalOpen(false);
                 }}
-                className="h-10 px-6 rounded-xl border border-[#2d67f0] text-white text-[16px] font-semibold bg-[#2d67f0] hover:bg-[#2558d5] transition-colors"
+                className="h-10 px-6 rounded-xl border border-[#2d67f0] text-white text-[16px] font-pmedium bg-[#2d67f0] hover:bg-[#2558d5] transition-colors"
               >
                 Continue now with current plan
               </button>

@@ -647,7 +647,7 @@ function renderScheduleSummary(row: Record<string, unknown>, options: { showDate
         <span className="whitespace-nowrap">{currentTimeLabel}</span>
       </div>
       {changeLabel && (
-        <span className="inline-flex w-fit px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+        <span className="inline-flex w-fit px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
           {changeLabel}
         </span>
       )}
@@ -1748,7 +1748,7 @@ export default function BookingsPage() {
                   key={tab.key}
                   type="button"
                   onClick={() => { setActiveScope(tab.key); setActiveTab('All'); setSearchQuery(''); }}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                     activeScope === tab.key
                       ? 'bg-[#2563EB] text-white shadow-sm'
                       : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -1768,8 +1768,8 @@ export default function BookingsPage() {
                 return (
                   <div key={stat.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                      <p className="text-[15px] font-black text-slate-900">{stat.value}</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{stat.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                       <Icon size={16} />
@@ -1783,7 +1783,7 @@ export default function BookingsPage() {
             {activeScope === 'internal' && trackerPeriods.length > 0 && (
               <div className="mb-3 rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  <h3 className="text-xs font-pmedium uppercase tracking-widest text-slate-500">
                     <FileText size={14} className="mr-2 inline-block" />
                     Department Tracker
                   </h3>
@@ -2031,13 +2031,13 @@ export default function BookingsPage() {
                   type="button"
                   onClick={() => handleExportBookingReport(viewingDetails as unknown as Record<string, unknown>, 'PDF')}
                   disabled={Boolean(isExportingReport)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >PDF</button>
                 <button
                   type="button"
                   onClick={() => handleExportBookingReport(viewingDetails as unknown as Record<string, unknown>, 'Excel')}
                   disabled={Boolean(isExportingReport)}
-                  className="rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >Excel</button>
                 <button
                   type="button"
@@ -2050,7 +2050,7 @@ export default function BookingsPage() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <section>
-                    <h4 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Booking Information</h4>
+                    <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Booking Information</h4>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                       <InfoRow label="Booking Code" value={viewingDetails.bookingCode || '-'} />
                       <InfoRow label="Resource" value={viewingDetails.resourceName || '-'} />
@@ -2065,7 +2065,7 @@ export default function BookingsPage() {
                     </div>
                   </section>
                   <section>
-                    <h4 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Booked By</h4>
+                    <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Booked By</h4>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                       <InfoRow label="Name" value={viewingDetails.bookedBy || '-'} />
                       <InfoRow label="Email" value={viewingDetails.bookedByEmail || '-'} />
@@ -2079,7 +2079,7 @@ export default function BookingsPage() {
                 <div className="space-y-4">
                   {viewingDetails.bookingType !== 'External' && viewingDetails.bookingType !== 'Tenant' && (
                     <section>
-                      <h4 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                         Invites ({currentBookingInvites.length})
                         {currentBookingInviteCounts.pending > 0 && (
                           <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">
@@ -2096,7 +2096,7 @@ export default function BookingsPage() {
                               <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-3">
                                 <div>
                                   <p className="text-sm font-bold text-slate-900">{invite.invitedName || 'Employee'}</p>
-                                  <p className="text-[10px] font-bold text-slate-500">{invite.invitedRole}{invite.invitedDepartments.length > 0 ? ` • ${invite.invitedDepartments.join(', ')}` : ''}</p>
+                                  <p className="text-[10px] font-pmedium text-slate-500">{invite.invitedRole}{invite.invitedDepartments.length > 0 ? ` • ${invite.invitedDepartments.join(', ')}` : ''}</p>
                                 </div>
                                 <span className={statusPillClass(inviteStatusLabel(invite.status))}>
                                   {inviteStatusLabel(invite.status)}
@@ -2109,7 +2109,7 @@ export default function BookingsPage() {
                     </section>
                   )}
                   <section>
-                    <h4 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Payment & Invoice</h4>
+                    <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Payment & Invoice</h4>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                       <InfoRow label="Payment Status" value={viewingDetails.paymentStatus || '-'} />
                       {viewingDetails.totalAmount > 0 && (
@@ -2129,7 +2129,7 @@ export default function BookingsPage() {
                       } />
                       {viewingDetails.invoiceFileUrl && (
                         <div className="mt-2">
-                          <a href={viewingDetails.invoiceFileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline">
+                          <a href={viewingDetails.invoiceFileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:underline">
                             <FileText size={12} /> View Invoice
                           </a>
                         </div>
@@ -2138,7 +2138,7 @@ export default function BookingsPage() {
                   </section>
                   {viewingDetails.remainingCredits != null && (
                     <section>
-                      <h4 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Credits</h4>
+                      <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Credits</h4>
                       <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                         <InfoRow label="Credits Used" value={String(viewingDetails.creditsUsed)} />
                         <InfoRow label="Remaining Credits" value={String(viewingDetails.remainingCredits)} />
@@ -2147,7 +2147,7 @@ export default function BookingsPage() {
                   )}
                   {viewingDetails.notes && (
                     <section>
-                      <h4 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Notes</h4>
+                      <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Notes</h4>
                       <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                         <p className="text-sm font-medium text-slate-700">{viewingDetails.notes}</p>
                       </div>
@@ -2202,13 +2202,13 @@ export default function BookingsPage() {
               <button
                 type="button"
                 onClick={() => { setCancellingBooking(null); setCancelForm({ reason: '', refundType: 'Full' }); setBookingUpdateError(''); }}
-                className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:bg-slate-100"
+                className="rounded-xl px-5 py-2.5 text-sm font-pmedium text-slate-600 transition-all hover:bg-slate-100"
               >Keep Booking</button>
               <button
                 type="button"
                 disabled={!cancelForm.reason || savingBookingUpdate}
                 onClick={handleCancelBooking}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-pmedium text-white transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingBookingUpdate ? 'Cancelling...' : 'Confirm Cancellation'}
               </button>
@@ -2246,7 +2246,7 @@ export default function BookingsPage() {
                 <button
                   type="button"
                   onClick={() => setBookingActionMode('reschedule')}
-                  className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+                  className={`rounded-xl px-4 py-2 text-xs font-pmedium uppercase tracking-widest transition-all ${
                     bookingActionMode === 'reschedule'
                       ? 'bg-[#2563EB] text-white shadow-md'
                       : 'border border-slate-200 bg-white text-slate-600 hover:border-blue-200'
@@ -2255,7 +2255,7 @@ export default function BookingsPage() {
                 <button
                   type="button"
                   onClick={() => setBookingActionMode('extend')}
-                  className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+                  className={`rounded-xl px-4 py-2 text-xs font-pmedium uppercase tracking-widest transition-all ${
                     bookingActionMode === 'extend'
                       ? 'bg-[#2563EB] text-white shadow-md'
                       : 'border border-slate-200 bg-white text-slate-600 hover:border-blue-200'
@@ -2344,13 +2344,13 @@ export default function BookingsPage() {
               <button
                 type="button"
                 onClick={() => { setReschedulingBooking(null); setBookingActionMode('reschedule'); setBookingUpdateError(''); }}
-                className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:bg-slate-100"
+                className="rounded-xl px-5 py-2.5 text-sm font-pmedium text-slate-600 transition-all hover:bg-slate-100"
               >Cancel</button>
               <button
                 type="button"
                 disabled={!bookingActionPreview?.available || savingBookingUpdate}
                 onClick={handleRescheduleBooking}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm font-pmedium text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingBookingUpdate ? 'Updating...' : bookingActionMode === 'extend' ? 'Confirm Extension' : 'Confirm Reschedule'}
               </button>
@@ -2370,7 +2370,7 @@ export default function BookingsPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-black text-slate-900">Master Availability Calendar</h2>
-                  <p className="text-[10px] font-bold text-slate-500">{masterCalendarScopeSummary}</p>
+                  <p className="text-[10px] font-pmedium text-slate-500">{masterCalendarScopeSummary}</p>
                 </div>
               </div>
               <button
@@ -2438,7 +2438,7 @@ export default function BookingsPage() {
 
               <div className="mb-6 grid grid-cols-7 gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                  <div key={day} className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">{day}</div>
+                  <div key={day} className="py-2 text-center text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{day}</div>
                 ))}
                 {Array.from({ length: masterCalendarMonthMeta.firstDayOfMonth }).map((_, idx) => (
                   <div key={`empty-${idx}`} />
@@ -2470,7 +2470,7 @@ export default function BookingsPage() {
 
               {masterCalendarDateKey && selectedMasterCalendarBookings.length > 0 && (
                 <div>
-                  <h4 className="mb-3 text-xs font-black uppercase tracking-widest text-slate-500">
+                  <h4 className="mb-3 text-xs font-pmedium uppercase tracking-widest text-slate-500">
                     Bookings for {formatDisplayDate(masterCalendarDateKey)}
                   </h4>
                   <div className="space-y-2">
@@ -2482,7 +2482,7 @@ export default function BookingsPage() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-900">{booking.resourceName}</p>
-                            <p className="text-[10px] font-bold text-slate-500">
+                            <p className="text-[10px] font-pmedium text-slate-500">
                               {formatTime12h(booking.startTime)} - {formatTime12h(booking.endTime)}
                               {booking.bookedBy ? ` • ${booking.bookedBy}` : ''}
                             </p>

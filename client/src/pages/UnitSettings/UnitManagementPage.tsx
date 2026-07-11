@@ -102,10 +102,10 @@ function MetricCard({ icon: Icon, label, value, tone = "blue" }) {
   return (
     <div className={`w-full bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${accentClassName}`}>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">
           {label}
         </p>
-        <p className="text-[15px] font-black text-slate-900 truncate">{value}</p>
+        <p className="text-[15px] font-pmedium text-slate-900 truncate">{value}</p>
       </div>
       <div className={`p-2 rounded-2xl ${toneClassName} shrink-0`}>
         <Icon size={16} />
@@ -161,10 +161,10 @@ function StatusPill({ label, value, tone = "slate" }) {
 
   return (
     <div className={`rounded-2xl border px-3 py-2 ${toneClassName}`}>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">
         {label}
       </p>
-      <p className="mt-1 text-[15px] font-black text-slate-900">{value}</p>
+      <p className="mt-1 text-[15px] font-pmedium text-slate-900">{value}</p>
     </div>
   );
 }
@@ -181,7 +181,7 @@ function WorkspaceEditModal({
       <div className="w-full max-w-xl rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Edit Unit</p>
+            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Edit Unit</p>
             <p className="mt-1 text-[12px] font-medium text-slate-500">
               Update the unit identity without changing unrelated founder settings.
             </p>
@@ -190,7 +190,7 @@ function WorkspaceEditModal({
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
           >
             Close
           </button>
@@ -198,7 +198,7 @@ function WorkspaceEditModal({
 
         <form onSubmit={onSubmit} className="mt-5 grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 md:col-span-2">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
               Unit Name
             </span>
             <input
@@ -214,7 +214,7 @@ function WorkspaceEditModal({
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-pmedium text-white shadow-sm transition hover:bg-primary/95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               {isSaving ? "Saving..." : "Save Changes"}
@@ -261,7 +261,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 transition hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50"
           >
             Close
           </button>
@@ -303,7 +303,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                     <div key={`task-${task.workspaceId}-${task.id}-${task.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-black text-slate-950">{task.code || "Task"}</p>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{task.status || "Pending"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{task.status || "Pending"}</span>
                       </div>
                       <p className="mt-1 text-sm font-semibold text-slate-700">{task.title || "Untitled task"}</p>
                       <p className="mt-2 text-xs font-semibold text-slate-500">{task.workspaceName} · {task.department || "No department"} · {task.assignee || "Unassigned"}</p>
@@ -325,7 +325,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                     <div key={`ticket-${ticket.workspaceId}-${ticket.id}-${ticket.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-black text-slate-950">{ticket.code || "Ticket"}</p>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{ticket.status || "Open"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{ticket.status || "Open"}</span>
                       </div>
                       <p className="mt-1 text-sm font-semibold text-slate-700">{ticket.title || "Untitled ticket"}</p>
                       <p className="mt-2 text-xs font-semibold text-slate-500">{ticket.workspaceName} · {ticket.department || "No department"} · {ticket.assignedTo || "Unassigned"}</p>
@@ -347,7 +347,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                     <div key={`asset-${asset.workspaceId}-${asset.id}-${asset.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-black text-slate-950">{asset.code || "Asset"}</p>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{asset.status || "Active"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{asset.status || "Active"}</span>
                       </div>
                       <p className="mt-1 text-sm font-semibold text-slate-700">{asset.name || "Unnamed asset"}</p>
                       <p className="mt-2 text-xs font-semibold text-slate-500">{asset.workspaceName} · {asset.department || "No department"} · {asset.category || "Other"} · {asset.assignedTo || "Unassigned"}</p>
@@ -374,7 +374,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                     <div key={`inventory-${item.workspaceId}-${item.id}-${item.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-black text-slate-950">{item.code || "Inventory"}</p>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{item.trackingType || "Consumable"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{item.trackingType || "Consumable"}</span>
                       </div>
                       <p className="mt-1 text-sm font-semibold text-slate-700">{item.name || "Unnamed inventory"}</p>
                       <p className="mt-2 text-xs font-semibold text-slate-500">{item.workspaceName} · {item.department || "No department"} · {item.category || "Other"} · {item.availableQuantity}/{item.totalQuantity} available</p>
@@ -396,7 +396,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                     <div key={`booking-${booking.workspaceId}-${booking.id}-${booking.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-black text-slate-950">{booking.code || "Booking"}</p>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{booking.status || "booked"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{booking.status || "booked"}</span>
                       </div>
                       <p className="mt-1 text-sm font-semibold text-slate-700">{booking.roomName || "Meeting room"} · {booking.startTime || "--:--"} - {booking.endTime || "--:--"}</p>
                       <p className="mt-2 text-xs font-semibold text-slate-500">{booking.workspaceName} · {booking.department || "No department"} · {booking.bookingType || "Internal"} · {booking.bookedByName || "Unknown"}</p>
@@ -417,7 +417,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                     <div key={`employee-${employee.workspaceId}-${employee.id}-${employee.email}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-black text-slate-950">{employee.fullName || "Member"}</p>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{employee.roleLabel || "Member"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{employee.roleLabel || "Member"}</span>
                       </div>
                       <p className="mt-1 text-sm font-medium text-slate-700">{employee.email || "No email"}</p>
                       <p className="mt-2 text-xs font-semibold text-slate-500">{employee.workspaceName}</p>
@@ -682,7 +682,7 @@ export default function WorkspaceManagementPage() {
                     Review every unit linked to this founder account and compare operational health from one place.
                   </p>
                 </div>
-                <div className="h-9 inline-flex items-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm whitespace-nowrap">
+                <div className="h-9 inline-flex items-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500 shadow-sm whitespace-nowrap">
                   Current Unit: <span className="text-[#0F172A] ml-1.5">{activeWorkspaceName}</span>
                 </div>
               </div>
@@ -704,7 +704,7 @@ export default function WorkspaceManagementPage() {
                 {/* Header row: inner title + filters + action */}
                 <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                   <div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">All Units</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">All Units</p>
                     <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
                       {departmentFilter === "All departments"
                         ? "Founder-level combined view across every active unit."
@@ -750,7 +750,7 @@ export default function WorkspaceManagementPage() {
                     <button
                       type="button"
                       onClick={() => setIsCombinedModalOpen(true)}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <BarChart3 size={13} strokeWidth={3} />
                       VIEW DATA
@@ -776,7 +776,7 @@ export default function WorkspaceManagementPage() {
                                 <h3 className="text-[16px] font-black text-slate-950">
                                   {workspace.workspaceName}
                                 </h3>
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                                   {workspace.status}
                                 </span>
                               </div>
@@ -812,7 +812,7 @@ export default function WorkspaceManagementPage() {
                               <button
                                 type="button"
                                 onClick={() => handleToggleWorkspace(workspace.id)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50"
                               >
                                 {expandedWorkspaceId === workspace.id ? (
                                   <ChevronUp className="h-3.5 w-3.5" />
@@ -824,7 +824,7 @@ export default function WorkspaceManagementPage() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenEdit(workspace)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit Unit
@@ -885,7 +885,7 @@ export default function WorkspaceManagementPage() {
                                               {employee.email}
                                             </p>
                                           </div>
-                                          <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm">
+                                          <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600 shadow-sm">
                                             {employee.roleLabel}
                                           </span>
                                         </div>
@@ -977,7 +977,7 @@ export default function WorkspaceManagementPage() {
                                             >
                                               <div className="flex items-center justify-between gap-3">
                                                 <p className="text-sm font-bold text-slate-950">{ticketItem.code}</p>
-                                                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                                                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">
                                                   {ticketItem.status}
                                                 </span>
                                               </div>
@@ -1006,7 +1006,7 @@ export default function WorkspaceManagementPage() {
                                             >
                                               <div className="flex items-center justify-between gap-3">
                                                 <p className="text-sm font-bold text-slate-950">{taskItem.code}</p>
-                                                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                                                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">
                                                   {taskItem.status}
                                                 </span>
                                               </div>

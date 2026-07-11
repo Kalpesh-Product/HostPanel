@@ -457,13 +457,13 @@ export function DepartmentInventoryPage() {
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
               <button
                 onClick={handleBulkUploadClick}
-                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
+                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
               >
                 <UploadCloud size={14} strokeWidth={2.5} /> BULK UPLOAD
               </button>
               <button
                 onClick={() => setIsUpdateModalOpen(true)}
-                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
+                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
               >
                 <RefreshCw size={14} strokeWidth={2.5} /> UPDATE STOCK
               </button>
@@ -472,7 +472,7 @@ export function DepartmentInventoryPage() {
                   setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '' });
                   setIsAddModalOpen(true);
                 }}
-                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
               >
                 <Plus size={14} strokeWidth={3} /> ADD NEW ITEM
               </button>
@@ -494,22 +494,22 @@ export function DepartmentInventoryPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tracked Items</p>
-                <p className="text-[15px] font-black text-slate-900">{totalItems}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Tracked Items</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{totalItems}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Box size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Low Stock Warning</p>
-                <p className="text-[15px] font-black text-red-600">{lowStockItems}</p>
+                <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mb-1">Low Stock Warning</p>
+                <p className="text-[15px] font-pmedium text-red-600">{lowStockItems}</p>
               </div>
               <div className="p-2 rounded-2xl bg-red-50 text-red-500 shrink-0"><TrendingDown size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Items Allocated</p>
-                <p className="text-[15px] font-black text-slate-900">{allocations.length}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Items Allocated</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{allocations.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-purple-50 text-purple-600 shrink-0"><History size={16} /></div>
             </div>
@@ -523,13 +523,13 @@ export function DepartmentInventoryPage() {
               <div className="flex bg-white border border-slate-200 p-1 rounded-xl w-full md:w-auto shadow-sm">
                 <button
                   onClick={() => setActiveTab('inventory')}
-                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'inventory' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-pmedium uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'inventory' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
                 >
                   <Package size={12} /> Live Inventory
                 </button>
                 <button
                   onClick={() => setActiveTab('allocations')}
-                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'allocations' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-pmedium uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'allocations' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
                 >
                   <History size={12} /> Allocation History
                 </button>
@@ -549,7 +549,7 @@ export function DepartmentInventoryPage() {
             <div className="overflow-x-auto flex-1">
               {activeTab === 'inventory' ? (
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Item Name</th>
                       <th className="px-5 py-4">Category</th>
@@ -569,12 +569,12 @@ export function DepartmentInventoryPage() {
                             <div className="font-bold text-[#0F172A] text-[13px]">{item.name}</div>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${style.bg}`}>
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-pmedium ${style.bg}`}>
                               {style.icon} {item.category}
                             </span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${item.trackingType === 'Consumable' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-purple-50 text-purple-600 border-purple-200'}`}>
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-widest border ${item.trackingType === 'Consumable' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-purple-50 text-purple-600 border-purple-200'}`}>
                               {item.trackingType}
                             </span>
                           </td>
@@ -590,7 +590,7 @@ export function DepartmentInventoryPage() {
                             </span>
                           </td>
                           <td className="px-5 py-4 text-right">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+                            <span className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
                               Dept Only
                             </span>
                           </td>
@@ -613,7 +613,7 @@ export function DepartmentInventoryPage() {
                 </table>
               ) : (
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Date</th>
                       <th className="px-5 py-4">Employee</th>
@@ -660,7 +660,7 @@ export function DepartmentInventoryPage() {
                 <h2 className="text-2xl font-black text-blue-900 leading-none flex items-center gap-2">
                   <Plus size={22} /> Add New Item
                 </h2>
-                <p className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest mt-2">Register new inventory</p>
+                <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest mt-2">Register new inventory</p>
               </div>
               <button onClick={() => setIsAddModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-900 shadow-sm hover:scale-110 transition-transform">
                 <X size={18} />
@@ -668,7 +668,7 @@ export function DepartmentInventoryPage() {
             </div>
             <div className="p-6 sm:p-10 space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Item Name</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Item Name</label>
                 <input
                   type="text"
                   placeholder="e.g. A4 Printer Paper"
@@ -678,12 +678,12 @@ export function DepartmentInventoryPage() {
                 />
               </div>
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-                <p className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest">Department Locked</p>
+                <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest">Department Locked</p>
                 <p className="text-sm font-semibold text-[#2563EB] mt-1">{deptLabel} will own this inventory entry.</p>
               </div>
               <div className="grid grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Category</label>
                   <div className="relative">
                     <select
                       className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold text-slate-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer"
@@ -696,7 +696,7 @@ export function DepartmentInventoryPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initial Stock</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Initial Stock</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -707,7 +707,7 @@ export function DepartmentInventoryPage() {
                 </div>
               </div>
               <div className="rounded-2xl border border-green-100 bg-green-50 px-4 py-3">
-                <p className="text-[11px] font-black text-green-700 uppercase tracking-widest">Consumable only</p>
+                <p className="text-[11px] font-pmedium text-green-700 uppercase tracking-widest">Consumable only</p>
                 <p className="text-[11px] font-semibold text-green-700/80 mt-1">Use this page for items that are issued or consumed by employees.</p>
               </div>
             </div>
@@ -718,7 +718,7 @@ export function DepartmentInventoryPage() {
               <button
                 onClick={handleAddItem}
                 disabled={!newItem.name || !newItem.quantity || isSaving}
-                className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all"
+                className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-pmedium shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all"
               >
                 {isSaving ? 'SAVING...' : 'SUBMIT ENTRY'}
               </button>
@@ -736,7 +736,7 @@ export function DepartmentInventoryPage() {
                 <h2 className="text-2xl font-black text-slate-900 leading-none flex items-center gap-2">
                   <RefreshCw size={22} /> Update Stock
                 </h2>
-                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-2">Adjust existing inventory quantities</p>
+                <p className="text-[10px] font-pmedium text-slate-600 uppercase tracking-widest mt-2">Adjust existing inventory quantities</p>
               </div>
               <button onClick={() => setIsUpdateModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-900 shadow-sm hover:scale-110 transition-transform">
                 <X size={18} />
@@ -744,7 +744,7 @@ export function DepartmentInventoryPage() {
             </div>
             <div className="p-6 sm:p-10 space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Item</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Select Item</label>
                 <div className="relative">
                   <select
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold text-slate-900 focus:border-slate-500 outline-none appearance-none cursor-pointer"
@@ -763,7 +763,7 @@ export function DepartmentInventoryPage() {
               </div>
               <div className="grid grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Action</label>
                   <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
                     <button type="button" onClick={() => setUpdateStock({ ...updateStock, actionType: 'increase' })}
                       className={`flex-1 py-3 rounded-xl text-[11px] font-black transition-all ${updateStock.actionType === 'increase' ? 'bg-white shadow-sm text-green-600 border border-slate-200' : 'text-slate-400'}`}>
@@ -776,7 +776,7 @@ export function DepartmentInventoryPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adjustment Qty</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Adjustment Qty</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -787,7 +787,7 @@ export function DepartmentInventoryPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Update</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Reason for Update</label>
                 <div className="relative">
                   <FileText className="absolute left-4 top-4 text-slate-400" size={16} />
                   <textarea
@@ -807,7 +807,7 @@ export function DepartmentInventoryPage() {
               <button
                 onClick={handleUpdateStock}
                 disabled={!updateStock.itemId || !updateStock.quantity || isSaving}
-                className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black shadow-lg shadow-slate-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-slate-900 transition-all"
+                className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-pmedium shadow-lg shadow-slate-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-slate-900 transition-all"
               >
                 {isSaving ? 'UPDATING...' : 'UPDATE STOCK'}
               </button>
@@ -825,7 +825,7 @@ export function DepartmentInventoryPage() {
                 <h2 className="text-2xl font-black text-blue-900 leading-none flex items-center gap-2">
                   <UploadCloud size={22} /> Bulk Upload Inventory
                 </h2>
-                <p className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest mt-2">Import from Excel or CSV</p>
+                <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest mt-2">Import from Excel or CSV</p>
               </div>
               <button onClick={() => setIsBulkUploadOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-900 shadow-sm hover:scale-110 transition-transform">
                 <X size={18} />
@@ -833,7 +833,7 @@ export function DepartmentInventoryPage() {
             </div>
             <div className="p-6 sm:p-10 space-y-6">
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-                <p className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest">Department Locked</p>
+                <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest">Department Locked</p>
                 <p className="text-sm font-semibold text-[#2563EB] mt-1">Uploaded rows will be saved under {deptLabel}.</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -846,17 +846,17 @@ export function DepartmentInventoryPage() {
                 <button
                   onClick={() => bulkUploadInputRef.current?.click()}
                   disabled={isSaving}
-                  className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-pmedium shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                 >
                   <UploadCloud size={16} strokeWidth={2.5} /> {isSaving ? 'Importing...' : 'Choose File'}
                 </button>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Required Fields</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Required Fields</label>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-[12px] font-semibold text-slate-600">name, quantity</div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Allowed Categories</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Allowed Categories</label>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-[12px] font-semibold text-slate-600">{categories.join(', ')}</div>
               </div>
               {bulkUploadFileName && (

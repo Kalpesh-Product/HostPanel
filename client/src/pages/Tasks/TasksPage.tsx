@@ -1800,53 +1800,53 @@ export function TasksPage() {
             <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {isOwnerProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned Tasks
                   </button>
                 </>
               ) : isAdminTaskProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('assigned_dept_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'assigned_dept_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('assigned_dept_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'assigned_dept_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Assigned Dept Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('from_super_admin'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'from_super_admin' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('from_super_admin'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'from_super_admin' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Tasks
                   </button>
                 </>
               ) : isDepartmentManagerProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('my_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'my_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned Tasks
                   </button>
                 </>
               ) : isEmployeeTaskProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Tasks
                   </button>
                 </>
               ) : (
                 <>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Tasks
                   </button>
                   {isSuperAdminProfile ? (
-                    <button onClick={() => { setActiveTab('from_owner'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'from_owner' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    <button onClick={() => { setActiveTab('from_owner'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'from_owner' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                       My Tasks (Founder) {pendingFromOwnerCount > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-white/20 text-white flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>{pendingFromOwnerCount}</span>}
                     </button>
                   ) : null}
@@ -1866,8 +1866,8 @@ export function TasksPage() {
                 return (
                   <div key={card.key} className={card.cardClass}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
                   </div>
@@ -1917,7 +1917,7 @@ export function TasksPage() {
                   </div>
                   <button
                     onClick={() => setIsAssignModalOpen(true)}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> ASSIGN TASK
                   </button>
@@ -2047,7 +2047,7 @@ export function TasksPage() {
                           </div>
                           <button
                             onClick={() => setViewingTask(task)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
                           >
                             <Eye size={14} strokeWidth={2} /> View
                           </button>
@@ -2073,7 +2073,7 @@ export function TasksPage() {
                       type="button"
                       onClick={handleLoadMoreTasks}
                       disabled={isLoadingMore}
-                      className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-2.5 text-[12px] font-pmedium uppercase tracking-wider text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isLoadingMore ? 'Loading...' : 'Load More Tasks'}
                     </button>
@@ -2098,7 +2098,7 @@ export function TasksPage() {
                       </div>
                       Delegate Task
                     </h2>
-                    <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">
+                    <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
                       {isAdminTaskProfile
                         ? 'Assign work to your assigned departments and their staff'
                         : 'Assign work across departments safely'}
@@ -2186,20 +2186,20 @@ export function TasksPage() {
                           })}
                         </select>
                         {taskForm.department && normalizeRoleValue(taskForm.department) === 'super_admin' && superAdminMembers.length === 0 ? (
-                          <p className="text-[10px] font-bold text-red-600 mt-2">No active Super Admin member found in this workspace.</p>
+                          <p className="text-[10px] font-pmedium text-red-600 mt-2">No active Super Admin member found in this workspace.</p>
                         ) : null}
                         {isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
-                          <p className="text-[10px] font-bold text-red-600 mt-2">
+                          <p className="text-[10px] font-pmedium text-red-600 mt-2">
                             No assigned-department managers or employees found for "{taskForm.department}".
                           </p>
                         ) : null}
                         {!isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
-                          <p className="text-[10px] font-bold text-red-600 mt-2">
+                          <p className="text-[10px] font-pmedium text-red-600 mt-2">
                             No members matched for department "{taskForm.department}".
                           </p>
                         ) : null}
                         {taskForm.assignee && getPendingTaskCount(taskForm.assignee) >= 3 && (
-                          <p className="text-[10px] font-bold text-amber-600 inline-flex items-center gap-1.5 mt-2 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
+                          <p className="text-[10px] font-pmedium text-amber-600 inline-flex items-center gap-1.5 mt-2 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
                         )}
                       </div>
                     </div>
@@ -2243,8 +2243,8 @@ export function TasksPage() {
                   </div>
 
                   <div className="pt-4 sm:pt-6 flex gap-3 sm:gap-4 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                    <button type="button" onClick={() => setIsAssignModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
-                    <button disabled={isSaving} type="submit" className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <button type="button" onClick={() => setIsAssignModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
+                    <button disabled={isSaving} type="submit" className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                       {isSaving ? 'CREATING...' : 'CREATE TASK'} <Plus size={16} strokeWidth={2.5} />
                     </button>
                   </div>
@@ -2277,7 +2277,7 @@ export function TasksPage() {
                 <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar bg-slate-50/50">
 
                   <div>
-                    <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5"><FileText size={14} /> Description</p>
+                    <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5"><FileText size={14} /> Description</p>
                     <p className="text-[13px] sm:text-[14px] font-medium text-[#0F172A] leading-relaxed bg-white p-4 sm:p-5 rounded-xl border border-slate-200/60 shadow-sm">{viewingTask.description}</p>
                   </div>
 
@@ -2285,13 +2285,13 @@ export function TasksPage() {
                     <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/60 shadow-sm space-y-3">
                       {viewingTask.completionNote ? (
                         <div>
-                          <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Completion Message</p>
+                          <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-1.5">Completion Message</p>
                           <p className="text-[12px] sm:text-[13px] font-medium text-slate-700 leading-relaxed">{viewingTask.completionNote}</p>
                         </div>
                       ) : null}
                       {(viewingTask.attachments || []).length > 0 ? (
                         <div>
-                          <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Attached Documents</p>
+                          <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Attached Documents</p>
                           <div className="space-y-2">
                             {(viewingTask.attachments || []).map((attachment, index) => (
                               <div key={`${attachment.name}-${index}`} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
@@ -2323,7 +2323,7 @@ export function TasksPage() {
 
                   <div className="grid grid-cols-2 gap-4 sm:gap-6 bg-white p-5 rounded-[20px] sm:rounded-[24px] border border-slate-200/60 shadow-sm">
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Raised By</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Raised By</p>
                       <div className="flex items-center gap-2.5 sm:gap-3">
                         <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center text-[10px] sm:text-[11px] font-bold border border-blue-100 shadow-sm shrink-0">{getInitials(viewingTask.raisedBy || '')}</div>
                         <div className="min-w-0">
@@ -2335,7 +2335,7 @@ export function TasksPage() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Assigned To</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Assigned To</p>
                       <div className="flex items-center gap-2.5 sm:gap-3">
                         <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] sm:text-[11px] font-bold border border-indigo-100 shadow-sm shrink-0">{getInitials(viewingTask.assignee || '')}</div>
                         <div className="min-w-0">
@@ -2348,7 +2348,7 @@ export function TasksPage() {
                     </div>
                     <div className="col-span-2 border-t border-slate-100 pt-4 sm:pt-5 mt-1 sm:mt-2 flex justify-between items-center">
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar size={12} /> Deadline</p>
+                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar size={12} /> Deadline</p>
                         <p className="font-bold text-[#0F172A] text-[13px] sm:text-[14px]">{viewingTask.dueDate}</p>
                       </div>
                       {isOverdue(viewingTask.dueDate!, viewingTask.status) && (
@@ -2359,7 +2359,7 @@ export function TasksPage() {
 
                   {/* PROGRESS SLIDER OR APPROVAL ACTIONS */}
                   <div className="bg-white border border-slate-200/60 p-5 rounded-[20px] sm:rounded-[24px] shadow-sm">
-                    <h3 className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4 sm:mb-5">Task Status / Progress</h3>
+                    <h3 className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-4 sm:mb-5">Task Status / Progress</h3>
 
                     {viewingTask.status === "Pending" && !isOwnerProfile ? (
                       ((isDepartmentManagerProfile && isDepartmentTask(viewingTask)) || (isSuperAdminProfile && isQueueTask(viewingTask))) ? (
@@ -2385,7 +2385,7 @@ export function TasksPage() {
                                 </>
                               ) : null}
                             </select>
-                            <p className="text-[10px] font-bold text-slate-500 mt-2">
+                            <p className="text-[10px] font-pmedium text-slate-500 mt-2">
                               Select yourself to take it, or choose a department member to assign it after acceptance.
                             </p>
                           </div>
@@ -2396,7 +2396,7 @@ export function TasksPage() {
                                 : {},
                             )}
                             disabled={isSaving}
-                            className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             {isSaving ? 'STARTING...' : 'Accept & Start'}
                           </button>
@@ -2405,7 +2405,7 @@ export function TasksPage() {
                         <button
                           onClick={() => handleAcceptTask()}
                           disabled={isSaving}
-                          className="w-full mb-4 py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full mb-4 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {isSaving ? 'STARTING...' : 'Accept & Start Task'}
                         </button>
@@ -2460,7 +2460,7 @@ export function TasksPage() {
                         <button
                           onClick={handleMarkCompleted}
                           disabled={isSaving}
-                          className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {isSaving ? 'UPDATING...' : 'Mark As Completed'}
                         </button>
@@ -2483,10 +2483,10 @@ export function TasksPage() {
                       </div>
                     ) : (
                       <div className="flex flex-col sm:flex-row gap-3">
-                        <button onClick={() => handleApprovalAction("Approved")} disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')} className={`flex-1 py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${viewingTask.status === "Approved" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50"}`}>
+                        <button onClick={() => handleApprovalAction("Approved")} disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')} className={`flex-1 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${viewingTask.status === "Approved" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50"}`}>
                           <CheckCircle2 size={16} strokeWidth={2.5} /> Formally Approve
                         </button>
-                        <button onClick={() => handleApprovalAction("Rejected")} disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')} className={`flex-1 py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${viewingTask.status === "Rejected" ? "bg-red-50 border border-red-200 text-red-700" : "bg-white border border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50"}`}>
+                        <button onClick={() => handleApprovalAction("Rejected")} disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')} className={`flex-1 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${viewingTask.status === "Rejected" ? "bg-red-50 border border-red-200 text-red-700" : "bg-white border border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50"}`}>
                           <X size={16} strokeWidth={2.5} /> Reject / Revise
                         </button>
                       </div>
@@ -2525,7 +2525,7 @@ export function TasksPage() {
                         placeholder="Tag someone (@) or type a message..."
                         className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-24 py-3 sm:py-3.5 text-[13px] sm:text-[14px] font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all shadow-sm placeholder:text-slate-400"
                       />
-                      <button onClick={handleAddComment} className="absolute right-2 top-1.5 sm:top-2 bg-slate-900 hover:bg-black text-white px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-[12px] font-bold transition-colors shadow-sm tracking-wider uppercase">
+                      <button onClick={handleAddComment} className="absolute right-2 top-1.5 sm:top-2 bg-slate-900 hover:bg-black text-white px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-[12px] font-pmedium transition-colors shadow-sm tracking-wider uppercase">
                         Post
                       </button>
                     </div>

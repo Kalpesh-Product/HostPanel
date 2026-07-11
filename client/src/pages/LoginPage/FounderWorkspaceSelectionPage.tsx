@@ -140,7 +140,7 @@ export default function FounderWorkspaceSelectionPage() {
                       </p>
                     </div>
                     {workspace.id === lastActiveWorkspaceId ? (
-                      <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#2563EB] shadow-sm">
+                      <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-[0.14em] text-[#2563EB] shadow-sm">
                         Last Active
                       </span>
                     ) : null}

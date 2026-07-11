@@ -58,7 +58,7 @@ function RepairLogModal({ open, onClose }: any) {
         <p className="text-slate-500 text-xs mb-4 leading-relaxed">
           The Repair Log workflow is currently disabled in frontend-only preview mode. Real-time updates and maintenance tracking will be enabled upon backend connection.
         </p>
-        <button onClick={onClose} className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-black transition-colors w-full">
+        <button onClick={onClose} className="px-4 py-2 bg-slate-900 text-white text-xs font-pmedium rounded-xl hover:bg-black transition-colors w-full">
           Close
         </button>
       </div>
@@ -1912,57 +1912,57 @@ export function TicketsPage() {
             <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {isAdminTicketProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Assigned Dept {tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
-                  <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_assigned_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_assigned_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : isDepartmentManagerProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department
                   </button>
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : isEmployeeTicketProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department {tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : (
                 <>
-                  <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Company
                   </button>
-                  <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
@@ -1981,8 +1981,8 @@ export function TicketsPage() {
                 return (
                   <div key={card.key} className={card.cardClass}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16}/></div>
                   </div>
@@ -2032,7 +2032,7 @@ export function TicketsPage() {
                   </div>
                   <button
                     onClick={() => { setTicketForm(initialForm); setIsCreateModalOpen(true); }}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> RAISE TICKET
                   </button>
@@ -2101,7 +2101,7 @@ export function TicketsPage() {
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top text-center">
                           <button
                             onClick={() => setViewingTicket(ticket)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5 mx-auto"
+                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5 mx-auto"
                           >
                             <Eye size={14} strokeWidth={2} /> View
                           </button>
@@ -2119,7 +2119,7 @@ export function TicketsPage() {
                       <div key={ticket.id} className={`bg-white border p-4 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${isTicketOpen ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1 flex flex-col gap-1.5">
-                            <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{ticket.id}</span>
+                            <span className="font-mono text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{ticket.id}</span>
                             <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">
                               {ticket.title}
                             </h3>
@@ -2167,7 +2167,7 @@ export function TicketsPage() {
                           </div>
                           <button
                             onClick={() => setViewingTicket(ticket)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
                           >
                             <Eye size={14} strokeWidth={2} /> View
                           </button>
@@ -2209,7 +2209,7 @@ export function TicketsPage() {
                     </div>
                     Raise Master Ticket
                   </h2>
-                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
+                  <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
                 </div>
                 <button onClick={() => setIsCreateModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
@@ -2321,7 +2321,7 @@ export function TicketsPage() {
                     <div className="rounded-2xl border border-blue-100 bg-white shadow-sm overflow-hidden">
                       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-blue-50/40">
                         <div>
-                          <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">
+                          <p className="text-[10px] font-pmedium text-blue-700 uppercase tracking-widest">
                             Issues for {ticketForm.department}
                           </p>
                           <p className="text-[11px] text-slate-500">
@@ -2375,7 +2375,7 @@ export function TicketsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Attachments</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Attachments</label>
                   <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group">
                     <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Paperclip className="text-[#2563EB]" size={20} />
@@ -2386,11 +2386,11 @@ export function TicketsPage() {
                 </div>
 
                 <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:flex-1 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
+                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:flex-1 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="w-full sm:flex-[2] py-3 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="w-full sm:flex-[2] py-3 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isSaving ? 'SUBMITTING...' : 'SUBMIT TICKET'} <Plus size={16} strokeWidth={2.5} />
                   </button>
@@ -2416,7 +2416,7 @@ export function TicketsPage() {
                     {getStatusBadge(viewingTicket.status)}
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight pr-8">{viewingTicket.title}</h2>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1"><Calendar size={12} /> Raised: {viewingTicket.created}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1"><Calendar size={12} /> Raised: {viewingTicket.created}</p>
                 </div>
                 <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8"><X size={18} strokeWidth={2.5} /></button>
               </div>
@@ -2424,14 +2424,14 @@ export function TicketsPage() {
               <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
 
                 <div>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12} /> Issue Description</p>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12} /> Issue Description</p>
                   <p className="text-[13px] font-medium text-slate-700 leading-relaxed bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{viewingTicket.description}</p>
                 </div>
 
                 {/* Resolution Note Display (If resolved) */}
                 {viewingTicket.status === 'Resolved' && viewingTicket.resolutionNote && (
                   <div className="bg-emerald-50 border border-emerald-100 p-4 sm:p-5 rounded-xl shadow-sm">
-                    <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-1 flex items-center gap-1"><CheckCircle2 size={12} /> Official Resolution Note</p>
+                    <p className="text-[10px] font-pmedium text-emerald-700 uppercase tracking-wider mb-1 flex items-center gap-1"><CheckCircle2 size={12} /> Official Resolution Note</p>
                     <p className="text-[13px] font-semibold text-emerald-900 leading-relaxed">{viewingTicket.resolutionNote}</p>
                   </div>
                 )}
@@ -2439,9 +2439,9 @@ export function TicketsPage() {
                 {/* Routing Meta Info (Rich Format) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 bg-blue-50/50 p-4 sm:p-5 rounded-2xl border border-blue-100 items-stretch">
                   <div className="min-w-0 h-full">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Raised By</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Raised By</p>
                     <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-black">{getInitials(viewingTicket.submittedBy)}</div>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-pmedium">{getInitials(viewingTicket.submittedBy)}</div>
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.submittedBy}</span>
                         {!viewingTicket.submittedBy?.includes('(Owner)') ? (
@@ -2461,9 +2461,9 @@ export function TicketsPage() {
                     </div>
                   </div>
                   <div className="min-w-0 h-full">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
                     <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black">{getInitials(viewingTicket.assignedTo)}</div>
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-pmedium">{getInitials(viewingTicket.assignedTo)}</div>
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.assignedTo}</span>
                         <span className={statusPillClass(viewingTicket.department)}>{viewingTicket.department}</span>
@@ -2474,14 +2474,14 @@ export function TicketsPage() {
                   {/* Accepted By Tracking */}
                   {viewingTicket.acceptedBy && (
                     <div className="col-span-1 sm:col-span-2 border-t border-blue-100 pt-3 mt-1">
-                      <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider flex flex-wrap items-center gap-1.5 bg-indigo-50 w-full px-3 py-1.5 rounded-lg border border-indigo-100"><User size={12} strokeWidth={2.5} /> Currently Accepted By: <span className="font-black text-indigo-900 wrap-break-word normal-case ml-0 sm:ml-1">{viewingTicket.acceptedBy}</span></p>
+                      <p className="text-[10px] font-pmedium text-indigo-700 uppercase tracking-wider flex flex-wrap items-center gap-1.5 bg-indigo-50 w-full px-3 py-1.5 rounded-lg border border-indigo-100"><User size={12} strokeWidth={2.5} /> Currently Accepted By: <span className="font-black text-indigo-900 wrap-break-word normal-case ml-0 sm:ml-1">{viewingTicket.acceptedBy}</span></p>
                     </div>
                   )}
                 </div>
 
                 {((viewingTicket.assetName || viewingTicket.assetCode || viewingTicket.assetDepartment) && requiresAssetSnapshotDepartment(viewingTicket.department)) && (
                   <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Asset Snapshot</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Asset Snapshot</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
                       <div>
                         <p className="text-slate-400 font-semibold">Asset</p>
@@ -2555,7 +2555,7 @@ export function TicketsPage() {
                           ),
                       )}
                       disabled={isSaving}
-                      className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {isSaving ? 'STARTING...' : 'Accept Ticket'}
                     </button>
@@ -2566,7 +2566,7 @@ export function TicketsPage() {
                       <h4 className="font-bold text-amber-900 text-[14px]">Acknowledge Ticket</h4>
                       <p className="text-[11px] text-amber-700 font-medium mt-0.5">Accepting this will move it to "In Progress".</p>
                     </div>
-                    <button onClick={() => handleAcceptTicket()} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase">
+                    <button onClick={() => handleAcceptTicket()} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-pmedium text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase">
                       ACCEPT TICKET
                     </button>
                   </div>
@@ -2576,10 +2576,10 @@ export function TicketsPage() {
                 {canCurrentUserChangeTicketStatus(viewingTicket) && viewingTicket.status === 'In Progress' && !showResolvePrompt && (
                   <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="w-full sm:w-auto text-left">
-                      <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Update Progress</h3>
+                      <h3 className="text-[11px] font-pmedium text-slate-800 uppercase tracking-wider">Update Progress</h3>
                       <p className="text-[12px] text-slate-500 font-medium mt-0.5">Is the issue completely fixed?</p>
                     </div>
-                    <button onClick={() => handleUpdateStatus('Resolved')} className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white shadow-sm">
+                    <button onClick={() => handleUpdateStatus('Resolved')} className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white shadow-sm">
                       <CheckCircle2 size={16} strokeWidth={2.5} /> Resolve Issue
                     </button>
                   </div>
@@ -2588,7 +2588,7 @@ export function TicketsPage() {
                 {/* Mandatory Resolution Message Prompt */}
                 {showResolvePrompt && canCurrentUserChangeTicketStatus(viewingTicket) && (
                   <div className="bg-emerald-50 border border-emerald-200 p-4 sm:p-5 rounded-2xl shadow-sm animate-in slide-in-from-bottom-4">
-                    <h3 className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2"><CheckSquare size={14} /> Resolution Requirements</h3>
+                    <h3 className="text-[11px] font-pmedium text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2"><CheckSquare size={14} /> Resolution Requirements</h3>
                     <textarea
                       required rows={3}
                       placeholder="Explain how this issue was resolved... (This will be sent to the raiser)"
@@ -2596,8 +2596,8 @@ export function TicketsPage() {
                       value={resolutionMessage} onChange={e => setResolutionMessage(e.target.value)}
                     />
                     <div className="flex flex-col-reverse sm:flex-row gap-3">
-                      <button onClick={() => setShowResolvePrompt(false)} className="px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
-                      <button onClick={confirmResolution} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
+                      <button onClick={() => setShowResolvePrompt(false)} className="px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[11px] uppercase tracking-wider hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
+                      <button onClick={confirmResolution} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-pmedium text-[11px] uppercase tracking-wider shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
                         CONFIRM RESOLUTION
                       </button>
                     </div>
@@ -2611,7 +2611,7 @@ export function TicketsPage() {
                       <h4 className="font-bold text-red-900 text-[14px]">Issue Not Fixed?</h4>
                       <p className="text-[11px] text-red-700 font-medium mt-0.5">Re-open this loop with a linked follow-up ticket.</p>
                     </div>
-                    <button onClick={handleRaiseFollowUp} className="px-5 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                    <button onClick={handleRaiseFollowUp} className="px-5 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
                       <Reply size={14} strokeWidth={2.5} /> Raise Follow-up
                     </button>
                   </div>
@@ -2623,7 +2623,7 @@ export function TicketsPage() {
                       <h4 className="font-bold text-slate-900 text-[14px]">Close Ticket</h4>
                       <p className="text-[11px] text-slate-600 font-medium mt-0.5">Mark this resolved ticket as formally closed.</p>
                     </div>
-                    <button onClick={() => handleUpdateStatus('Closed')} className="px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                    <button onClick={() => handleUpdateStatus('Closed')} className="px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
                       <CheckSquare size={14} strokeWidth={2.5} /> Close Ticket
                     </button>
                   </div>
@@ -2636,7 +2636,7 @@ export function TicketsPage() {
                       <p className="text-[11px] text-cyan-800 font-medium mt-0.5">Push this IT or Maintenance ticket into the repair-log workflow.</p>
                       {hasLinkedRepairLog ? (
                         <div className="mt-2 space-y-2">
-                          <p className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-cyan-700">
+                          <p className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-wider text-cyan-700">
                             Repair log added{linkedRepairLogCode ? ` • ${linkedRepairLogCode}` : ''}
                           </p>
                           <p className="text-[11px] font-semibold text-cyan-900">
@@ -2653,7 +2653,7 @@ export function TicketsPage() {
                     {!hasLinkedRepairLog ? (
                       <button
                         onClick={() => handleOpenRepairLog(viewingTicket)}
-                        className="px-5 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
+                        className="px-5 py-3 rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
                       >
                         <Wrench size={14} strokeWidth={2.5} /> Open Repair Log
                       </button>

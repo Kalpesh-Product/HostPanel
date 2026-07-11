@@ -47,12 +47,12 @@ function empStatusMeta(e = {}) {
 
 function statusBadge(s) {
   switch (s) {
-    case 'Pending Setup': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wider"><Clock size={12} />Pending Setup</span>;
-    case 'Pending Space Assignment': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-black uppercase tracking-wider"><MapPin size={12} />Pending Space</span>;
-    case 'Active': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12} />Active</span>;
-    case 'Expiring Soon': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-black uppercase tracking-wider"><AlertTriangle size={12} />Expiring Soon</span>;
-    case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-black uppercase tracking-wider"><AlertTriangle size={12} />Expired</span>;
-    default: return s ? <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-600 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wider">{s}</span> : null;
+    case 'Pending Setup': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><Clock size={12} />Pending Setup</span>;
+    case 'Pending Space Assignment': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><MapPin size={12} />Pending Space</span>;
+    case 'Active': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><CheckCircle2 size={12} />Active</span>;
+    case 'Expiring Soon': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><AlertTriangle size={12} />Expiring Soon</span>;
+    case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><AlertTriangle size={12} />Expired</span>;
+    default: return s ? <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-600 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider">{s}</span> : null;
   }
 }
 
@@ -100,10 +100,10 @@ function TenantBillingDetails({ tenant }) {
   const depStatus = tenant.billingDetails?.securityDepositPaidStatus || 'Pending';
   return (
     <div className="grid grid-cols-2 gap-4">
-      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900 mt-1">{monthlyRent > 0 ? `₹${fmt(monthlyRent)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Amount</p><p className="text-xs font-bold text-slate-900 mt-1">{totalAmt > 0 ? `₹${fmt(totalAmt)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900 mt-1">{secDep > 0 ? `₹${fmt(secDep)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900 mt-1">{depStatus}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900 mt-1">{monthlyRent > 0 ? `₹${fmt(monthlyRent)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Amount</p><p className="text-xs font-bold text-slate-900 mt-1">{totalAmt > 0 ? `₹${fmt(totalAmt)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900 mt-1">{secDep > 0 ? `₹${fmt(secDep)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900 mt-1">{depStatus}</p></div>
     </div>
   );
 }
@@ -116,7 +116,7 @@ function DataPanel({ title, subtitle, headerRight, children }) {
     <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
       <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50">
         <div>
-          <p className="text-xs font-black uppercase tracking-wider text-slate-900">{title}</p>
+          <p className="text-xs font-pmedium uppercase tracking-wider text-slate-900">{title}</p>
           {subtitle && <p className="text-[10px] font-medium text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
         {headerRight && <div className="flex items-center gap-2 flex-shrink-0">{headerRight}</div>}
@@ -287,7 +287,7 @@ export default function TenantCompanyDetailPage() {
                     <h2 className="text-base font-pmedium text-primary uppercase">{tenant.companyName}</h2>
                     {statusBadge(tenant.status)}
                   </div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tenant ID: {tenant.id || tenant.tenantCode}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">Tenant ID: {tenant.id || tenant.tenantCode}</p>
                 </div>
               </div>
             </div>
@@ -295,19 +295,19 @@ export default function TenantCompanyDetailPage() {
             {/* ---- STAT CARDS ---- */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Base Credits</p><p className="text-[15px] font-black text-slate-900">{fmt(ca)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Base Credits</p><p className="text-[15px] font-pmedium text-slate-900">{fmt(ca)}</p></div>
                 <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><CreditCard size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
-                <div className="min-w-0"><p className="text-[10px] font-bold text-violet-600 uppercase tracking-widest mb-1">Purchased</p><p className="text-[15px] font-black text-violet-600">+{fmt(pc)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Purchased</p><p className="text-[15px] font-pmedium text-violet-600">+{fmt(pc)}</p></div>
                 <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><Plus size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-                <div className="min-w-0"><p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Credits Used</p><p className="text-[15px] font-black text-blue-600">{fmt(cu)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Credits Used</p><p className="text-[15px] font-pmedium text-blue-600">{fmt(cu)}</p></div>
                 <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><History size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-                <div className="min-w-0"><p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Remaining</p><p className="text-[15px] font-black text-emerald-600">{fmt(cr)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Remaining</p><p className="text-[15px] font-pmedium text-emerald-600">{fmt(cr)}</p></div>
                 <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
               </div>
             </div>
@@ -317,7 +317,7 @@ export default function TenantCompanyDetailPage() {
               {TABS.map(tab => {
                 const Icon = tab.icon; return (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     <Icon size={14} />{tab.label}
                   </button>
                 );
@@ -332,19 +332,19 @@ export default function TenantCompanyDetailPage() {
                 {/* Contract & Credits Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Start</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Start</p>
                     <p className="text-sm font-bold text-slate-900 mt-1">{tenant.contractStart || 'N/A'}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Contract End</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract End</p>
                     <p className="text-sm font-bold text-slate-900 mt-1">{tenant.contractEnd || 'N/A'}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Duration</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Duration</p>
                     <p className="text-sm font-bold text-slate-900 mt-1">{tenant.contractDurationMonths ? `${tenant.contractDurationMonths} months` : 'N/A'}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Area Assigned</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Area Assigned</p>
                     <p className="text-sm font-bold text-slate-900 mt-1">{tenant.space?.primaryFloor || tenant.companyDetails?.buildingName || 'Unassigned'}</p>
                   </div>
                 </div>
@@ -352,19 +352,19 @@ export default function TenantCompanyDetailPage() {
                 {/* Package & Company Details */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><FileText size={14} /> Sales Package Summary</h3>
+                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><FileText size={14} /> Sales Package Summary</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.planType || tenant.packageName || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Package</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.packageName || tenant.packageDetails?.packageName || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</p><p className="text-xs font-bold text-slate-900 mt-1">{fmt(ca)}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900 mt-1">{fmt(tenant.packageDetails?.totalSeats || 0)}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Open Desks</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.planType || tenant.packageName || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Package</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.packageName || tenant.packageDetails?.packageName || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p><p className="text-xs font-bold text-slate-900 mt-1">{fmt(ca)}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900 mt-1">{fmt(tenant.packageDetails?.totalSeats || 0)}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0}</p></div>
                     </div>
                   </div>
 
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><IndianRupee size={14} /> Billing Snapshot</h3>
+                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><IndianRupee size={14} /> Billing Snapshot</h3>
                     <TenantBillingDetails tenant={tenant} />
                   </div>
                 </div>
@@ -372,38 +372,38 @@ export default function TenantCompanyDetailPage() {
                 {/* Customer Profile & Manager */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><Building2 size={14} /> Customer Profile</h3>
+                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><Building2 size={14} /> Customer Profile</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Company</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.clientName || tenant.companyName}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.sector || tenant.businessType || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoCountry || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoState || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoCity || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Company</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.clientName || tenant.companyName}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.sector || tenant.businessType || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoCountry || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoState || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoCity || 'N/A'}</p></div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><UserCog size={14} /> Manager Assignment</h3>
+                      <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><UserCog size={14} /> Manager Assignment</h3>
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Current Manager</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Manager</p>
                           <p className="text-sm font-bold text-slate-900 mt-1">{mgrEmp ? empName(mgrEmp) : tenant.contactName || 'No manager assigned'}</p>
                           {mgrEmp && <p className="text-[10px] text-slate-500 mt-0.5">{mgrEmp.email}</p>}
                         </div>
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${mgrEmp || tenant.contactName ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider border ${mgrEmp || tenant.contactName ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
                           {mgrEmp || tenant.contactName ? 'Assigned' : 'Pending'}
                         </span>
                       </div>
                     </div>
 
                     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><MapPin size={14} /> POC Details</h3>
+                      <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><MapPin size={14} /> POC Details</h3>
                       <div className="grid grid-cols-2 gap-3">
-                        <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Local POC</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.pocDetails?.localPocName || 'N/A'}</p></div>
-                        <div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">HO POC</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.pocDetails?.hoPocName || 'N/A'}</p></div>
-                        <div className="col-span-2"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Local POC Email</p><p className="text-xs font-bold text-slate-900 mt-1 break-all">{tenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
-                        <div className="col-span-2"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">HO POC Email</p><p className="text-xs font-bold text-slate-900 mt-1 break-all">{tenant.pocDetails?.hoPocEmail || 'N/A'}</p></div>
+                        <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Local POC</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.pocDetails?.localPocName || 'N/A'}</p></div>
+                        <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO POC</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.pocDetails?.hoPocName || 'N/A'}</p></div>
+                        <div className="col-span-2"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Local POC Email</p><p className="text-xs font-bold text-slate-900 mt-1 break-all">{tenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
+                        <div className="col-span-2"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO POC Email</p><p className="text-xs font-bold text-slate-900 mt-1 break-all">{tenant.pocDetails?.hoPocEmail || 'N/A'}</p></div>
                       </div>
                     </div>
                   </div>
@@ -412,7 +412,7 @@ export default function TenantCompanyDetailPage() {
                 {/* Agreement Details */}
                 {tenant.agreementDetails && Object.keys(tenant.agreementDetails).length > 0 && (
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><FileText size={14} /> Agreement Details</h3>
+                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><FileText size={14} /> Agreement Details</h3>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(tenant.agreementDetails)
@@ -427,7 +427,7 @@ export default function TenantCompanyDetailPage() {
 
                           return (
                             <div key={key}>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
                                 {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
                               </p>
                               <p className="text-xs font-bold text-slate-900 mt-1">{displayVal}</p>
@@ -437,19 +437,19 @@ export default function TenantCompanyDetailPage() {
 
                       {/* Credits summary (replace Total Meeting Credits) */}
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Base Credits</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Base Credits</p>
                         <p className="text-xs font-bold text-slate-900 mt-1">{fmt(ca)}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Purchased Credits</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Purchased Credits</p>
                         <p className="text-xs font-bold text-slate-900 mt-1">+{fmt(pc)}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credit Used</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credit Used</p>
                         <p className="text-xs font-bold text-slate-900 mt-1">{fmt(cu)}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Remaining Credits</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Remaining Credits</p>
                         <p className="text-xs font-bold text-slate-900 mt-1">{fmt(cr)}</p>
                       </div>
                     </div>
@@ -467,15 +467,15 @@ export default function TenantCompanyDetailPage() {
                 subtitle={`${employees.length} employee${employees.length !== 1 ? 's' : ''}`}
                 headerRight={<>
                   <button onClick={() => setMgrModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
                   <button onClick={() => setAddModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold shadow-sm hover:bg-[#2563EB]/90 active:scale-95 transition-all"><Plus size={12} strokeWidth={3} /> Add Employee</button>
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 active:scale-95 transition-all"><Plus size={12} strokeWidth={3} /> Add Employee</button>
                 </>}
               >
                 {employees.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                         <tr><th className="px-5 py-4">Employee</th><th className="px-5 py-4">Contact</th><th className="px-5 py-4">Status</th><th className="px-5 py-4 text-right">Actions</th></tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100/60">
@@ -490,7 +490,7 @@ export default function TenantCompanyDetailPage() {
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                       <p className="text-sm font-bold text-slate-900 truncate">{empName(emp)}</p>
-                                      {isMgr && <span className="px-1.5 py-0.5 bg-[#2563EB]/10 text-[#2563EB] rounded-md text-[8px] font-black uppercase tracking-widest">Manager</span>}
+                                      {isMgr && <span className="px-1.5 py-0.5 bg-[#2563EB]/10 text-[#2563EB] rounded-md text-[8px] font-pmedium uppercase tracking-widest">Manager</span>}
                                     </div>
                                     <p className="text-[10px] font-medium text-slate-500">{emp.designation || 'No designation'}</p>
                                   </div>
@@ -500,7 +500,7 @@ export default function TenantCompanyDetailPage() {
                                 <p className="text-xs font-semibold text-slate-700 flex items-center gap-1"><Mail size={11} />{emp.email || '-'}</p>
                                 {emp.phone && <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1 mt-0.5"><Phone size={10} />{emp.phone}</p>}
                               </td>
-                              <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${meta.cls}`}>{meta.label}</span></td>
+                              <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${meta.cls}`}>{meta.label}</span></td>
                               <td className="px-5 py-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button onClick={() => setViewEmp(emp)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all" title="View Profile"><Eye size={15} strokeWidth={2.5} /></button>
@@ -544,7 +544,7 @@ export default function TenantCompanyDetailPage() {
                 {bookings.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                         <tr><th className="px-5 py-4">Room</th><th className="px-5 py-4">Date &amp; Time</th><th className="px-5 py-4">Booked By</th><th className="px-5 py-4">Status</th><th className="px-5 py-4 text-right">Credit Used</th><th className="px-5 py-4 text-center">Action</th></tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100/60">
@@ -560,7 +560,7 @@ export default function TenantCompanyDetailPage() {
                               <p className="text-[10px] text-slate-500">{b.bookedByEmail || ''}</p>
                             </td>
                             <td className="px-5 py-4">
-                              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${bookingStyle(b.status || b.storedStatus)}`}>
+                              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${bookingStyle(b.status || b.storedStatus)}`}>
                                 {b.status || b.storedStatus || 'Booked'}
                               </span>
                             </td>
@@ -593,8 +593,8 @@ export default function TenantCompanyDetailPage() {
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Credit Utilization</p>
-                      <p className="text-[15px] font-black text-slate-900">{fmt(cu)} of {fmt(ca + pc)} used</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Credit Utilization</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{fmt(cu)} of {fmt(ca + pc)} used</p>
                     </div>
                     <div className="p-2 rounded-2xl bg-blue-50 text-blue-600"><CreditCard size={20} /></div>
                   </div>
@@ -602,7 +602,7 @@ export default function TenantCompanyDetailPage() {
                     <div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-500"
                       style={{ width: `${ca + pc > 0 ? Math.min(100, (cu / (ca + pc)) * 100) : 0}%` }} />
                   </div>
-                  <div className="flex justify-between mt-3 text-[10px] font-bold">
+                  <div className="flex justify-between mt-3 text-[10px] font-pmedium">
                     <span className="text-slate-500">Remaining: {fmt(cr)}</span>
                     <span className="text-slate-700">{ca + pc > 0 ? Math.round((cu / (ca + pc)) * 100) : 0}% utilized</span>
                   </div>
@@ -612,7 +612,7 @@ export default function TenantCompanyDetailPage() {
                 <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[300px]">
                   <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-wider text-slate-900">Monthly Credit Activity</p>
+                      <p className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Monthly Credit Activity</p>
                       <p className="text-[10px] font-medium text-slate-500 mt-0.5">{mStats.count} entr{mStats.count !== 1 ? 'ies' : 'y'} in {MONTHS[fm]} {fy}</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -636,15 +636,15 @@ export default function TenantCompanyDetailPage() {
                   {/* Summary mini-cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 sm:p-5 bg-slate-50/30 border-b border-slate-100/60">
                     <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Used This Month</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Used This Month</p>
                       <p className="text-sm font-black text-red-500">{fmt(mStats.used)}</p>
                     </div>
                     <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Refunded This Month</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Refunded This Month</p>
                       <p className="text-sm font-black text-emerald-600">{fmt(mStats.refunded)}</p>
                     </div>
                     <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Net Used</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Net Used</p>
                       <p className={`text-sm font-black ${mStats.net > 0 ? 'text-red-500' : mStats.net < 0 ? 'text-emerald-600' : 'text-slate-700'}`}>
                         {mStats.net > 0 ? '-' : mStats.net < 0 ? '+' : ''}{fmt(Math.abs(mStats.net))}
                       </p>
@@ -655,13 +655,13 @@ export default function TenantCompanyDetailPage() {
                   {fch.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                           <tr><th className="px-5 py-4">Date</th><th className="px-5 py-4">Description</th><th className="px-5 py-4 text-right">Debit</th><th className="px-5 py-4 text-right">Credit</th><th className="px-5 py-4 text-right">Balance</th></tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100/60">
                           {fch.map((e, i) => (
                             <tr key={e.id || i} className="hover:bg-slate-50/50 transition-colors group">
-                              <td className="px-5 py-4 text-[10px] font-bold text-slate-500">{fmtDate(e.date)}</td>
+                              <td className="px-5 py-4 text-[10px] font-pmedium text-slate-500">{fmtDate(e.date)}</td>
                               <td className="px-5 py-4">
                                 <p className="text-xs font-bold text-slate-900">{e.roomName || e.resource || e.type || 'Transaction'}</p>
                                 {e.bookedBy && <p className="text-[10px] text-slate-500">Host: {e.bookedBy}</p>}
@@ -697,22 +697,22 @@ export default function TenantCompanyDetailPage() {
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <MapPin className="mb-1 text-amber-500" size={22} />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Area</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Area</p>
                     <p className="text-xs font-bold text-slate-900 mt-0.5">{tenant.space?.floor || tenant.companyDetails?.buildingName || 'Unassigned'}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <LayoutGrid className="mb-1 text-blue-500" size={22} />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Open Desks</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Open Desks</p>
                     <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Building2 className="mb-1 text-purple-500" size={22} />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Cabin Desks</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Cabin Desks</p>
                     <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Users className="mb-1 text-sky-500" size={22} />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Total Seats</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Total Seats</p>
                     <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.packageDetails?.totalSeats || 0)}</p>
                   </div>
                 </div>
@@ -720,16 +720,16 @@ export default function TenantCompanyDetailPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-900">Assigned Space Breakdown</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Assigned Space Breakdown</p>
                     </div>
                     <div className="p-4 space-y-4">
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Floor</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Floor</p>
                         <p className="text-sm font-bold text-slate-900 mt-1">{tenant.space?.floor || tenant.companyDetails?.buildingName || 'N/A'}</p>
                       </div>
 
                       <div className="space-y-2">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Seats</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Seats</p>
                         {/* <p className="text-sm font-bold text-slate-900 mt-0.5">N/A</p> */}
                       </div>
 
@@ -744,10 +744,10 @@ export default function TenantCompanyDetailPage() {
                             const labels = getDeskLabels('CDS', cabinDesks);
                             return (
                               <div>
-                                {/* <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</p> */}
+                                {/* <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p> */}
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                   {labels.map((l) => (
-                                    <span key={l} className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-violet-700">
+                                    <span key={l} className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-violet-700">
                                       {l}
                                     </span>
                                   ))}
@@ -760,10 +760,10 @@ export default function TenantCompanyDetailPage() {
                             const labels = getDeskLabels('ODS', openDesks);
                             return (
                               <div>
-                                {/* <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Open Desks</p> */}
+                                {/* <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p> */}
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                   {labels.map((l) => (
-                                    <span key={l} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                    <span key={l} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
                                       {l}
                                     </span>
                                   ))}
@@ -774,7 +774,7 @@ export default function TenantCompanyDetailPage() {
 
                           return (
                             <div>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin/Open Desks</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin/Open Desks</p>
                               <p className="text-sm font-bold text-slate-300 mt-0.5">N/A</p>
                             </div>
                           );
@@ -785,13 +785,13 @@ export default function TenantCompanyDetailPage() {
 
                   <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-900">Location Labels</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Location Labels</p>
                     </div>
                     <div className="p-4">
                       <div className="flex flex-wrap gap-1.5">
                         {Array.isArray(tenant.packageLocationLabels) && tenant.packageLocationLabels.length > 0 ? (
                           tenant.packageLocationLabels.map((l, i) => (
-                            <span key={i} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-600">{l}</span>
+                            <span key={i} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">{l}</span>
                           ))
                         ) : (
                           <span className="text-xs font-medium text-slate-400">No assigned location labels.</span>
@@ -804,17 +804,17 @@ export default function TenantCompanyDetailPage() {
                 {Array.isArray(tenant.space?.seats) && tenant.space.seats.length > 0 && (
                   <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-900">Assigned Seats by Area</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Assigned Seats by Area</p>
                     </div>
                     <div className="p-4">
                       <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600">{tenant.companyDetails?.buildingName || tenant.space?.floor || 'Area'}</p>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-orange-700 shadow-sm">{tenant.space.seats.length} seats</span>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-orange-600">{tenant.companyDetails?.buildingName || tenant.space?.floor || 'Area'}</p>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-orange-700 shadow-sm">{tenant.space.seats.length} seats</span>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {tenant.space.seats.map((s, i) => (
-                            <span key={i} className="rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-[10px] font-bold text-orange-800 shadow-sm">{s}</span>
+                            <span key={i} className="rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-orange-800 shadow-sm">{s}</span>
                           ))}
                         </div>
                       </div>
@@ -841,30 +841,30 @@ export default function TenantCompanyDetailPage() {
             </div>
             <form onSubmit={hAdd} className="p-5 space-y-4 overflow-y-auto">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Name *</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Name *</label>
                 <input type="text" value={addF.name} onChange={e => setAddF({ ...addF, name: e.target.value })} required
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Employee name" />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email *</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Email *</label>
                 <input type="email" value={addF.email} onChange={e => setAddF({ ...addF, email: e.target.value })} required
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="employee@company.com" />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone</label>
                 <input type="text" value={addF.phone} onChange={e => setAddF({ ...addF, phone: e.target.value })}
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Phone number" />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designation</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation</label>
                 <input type="text" value={addF.designation} onChange={e => setAddF({ ...addF, designation: e.target.value })}
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Designation" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); }}
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
                 <button type="submit" disabled={isSaving}
-                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all">{isSaving ? 'Adding...' : 'Add Employee'}</button>
+                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all">{isSaving ? 'Adding...' : 'Add Employee'}</button>
               </div>
             </form>
           </div>
@@ -879,7 +879,7 @@ export default function TenantCompanyDetailPage() {
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-lg h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="flex items-start justify-between p-5 border-b border-slate-100 bg-slate-50/70">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Employee Profile</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee Profile</p>
                 <h3 className="mt-0.5 text-xl font-black text-slate-900">{viewEmp.name}</h3>
                 <p className="mt-0.5 text-xs font-bold text-slate-500">{viewEmp.designation || 'Tenant Employee'}</p>
               </div>
@@ -887,24 +887,24 @@ export default function TenantCompanyDetailPage() {
                 className="w-10 h-10 bg-white hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="grid gap-3 p-5 sm:grid-cols-2">
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{viewEmp.email}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.role || 'Employee'}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{empStatusMeta(viewEmp).label}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Designation</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.designation || 'N/A'}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Phone</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.phone || 'N/A'}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tenant</p><p className="mt-0.5 text-xs font-bold text-slate-900">{tenant?.companyName || 'Tenant Company'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{viewEmp.email}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.role || 'Employee'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{empStatusMeta(viewEmp).label}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Designation</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.designation || 'N/A'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.phone || 'N/A'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant</p><p className="mt-0.5 text-xs font-bold text-slate-900">{tenant?.companyName || 'Tenant Company'}</p></div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-5">
               <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', designation: viewEmp?.designation || '', role: viewEmp?.role || 'Employee' }); }}
-                className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all">Edit</button>
+                className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all">Edit</button>
               <button onClick={() => hToggle(viewEmp)}
-                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewEmp.status === 'Inactive' ? 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100'}`}>
+                className={`px-3 py-2 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${viewEmp.status === 'Inactive' ? 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100'}`}>
                 {viewEmp.status === 'Inactive' ? 'Activate' : 'Deactivate'}
               </button>
               <button onClick={() => hDel(viewEmp.id)}
-                className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-700 hover:bg-amber-100 transition-all">Delete</button>
+                className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-pmedium uppercase tracking-widest text-amber-700 hover:bg-amber-100 transition-all">Delete</button>
               <button onClick={() => setViewEmp(null)}
-                className="px-3 py-2 bg-[#0F172A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#1e293b] transition-all">Close</button>
+                className="px-3 py-2 bg-[#0F172A] text-white rounded-xl text-[10px] font-pmedium uppercase tracking-widest hover:bg-[#1e293b] transition-all">Close</button>
             </div>
           </div>
         </div>
@@ -923,25 +923,25 @@ export default function TenantCompanyDetailPage() {
             </div>
             <form onSubmit={hEdit} className="p-5 space-y-4 overflow-y-auto">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Full Name</label>
                 <input required type="text" value={editF.name} onChange={e => setEditF({ ...editF, name: e.target.value })}
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone</label>
                 <input type="text" value={editF.phone} onChange={e => setEditF({ ...editF, phone: e.target.value })}
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designation</label>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation</label>
                 <input type="text" value={editF.designation} onChange={e => setEditF({ ...editF, designation: e.target.value })}
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
                 <button type="submit" disabled={isSaving}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all"><Save size={13} /> Save Employee</button>
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all"><Save size={13} /> Save Employee</button>
               </div>
             </form>
           </div>
@@ -962,12 +962,12 @@ export default function TenantCompanyDetailPage() {
             <div className="p-5 space-y-2 overflow-y-auto">
               {mgrEmp && (
                 <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Current Manager</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Current Manager</p>
                   <p className="text-sm font-bold text-blue-800 mt-1">{empName(mgrEmp)}</p>
                   <p className="text-[10px] text-blue-600">{mgrEmp.email}</p>
                 </div>
               )}
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Select New Manager</p>
+              <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Select New Manager</p>
               {employees.filter(e => e.status !== 'Inactive').map(emp => {
                 const isCurrent = mgrEmp && String(mgrEmp.id) === String(emp.id);
                 return (
@@ -975,16 +975,16 @@ export default function TenantCompanyDetailPage() {
                     className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${isCurrent ? 'border-blue-200 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
                     onClick={() => { if (!isCurrent) hSetMgr(emp.id); }}>
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isCurrent ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-pmedium ${isCurrent ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
                       <div>
                         <p className="text-xs font-bold text-slate-900">{empName(emp)}</p>
                         <p className="text-[9px] text-slate-500">{emp.designation || emp.email}</p>
                       </div>
                     </div>
                     {isCurrent ? (
-                      <span className="px-2 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-lg text-[8px] font-black uppercase tracking-widest">Current</span>
+                      <span className="px-2 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-lg text-[8px] font-pmedium uppercase tracking-widest">Current</span>
                     ) : (
-                      <button className="px-2 py-1 bg-[#2563EB] text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-[#2563EB]/90 transition-all">Select</button>
+                      <button className="px-2 py-1 bg-[#2563EB] text-white rounded-lg text-[8px] font-pmedium uppercase tracking-widest hover:bg-[#2563EB]/90 transition-all">Select</button>
                     )}
                   </div>
                 );
@@ -1007,29 +1007,29 @@ export default function TenantCompanyDetailPage() {
             </div>
             <div className="p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-bold text-slate-900">{fmtDate(viewCredit.date)}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Type</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.type || 'Booking'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.roomName || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.bookingCode || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Host</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.bookedBy || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.status || 'Completed'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-bold text-slate-900">{fmtDate(viewCredit.date)}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Type</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.type || 'Booking'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.roomName || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.bookingCode || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Host</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.bookedBy || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.status || 'Completed'}</p></div>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 p-4">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits</p>
                   <p className={`text-lg font-black mt-1 ${viewCredit.type === 'Refund' ? 'text-emerald-600' : 'text-red-500'}`}>
                     {viewCredit.type === 'Refund' ? '+' : '-'}{fmt(viewCredit.credited ?? viewCredit.used ?? viewCredit.debited ?? 0)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Remaining Balance</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Remaining Balance</p>
                   <p className="text-lg font-black mt-1 text-slate-900">{fmt(viewCredit.remainingCredits ?? 0)}</p>
                 </div>
               </div>
             </div>
             <div className="flex justify-end border-t border-slate-100 p-5">
               <button onClick={() => setViewCredit(null)}
-                className="px-4 py-2.5 bg-[#0F172A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#1e293b] transition-all">Close</button>
+                className="px-4 py-2.5 bg-[#0F172A] text-white rounded-xl text-[10px] font-pmedium uppercase tracking-widest hover:bg-[#1e293b] transition-all">Close</button>
             </div>
           </div>
         </div>
@@ -1048,27 +1048,27 @@ export default function TenantCompanyDetailPage() {
             </div>
             <div className="p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.bookingCode || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.roomName || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-bold text-slate-900">{fmtDate(viewBk.start || viewBk.date)}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Time</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.startTime || '-'} - {viewBk.endTime || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Booked By</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.bookedByName || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Status</p>
-                  <p className="mt-0.5"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${bookingStyle(viewBk.status || viewBk.storedStatus)}`}>{viewBk.status || viewBk.storedStatus || 'Booked'}</span></p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.bookingCode || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.roomName || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-bold text-slate-900">{fmtDate(viewBk.start || viewBk.date)}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Time</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.startTime || '-'} - {viewBk.endTime || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booked By</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.bookedByName || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p>
+                  <p className="mt-0.5"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${bookingStyle(viewBk.status || viewBk.storedStatus)}`}>{viewBk.status || viewBk.storedStatus || 'Booked'}</span></p>
                 </div>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Purpose</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Purpose</p>
                 <p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.purpose || 'No purpose specified'}</p>
               </div>
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits Used</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits Used</p>
                 <p className="text-lg font-black mt-1 text-red-500">{fmt(viewBk.bookingCredits || 0)}</p>
               </div>
             </div>
             <div className="flex justify-end border-t border-slate-100 p-5">
               <button onClick={() => setViewBk(null)}
-                className="px-4 py-2.5 bg-[#0F172A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#1e293b] transition-all">Close</button>
+                className="px-4 py-2.5 bg-[#0F172A] text-white rounded-xl text-[10px] font-pmedium uppercase tracking-widest hover:bg-[#1e293b] transition-all">Close</button>
             </div>
           </div>
         </div>

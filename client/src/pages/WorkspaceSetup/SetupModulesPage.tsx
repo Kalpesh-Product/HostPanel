@@ -38,7 +38,7 @@ const SetupModulesPage: React.FC = () => {
       <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 md:pt-9 pb-8">
         <div className="w-full max-w-[900px] mx-auto">
           <div className="mb-6 sm:mb-8 max-w-[900px] mx-auto">
-            <p className="text-[10px] font-bold tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
+            <p className="text-[10px] font-pmedium tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
               Progress
             </p>
             <div className="flex flex-col md:flex-row md:items-center w-full gap-4 md:gap-0">
@@ -102,7 +102,7 @@ const SetupModulesPage: React.FC = () => {
                         }
                   }
                 >
-                  <h3 className="text-[22px] md:text-[18px] lg:text-[15px] font-bold text-[#0f1b35] text-center mt-2">
+                  <h3 className="text-[22px] md:text-[18px] lg:text-[15px] font-pmedium text-[#0f1b35] text-center mt-2">
                     {plan.title}
                   </h3>
                   <p className="text-[11px] md:text-[10px] lg:text-[10px] text-[#667791] text-center mt-3 min-h-[36px]">
@@ -181,7 +181,7 @@ const SetupModulesPage: React.FC = () => {
                   },
                 })
               }
-              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
+              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-pmedium inline-flex items-center justify-center gap-2"
             >
               Continue <ArrowRight size={16} />
             </button>

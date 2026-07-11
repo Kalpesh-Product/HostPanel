@@ -190,7 +190,7 @@ const InclusionsSection = ({
                   ) : null}
                 </div>
                 {/* Label â€” strikethrough when disabled */}
-                <span className={`text-[10px] font-semibold uppercase tracking-wider font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[11px] ${!enabled ? "line-through" : ""}`}>
+                <span className={`text-[10px] font-pmedium uppercase tracking-wider font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[11px] ${!enabled ? "line-through" : ""}`}>
                   {item.label}
                 </span>
               </div>
@@ -331,7 +331,7 @@ const FaqAccordion = ({ faqs }: { faqs: Array<{ question: string; answer: string
   );
 };
 const IMAGE_ACTION_BUTTON =
-  "rounded-full border-2 border-white/90 bg-black/60 px-8 py-2 text-[12px] font-semibold uppercase text-white shadow-[0_10px_30px_rgba(0,0,0,0.24)] backdrop-blur-[2px] transition hover:bg-black/70 font-['Poppins',ui-sans-serif,system-ui,sans-serif]";
+  "rounded-full border-2 border-white/90 bg-black/60 px-8 py-2 text-[12px] font-pmedium uppercase text-white shadow-[0_10px_30px_rgba(0,0,0,0.24)] backdrop-blur-[2px] transition hover:bg-black/70 font-['Poppins',ui-sans-serif,system-ui,sans-serif]";
 const MOBILE_SECTION_HEADING =
   "text-center text-[22px] md:text-[32px] font-semibold uppercase tracking-normal text-[#000000] font-['Poppins',ui-sans-serif,system-ui,sans-serif]";
 
@@ -423,6 +423,71 @@ const mapReviewToTestimonial = (item: any) => ({
   text: String(item?.review || item?.comment || item?.description || "").trim(),
   rating: Number(item?.starCount ?? item?.rating ?? item?.rate ?? 0) || 0,
 });
+
+// -- Footer socials -------------------------------------------------------------
+// Enabled socials from the saved template render as clickable logos in the footer.
+// WhatsApp stores a phone number, so its href is built as a wa.me link.
+const FOOTER_SOCIALS: Array<{ key: string; label: string; icon: React.ReactNode }> = [
+  {
+    key: "instagram",
+    label: "Instagram",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.5" cy="6.5" r="0.75" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+  },
+  {
+    key: "facebook",
+    label: "Facebook",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+      </svg>
+    ),
+  },
+  {
+    key: "twitter",
+    label: "Twitter / X",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.451-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644z" />
+      </svg>
+    ),
+  },
+  {
+    key: "linkedin",
+    label: "LinkedIn",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4V8h4v1.5A6 6 0 0 1 16 8z" />
+        <rect x="2" y="9" width="4" height="12" />
+        <circle cx="4" cy="4" r="2" />
+      </svg>
+    ),
+  },
+  {
+    key: "whatsapp",
+    label: "WhatsApp",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
+      </svg>
+    ),
+  },
+];
+
+const getSocialHref = (key: string, link: unknown) => {
+  const value = String(link || "").trim();
+  if (!value) return "";
+  if (key === "whatsapp") {
+    const digits = value.replace(/[^\d]/g, "");
+    return digits ? `https://wa.me/${digits}` : "";
+  }
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+};
 
 const IconCircle = ({ children }: { children: React.ReactNode }) => (
   <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#f1dc3a] text-[#111827]">
@@ -1235,6 +1300,13 @@ const PageDemo = () => {
   const footerCompanyName = String(draft?.registeredCompanyName || draft?.companyName || "").trim();
   const footerCopyrightText = String(draft?.copyrightText || "").trim();
   const footerAddress = String(draft?.address || "").trim();
+  const footerSocialLinks = FOOTER_SOCIALS.map((platform) => {
+    const entry = draft?.socials?.[platform.key];
+    if (entry?.enabled !== true) return null;
+    const href = getSocialHref(platform.key, entry?.link);
+    if (!href) return null;
+    return { ...platform, href };
+  }).filter(Boolean) as Array<{ key: string; label: string; icon: React.ReactNode; href: string }>;
 
   const renderContactCard = () => (
     <div className="flex h-full min-h-[320px] flex-col bg-white px-6 py-7 shadow-sm md:min-h-[430px] md:px-10 md:py-10">
@@ -1619,7 +1691,7 @@ const PageDemo = () => {
                       <button
                         type="button"
                         onClick={() => goToSection(item.slug)}
-                        className="block w-full rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                        className="block w-full rounded px-3 py-2 text-left text-sm font-pmedium text-slate-800 hover:bg-slate-100"
                       >
                         All Products
                       </button>
@@ -1722,7 +1794,7 @@ const PageDemo = () => {
                         <button
                           type="button"
                           onClick={() => goToSection(item.slug)}
-                          className="rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                          className="rounded px-3 py-2 text-left text-sm font-pmedium text-slate-800 hover:bg-slate-100"
                         >
                           All Products
                         </button>
@@ -1874,7 +1946,7 @@ const PageDemo = () => {
             <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
               <div className={`${CONTENT_WRAP} text-center`}>
                 <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
-                  About Our Vision
+                  {String(draft?.aboutTitle || "").trim() || "About Our Vision"}
                 </h2>
                 <div className="mt-6 space-y-3 text-white md:mt-7 md:space-y-4">
                   {aboutIntroBlocks.length ? (
@@ -1917,7 +1989,7 @@ const PageDemo = () => {
 
                       {/* Dark card: name + description + explore button */}
                       <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
-                        <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                        <h3 className="text-[15px] font-pmedium uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
                           {item?.heading || item?.name || "Product"}
                         </h3>
                         {(item?.homeCardSubText || item?.subText) ? (
@@ -1929,7 +2001,7 @@ const PageDemo = () => {
                           <button
                             type="button"
                             onClick={() => handleProductCardAction(item)}
-                            className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                            className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-pmedium uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                           >
                             Explore
                           </button>
@@ -2052,7 +2124,7 @@ const PageDemo = () => {
                   <button
                     type="button"
                     onClick={openReviewModal}
-                    className="rounded-full border border-slate-500 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 md:text-sm"
+                    className="rounded-full border border-slate-500 px-6 py-2 text-xs font-pmedium uppercase tracking-wide text-slate-700 md:text-sm"
                   >
                     Write a Review
                   </button>
@@ -2106,7 +2178,7 @@ const PageDemo = () => {
         <section className="bg-black px-4 py-12 text-white md:px-6 md:py-24">
           <div className={`${CONTENT_WRAP} text-center`}>
             <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
-              About Our Vision
+              {String(draft?.aboutTitle || "").trim() || "About Our Vision"}
             </h2>
             <div className="mx-auto mt-8 max-w-5xl space-y-4 text-center text-white">
               {aboutIntroBlocks.length ? (
@@ -2254,7 +2326,7 @@ const PageDemo = () => {
                       <div className="shrink-0">
                         <h1 className="text-[24px] font-bold text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">{detailTitle}</h1>
                         {detailPrice ? (
-                          <p className="mt-1 text-[15px] font-semibold text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">{detailPrice}</p>
+                          <p className="mt-1 text-[15px] font-pmedium text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">{detailPrice}</p>
                         ) : null}
                       </div>
 
@@ -2306,7 +2378,7 @@ const PageDemo = () => {
                               setLeadSubmitted(false);
                               setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
                             }}
-                            className="rounded-full border-2 border-green-600 px-7 py-2.5 text-[13px] font-semibold uppercase tracking-wider text-green-700 transition hover:bg-green-600 hover:text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                            className="rounded-full border-2 border-green-600 px-7 py-2.5 text-[13px] font-pmedium uppercase tracking-wider text-green-700 transition hover:bg-green-600 hover:text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                           >
                             Submit Another
                           </button>
@@ -2327,7 +2399,7 @@ const PageDemo = () => {
                             }}
                             className="flex flex-col gap-4 rounded-2xl border border-slate-300 bg-white p-5"
                           >
-                            <h2 className="text-[14px] font-semibold uppercase tracking-wider text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquire Now</h2>
+                            <h2 className="text-[14px] font-pmedium uppercase tracking-wider text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquire Now</h2>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               {leadFields.map((field) => (
                                 <div key={field.key} className="flex flex-col gap-1">
@@ -2352,7 +2424,7 @@ const PageDemo = () => {
                             <button
                               type="submit"
                               disabled={leadSubmitPending}
-                              className="mt-1 w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold uppercase tracking-widest text-white transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] hover:bg-[#1f2937] disabled:opacity-60"
+                              className="mt-1 w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-pmedium uppercase tracking-widest text-white transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] hover:bg-[#1f2937] disabled:opacity-60"
                             >
                               Submit Enquiry
                             </button>
@@ -2500,7 +2572,7 @@ const PageDemo = () => {
                               </div>
                               {/* Dark card */}
                               <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
-                                <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                                <h3 className="text-[15px] font-pmedium uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
                                   {detailTitle}
                                 </h3>
                                 {detailDescription ? (
@@ -2516,7 +2588,7 @@ const PageDemo = () => {
                                       const productSlug = normalizeSlug(selectedProductPage?.slug || selectedProductPage?.name || "");
                                       navigate(`/website-preview/page/products/${productSlug}/${itemSlug}`);
                                     }}
-                                    className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                                    className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-pmedium uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                                   >
                                     View Details
                                   </button>
@@ -2553,7 +2625,7 @@ const PageDemo = () => {
                         </div>
                         {/* Dark card */}
                         <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
-                          <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                          <h3 className="text-[15px] font-pmedium uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
                             {item?.heading || item?.name || "Product"}
                           </h3>
                           {(item?.homeCardSubText || item?.subText) ? (
@@ -2565,7 +2637,7 @@ const PageDemo = () => {
                             <button
                               type="button"
                               onClick={() => handleProductCardAction(item)}
-                              className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                              className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-pmedium uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                             >
                               Explore
                             </button>
@@ -2677,7 +2749,7 @@ const PageDemo = () => {
                 <button
                   type="button"
                   onClick={openReviewModal}
-                  className="rounded-full border border-slate-500 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 md:text-sm"
+                  className="rounded-full border border-slate-500 px-6 py-2 text-xs font-pmedium uppercase tracking-wide text-slate-700 md:text-sm"
                 >
                   Write a Review
                 </button>
@@ -2854,7 +2926,7 @@ const PageDemo = () => {
                                         {jobMeta}
                                       </p>
                                     </div>
-                                    <span className="shrink-0 rounded-md bg-[#111827] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">
+                                    <span className="shrink-0 rounded-md bg-[#111827] px-3 py-1 text-[10px] font-pmedium uppercase tracking-wider text-white">
                                       {draft?.careersApplyButtonText || "Apply Now"}
                                     </span>
                                   </button>
@@ -2893,7 +2965,7 @@ const PageDemo = () => {
                         setCareersDirectApply(true);
                         setCareersApplyJob({ jobTitle: "General Application", jobCode: "GENERAL" });
                       }}
-                      className="mt-5 rounded-full bg-[#111827] px-8 py-3 text-[13px] font-semibold text-white transition hover:bg-[#1f2937]"
+                      className="mt-5 rounded-full bg-[#111827] px-8 py-3 text-[13px] font-pmedium text-white transition hover:bg-[#1f2937]"
                     >
                       Apply Now
                     </button>
@@ -3137,7 +3209,7 @@ const PageDemo = () => {
                             <span className="font-medium text-[#111827]">
                               {careersResumeFile ? careersResumeFile.name : "Upload Resume / CV *"}
                             </span>
-                            <span className="rounded-md border border-slate-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#374151]">
+                            <span className="rounded-md border border-slate-300 px-3 py-1 text-[11px] font-pmedium uppercase tracking-wider text-[#374151]">
                               Choose File
                             </span>
                             <input
@@ -3222,7 +3294,7 @@ const PageDemo = () => {
                           <button
                             type="submit"
                             disabled={careersApplySubmitting}
-                            className="rounded-full bg-[#111827] px-8 py-3 text-[13px] font-semibold text-white transition hover:bg-[#1f2937] disabled:opacity-60"
+                            className="rounded-full bg-[#111827] px-8 py-3 text-[13px] font-pmedium text-white transition hover:bg-[#1f2937] disabled:opacity-60"
                           >
                             {careersApplySubmitting
                               ? "Submitting..."
@@ -3278,9 +3350,25 @@ const PageDemo = () => {
               />
             ) : null}
             {footerCompanyName ? (
-              <p className="mt-2 text-[15px] font-semibold text-[#111827] md:text-[14px]">{footerCompanyName}</p>
+              <p className="mt-2 text-[15px] font-pmedium text-[#111827] md:text-[14px]">{footerCompanyName}</p>
             ) : null}
             {footerAddress ? <p className={FOOTER_BODY_TEXT}>{footerAddress}</p> : null}
+            {footerSocialLinks.length ? (
+              <div className="mt-4 flex items-center justify-center gap-3 md:justify-start">
+                {footerSocialLinks.map((item) => (
+                  <a
+                    key={`footer-social-${item.key}`}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={item.label}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-[#111827] transition hover:bg-[#111827] hover:text-white"
+                  >
+                    {item.icon}
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div>
             <h3 className={FOOTER_HEADING}>Quick Links</h3>

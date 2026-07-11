@@ -476,7 +476,7 @@ const CreateWorkspacePage: React.FC = () => {
       <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-8 md:pt-12 pb-12">
         <div className="w-full max-w-[900px] mx-auto">
           <div className="mb-8 sm:mb-10">
-          <p className="text-[10px] font-bold tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
+          <p className="text-[10px] font-pmedium tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
             Progress
           </p>
           <div className="flex flex-col md:flex-row md:items-center w-full gap-4 md:gap-0">
@@ -850,7 +850,7 @@ const CreateWorkspacePage: React.FC = () => {
             <button
               type="submit"
               disabled={!isWorkspaceFormComplete}
-              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] disabled:bg-[#c8d5f1] disabled:text-white/80 disabled:cursor-not-allowed transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
+              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] disabled:bg-[#c8d5f1] disabled:text-white/80 disabled:cursor-not-allowed transition-colors text-white text-[13px] font-pmedium inline-flex items-center justify-center gap-2"
             >
               Continue <ArrowRight size={16} />
             </button>

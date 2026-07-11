@@ -318,7 +318,7 @@ export default function SystemAccessManagementPage() {
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Software Assets</p>
+              <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Software Assets</p>
               <p className="text-lg font-black text-slate-900">{softwareAssets.length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0">
@@ -327,7 +327,7 @@ export default function SystemAccessManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">Assigned</p>
+              <p className="text-[10px] font-pmedium text-green-600 uppercase tracking-widest mb-1">Assigned</p>
               <p className="text-lg font-black text-slate-900">{assignedCount}</p>
             </div>
             <div className="p-2 rounded-2xl bg-green-50 text-green-600 shrink-0">
@@ -336,7 +336,7 @@ export default function SystemAccessManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Expiring Soon</p>
+              <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Expiring Soon</p>
               <p className="text-lg font-black text-slate-900">{expiringSoonCount}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0">
@@ -345,7 +345,7 @@ export default function SystemAccessManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-1">Expired</p>
+              <p className="text-[10px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Expired</p>
               <p className="text-lg font-black text-slate-900">{expiredCount}</p>
             </div>
             <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0">
@@ -400,7 +400,7 @@ export default function SystemAccessManagementPage() {
             <button
               type="button"
               onClick={() => openModal()}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
             >
               <Key className="w-4 h-4" />
               Provision Access
@@ -410,7 +410,7 @@ export default function SystemAccessManagementPage() {
 
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left">
-            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+            <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4">Software Asset</th>
                 <th className="px-5 py-4">Owning Dept</th>
@@ -449,7 +449,7 @@ export default function SystemAccessManagementPage() {
                           </div>
                           <div>
                             <div className="font-black text-slate-900">{asset.name || asset.assetName || "--"}</div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                               <span className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1">{asset.assetCode || id}</span>
                               {asset.serialNumber ? <span className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1">SN: {asset.serialNumber}</span> : null}
                             </div>
@@ -458,31 +458,31 @@ export default function SystemAccessManagementPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="font-bold text-slate-800">{formatTitle(asset.department) || "--"}</div>
-                        <div className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <div className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                           {formatTitle(asset.department) || "Unassigned"} ownership
                         </div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="font-bold text-slate-900">{assigned}</div>
-                        <div className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{assignmentType}</div>
+                        <div className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{assignmentType}</div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="text-sm font-bold text-slate-700">{asset.purchaseDate || "--"}</div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-col gap-2">
-                          <span className={`inline-flex w-max items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${getExpiryTone(expiry.tone)}`}>
+                          <span className={`inline-flex w-max items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest ${getExpiryTone(expiry.tone)}`}>
                             <CalendarDays size={12} /> {asset.expiryDate || asset.warrantyExpiry || "No expiry"}
                           </span>
                           {daysUntilExpiry !== null ? (
-                            <span className="text-[10px] font-bold text-slate-400">
+                            <span className="text-[10px] font-pmedium text-slate-400">
                               {daysUntilExpiry < 0 ? `${Math.abs(daysUntilExpiry)} day(s) overdue` : `${daysUntilExpiry} day(s) left`}
                             </span>
                           ) : null}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${getStatusTone(asset.status)}`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest ${getStatusTone(asset.status)}`}>
                           <ShieldCheck size={12} /> {formatTitle(asset.status)}
                         </span>
                       </td>
@@ -490,7 +490,7 @@ export default function SystemAccessManagementPage() {
                         <button
                           type="button"
                           onClick={() => openModal(asset)}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
                         >
                           <Key size={12} /> Assign
                         </button>
@@ -503,7 +503,7 @@ export default function SystemAccessManagementPage() {
           </table>
         </div>
 
-        <div className="px-5 py-3 border-t border-slate-100/60 text-[10px] font-bold text-slate-400 bg-slate-50/30">
+        <div className="px-5 py-3 border-t border-slate-100/60 text-[10px] font-pmedium text-slate-400 bg-slate-50/30">
           Showing {displayedAssets.length} of {softwareAssets.length} software assets
         </div>
       </div>
@@ -523,7 +523,7 @@ export default function SystemAccessManagementPage() {
             >
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 p-6">
                 <div>
-                  <p className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-600">
                     <Key size={12} /> Provision software access
                   </p>
                   <h2 className="mt-3 text-xl font-black text-slate-900">Assign access by department, role, or employee</h2>
@@ -543,7 +543,7 @@ export default function SystemAccessManagementPage() {
               <form onSubmit={handleProvision} className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr] flex-1 min-h-0">
                 <div className="p-6 space-y-5 overflow-y-auto">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Software asset</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Software asset</label>
                     <select
                       required
                       value={assignmentForm.assetId}
@@ -559,7 +559,7 @@ export default function SystemAccessManagementPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target department</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Target department</label>
                     <select
                       required
                       value={assignmentForm.targetDepartment}
@@ -574,14 +574,14 @@ export default function SystemAccessManagementPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audience type</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Audience type</label>
                     <div className="grid grid-cols-3 gap-2">
                       {DEFAULT_AUDIENCE_OPTIONS.map((opt) => (
                         <button
                           key={opt.value}
                           type="button"
                           onClick={() => setAssignmentForm((f) => ({ ...f, targetAudience: opt.value, targetEmployeeId: "" }))}
-                          className={`rounded-xl border px-3 py-3 text-xs font-black uppercase tracking-wider transition-all ${
+                          className={`rounded-xl border px-3 py-3 text-xs font-pmedium uppercase tracking-wider transition-all ${
                             assignmentForm.targetAudience === opt.value
                               ? "border-slate-900 bg-slate-900 text-white"
                               : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
@@ -595,7 +595,7 @@ export default function SystemAccessManagementPage() {
 
                   {assignmentForm.targetAudience === "role" ? (
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Role</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Role</label>
                       <select
                         required
                         value={assignmentForm.targetRole}
@@ -609,7 +609,7 @@ export default function SystemAccessManagementPage() {
 
                   {assignmentForm.targetAudience === "employee" ? (
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Employee</label>
                       <select
                         required
                         value={assignmentForm.targetEmployeeId}
@@ -625,7 +625,7 @@ export default function SystemAccessManagementPage() {
                   ) : null}
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notes</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Notes</label>
                     <textarea
                       value={assignmentForm.notes}
                       onChange={(e) => setAssignmentForm((f) => ({ ...f, notes: e.target.value }))}
@@ -638,7 +638,7 @@ export default function SystemAccessManagementPage() {
 
                 <aside className="border-t lg:border-t-0 lg:border-l border-slate-100 bg-slate-50/70 p-6 flex flex-col gap-4">
                   <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preview</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p>
                     <div className="mt-3 space-y-3 text-xs font-bold text-slate-700">
                       <div className="flex items-center justify-between gap-3">
                         <span>Department</span>
@@ -659,7 +659,7 @@ export default function SystemAccessManagementPage() {
                   </div>
 
                   <div className="flex-1 rounded-xl border border-dashed border-slate-200 bg-white p-5 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">What this does</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">What this does</p>
                     <ul className="mt-3 space-y-3 text-xs font-bold text-slate-600">
                       <li className="flex gap-2"><Users size={16} className="mt-0.5 text-blue-600 shrink-0" /> Keeps the owning department on the asset record.</li>
                       <li className="flex gap-2"><User size={16} className="mt-0.5 text-blue-600 shrink-0" /> Targets a department, role, or single employee for visibility.</li>

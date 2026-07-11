@@ -226,29 +226,29 @@ export default function CustomerSupportPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Tickets</p>
-                <p className="text-[15px] font-black text-slate-900">{allTickets.length}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Tickets</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{allTickets.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><AlertCircle size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Open (Raised)</p>
-                <p className="text-[15px] font-black text-slate-900">{openCount}</p>
+                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Open (Raised)</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{openCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><AlertTriangle size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">In Progress</p>
-                <p className="text-[15px] font-black text-slate-900">{inProgressCount}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">In Progress</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{inProgressCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Clock size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Resolved / Closed</p>
-                <p className="text-[15px] font-black text-slate-900">{resolvedCount}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Resolved / Closed</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{resolvedCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
             </div>
@@ -259,7 +259,7 @@ export default function CustomerSupportPage() {
             <button
               type="button"
               onClick={() => setActiveTab("raised")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                 activeTab === "raised"
                   ? "bg-[#2563EB] text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -270,7 +270,7 @@ export default function CustomerSupportPage() {
             <button
               type="button"
               onClick={() => setActiveTab("resolved")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                 activeTab === "resolved"
                   ? "bg-[#2563EB] text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -328,9 +328,9 @@ export default function CustomerSupportPage() {
                   <button
                     type="button"
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
-                    <Plus size={13} strokeWidth={3} />Raise Issue
+                    <Plus size={13} strokeWidth={3} /> RAISE ISSUE
                   </button>
                 </div>
               ) : null}
@@ -342,13 +342,13 @@ export default function CustomerSupportPage() {
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Ticket ID</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Issue Title</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Requested At</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Resolved By</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Status</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Accepted By</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Action</th>
+                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Ticket ID</th>
+                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Issue Title</th>
+                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Requested At</th>
+                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Resolved By</th>
+                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Status</th>
+                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Accepted By</th>
+                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -375,7 +375,7 @@ export default function CustomerSupportPage() {
                             <button
                               type="button"
                               onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
-                              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100/70 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-all"
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-pmedium bg-slate-100/70 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-all"
                             >
                               View Details
                             </button>
@@ -399,7 +399,7 @@ export default function CustomerSupportPage() {
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">Raise a Support Issue</h2>
-                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Submit a new support ticket</p>
+                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Submit a new support ticket</p>
               </div>
               <button
                 type="button"
@@ -511,7 +511,7 @@ export default function CustomerSupportPage() {
             <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
               <div>
                 <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Ticket Details</h2>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">{selectedTicket.ticketId || "-"}</p>
+                <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{selectedTicket.ticketId || "-"}</p>
               </div>
               <button
                 type="button"
@@ -576,7 +576,7 @@ export default function CustomerSupportPage() {
                     type="button"
                     onClick={() => { setIsFollowUpModalOpen(true); }}
                     disabled={isSubmitting}
-                    className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+                    className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
                   >
                     Follow Up
                   </button>
@@ -584,7 +584,7 @@ export default function CustomerSupportPage() {
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => void closeTicket(selectedTicket)}
-                    className="px-6 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-[13px] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                    className="px-6 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-[13px] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
                   >
                     {isSubmitting ? "Closing..." : "Close Ticket"}
                   </button>
@@ -603,7 +603,7 @@ export default function CustomerSupportPage() {
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">Follow Up Issue</h2>
-                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">{selectedTicket.ticketId || "-"}</p>
+                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">{selectedTicket.ticketId || "-"}</p>
               </div>
               <button
                 type="button"
@@ -642,7 +642,7 @@ export default function CustomerSupportPage() {
                 type="submit"
                 disabled={isSubmitting}
                 onClick={(e) => submitFollowUp(e)}
-                className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-black text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
               >
                 {isSubmitting ? "Submitting..." : "Submit Follow Up"}
               </button>

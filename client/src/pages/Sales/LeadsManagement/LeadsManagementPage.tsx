@@ -395,7 +395,7 @@ export default function LeadsManagementPage() {
               onClick={mainTab === "website-leads" ? loadWebsiteLeads : loadLeads}
               disabled={mainTab === "website-leads" ? isWebsiteLoading : isLoading}
               title="Refresh"
-              className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RotateCcw size={14} /> Refresh
             </button> */}
@@ -415,7 +415,7 @@ export default function LeadsManagementPage() {
             { key: "unit-tour", label: "Unit Tour Leads" },
           ].map((tab) => (
             <button key={tab.key} type="button" onClick={() => { setMainTab(tab.key); setStageFilter("All"); setSearchQuery(""); }}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${mainTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${mainTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
             >{tab.label}</button>
           ))}
         </div>
@@ -425,29 +425,29 @@ export default function LeadsManagementPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Leads</p>
-              <p className="text-[15px] font-black text-slate-900">{stats[0]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Leads</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{stats[0]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Active Pipeline</p>
-              <p className="text-[15px] font-black text-slate-900">{stats[1]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Active Pipeline</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{stats[1]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><BadgeCheck size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">High Priority</p>
-              <p className="text-[15px] font-black text-slate-900">{stats[2]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">High Priority</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{stats[2]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Sparkles size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Converted</p>
-              <p className="text-[15px] font-black text-slate-900">{stats[3]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Converted</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{stats[3]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>
           </div>
@@ -456,29 +456,29 @@ export default function LeadsManagementPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Website Leads</p>
-              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[0]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Website Leads</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[0]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Pending</p>
-              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[1]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[1]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Contacted</p>
-              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[2]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Contacted</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[2]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><BadgeCheck size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
-              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[3]?.value ?? 0}</p>
+              <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[3]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>
           </div>
@@ -715,8 +715,8 @@ export default function LeadsManagementPage() {
                   {getInitials(selectedLead.name)}
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-black leading-tight text-slate-900">{selectedLead.name}</h3>
-                  <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  <h3 className="text-[15px] font-pmedium leading-tight text-slate-900">{selectedLead.name}</h3>
+                  <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     {selectedLead.company} {selectedLead.visitorCode || selectedLead.id}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -735,35 +735,35 @@ export default function LeadsManagementPage() {
               <div className="min-h-0 space-y-3 border-b border-slate-100 p-4 sm:p-5 xl:border-b-0 xl:border-r xl:p-5">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
                     <p className="mt-1 text-[12px] font-bold text-slate-900">{selectedLead.phone || "Not shared"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
                     <p className="mt-1 break-all text-[12px] font-bold text-slate-900">{selectedLead.email || "Not shared"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Visit Type</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Visit Type</p>
                     <p className="mt-1 text-[12px] font-bold text-slate-900">{selectedLead.purpose || "Unit Tour"}</p>
                   </div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Department</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Department</p>
                     <p className="mt-1 text-[12px] font-bold text-slate-900">{selectedLead.department || "Administration"}</p>
                   </div>
                 </div>
 
                 <div className="rounded-[2rem] border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Requirements</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Requirements</p>
                   <p className="mt-1.5 text-[12px] font-medium leading-5 text-slate-700">{selectedLead.requirements}</p>
                 </div>
 
                 {qualificationEntries.length > 0 && (
                   <div className="rounded-[2rem] border border-slate-100 bg-white p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Qualification Snapshot</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Qualification Snapshot</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {qualificationEntries.map((item) => (
                         <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{item.label}</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{item.label}</p>
                           <p className="mt-0.5 text-[12px] font-bold text-slate-900">{item.value}</p>
                         </div>
                       ))}
@@ -772,17 +772,17 @@ export default function LeadsManagementPage() {
                 )}
 
                 <div className="rounded-[2rem] border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Quick Actions</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Quick Actions</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {STAGES.map((stage) => (
                       <button key={stage} type="button" onClick={() => handleUpdateStage(selectedLead.id, stage)}
-                        className={`rounded-xl border px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition ${selectedLead.status === stage ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+                        className={`rounded-xl border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest transition ${selectedLead.status === stage ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
                       >{stage}</button>
                     ))}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" onClick={() => { handleUpdateStage(selectedLead.id, "Converted"); }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-emerald-700"
                     ><CheckCircle2 size={13} /> Convert Lead</button>
                   </div>
                 </div>
@@ -791,10 +791,10 @@ export default function LeadsManagementPage() {
               <div className="min-h-0 bg-slate-50 p-4 sm:p-5 xl:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-[15px] font-black text-slate-900">Activity Timeline</h4>
-                    <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Lead journey from frontdesk to sales follow-up</p>
+                    <h4 className="text-[15px] font-pmedium text-slate-900">Activity Timeline</h4>
+                    <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Lead journey from frontdesk to sales follow-up</p>
                   </div>
-                  <div className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700">{selectedLead.source}</div>
+                  <div className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">{selectedLead.source}</div>
                 </div>
 
                 <div className="mt-4 space-y-3">
@@ -805,8 +805,8 @@ export default function LeadsManagementPage() {
                       </div>
                       <div className="flex-1 rounded-xl border border-slate-100 bg-white p-3">
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{activity.type}</p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{activity.date}</p>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{activity.type}</p>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{activity.date}</p>
                         </div>
                         <p className="mt-1 text-[12px] font-medium leading-5 text-slate-700">{activity.note}</p>
                       </div>
@@ -815,7 +815,7 @@ export default function LeadsManagementPage() {
                 </div>
 
                 <div className="mt-4 rounded-[2rem] border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Sales note</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Sales note</p>
                   <p className="mt-1.5 text-[12px] font-medium leading-5 text-blue-900">
                     This lead is coming straight from the visitor desk, so Sales can continue the conversation without re-entering the contact details.
                   </p>
@@ -864,11 +864,11 @@ export default function LeadsManagementPage() {
               {/* Core contact fields — always shown */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Phone</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
                   <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedWebsiteLead.mobileNumber || "Not shared"}</p>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Email</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
                   <p className="mt-0.5 break-all text-[12px] font-bold text-slate-900">{selectedWebsiteLead.email || "Not shared"}</p>
                 </div>
                 {(() => {
@@ -877,23 +877,23 @@ export default function LeadsManagementPage() {
                   const product = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "");
                   return product ? (
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Product / Service</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Product / Service</p>
                       <p className="mt-0.5 text-[12px] font-bold text-slate-900">{product}</p>
                     </div>
                   ) : null;
                 })()}
                 {selectedWebsiteLead.noOfPeople && (
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">No. of People</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">No. of People</p>
                     <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedWebsiteLead.noOfPeople}</p>
                   </div>
                 )}
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Received On</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received On</p>
                   <p className="mt-0.5 text-[12px] font-bold text-slate-900">{formatDateLabel(selectedWebsiteLead.recievedDate || selectedWebsiteLead.createdAt)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Received Via</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received Via</p>
                   <p className="mt-0.5 text-[12px] font-bold text-slate-900">
                     {(() => {
                       const s = (selectedWebsiteLead.source || "").toLowerCase();
@@ -952,11 +952,11 @@ export default function LeadsManagementPage() {
                 if (!fields.length) return null;
                 return (
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 px-0.5">Booking / Enquiry Details</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-2 px-0.5">Booking / Enquiry Details</p>
                     <div className="grid grid-cols-2 gap-2">
                       {fields.map(({ label, value }) => (
                         <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{label}</p>
                           <p className="mt-0.5 text-[12px] font-bold text-slate-900">{value}</p>
                         </div>
                       ))}
@@ -968,7 +968,7 @@ export default function LeadsManagementPage() {
               {/* Message */}
               {selectedWebsiteLead.message && (
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">Message</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Message</p>
                   <p className="text-[12px] font-medium leading-5 text-slate-700">{selectedWebsiteLead.message}</p>
                 </div>
               )}
@@ -978,10 +978,10 @@ export default function LeadsManagementPage() {
             {/* Sticky Footer — action buttons only */}
             <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-end gap-2 shrink-0">
               <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Closed"); setSelectedWebsiteLeadId(null); }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-emerald-700"
               ><CheckCircle2 size={12} /> Close Lead</button>
               <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Rejected"); setSelectedWebsiteLeadId(null); }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-rose-700"
               ><X size={12} /> Reject Lead</button>
             </div>
 

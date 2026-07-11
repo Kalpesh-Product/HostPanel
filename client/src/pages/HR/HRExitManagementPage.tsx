@@ -524,7 +524,7 @@ export function HRExitManagementPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -539,8 +539,8 @@ export function HRExitManagementPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Pending Requests</p>
-                <p className="text-[15px] font-black text-slate-900">{pendingCount}</p>
+                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending Requests</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{pendingCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-500 shrink-0">
                 <AlertTriangle size={16} />
@@ -548,8 +548,8 @@ export function HRExitManagementPage() {
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Active Notice Periods</p>
-                <p className="text-[15px] font-black text-slate-900">{activeNoticeCount}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Active Notice Periods</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{activeNoticeCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-[#2563EB] shrink-0">
                 <Clock size={16} />
@@ -557,8 +557,8 @@ export function HRExitManagementPage() {
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Completed Exits</p>
-                <p className="text-[15px] font-black text-slate-900">{completedCount}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Completed Exits</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{completedCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-500 shrink-0">
                 <Archive size={16} />
@@ -595,7 +595,7 @@ export function HRExitManagementPage() {
             {activeTab === "requests" && (
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-6 py-5">Employee</th>
                       <th className="px-6 py-5">Department / Role</th>
@@ -611,7 +611,7 @@ export function HRExitManagementPage() {
                       <tr key={request.id} className="hover:bg-blue-50/30 transition-all group">
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-800 bg-gradient-to-br from-[#2563EB] to-[#1e40af] text-[10px] font-semibold text-white shadow-sm">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-800 bg-gradient-to-br from-[#2563EB] to-[#1e40af] text-[10px] font-pmedium text-white shadow-sm">
                               {getInitials(request.employeeName)}
                             </div>
                             <div>
@@ -632,7 +632,7 @@ export function HRExitManagementPage() {
                           </p>
                         </td>
                         <td className="px-6 py-5 text-center">
-                          <span className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusChipClass(request.status)}`}>
+                          <span className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider ${getStatusChipClass(request.status)}`}>
                             <Clock size={10} /> {formatStatusLabel(request.status)}
                           </span>
                         </td>
@@ -641,28 +641,28 @@ export function HRExitManagementPage() {
                             <button
                               type="button"
                               onClick={() => openRequestDetails(request)}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-semibold text-[10px] uppercase transition-all"
+                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all"
                             >
                               View
                             </button>
                             <button
                               type="button"
                               onClick={() => handleApproveRequest(request)}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-green-50 hover:text-green-600 rounded-xl font-semibold text-[10px] uppercase transition-all"
+                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-green-50 hover:text-green-600 rounded-xl font-pmedium text-[10px] uppercase transition-all"
                             >
                               Approve
                             </button>
                             <button
                               type="button"
                               onClick={() => setRejectingRequest(request)}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl font-semibold text-[10px] uppercase transition-all"
+                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl font-pmedium text-[10px] uppercase transition-all"
                             >
                               Reject
                             </button>
                             <button
                               type="button"
                               onClick={() => handleExportRequestReport(request, "PDF")}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-semibold text-[10px] uppercase transition-all"
+                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all"
                             >
                               Export
                             </button>
@@ -687,7 +687,7 @@ export function HRExitManagementPage() {
             {activeTab === "notice" && (
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-6 py-5">Employee</th>
                       <th className="px-6 py-5">Department / Role</th>
@@ -701,7 +701,7 @@ export function HRExitManagementPage() {
                       <tr key={request.id} className="hover:bg-blue-50/30 transition-all group">
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-800 bg-gradient-to-br from-[#2563EB] to-[#1e40af] text-[10px] font-semibold text-white shadow-sm">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-800 bg-gradient-to-br from-[#2563EB] to-[#1e40af] text-[10px] font-pmedium text-white shadow-sm">
                               {getInitials(request.employeeName)}
                             </div>
                             <div>
@@ -736,7 +736,7 @@ export function HRExitManagementPage() {
                           <button
                             type="button"
                             onClick={() => openManageChecklist(request)}
-                            className={`mx-auto inline-flex items-center gap-1.5 rounded-xl px-4 py-2 font-semibold text-[10px] uppercase transition-all ${
+                            className={`mx-auto inline-flex items-center gap-1.5 rounded-xl px-4 py-2 font-pmedium text-[10px] uppercase transition-all ${
                               request.canComplete
                                 ? "bg-green-600 text-white shadow-md shadow-green-200 hover:bg-green-700"
                                 : "bg-blue-50 text-[#2563EB] hover:bg-blue-100"
@@ -764,7 +764,7 @@ export function HRExitManagementPage() {
             {activeTab === "history" && (
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-6 py-5">Employee</th>
                       <th className="px-6 py-5">Department / Role</th>
@@ -779,7 +779,7 @@ export function HRExitManagementPage() {
                       <tr key={request.id} className="opacity-80 hover:opacity-100 hover:bg-blue-50/30 transition-all group">
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-500 bg-gradient-to-br from-slate-400 to-slate-500 text-[10px] font-semibold text-white shadow-sm">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-500 bg-gradient-to-br from-slate-400 to-slate-500 text-[10px] font-pmedium text-white shadow-sm">
                               {getInitials(request.employeeName)}
                             </div>
                             <div>
@@ -799,7 +799,7 @@ export function HRExitManagementPage() {
                           </p>
                         </td>
                         <td className="px-6 py-5 text-center">
-                          <span className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusChipClass(request.status)}`}>
+                          <span className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider ${getStatusChipClass(request.status)}`}>
                             <Archive size={10} /> {formatStatusLabel(request.status)}
                           </span>
                         </td>
@@ -807,7 +807,7 @@ export function HRExitManagementPage() {
                           <button
                             type="button"
                             onClick={() => openRequestDetails(request)}
-                            className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-semibold text-[10px] uppercase transition-all"
+                            className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all"
                           >
                             View Details
                           </button>
@@ -857,7 +857,7 @@ export function HRExitManagementPage() {
             <div className="flex-1 overflow-y-auto bg-white p-6 md:p-8">
               <div className="space-y-6">
                 <section>
-                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Employee Information</h3>
+                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Employee Information</h3>
                   <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-5">
                     <div className="col-span-2">
                       <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">Name</p>
@@ -878,7 +878,7 @@ export function HRExitManagementPage() {
                 </section>
 
                 <section>
-                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Exit Details</h3>
+                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Exit Details</h3>
                   <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-blue-50/40 p-5 md:grid-cols-3">
                     <div>
                       <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-blue-500">Applied Date</p>
@@ -913,7 +913,7 @@ export function HRExitManagementPage() {
 
                 {viewingRequest.status === "approved" && (
                   <section>
-                    <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Clearance Checklist</h3>
+                    <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Clearance Checklist</h3>
                     <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-5">
                       {Array.isArray(viewingRequest.checklist) && viewingRequest.checklist.length > 0 ? (
                         viewingRequest.checklist.map((item) => (
@@ -941,17 +941,17 @@ export function HRExitManagementPage() {
             </div>
 
             <div className="flex shrink-0 gap-3 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => setViewingRequest(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-100">Close</button>
-              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "PDF")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">EXPORT PDF</button>
-              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "Excel")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">EXPORT EXCEL</button>
+              <button type="button" onClick={() => setViewingRequest(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Close</button>
+              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "PDF")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">EXPORT PDF</button>
+              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "Excel")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-pmedium text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">EXPORT EXCEL</button>
               {viewingRequest.status === "pending" && (
                 <>
-                  <button type="button" onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} className="flex-1 rounded-2xl border border-red-200 bg-white py-4 font-semibold text-red-600 transition hover:bg-red-50">Reject Request</button>
-                  <button type="button" onClick={() => handleApproveRequest(viewingRequest)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700">Approve & Start Notice</button>
+                  <button type="button" onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} className="flex-1 rounded-2xl border border-red-200 bg-white py-4 font-pmedium text-red-600 transition hover:bg-red-50">Reject Request</button>
+                  <button type="button" onClick={() => handleApproveRequest(viewingRequest)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-pmedium text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700">Approve & Start Notice</button>
                 </>
               )}
               {viewingRequest.status === "approved" && (
-                <button type="button" onClick={() => openManageChecklist(viewingRequest)} className="flex-1 rounded-2xl bg-green-600 py-4 font-semibold text-white shadow-lg shadow-green-200 transition hover:bg-green-700">Open Checklist</button>
+                <button type="button" onClick={() => openManageChecklist(viewingRequest)} className="flex-1 rounded-2xl bg-green-600 py-4 font-pmedium text-white shadow-lg shadow-green-200 transition hover:bg-green-700">Open Checklist</button>
               )}
             </div>
           </div>
@@ -1000,7 +1000,7 @@ export function HRExitManagementPage() {
                   ))}
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <div className="mb-3 flex items-center justify-between text-xs font-pmedium uppercase tracking-wider text-slate-500">
                     <span>Checklist Progress</span>
                     <span>{managingExit.completedChecklistCount || 0}/{managingExit.totalChecklistCount || 0}</span>
                   </div>
@@ -1015,8 +1015,8 @@ export function HRExitManagementPage() {
             </div>
 
             <div className="flex shrink-0 gap-4 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => setManagingExit(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-100">Save Progress & Close</button>
-              <button type="button" onClick={handleCompleteExit} disabled={!managingExit.canComplete} className="flex-1 rounded-2xl bg-green-600 py-4 font-semibold text-white shadow-lg shadow-green-200 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+              <button type="button" onClick={() => setManagingExit(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Save Progress & Close</button>
+              <button type="button" onClick={handleCompleteExit} disabled={!managingExit.canComplete} className="flex-1 rounded-2xl bg-green-600 py-4 font-pmedium text-white shadow-lg shadow-green-200 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
                 <UserMinus size={18} className="mr-2 inline-block" /> Complete Exit
               </button>
             </div>
@@ -1045,7 +1045,7 @@ export function HRExitManagementPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Reason for Rejection *</label>
+                <label className="text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Reason for Rejection *</label>
                 <textarea
                   className="w-full resize-none rounded-xl border-2 border-transparent bg-slate-50 p-4 font-medium text-slate-900 outline-none transition focus:border-red-400"
                   rows={4}
@@ -1056,8 +1056,8 @@ export function HRExitManagementPage() {
               </div>
             </div>
             <div className="flex gap-4 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-100">Cancel</button>
-              <button type="button" disabled={!rejectReason.trim()} onClick={handleRejectSubmit} className="flex-1 rounded-2xl bg-red-600 py-4 font-semibold text-white shadow-lg shadow-red-200 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">Confirm Rejection</button>
+              <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Cancel</button>
+              <button type="button" disabled={!rejectReason.trim()} onClick={handleRejectSubmit} className="flex-1 rounded-2xl bg-red-600 py-4 font-pmedium text-white shadow-lg shadow-red-200 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">Confirm Rejection</button>
             </div>
           </div>
         </div>

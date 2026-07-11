@@ -551,9 +551,9 @@ function buildResourcesExportRows(items = [], scopeLabel = 'Resources', filters 
 }
 
 function statusBadge(status) {
-  if (status === 'Active') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>;
-  if (status === 'Under Maintenance') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-black uppercase tracking-wider"><AlertTriangle size={12} /> Maintenance</span>;
-  return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wider"><XCircle size={12} /> Disabled</span>;
+  if (status === 'Active') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>;
+  if (status === 'Under Maintenance') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><AlertTriangle size={12} /> Maintenance</span>;
+  return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><XCircle size={12} /> Disabled</span>;
 }
 
 const RESOURCE_FULL_DAY_HOURS = 24;
@@ -1482,7 +1482,7 @@ export default function PricingPackagesPage() {
       <div className="flex min-h-full items-center justify-center bg-[#F8FAFC]">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2563EB] border-t-transparent" />
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Loading pricing data...</p>
+          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Loading pricing data...</p>
         </div>
       </div>
     );
@@ -1550,7 +1550,7 @@ export default function PricingPackagesPage() {
             const Icon = tab.icon;
             return (
               <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
               ><Icon size={14} /> {tab.label}</button>
             );
           })}
@@ -1560,29 +1560,29 @@ export default function PricingPackagesPage() {
         <div className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Resources Priced</p>
-              <p className="text-[15px] font-black text-slate-900">{resources.length}</p>
+              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Resources Priced</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{resources.length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Monitor size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-1">Membership Packages</p>
-              <p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p>
+              <p className="text-[10px] font-pmedium text-indigo-600 uppercase tracking-widest mb-1">Membership Packages</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{membershipPackages.length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600 shrink-0"><CreditCard size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Tenant Packages</p>
-              <p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p>
+              <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Tenant Packages</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{tenantPackages.length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Building2 size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Recommended</p>
-              <p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
+              <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Recommended</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Tag size={16} /></div>
           </div>
@@ -1596,7 +1596,7 @@ export default function PricingPackagesPage() {
                 {activeTab === 'membership' && <><CreditCard size={18} className="text-indigo-600" /> Credit Memberships</>}
                 {activeTab === 'tenant' && <><Building2 size={18} className="text-emerald-600" /> Tenant Packages</>}
               </h2>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">
+              <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
                 {activeTab === 'resource' && 'Update rates and credits by category, area block, floor, and wing.'}
                 {activeTab === 'membership' && 'Create credit plans for recurring users.'}
                 {activeTab === 'tenant' && 'Create contract bundles used by tenant companies.'}
@@ -1607,11 +1607,11 @@ export default function PricingPackagesPage() {
               <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             {activeTab === 'resource' ? (
-              <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+              <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                 <Plus size={16} /> ADD RESOURCE
               </button>
             ) : (
-              <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+              <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                 <Plus size={16} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
               </button>
             )}
@@ -1621,13 +1621,13 @@ export default function PricingPackagesPage() {
             <div className="border-b border-slate-100 bg-white p-3">
               <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Filters</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Filters</p>
                   <p className="mt-1 text-sm font-semibold text-slate-600">Narrow resources by category, floor, wing, and status.</p>
                 </div>
                 <button
                   type="button"
                   onClick={clearResourceFilters}
-                  className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                 >
                   <X size={14} /> Reset Filters
                 </button>
@@ -1635,7 +1635,7 @@ export default function PricingPackagesPage() {
 
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Category</label>
                   <select
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                     value={resourceCategoryFilter}
@@ -1649,7 +1649,7 @@ export default function PricingPackagesPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Floor</label>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Floor</label>
                   <select
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                     value={resourceFloorFilter}
@@ -1663,7 +1663,7 @@ export default function PricingPackagesPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Wing</label>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Wing</label>
                   <select
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                     value={resourceWingFilter}
@@ -1677,7 +1677,7 @@ export default function PricingPackagesPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</label>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Status</label>
                   <select
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                     value={resourceStatusFilter}
@@ -1695,7 +1695,7 @@ export default function PricingPackagesPage() {
 
           <div className="flex-1 overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
+              <thead className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
                 {activeTab === 'resource' ? (
                   <tr><th className="px-3.5 py-2 w-8 text-center">#</th><th className="px-3.5 py-2">Resource</th><th className="px-3.5 py-2">Category</th><th className="px-3.5 py-2">Inventory</th><th className="px-3.5 py-2">Floor</th><th className="px-3.5 py-2">Wing</th><th className="px-3.5 py-2">Capacity</th><th className="px-3.5 py-2">Hourly</th><th className="px-3.5 py-2">Daily</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
                 ) : activeTab === 'membership' ? (
@@ -1713,14 +1713,14 @@ export default function PricingPackagesPage() {
                     <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{getResourceCategoryLabel(item.resourceCategory)}</td>
                     <td className="px-3.5 py-2">
                       {isDeskCategory(item.resourceCategory) ? (
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${item.inventoryMode === 'area'
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest ${item.inventoryMode === 'area'
                           ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
                           : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                           }`}>
                           {getInventoryModeLabel(item.inventoryMode)}
                         </span>
                       ) : (
-                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                           Not applicable
                         </span>
                       )}
@@ -1746,12 +1746,12 @@ export default function PricingPackagesPage() {
                   <tr key={item.recordId} className={`transition-all hover:bg-indigo-50/30 ${item.status === 'Disabled' ? 'opacity-60' : ''}`}>
                     <td className="px-3.5 py-2">
                       <p className="text-[12px] font-bold text-slate-900">{item.name}</p>
-                      <p className="mt-0.5 max-w-65 truncate text-[10px] font-bold text-slate-500" title={item.description}>{item.description || 'No description added.'}</p>
+                      <p className="mt-0.5 max-w-65 truncate text-[10px] font-pmedium text-slate-500" title={item.description}>{item.description || 'No description added.'}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {item.isRecommended ? <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">Recommended</span> : null}
-                        {item.isCustom ? <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">Custom</span> : null}
+                        {item.isRecommended ? <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-amber-700">Recommended</span> : null}
+                        {item.isCustom ? <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">Custom</span> : null}
                         {item.assignedTenantCompanyId ? (
-                          <span className="inline-flex rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-rose-700">
+                          <span className="inline-flex rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-rose-700">
                             Locked to {item.assignedTenantCompanyName || 'tenant'}
                           </span>
                         ) : null}
@@ -1761,7 +1761,7 @@ export default function PricingPackagesPage() {
                       {item.category === 'Tenant' ? (
                         <div className="space-y-1">
                           <p>{Array.from(new Set((item.locationMappings || []).map((mapping) => getTenantResourceLocation(mapping)).filter(Boolean))).join(', ') || 'Unassigned'}</p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                             {Number(item.openDesks || 0)} open / {Number(item.cabinDesks || 0)} cabin / {Number(item.totalSeats || item.seatsIncluded || 0)} seats
                           </p>
                         </div>
@@ -1770,21 +1770,21 @@ export default function PricingPackagesPage() {
                     <td className="px-3.5 py-2">
                       {item.category === 'Tenant' ? (
                         <div className="flex flex-col gap-1">
-                          <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700">
+                          <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-pmedium uppercase text-indigo-700">
                             <Tag size={10} /> {Number(item.monthlyCredits || item.creditsIncluded || 0)} Monthly Credits
                           </span>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                             {Math.round(Number(item.creditsPerSeat || 0))} / seat, expires monthly
                           </span>
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700"><Tag size={10} /> {item.creditsIncluded} Credits</span>
+                        <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-pmedium uppercase text-indigo-700"><Tag size={10} /> {item.creditsIncluded} Credits</span>
                       )}
                     </td>
                     <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{durationLabel(item.durationMonths)}</td>
                     <td className="px-3.5 py-2 text-[12px] font-bold text-emerald-600">
                       <div>{formatCurrency(item.price)}</div>
-                      <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      <div className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                         {item.category === 'Tenant' && item.durationMonths > 0
                           ? `${formatCurrency(item.price / item.durationMonths)} / month`
                           : 'Total price'}
@@ -1850,7 +1850,7 @@ export default function PricingPackagesPage() {
                   <h2 className="flex items-center gap-2 text-sm font-pmedium text-primary tracking-tight">
                     <UploadCloud size={20} /> Bulk Upload Resources
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
                 </div>
                 <button onClick={() => setIsBulkUploadOpen(false)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X size={18} />
@@ -1863,7 +1863,7 @@ export default function PricingPackagesPage() {
                   onClick={() => setIsTemplateInfoOpen(!isTemplateInfoOpen)}
                   className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Template required</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Template required</p>
                   <ChevronDown
                     size={16}
                     className={`text-blue-500 transition-transform duration-200 ${isTemplateInfoOpen ? 'rotate-0' : '-rotate-90'}`}
@@ -1878,18 +1878,18 @@ export default function PricingPackagesPage() {
                       </p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
                       <div className="grid gap-2 text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-600">Required</span>
+                          <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-pmedium text-red-600">Required</span>
                           <span className="font-semibold text-slate-700">name, location, resourceCategory, floor, capacity</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-600">Conditional</span>
+                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-pmedium text-amber-600">Conditional</span>
                           <span className="font-semibold text-slate-700">inventoryMode (for open desks)</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">Optional</span>
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-pmedium text-slate-500">Optional</span>
                           <span className="font-semibold text-slate-700">wing, description, pricePerHour, pricePerDay, credits, status</span>
                         </div>
                       </div>
@@ -1902,7 +1902,7 @@ export default function PricingPackagesPage() {
                   onClick={() => setIsAllowedValuesOpen(!isAllowedValuesOpen)}
                   className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Allowed values</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Allowed values</p>
                   <ChevronDown
                     size={16}
                     className={`text-blue-500 transition-transform duration-200 ${isAllowedValuesOpen ? 'rotate-0' : '-rotate-90'}`}
@@ -1931,7 +1931,7 @@ export default function PricingPackagesPage() {
                     type="button"
                     onClick={() => bulkUploadInputRef.current?.click()}
                     disabled={isBulkImporting}
-                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
+                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
                   >
                     <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
                   </button>
@@ -1939,14 +1939,14 @@ export default function PricingPackagesPage() {
 
                 {bulkUploadFileName ? (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected file</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Selected file</p>
                     <p className="mt-2 text-sm font-semibold text-slate-800">{bulkUploadFileName}</p>
                   </div>
                 ) : null}
               </div>
 
               <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
-                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black transition-all hover:bg-slate-50">
+                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-pmedium transition-all hover:bg-slate-50">
                   Close
                 </button>
               </div>
@@ -1960,33 +1960,33 @@ export default function PricingPackagesPage() {
               <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
                 <div>
                   <h2 className="flex items-center gap-2 text-sm font-pmedium text-white"><UploadCloud size={16} /> Bulk Upload Results</h2>
-                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Import completed for {bulkUploadSummary.fileName}</p>
+                  <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Import completed for {bulkUploadSummary.fileName}</p>
                 </div>
                 <button type="button" onClick={() => setBulkUploadSummary(null)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
               </div>
               <div className="p-4 sm:p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Created</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Created</p>
                     <p className="mt-1 text-2xl font-black text-emerald-700">{bulkUploadSummary.createdCount}</p>
                   </div>
                   <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-red-600">Failed</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600">Failed</p>
                     <p className="mt-1 text-2xl font-black text-red-700">{bulkUploadSummary.failedCount}</p>
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Processed {bulkUploadSummary.processedRows} of {bulkUploadSummary.totalRows} rows</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Processed {bulkUploadSummary.processedRows} of {bulkUploadSummary.totalRows} rows</p>
                 </div>
                 {bulkUploadSummary.failedRows.length > 0 ? (
                   <div className="rounded-xl border border-red-100 bg-red-50 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-red-600 mb-2">Errors (first 5)</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600 mb-2">Errors (first 5)</p>
                     <ul className="space-y-1">
                       {bulkUploadSummary.failedRows.map((msg, i) => <li key={i} className="text-[11px] font-medium text-red-700">{msg}</li>)}
                     </ul>
                   </div>
                 ) : null}
-                <button type="button" onClick={() => setBulkUploadSummary(null)} className="w-full rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">CLOSE</button>
+                <button type="button" onClick={() => setBulkUploadSummary(null)} className="w-full rounded-xl bg-blue-600 py-2.5 text-[11px] font-pmedium text-white transition-all hover:bg-blue-700">CLOSE</button>
               </div>
             </div>
           </div>
@@ -2001,7 +2001,7 @@ export default function PricingPackagesPage() {
                     {modalKind === 'resource' ? (modalMode === 'add' ? <Plus size={16} /> : isViewingResource ? <Eye size={16} /> : <Monitor size={16} />) : isViewingPackage ? <Eye size={16} /> : <Plus size={16} />}
                     {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
                   </h2>
-                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
                     {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
                   </p>
                 </div>
@@ -2023,24 +2023,24 @@ export default function PricingPackagesPage() {
                     <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 shadow-sm">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Resource snapshot</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Resource snapshot</p>
                           <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Summary before saving.</p>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                          <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
                             {getResourceCategoryLabel(addResourceForm.resourceCategory)}
                           </span>
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
                             {addResourceForm.location || 'Location pending'}
                           </span>
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
                             Floor {addResourceForm.floor || '--'}
                           </span>
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
                             Wing {addResourceForm.wing || 'N/A'}
                           </span>
                           {isDeskCategory(addResourceForm.resourceCategory) ? (
-                            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
                               {getInventoryModeLabel(addResourceForm.inventoryMode)}
                             </span>
                           ) : null}
@@ -2049,17 +2049,17 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
                       <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
                     <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Location *</label>
+                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-1.5">
                             <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
-                            <button type="button" onClick={() => { setLocationMode('select'); setAddResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                            <button type="button" onClick={() => { setLocationMode('select'); setAddResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
@@ -2078,7 +2078,7 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Category *</label>
+                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
                         <select required className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.resourceCategory} onChange={(e) => {
                           const nextCategory = e.target.value;
                           const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
@@ -2097,7 +2097,7 @@ export default function PricingPackagesPage() {
 
                       {addResourceForm.resourceCategory === 'open_desk' ? (
                         <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
+                          <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
                           <div className="relative">
                             <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.inventoryMode} onChange={(e) => {
                               const nextInventoryMode = e.target.value;
@@ -2116,11 +2116,11 @@ export default function PricingPackagesPage() {
                       ) : null}
 
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-1.5">
                             <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
-                            <button type="button" onClick={() => { setFloorMode('select'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                            <button type="button" onClick={() => { setFloorMode('select'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
@@ -2139,11 +2139,11 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Wing</label>
+                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-1.5">
                             <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
-                            <button type="button" onClick={() => { setWingMode('select'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                            <button type="button" onClick={() => { setWingMode('select'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
@@ -2163,7 +2163,7 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
                         {isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
                       {(() => {
@@ -2191,15 +2191,15 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
                       <textarea rows={2} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
 
                     <div className="border-t border-slate-100 pt-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-2">Pricing & Credits (set by Sales)</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600 mb-2">Pricing & Credits (set by Sales)</p>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
+                          <label className="text-[10px] font-pmedium text-slate-800">Price Per Hour (&#8377;)</label>
                           <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
@@ -2209,7 +2209,7 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
+                          <label className="text-[10px] font-pmedium text-slate-800">Price Per Day (&#8377;)</label>
                           <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
@@ -2219,14 +2219,14 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-800">Credits</label>
+                          <label className="text-[10px] font-pmedium text-slate-800">Credits</label>
                           <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Status</label>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Status</label>
                       <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
                         {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </select>
@@ -2235,37 +2235,37 @@ export default function PricingPackagesPage() {
                 ) : modalKind === 'resource' ? (
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-blue-500">Resource</p>
+                      <p className="text-[11px] font-pmedium uppercase tracking-widest text-blue-500">Resource</p>
                       <p className="mt-1 text-base font-black text-blue-900">{resourceForm.name || selectedItem?.name}</p>
                       <p className="text-[12px] font-semibold text-blue-700">{resourceForm.type || selectedItem?.type}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
                           {getResourceCategoryLabel(resourceForm.resourceCategory)}
                         </span>
-                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
                           {isDeskCategory(resourceForm.resourceCategory) ? getInventoryModeLabel(resourceForm.inventoryMode) : 'Not applicable'}
                         </span>
-                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
                           Floor {resourceForm.floor || '--'}
                         </span>
-                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
                           Wing {resourceForm.wing || '--'}
                         </span>
                       </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
                       <input required disabled={isViewingResource} type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
                     <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Location *</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-2">
                             <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
-                            {!isViewingResource && <button type="button" onClick={() => { setLocationMode('select'); setResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                            {!isViewingResource && <button type="button" onClick={() => { setLocationMode('select'); setResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
@@ -2284,7 +2284,7 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Category *</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
                         <select required disabled={isViewingResource} className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
                           const nextCategory = e.target.value;
                           const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
@@ -2303,7 +2303,7 @@ export default function PricingPackagesPage() {
 
                       {resourceForm.resourceCategory === 'open_desk' ? (
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
+                          <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
                           <div className="relative">
                             <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
                               const nextInventoryMode = e.target.value;
@@ -2322,11 +2322,11 @@ export default function PricingPackagesPage() {
                       ) : null}
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-2">
                             <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
-                            {!isViewingResource && <button type="button" onClick={() => { setFloorMode('select'); setResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                            {!isViewingResource && <button type="button" onClick={() => { setFloorMode('select'); setResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
@@ -2345,11 +2345,11 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wing</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-2">
                             <input disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
-                            {!isViewingResource && <button type="button" onClick={() => { setWingMode('select'); setResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                            {!isViewingResource && <button type="button" onClick={() => { setWingMode('select'); setResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
@@ -2369,7 +2369,7 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                         {isDeskCategory(resourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
                       {(() => {
@@ -2397,12 +2397,12 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
                       <textarea disabled={isViewingResource} rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
 
                     <div className="border-t border-slate-100 pt-4">
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-amber-600 mb-3">Pricing & Credits (set by Sales)</p>
+                      <p className="text-[11px] font-pmedium uppercase tracking-widest text-amber-600 mb-3">Pricing & Credits (set by Sales)</p>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="space-y-1">
                           <label className="text-[11px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
@@ -2432,18 +2432,18 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Status</label>
                       <select disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
                         {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </select>
                     </div>
 
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Preview</p>
+                      <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p>
                       <p className="mt-1 text-sm font-bold text-slate-800">
                         {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day` : 'Daily rate not set'}
                       </p>
-                      <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                      <p className="mt-1 text-[11px] font-pmedium uppercase tracking-widest text-slate-400">
                         {getResourceCreditSummary({
                           ...selectedItem,
                           credits: Number(resourceForm.credits || selectedItem?.credits || 1),
@@ -2456,7 +2456,7 @@ export default function PricingPackagesPage() {
                     <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Package Details</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Package Details</p>
                           <h3 className="mt-1 text-lg font-black text-slate-900">{selectedPackage.name || '--'}</h3>
                           <p className="mt-0.5 text-[12px] font-bold text-slate-600">{viewPackageCategory} Package</p>
                           {selectedPackage.assignedTenantCompanyName ? (
@@ -2466,12 +2466,12 @@ export default function PricingPackagesPage() {
                         <div className="flex flex-wrap gap-2">
                           {statusBadge(selectedPackage.status || packageForm.status)}
                           {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
-                            <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">
+                            <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-amber-700">
                               Recommended
                             </span>
                           ) : null}
                           {hasMeaningfulValue(selectedPackage.packageCode) ? (
-                            <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-700">
+                            <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
                               Code {selectedPackage.packageCode}
                             </span>
                           ) : null}
@@ -2484,13 +2484,13 @@ export default function PricingPackagesPage() {
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                           {hasMeaningfulValue(viewPackageDurationMonths) ? (
                             <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Contract Duration</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Contract Duration</p>
                               <p className="mt-1 text-base font-black text-blue-900">{viewPackageDurationMonths} months</p>
                             </div>
                           ) : null}
                           {(hasMeaningfulValue(viewPackageRatePerOpenDesk) || hasMeaningfulValue(viewPackageRatePerCabinDesk)) ? (
                             <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Desk Rates</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-700">Desk Rates</p>
                               <p className="mt-1 text-[12px] font-black text-amber-900">
                                 {hasMeaningfulValue(viewPackageRatePerOpenDesk) ? `${formatCurrency(viewPackageRatePerOpenDesk)} open` : null}
                                 {hasMeaningfulValue(viewPackageRatePerOpenDesk) && hasMeaningfulValue(viewPackageRatePerCabinDesk) ? ' / ' : null}
@@ -2500,14 +2500,14 @@ export default function PricingPackagesPage() {
                           ) : null}
                           {hasMeaningfulValue(viewPackageMonthlyRate) ? (
                             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Monthly Rent</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Monthly Rent</p>
                               <p className="mt-1 text-base font-black text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
                               <p className="mt-0.5 text-[10px] font-medium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
                             </div>
                           ) : null}
                           {hasMeaningfulValue(viewPackageTotalContractValue) ? (
                             <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Contract Value</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-purple-600">Total Contract Value</p>
                               <p className="mt-1 text-base font-black text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
                               <p className="mt-0.5 text-[10px] font-medium text-purple-600">Monthly rent x duration</p>
                             </div>
@@ -2516,29 +2516,29 @@ export default function PricingPackagesPage() {
 
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Scope</p>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Scope</p>
                             <dl className="mt-3 space-y-3">
                               {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Floor</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Floor</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Wing</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Wing</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageLocationMappings.length) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Selected Blocks</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Selected Blocks</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageLocationMappings.length}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(selectedPackage.locationLabel) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Location Label</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Location Label</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.locationLabel}</dd>
                                 </div>
                               ) : null}
@@ -2546,41 +2546,41 @@ export default function PricingPackagesPage() {
                           </div>
 
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Allocation</p>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Allocation</p>
                             <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                               {hasMeaningfulValue(viewPackageOpenDesks) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Open Desks</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageOpenDesks}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageCabinDesks) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCabinDesks}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageTotalSeats) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageTotalSeats}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageCreditsPerSeat) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits / Seat</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCreditsPerSeat}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
                                 <div>
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageMonthlyCredits}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
                                 <div className="sm:col-span-2">
-                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Company</dt>
+                                  <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Company</dt>
                                   <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
                                 </div>
                               ) : null}
@@ -2590,7 +2590,7 @@ export default function PricingPackagesPage() {
 
                         {viewPackageLocationMappings.length > 0 ? (
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Included Blocks</p>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Included Blocks</p>
                             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {viewPackageLocationMappings.map((mapping) => (
                                 <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
@@ -2600,7 +2600,7 @@ export default function PricingPackagesPage() {
                                     {hasMeaningfulValue(mapping.floor) && hasMeaningfulValue(mapping.wing) ? ' / ' : ''}
                                     {hasMeaningfulValue(mapping.wing) ? `Wing ${mapping.wing}` : null}
                                   </p>
-                                  <p className="mt-0.5 text-[10px] font-bold text-slate-500">
+                                  <p className="mt-0.5 text-[10px] font-pmedium text-slate-500">
                                     {hasMeaningfulValue(mapping.seatType) ? `${mapping.seatType} desk` : 'Desk'}{hasMeaningfulValue(mapping.seatsAllocated) ? ` / ${mapping.seatsAllocated} seats` : ''}
                                   </p>
                                 </div>
@@ -2611,14 +2611,14 @@ export default function PricingPackagesPage() {
 
                         {hasMeaningfulValue(selectedPackage.description) ? (
                           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</p>
                             <p className="mt-1 text-[12px] leading-relaxed text-slate-700">{selectedPackage.description}</p>
                           </div>
                         ) : null}
 
                         {viewPackageFeatures.length > 0 ? (
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Feature Bullets</p>
                             <ul className="mt-2 space-y-1.5">
                               {viewPackageFeatures.map((feature) => (
                                 <li key={feature} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-medium text-slate-700">
@@ -2634,48 +2634,48 @@ export default function PricingPackagesPage() {
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                           {hasMeaningfulValue(selectedPackage.creditsIncluded) ? (
                             <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Credits Included</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-indigo-600">Credits Included</p>
                               <p className="mt-1 text-base font-black text-indigo-900">{selectedPackage.creditsIncluded}</p>
                             </div>
                           ) : null}
                           {hasMeaningfulValue(viewPackagePrice) ? (
                             <div className="rounded-xl border border-slate-200 bg-white p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Price</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Price</p>
                               <p className="mt-1 text-base font-black text-slate-900">{formatCurrency(viewPackagePrice)}</p>
                             </div>
                           ) : null}
                           {hasMeaningfulValue(viewPackageDurationMonths) ? (
                             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Duration</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Duration</p>
                               <p className="mt-1 text-base font-black text-emerald-700">{viewPackageDurationMonths} months</p>
                             </div>
                           ) : null}
                         </div>
 
                         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Summary</p>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Summary</p>
                           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {hasMeaningfulValue(viewPackageTotalSeats) ? (
                               <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Seats Included</p>
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Seats Included</p>
                                 <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageTotalSeats}</p>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
                               <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</p>
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p>
                                 <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageMonthlyCredits}</p>
                               </div>
                             ) : null}
                             {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
                               <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recommended</p>
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Recommended</p>
                                 <p className="mt-1 text-sm font-bold text-slate-700">Yes</p>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
                               <div className="sm:col-span-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Company</p>
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Company</p>
                                 <p className="mt-1 text-sm font-bold text-slate-700">{selectedPackage.assignedTenantCompanyName}</p>
                               </div>
                             ) : null}
@@ -2684,14 +2684,14 @@ export default function PricingPackagesPage() {
 
                         {hasMeaningfulValue(selectedPackage.description) ? (
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description</p>
                             <p className="mt-2 text-sm leading-relaxed text-slate-700">{selectedPackage.description}</p>
                           </div>
                         ) : null}
 
                         {viewPackageFeatures.length > 0 ? (
                           <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Feature Bullets</p>
                             <ul className="mt-3 space-y-2">
                               {viewPackageFeatures.map((feature) => (
                                 <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
@@ -2723,7 +2723,7 @@ export default function PricingPackagesPage() {
                         <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                           <div className="mb-3 flex items-center gap-2">
                             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white"><Building2 size={14} /></div>
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-700">Location Scope</p>
+                            <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-700">Location Scope</p>
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div className="space-y-1">
@@ -2783,9 +2783,9 @@ export default function PricingPackagesPage() {
                               <div className="mb-2 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><LayoutGrid size={12} /></div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
+                                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
                                 </div>
-                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
                                   {tenantOpenDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantOpenDeskResources.length}
                                 </span>
                               </div>
@@ -2797,11 +2797,11 @@ export default function PricingPackagesPage() {
                                       <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
                                       <div className="min-w-0 flex-1">
                                         <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
-                                        <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                        <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                         {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
                                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                                             {resource.seatLabels.map((seatLabel) => (
-                                              <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                              <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
                                                 {seatLabel}
                                               </span>
                                             ))}
@@ -2820,9 +2820,9 @@ export default function PricingPackagesPage() {
                               <div className="mb-2 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700"><LayoutGrid size={12} /></div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
+                                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
                                 </div>
-                                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
                                   {tenantCabinDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantCabinDeskResources.length}
                                 </span>
                               </div>
@@ -2834,11 +2834,11 @@ export default function PricingPackagesPage() {
                                       <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
                                       <div className="min-w-0 flex-1">
                                         <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
-                                        <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                        <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                         {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
                                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                                             {resource.seatLabels.map((seatLabel) => (
-                                              <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                              <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
                                                 {seatLabel}
                                               </span>
                                             ))}
@@ -2866,7 +2866,7 @@ export default function PricingPackagesPage() {
                             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white">
                               <Tag size={14} />
                             </div>
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-amber-800">Tenant Package Rates</p>
+                            <p className="text-[11px] font-pmedium uppercase tracking-widest text-amber-800">Tenant Package Rates</p>
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1">
@@ -2894,45 +2894,45 @@ export default function PricingPackagesPage() {
                           </div>
                           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
                             <div className="rounded-xl border border-white/70 bg-white p-2.5">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Daily Rent</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Daily Rent</p>
                               <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.dailyRateTotal)}</p>
                             </div>
                             <div className="rounded-xl border border-white/70 bg-white p-2.5">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rent</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p>
                               <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
                             </div>
                             <div className="rounded-xl border border-white/70 bg-white p-2.5">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Value</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Value</p>
                               <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
                             </div>
                           </div>
                         </div>
 
                         <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
-                          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Package Summary</p>
+                          <p className="mb-3 text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Package Summary</p>
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                             <div className="rounded-xl border border-emerald-100 bg-white p-2.5 text-center shadow-sm">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p>
                               <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.totalSeats}</p>
                               <p className="text-[9px] font-bold text-slate-400">{tenantPackageSummary.openDesks} open / {tenantPackageSummary.cabinDesks} cabin</p>
                             </div>
                             <div className="rounded-xl border border-indigo-100 bg-white p-2.5 text-center shadow-sm">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits / Seat</p>
                               <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.creditsPerSeat}</p>
                               <p className="text-[9px] font-bold text-slate-400">per month</p>
                             </div>
                             <div className="rounded-xl border-2 border-purple-300 bg-purple-50/70 p-2.5 text-center shadow-sm">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Monthly Credits</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-purple-600">Total Monthly Credits</p>
                               <p className="mt-1 text-base font-black text-purple-700">{tenantPackageSummary.monthlyCredits}</p>
                               <p className="text-[9px] font-bold text-purple-600">auto-renews</p>
                             </div>
                             <div className="rounded-xl border border-blue-100 bg-white p-2.5 text-center shadow-sm">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rate</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rate</p>
                               <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
                               <p className="text-[9px] font-bold text-slate-400">{formatCurrency(tenantPackageSummary.dailyRateTotal)} / day</p>
                             </div>
                             <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 p-2.5 text-center shadow-sm">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Contract Value</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Contract Value</p>
                               <p className="mt-1 text-sm font-black text-emerald-700">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
                               <p className="text-[9px] font-bold text-emerald-600">{Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || 0) || TENANT_PACKAGE_MIN_DURATION_MONTHS)} months</p>
                             </div>
@@ -3051,7 +3051,7 @@ export default function PricingPackagesPage() {
 
                     {packageForm.category === 'Tenant' ? (
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Tenant package note</p>
+                        <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Tenant package note</p>
                         <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
                           Tenant packages should reflect the number of open desks and private cabins granted to the company. Monthly credits are derived from total seats multiplied by credits per seat and automatically renew each month.
                         </p>
@@ -3062,9 +3062,9 @@ export default function PricingPackagesPage() {
 
                 <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
+                    <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-[11px] font-pmedium text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
                     {!isViewingPackage && !isViewingResource ? (
-                      <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                      <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                         <Save size={14} />
                         {modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
                       </button>

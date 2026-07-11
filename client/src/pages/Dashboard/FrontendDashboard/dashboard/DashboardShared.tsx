@@ -111,7 +111,7 @@ export const RecentItem = ({ title, sub, badge, badgeColor, time }: RecentItemPr
     </div>
     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
       {time && <span className="text-small text-gray-400">{time}</span>}
-      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${badgeColor}`}>
+      <span className={`px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${badgeColor}`}>
         {badge}
       </span>
     </div>
@@ -224,7 +224,7 @@ const PLAN_BADGE_STYLES: Record<string, string> = {
 
 export const PlanBadge = ({ plan, clickable }: { plan: string; clickable?: boolean }) => (
   <span
-    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
+    className={`px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border transition-all ${
       PLAN_BADGE_STYLES[plan] ?? PLAN_BADGE_STYLES.basic
     } ${clickable ? "hover:opacity-80 hover:shadow-sm" : ""}`}
   >

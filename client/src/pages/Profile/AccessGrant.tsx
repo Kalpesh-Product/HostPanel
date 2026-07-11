@@ -1352,7 +1352,7 @@ export default function AccessGrantsPage() {
               <button
                 key={role}
                 onClick={() => setSelectedRole(role)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${
                   selectedRole === role
                     ? 'bg-[#2563EB] text-white shadow-sm'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -1384,8 +1384,8 @@ export default function AccessGrantsPage() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
                 </div>
@@ -1452,7 +1452,7 @@ export default function AccessGrantsPage() {
                       setShowTransferWarning(false);
                       setShowTransferDialog(true);
                     }}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <ArrowRightLeft size={13} strokeWidth={2.5} />
                     Transfer Founder
@@ -1578,7 +1578,7 @@ export default function AccessGrantsPage() {
             <div className="bg-white rounded-[1rem] max-w-md w-full overflow-hidden shadow-2xl border border-white/10 scale-95 sm:scale-90">
               <div className="p-2.5 sm:p-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Access Control</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Access Control</p>
                   <h2 className="text-[13px] sm:text-sm font-pmedium text-white mt-1">
                     {canEditAccessGrants ? 'Manage Access' : 'View Access'} - {selectedUser.name}
                   </h2>
@@ -1710,7 +1710,7 @@ export default function AccessGrantsPage() {
                       <button
                         onClick={roleActionWarning.type === 'promote' ? handlePromote : handleDemote}
                         disabled={isSaving || !canEditAccessGrants || (roleActionWarning.type === 'demote' && isDemoteDisabled)}
-                        className={`px-4 py-2 text-white rounded-lg font-semibold transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
+                        className={`px-4 py-2 text-white rounded-lg font-pmedium transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
                       >
                         {isSaving ? 'Saving...' : roleActionWarning.type === 'promote' ? 'Confirm Promote' : 'Confirm Demote'}
                       </button>
@@ -1822,7 +1822,7 @@ export default function AccessGrantsPage() {
             <div className="w-full max-w-2xl overflow-hidden rounded-[1.25rem] border border-white/10 bg-white shadow-2xl">
               <div className="flex items-center justify-between bg-slate-900 px-4 py-3.5">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Sidebar Access</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Sidebar Access</p>
                   <h3 className="mt-1 text-base font-semibold text-white">{memberAccessTarget.name}</h3>
                 </div>
                 <button
@@ -1837,7 +1837,7 @@ export default function AccessGrantsPage() {
               <div className="max-h-[68vh] space-y-3 overflow-y-auto bg-slate-50 p-4">
                 {workspaceAccessSections.map((section, sectionIndex) => (
                   <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{section.title}</h4>
+                    <h4 className="mb-2 text-[11px] font-pmedium uppercase tracking-wider text-slate-500">{section.title}</h4>
                     <div className="space-y-2">
                       {normalizeModuleKey(section.key) === 'department-accesses' ? (
                         groupDepartmentModules(section.modules).map((group) => {
@@ -1855,7 +1855,7 @@ export default function AccessGrantsPage() {
                                 }
                                 className="w-full flex items-center justify-between text-left"
                               >
-                                <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">{group.department}</p>
+                                <p className="text-[11px] font-pmedium text-slate-700 uppercase tracking-wider">{group.department}</p>
                                 <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isDeptExpanded ? 'rotate-180' : ''}`} />
                               </button>
                               {isDeptExpanded ? (
@@ -1935,7 +1935,7 @@ export default function AccessGrantsPage() {
                                                         return (
                                                           <div key={subtab.id} className="flex items-center justify-between rounded-md border border-slate-100 px-2 py-1.5">
                                                             <div>
-                                                              <p className="text-[10px] font-semibold text-slate-800">{subtab.label}</p>
+                                                              <p className="text-[10px] font-pmedium text-slate-800">{subtab.label}</p>
                                                               <p className="text-[10px] text-slate-500">{subtab.description}</p>
                                                             </div>
                                                             <Switch
@@ -2037,7 +2037,7 @@ export default function AccessGrantsPage() {
                                             return (
                                               <div key={subtab.id} className="flex items-center justify-between rounded-md border border-slate-100 px-2 py-1.5">
                                                 <div>
-                                                  <p className="text-[10px] font-semibold text-slate-800">{subtab.label}</p>
+                                                  <p className="text-[10px] font-pmedium text-slate-800">{subtab.label}</p>
                                                   <p className="text-[10px] text-slate-500">{subtab.description}</p>
                                                 </div>
                                                 <Switch
@@ -2068,7 +2068,7 @@ export default function AccessGrantsPage() {
                 <button
                   type="button"
                   onClick={() => setShowMemberAccessDialog(false)}
-                  className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-pmedium text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
@@ -2076,7 +2076,7 @@ export default function AccessGrantsPage() {
                   type="button"
                   disabled={isSaving || !canManageModuleAccess}
                   onClick={handleSaveMemberAccess}
-                  className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-xs font-pmedium text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : 'Save Access'}
                 </button>
@@ -2090,7 +2090,7 @@ export default function AccessGrantsPage() {
               <div className="my-6 w-full max-w-md overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
                 <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Unit Access</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Unit Access</p>
                     <h2 className="mt-1 text-sm font-semibold text-white">Add access for {selectedUser.name}</h2>
                   </div>
                   <button
@@ -2103,7 +2103,7 @@ export default function AccessGrantsPage() {
 
                 <div className="space-y-3 bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
                   <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current units</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Current units</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(selectedUser.workspaceAccesses || []).map((access) => (
                         <span key={access.id} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -2169,7 +2169,7 @@ export default function AccessGrantsPage() {
                     onClick={handleConfirmWorkspaceLink}
                     disabled={isSaving || isReadOnlySession}
                     title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
-                    className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                    className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                   >
                     {isSaving ? 'Saving...' : 'Add Access'}
                   </button>
@@ -2183,7 +2183,7 @@ export default function AccessGrantsPage() {
             <div className="my-6 w-full max-w-lg overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
               <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Unit Transfer</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Unit Transfer</p>
                   <h2 className="mt-1 text-sm font-semibold text-white">Transfer {selectedUser.name}</h2>
                 </div>
                 <button
@@ -2196,7 +2196,7 @@ export default function AccessGrantsPage() {
 
               <div className="max-h-[calc(100vh-13rem)] space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
                 <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current assignment</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Current assignment</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-slate-900">{selectedUser.name}</span>
                     {getRoleBadge(selectedUser.roleGroup)}
@@ -2369,7 +2369,7 @@ export default function AccessGrantsPage() {
                   onClick={handleConfirmWorkspaceTransfer}
                   disabled={isSaving || isReadOnlySession}
                   title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
-                  className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                  className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : `Transfer as ${selectedTransferRole.label}`}
                 </button>
@@ -2459,7 +2459,7 @@ export default function AccessGrantsPage() {
                   onClick={handleTransferOwnership}
                   disabled={isSaving || !canEditAccessGrants || eligibleOwnershipCandidates.length === 0 || isReadOnlySession}
                   title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
-                  className="btn-pill px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60"
+                  className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : showTransferWarning ? 'Confirm Transfer' : 'Review Transfer'}
                 </button>

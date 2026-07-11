@@ -55,7 +55,7 @@ const AddClient = () => {
   const onSubmit = (data: AddClientForm) => addClient(data);
 
   const selectCls = (active: boolean) =>
-    `flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all cursor-pointer border ${
+    `flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[12px] font-pmedium uppercase tracking-widest transition-all cursor-pointer border ${
       active
         ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-md shadow-blue-200'
         : 'bg-white text-slate-500 border-slate-200 hover:border-[#2563EB]/40 hover:text-slate-800'
@@ -78,14 +78,14 @@ const AddClient = () => {
           </button>
           <div>
             <h1 className="text-xl font-pmedium text-[#0F172A] tracking-tight">Add Client</h1>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">New client record</p>
+            <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">New client record</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Client type toggle */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Client Type</label>
+            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Client Type</label>
             <div className="flex gap-3">
               <button type="button" className={selectCls(clientType === 'individual')} onClick={() => setClientType('individual')}>
                 <User size={15} strokeWidth={2.5} /> Individual
@@ -99,7 +99,7 @@ const AddClient = () => {
           {/* Company name — only shown for company type */}
           {clientType === 'company' && (
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company Name *</label>
+              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Company Name *</label>
               <div className="relative">
                 <Building2 size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
@@ -114,7 +114,7 @@ const AddClient = () => {
 
           {/* Contact name */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">
               {clientType === 'company' ? 'Contact Person Name *' : 'Full Name *'}
             </label>
             <div className="relative">
@@ -131,7 +131,7 @@ const AddClient = () => {
           {/* Phone + Email side by side */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone *</label>
+              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone *</label>
               <div className="relative">
                 <Phone size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
@@ -144,7 +144,7 @@ const AddClient = () => {
               {errors.phone && <p className="text-[11px] font-bold text-red-500">{errors.phone.message}</p>}
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1">
                 Email <span className="text-slate-300 normal-case font-semibold">(optional)</span>
               </label>
               <div className="relative">
@@ -162,7 +162,7 @@ const AddClient = () => {
 
           {/* Notes */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1">
               Notes <span className="text-slate-300 normal-case font-semibold">(optional)</span>
             </label>
             <textarea
@@ -178,14 +178,14 @@ const AddClient = () => {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex-1 py-3.5 bg-white border border-slate-200 rounded-2xl font-black text-[13px] text-slate-600 hover:bg-slate-50 transition-all"
+              className="flex-1 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-slate-600 hover:bg-slate-50 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-2xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-blue-200 hover:bg-blue-600 transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none active:scale-[0.98]"
+              className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[13px] uppercase tracking-wider shadow-lg shadow-blue-200 hover:bg-blue-600 transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none active:scale-[0.98]"
             >
               {isPending ? 'Adding…' : clientType === 'company' ? 'Add Company Client' : 'Add Client'}
             </button>

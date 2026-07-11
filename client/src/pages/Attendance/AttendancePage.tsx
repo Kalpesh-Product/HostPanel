@@ -793,7 +793,7 @@ export function AttendancePage() {
                 {clockStatus === 'checked_in' ? <LogIn size={22} /> : clockStatus === 'on_break' ? <Coffee size={22} /> : <LogOut size={22} />}
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Status</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Current Status</p>
                 <p className="text-lg font-black text-slate-900 capitalize">{todayAttendanceLabel}</p>
                 {clockTime && <p className="text-xs font-semibold text-slate-500 mt-0.5">Last action: {clockTime?.toLocaleTimeString()}</p>}
               </div>
@@ -803,7 +803,7 @@ export function AttendancePage() {
                 <button
                   onClick={() => handleClockAction('in')}
                   disabled={isClockLoading || isCapturing || isTodayCompleted}
-                  className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                 >
                 {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
                 </button>
@@ -813,7 +813,7 @@ export function AttendancePage() {
                   <button
                     onClick={handleStartBreak}
                     disabled={isClockLoading || isTodayCompleted}
-                    className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-bold text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-pmedium text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Coffee size={14} />}
                     Start Break
@@ -821,7 +821,7 @@ export function AttendancePage() {
                   <button
                     onClick={() => handleClockAction('out')}
                     disabled={isClockLoading || isCapturing || isTodayCompleted}
-                    className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-bold text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-pmedium text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isCapturing ? <Camera size={14} className="animate-pulse" /> : isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogOut size={14} />}
                     Clock Out
@@ -832,7 +832,7 @@ export function AttendancePage() {
                 <button
                   onClick={handleEndBreak}
                   disabled={isClockLoading || isTodayCompleted}
-                  className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-pmedium text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
                   End Break
@@ -848,7 +848,7 @@ export function AttendancePage() {
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setSearchQuery(''); setSubTab('all'); }}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                 >
                   {tab.label}
                 </button>
@@ -871,8 +871,8 @@ export function AttendancePage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-${card.color}-500`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconBg}`}><Icon size={16} /></div>
                 </div>
@@ -886,24 +886,24 @@ export function AttendancePage() {
                 <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-sm lg:col-span-2">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Day Summary</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Day Summary</p>
                       <h3 className="mt-1 text-base font-black text-slate-900">Checkout completed</h3>
                     </div>
-                    <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">
+                    <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.24em] text-emerald-700">
                       {todayAttendanceLabel}
                     </div>
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Check In</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Check In</p>
                       <p className="mt-1 text-sm font-black text-slate-900">{todayRecord?.checkIn ? getTimeDisplay(todayRecord.checkIn) : '--'}</p>
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Check Out</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Check Out</p>
                       <p className="mt-1 text-sm font-black text-slate-900">{todayRecord?.checkOut ? getTimeDisplay(todayRecord.checkOut) : '--'}</p>
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Working Hours</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Working Hours</p>
                       <p className="mt-1 text-sm font-black text-slate-900">{formatDuration(todayRecord?.totalHours || todayRecord?.workingHours ? Number(todayRecord?.totalHours || todayRecord?.workingHours) : undefined)}</p>
                     </div>
                   </div>
@@ -915,7 +915,7 @@ export function AttendancePage() {
                 <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-sm lg:col-span-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Timeline</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Timeline</p>
                       <h3 className="mt-1 text-base font-black text-slate-900">Today actions</h3>
                     </div>
                     <Clock size={18} className="text-slate-400" />
@@ -958,7 +958,7 @@ export function AttendancePage() {
                   {activeTab === 'my-attendance' && (
                     <button
                       onClick={() => handleViewMonth(selectedMonth)}
-                      className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-pmedium uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
                     >
                       <Calendar size={13} /> View Month
                     </button>
@@ -1211,7 +1211,7 @@ export function AttendancePage() {
                   <Camera size={18} className="text-[#2563EB]" />
                   Capture Selfie
                 </h2>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+                <p className="mt-1 text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-400">
                   {clockMode === 'in' ? 'Check In' : 'Check Out'} verification
                 </p>
               </div>
@@ -1223,8 +1223,8 @@ export function AttendancePage() {
             <div className="flex-1 overflow-y-auto px-5 py-5">
               <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-950 shadow-inner">
                 <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-300">Selfie Preview</p>
-                  <div className="text-[10px] font-bold text-slate-400">
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-300">Selfie Preview</p>
+                  <div className="text-[10px] font-pmedium text-slate-400">
                     {cameraReady ? "Ready to capture" : isCapturing ? "Requesting access..." : "Waiting for access"}
                   </div>
                 </div>
@@ -1248,11 +1248,11 @@ export function AttendancePage() {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Date</p>
                   <p className="mt-1 text-xs font-bold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Time</p>
                   <p className="mt-1 text-xs font-bold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
@@ -1264,7 +1264,7 @@ export function AttendancePage() {
                 <button
                   type="button"
                   onClick={() => setShowClockModal(false)}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold uppercase text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
                 >
                   <X size={14} />
                   Cancel
@@ -1273,7 +1273,7 @@ export function AttendancePage() {
                   type="button"
                   onClick={capturedSelfie ? handleSubmitClock : handleCaptureSelfie}
                   disabled={isClockLoading || !cameraReady || !capturedLocation}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3 text-xs font-bold uppercase text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3 text-xs font-pmedium uppercase text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   {isClockLoading
                     ? <><RefreshCw size={14} className="animate-spin" /> Processing...</>
@@ -1309,14 +1309,14 @@ export function AttendancePage() {
               <form onSubmit={handleSubmitCorrection}>
                 <div className="p-6 space-y-4">
                   <div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Correction Type</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Correction Type</p>
                     <div className="flex gap-2">
                       {['check_in', 'check_out', 'both'].map((type) => (
                         <button
                           key={type}
                           type="button"
                           onClick={() => setCorrectionForm((prev) => ({ ...prev, type }))}
-                          className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${correctionForm.type === type ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                          className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.type === type ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                         >
                           {type.replace(/_/g, ' ')}
                         </button>
@@ -1357,11 +1357,11 @@ export function AttendancePage() {
                   </div>
                 </div>
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
-                  <button type="button" onClick={() => setShowCorrectionForm(false)} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs uppercase hover:bg-slate-300 transition-colors">Cancel</button>
+                  <button type="button" onClick={() => setShowCorrectionForm(false)} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-pmedium text-xs uppercase hover:bg-slate-300 transition-colors">Cancel</button>
                   <button
                     type="submit"
                     disabled={isSubmittingCorrection || !correctionForm.reason.trim()}
-                    className="px-5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                    className="px-5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                   >
                     {isSubmittingCorrection ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
                     Submit Request
@@ -1458,7 +1458,7 @@ export function AttendancePage() {
               <div className="p-6 overflow-y-auto flex-1">
                 <div className="grid grid-cols-7 gap-2">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                    <div key={day} className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center py-2">{day}</div>
+                    <div key={day} className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest text-center py-2">{day}</div>
                   ))}
                   {(() => {
                     const [y, m] = viewingMonth.split('-').map(Number);
@@ -1537,31 +1537,31 @@ export function AttendancePage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-white rounded-xl p-3 border border-slate-100">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Check In</p>
+                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Check In</p>
                             <p className="text-sm font-black text-slate-900">{getTimeDisplay(record.checkIn)}</p>
                             {record.checkInLocation && <p className="text-[9px] text-slate-400 mt-0.5"><MapPin size={9} className="inline" /> {record.checkInLocation}</p>}
                           </div>
                           <div className="bg-white rounded-xl p-3 border border-slate-100">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Check Out</p>
+                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Check Out</p>
                             <p className="text-sm font-black text-slate-900">{getTimeDisplay(record.checkOut)}</p>
                             {record.checkOutLocation && <p className="text-[9px] text-slate-400 mt-0.5"><MapPin size={9} className="inline" /> {record.checkOutLocation}</p>}
                           </div>
                         </div>
                         <div className="mt-3 bg-white rounded-xl p-3 border border-slate-100 flex justify-between">
                           <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Working Hours</p>
+                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Working Hours</p>
                             <p className="text-sm font-black text-slate-900">{formatDuration(record.totalHours ? Number(record.totalHours) : undefined)}</p>
                           </div>
                           {record.source && (
                             <div className="text-right">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Source</p>
+                              <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Source</p>
                               <p className="text-xs font-bold text-slate-600">{record.source}</p>
                             </div>
                           )}
                         </div>
                         {record.breaks && record.breaks.length > 0 && (
                           <div className="mt-3 bg-white rounded-xl p-3 border border-slate-100">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Breaks</p>
+                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mb-2">Breaks</p>
                             <div className="space-y-1.5">
                               {record.breaks.map((b, bi) => (
                                 <div key={bi} className="flex justify-between text-xs">
@@ -1612,29 +1612,29 @@ export function AttendancePage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Original Check In</p>
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check In</p>
                     <p className="text-sm font-black text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckIn)}</p>
                   </div>
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Requested Check In</p>
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check In</p>
                     <p className="text-sm font-black text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckIn)}</p>
                   </div>
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Original Check Out</p>
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check Out</p>
                     <p className="text-sm font-black text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckOut)}</p>
                   </div>
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Requested Check Out</p>
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check Out</p>
                     <p className="text-sm font-black text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
                   </div>
                 </div>
                 <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                  <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">Reason</p>
+                  <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Reason</p>
                   <p className="text-xs font-bold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
                 </div>
                 {viewingCorrection.correction?.rejectionReason && (
                   <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
-                    <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest mb-1">Rejection Reason</p>
+                    <p className="text-[9px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Rejection Reason</p>
                     <p className="text-xs font-bold text-rose-800">{viewingCorrection.correction.rejectionReason}</p>
                   </div>
                 )}

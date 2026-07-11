@@ -269,7 +269,7 @@ function PnlSection({ title, tone, icon: Icon, rows, totalLabel, totalValue }: {
   const totalClass = tone === 'green' ? 'text-green-700' : tone === 'orange' ? 'text-orange-700' : 'text-red-700';
   return (
     <div>
-      <h3 className={`mb-3 flex items-center gap-1 border-b-2 pb-2 text-[10px] font-black uppercase tracking-widest sm:mb-4 sm:text-xs ${toneClass}`}>
+      <h3 className={`mb-3 flex items-center gap-1 border-b-2 pb-2 text-[10px] font-pmedium uppercase tracking-widest sm:mb-4 sm:text-xs ${toneClass}`}>
         <Icon size={14} /> {title}
       </h3>
       <div className="space-y-2 sm:space-y-3">
@@ -703,7 +703,7 @@ export default function AccountingPage(): React.ReactElement {
                 <select
                   value={selectedFiscalYear}
                   onChange={(e) => setSelectedFiscalYear(e.target.value)}
-                  className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-700 outline-none"
+                  className="bg-transparent text-[10px] font-pmedium uppercase tracking-widest text-slate-700 outline-none"
                 >
                   {FISCAL_YEAR_OPTIONS.map((fy: string) => (
                     <option key={fy} value={fy}>{fy}</option>
@@ -745,7 +745,7 @@ export default function AccountingPage(): React.ReactElement {
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === id
                     ? 'bg-[#2563EB] text-white shadow-sm'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -785,8 +785,8 @@ export default function AccountingPage(): React.ReactElement {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className={`text-[15px] font-black ${card.isCurrency ? 'text-blue-600' : 'text-slate-900'}`}>{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[15px] font-pmedium ${card.isCurrency ? 'text-blue-600' : 'text-slate-900'}`}>{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -802,13 +802,13 @@ export default function AccountingPage(): React.ReactElement {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
               {activeTab === 'ledger' && (
                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-bold text-blue-700 shadow-sm outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
                     {MONTH_OPTIONS.map((m) => (<option key={m.value} value={String(m.value)}>{m.label}</option>))}
                   </select>
-                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-bold text-blue-700 shadow-sm outline-none" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
                     {YEAR_OPTIONS.map((y) => (<option key={y} value={String(y)}>{y}</option>))}
                   </select>
-                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-bold text-gray-700 shadow-sm outline-none" value={ledgerFilter} onChange={(e) => setLedgerFilter(e.target.value)}>
+                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-gray-700 shadow-sm outline-none" value={ledgerFilter} onChange={(e) => setLedgerFilter(e.target.value)}>
                     <option>All Types</option>
                     <option>Income</option>
                     <option>Expense</option>
@@ -828,10 +828,10 @@ export default function AccountingPage(): React.ReactElement {
 
               {activeTab === 'pnl' && (
                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <select className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-bold text-blue-700 shadow-sm outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                  <select className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
                     {MONTH_OPTIONS.map((m) => (<option key={m.value} value={String(m.value)}>{m.label}</option>))}
                   </select>
-                  <select className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-bold text-blue-700 shadow-sm outline-none" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                  <select className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
                     {YEAR_OPTIONS.map((y) => (<option key={y} value={String(y)}>{y}</option>))}
                   </select>
                 </div>
@@ -842,7 +842,7 @@ export default function AccountingPage(): React.ReactElement {
             <div className="flex-1 overflow-x-auto">
               {activeTab === 'ledger' && (
                 <table className="min-w-[900px] w-full text-left">
-                  <thead className="sticky top-0 z-10 border-b border-gray-100 bg-white text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  <thead className="sticky top-0 z-10 border-b border-gray-100 bg-white text-[10px] font-pmedium uppercase tracking-widest text-gray-400">
                     <tr>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Date & ID</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Type</th>
@@ -862,7 +862,7 @@ export default function AccountingPage(): React.ReactElement {
                           <p className="text-[8px] font-black uppercase text-gray-500 sm:text-[9px]">{entry.id}</p>
                         </td>
                         <td className="px-4 py-4 sm:px-6 sm:py-5">
-                          <span className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[8px] font-black uppercase tracking-wider ${entry.type === 'Income' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                          <span className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[8px] font-pmedium uppercase tracking-wider ${entry.type === 'Income' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
                             {entry.type === 'Income' ? <ArrowUpRight size={8} /> : <ArrowDownRight size={8} />}
                             {entry.type}
                           </span>
@@ -889,7 +889,7 @@ export default function AccountingPage(): React.ReactElement {
 
               {activeTab === 'departments' && (
                 <table className="min-w-[800px] w-full text-left">
-                  <thead className="sticky top-0 z-10 border-b border-gray-100 bg-white text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  <thead className="sticky top-0 z-10 border-b border-gray-100 bg-white text-[10px] font-pmedium uppercase tracking-widest text-gray-400">
                     <tr>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Department</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Assigned</th>
@@ -915,11 +915,11 @@ export default function AccountingPage(): React.ReactElement {
                           <td className="px-4 py-4 sm:px-6 sm:py-5 text-xs font-black text-gray-900 sm:text-sm">{money(dept.used)}</td>
                           <td className="px-4 py-4 sm:px-6 sm:py-5 text-center">
                             {dept.extra > 0
-                              ? <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700">{money(dept.extra)}</span>
+                              ? <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-pmedium text-amber-700">{money(dept.extra)}</span>
                               : <span className="text-xs font-bold text-gray-400">--</span>}
                           </td>
                           <td className="px-4 py-4 sm:px-6 sm:py-5">
-                            <div className="mb-1.5 flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                            <div className="mb-1.5 flex justify-between text-[9px] font-pmedium uppercase tracking-widest">
                               <span className="text-gray-500">Used</span>
                               <span className={danger ? 'text-red-600' : 'text-green-600'}>{Math.round(dept.usage)}%</span>
                             </div>
@@ -941,12 +941,12 @@ export default function AccountingPage(): React.ReactElement {
                 <div className="flex justify-center bg-slate-50 p-4 sm:p-6 md:p-10">
                   <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg">
                     <div className="bg-slate-900 p-6 text-center text-white sm:p-8">
-                      <h2 className="mb-1 flex items-center justify-center gap-2 text-lg font-black uppercase tracking-widest sm:text-2xl">
+                      <h2 className="mb-1 flex items-center justify-center gap-2 text-lg font-pmedium uppercase tracking-widest sm:text-2xl">
                         <BarChart3 size={20} /> Profit & Loss
                       </h2>
                       <p className="text-xs font-bold text-slate-400 sm:text-sm">{selectedPeriodLabel} Report</p>
                     </div>
-                    <div className="flex items-center justify-center gap-2 border-b border-blue-100 bg-blue-50 p-2 text-[10px] font-bold text-blue-800 sm:text-xs">
+                    <div className="flex items-center justify-center gap-2 border-b border-blue-100 bg-blue-50 p-2 text-[10px] font-pmedium text-blue-800 sm:text-xs">
                       <ShieldCheck size={14} className="text-blue-600" />
                       Read only. Auto-compiled from the live ledger for {selectedPeriodLabel}.
                     </div>
@@ -954,14 +954,14 @@ export default function AccountingPage(): React.ReactElement {
                       <PnlSection title="Revenue" tone="green" icon={ArrowUpRight} rows={[['Walk-in / Bookings', pnlData.revenueBookings], ['Tenant Onboarding', pnlData.revenueTenant], ['Other Income', pnlData.revenueOther]]} totalLabel="Total Income" totalValue={pnlData.revenueTotal} />
                       <PnlSection title="COGS" tone="orange" icon={Building2} rows={[['Department Costs', pnlData.cogsDepartment], ['Extra Budget Costs', pnlData.cogsExtra]]} totalLabel="Total COGS" totalValue={pnlData.cogsTotal} />
                       <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-100 p-3 sm:p-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-600 sm:text-xs">Gross Profit</span>
+                        <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-600 sm:text-xs">Gross Profit</span>
                         <span className="text-lg font-black text-gray-900 sm:text-xl">{money(pnlData.grossProfit)}</span>
                       </div>
                       <PnlSection title="OPEX" tone="red" icon={ArrowDownRight} rows={[['Payroll', pnlData.payroll], ['Admin / Other', pnlData.admin]]} totalLabel="Total Expenses" totalValue={pnlData.opexTotal} />
                       <div className={`flex flex-col gap-3 rounded-2xl border-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 ${pnlData.netProfit >= 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                         <div>
-                          <span className={`text-xs font-black uppercase tracking-widest sm:text-sm ${pnlData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>Net Profit</span>
-                          <p className={`mt-1 text-[10px] font-bold uppercase ${pnlData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>Margin: {pnlData.margin}%</p>
+                          <span className={`text-xs font-pmedium uppercase tracking-widest sm:text-sm ${pnlData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>Net Profit</span>
+                          <p className={`mt-1 text-[10px] font-pmedium uppercase ${pnlData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>Margin: {pnlData.margin}%</p>
                         </div>
                         <span className={`text-2xl font-black tracking-tight sm:text-4xl ${pnlData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>{money(pnlData.netProfit)}</span>
                       </div>

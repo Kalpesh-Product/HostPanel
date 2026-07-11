@@ -634,7 +634,7 @@ export default function HRLeaveRequestsProcessingPage() {
               <button
                 key={tab.key}
                 onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
-                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -649,29 +649,29 @@ export default function HRLeaveRequestsProcessingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Requests</p>
-                <p className="text-[15px] font-black text-slate-900">{pendingRequestsCount}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Pending Requests</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{pendingRequestsCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Clock size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">On Leave Today</p>
-                <p className="text-[15px] font-black text-slate-900">{currentLeaves.length}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">On Leave Today</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{currentLeaves.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><CalendarClock size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Employees</p>
-                <p className="text-[15px] font-black text-slate-900">{employeeRoster.length}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Total Employees</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{employeeRoster.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Users size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Approved</p>
-                <p className="text-[15px] font-black text-slate-900">{approvedRequestsCount}</p>
+                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Approved</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{approvedRequestsCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><CheckCircle2 size={16} /></div>
             </div>
@@ -679,14 +679,14 @@ export default function HRLeaveRequestsProcessingPage() {
 
           {/* ── Department Snapshot (special section) ── */}
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Department Snapshot</p>
+            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-3">Department Snapshot</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
               {departmentSummaryCards.map((card) => (
                 <div key={card.departmentName} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                   <p className="text-xs font-bold text-slate-900">{card.departmentName}</p>
                   <p className="text-[10px] font-medium text-slate-500 mt-1">{card.total} staff</p>
                   <div className="mt-2">
-                    <span className="px-2 py-1 rounded-md bg-blue-50 text-[#2563EB] border border-blue-100 text-[10px] font-semibold">
+                    <span className="px-2 py-1 rounded-md bg-blue-50 text-[#2563EB] border border-blue-100 text-[10px] font-pmedium">
                       {card.onLeave} on leave
                     </span>
                   </div>
@@ -697,7 +697,7 @@ export default function HRLeaveRequestsProcessingPage() {
 
           {/* ── Top Management (special section) ── */}
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Top Management Leave</p>
+            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-3">Top Management Leave</p>
             <div className="flex flex-wrap gap-2">
               {roleSummaryCards.map((card) => (
                 <div key={card.key} className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -919,10 +919,10 @@ export default function HRLeaveRequestsProcessingPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "PDF")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white hover:bg-white/20 disabled:opacity-60">
+                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "PDF")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-[11px] font-pmedium text-white hover:bg-white/20 disabled:opacity-60">
                     <FileText size={14} /> PDF
                   </button>
-                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "Excel")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[11px] font-semibold text-[#2563EB] hover:bg-blue-50 disabled:opacity-60">
+                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "Excel")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[11px] font-pmedium text-[#2563EB] hover:bg-blue-50 disabled:opacity-60">
                     <FileSpreadsheet size={14} /> Excel
                   </button>
                   <button onClick={() => setViewingEmployee(null)} className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-red-500 hover:text-white transition-all">
@@ -931,18 +931,18 @@ export default function HRLeaveRequestsProcessingPage() {
                 </div>
               </div>
               <div className="p-6 overflow-y-auto flex-1 bg-white">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Yearly Balances</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Yearly Balances</p>
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Allowed</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Total Allowed</p>
                     <p className="text-2xl font-black text-slate-900 mt-1">{(viewingEmployee.balances as LeaveBalances).totalAllowed}</p>
                   </div>
                   <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-center">
-                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Leaves Taken</p>
+                    <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-wider">Leaves Taken</p>
                     <p className="text-2xl font-black text-amber-700 mt-1">{(viewingEmployee.balances as LeaveBalances).totalTaken}</p>
                   </div>
                   <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
-                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Remaining</p>
+                    <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-wider">Remaining</p>
                     <p className="text-2xl font-black text-emerald-700 mt-1">{(viewingEmployee.balances as LeaveBalances).remaining}</p>
                   </div>
                 </div>
@@ -960,7 +960,7 @@ export default function HRLeaveRequestsProcessingPage() {
                     <span className="text-amber-800">{(viewingEmployee.balances as LeaveBalances).compOffRemaining} left</span>
                   </div>
                 </div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Leave History</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Leave History</p>
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
@@ -997,7 +997,7 @@ export default function HRLeaveRequestsProcessingPage() {
                 </div>
               </div>
               <div className="p-4 bg-slate-50 border-t border-slate-100 shrink-0">
-                <button onClick={() => setViewingEmployee(null)} className="w-full py-3 bg-white border border-slate-200 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
+                <button onClick={() => setViewingEmployee(null)} className="w-full py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
                   CLOSE
                 </button>
               </div>
@@ -1023,30 +1023,30 @@ export default function HRLeaveRequestsProcessingPage() {
               <div className="p-6 space-y-4 bg-white">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Leave Type</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Leave Type</p>
                     <span className={statusPillClass(String(viewingLeaveDetail.type || "Leave"))}>
                       {String(viewingLeaveDetail.type || "Leave")}
                     </span>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Status</p>
                     {getStatusBadge(viewingLeaveDetail.status)}
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 col-span-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Duration</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Duration</p>
                     <p className="text-[13px] font-semibold text-slate-800">{String(viewingLeaveDetail.from || "")} to {String(viewingLeaveDetail.to || "")}</p>
                     <p className="text-[11px] font-bold text-[#2563EB] mt-1">{String(viewingLeaveDetail.days || "0")} Day(s)</p>
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Reason</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Reason</p>
                   <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl text-[12px] text-slate-700 italic leading-relaxed">
                     "{String(viewingLeaveDetail.reason || "No reason provided.")}"
                   </div>
                 </div>
               </div>
               <div className="p-4 bg-slate-50 border-t border-slate-100">
-                <button onClick={() => setViewingLeaveDetail(null)} className="w-full py-3 bg-white border border-slate-200 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
+                <button onClick={() => setViewingLeaveDetail(null)} className="w-full py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
                   CLOSE
                 </button>
               </div>
@@ -1072,64 +1072,64 @@ export default function HRLeaveRequestsProcessingPage() {
               <div className="p-6 overflow-y-auto flex-1 bg-white space-y-6">
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Employee</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Employee</p>
                     <p className="text-[13px] font-bold text-slate-900">{viewingRequest.name}</p>
                     <p className="text-[11px] text-slate-500">{viewingRequest.departmentDisplay} &bull; {viewingRequest.role}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Leave Type</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Leave Type</p>
                     <span className={statusPillClass(viewingRequest.type)}>{viewingRequest.type}</span>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mode</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Mode</p>
                     <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.leaveMode === "half_day" ? "Half Day" : "Full Day"}</p>
                   </div>
                   {viewingRequest.leaveMode === "half_day" && (
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Session</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Session</p>
                       <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.halfDaySession || "Not specified"}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Balance Before</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Balance Before</p>
                     <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.requesterBalance} day(s)</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Medical Cert</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Medical Cert</p>
                     <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.medicalCertAttached ? "Attached" : "Not attached"}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Duration</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Duration</p>
                     <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.from} to {viewingRequest.to}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Days</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Total Days</p>
                     <p className="text-lg font-black text-[#2563EB]">{viewingRequest.days} Days</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Reason</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Reason</p>
                     <div className="bg-white p-3 rounded-xl border border-slate-200 text-[12px] text-slate-700 italic">
                       "{viewingRequest.reason}"
                     </div>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Processed By</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Processed By</p>
                     <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.actionedBy || "Awaiting approval"}</p>
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Leave Balances</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-3">Leave Balances</p>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="p-3 border border-red-200 bg-red-50 rounded-2xl text-center">
-                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider">Sick</p>
+                      <p className="text-[10px] font-pmedium text-red-600 uppercase tracking-wider">Sick</p>
                       <p className="text-xl font-black text-red-700 mt-1">{(viewingRequest as Record<string, unknown>)?.balances ? ((viewingRequest as Record<string, unknown>).balances as Record<string, number>).sickRemaining ?? 0 : 0}</p>
                     </div>
                     <div className="p-3 border border-blue-200 bg-blue-50 rounded-2xl text-center">
-                      <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-wider">Casual</p>
+                      <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-wider">Casual</p>
                       <p className="text-xl font-black text-blue-700 mt-1">{(viewingRequest as Record<string, unknown>)?.balances ? ((viewingRequest as Record<string, unknown>).balances as Record<string, number>).casualRemaining ?? 0 : 0}</p>
                     </div>
                     <div className="p-3 border border-amber-200 bg-amber-50 rounded-2xl text-center">
-                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Comp Off</p>
+                      <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-wider">Comp Off</p>
                       <p className="text-xl font-black text-amber-700 mt-1">{(viewingRequest as Record<string, unknown>)?.balances ? ((viewingRequest as Record<string, unknown>).balances as Record<string, number>).compOffRemaining ?? 0 : 0}</p>
                     </div>
                   </div>
@@ -1137,10 +1137,10 @@ export default function HRLeaveRequestsProcessingPage() {
               </div>
               {viewingRequest.statusCode === "pending" && (
                 <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-                  <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="flex-1 py-3 bg-white border border-red-200 text-red-600 rounded-2xl font-semibold hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
+                  <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="flex-1 py-3 bg-white border border-red-200 text-red-600 rounded-2xl font-pmedium hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
                     <XCircle size={16} /> REJECT
                   </button>
-                  <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isSavingDecision} className="flex-1 py-3 bg-[#2563EB] text-white rounded-2xl font-semibold shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
+                  <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isSavingDecision} className="flex-1 py-3 bg-[#2563EB] text-white rounded-2xl font-pmedium shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
                     {isSavingDecision ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} APPROVE
                   </button>
                 </div>
@@ -1183,10 +1183,10 @@ export default function HRLeaveRequestsProcessingPage() {
                 </div>
               </div>
               <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-                <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 py-3 bg-white border border-slate-200 rounded-2xl font-semibold text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
+                <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
                   CANCEL
                 </button>
-                <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="flex-1 py-3 bg-red-600 text-white rounded-2xl font-semibold shadow-sm disabled:bg-slate-300 hover:bg-red-700 transition-all text-[12px] disabled:cursor-not-allowed">
+                <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="flex-1 py-3 bg-red-600 text-white rounded-2xl font-pmedium shadow-sm disabled:bg-slate-300 hover:bg-red-700 transition-all text-[12px] disabled:cursor-not-allowed">
                   {isSavingDecision ? <Loader2 size={16} className="animate-spin mx-auto" /> : "CONFIRM REJECTION"}
                 </button>
               </div>

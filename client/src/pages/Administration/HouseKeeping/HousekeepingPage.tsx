@@ -255,7 +255,7 @@ class HousekeepingErrorBoundary extends React.Component<ErrorBoundaryProps, Erro
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-red-600">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-red-600">
                     Error message
                   </p>
                   <p className="mt-2 text-sm font-semibold text-red-900">
@@ -265,7 +265,7 @@ class HousekeepingErrorBoundary extends React.Component<ErrorBoundaryProps, Erro
 
                 {this.state.error?.stack ? (
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       Stack trace
                     </p>
                     <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-slate-700">
@@ -276,7 +276,7 @@ class HousekeepingErrorBoundary extends React.Component<ErrorBoundaryProps, Erro
 
                 {this.state.errorInfo?.componentStack ? (
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       Component stack
                     </p>
                     <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-slate-700">
@@ -600,13 +600,13 @@ function HousekeepingPageInner() {
           {/* <div className="mb-6 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Housekeeping Staff Registry</p>
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-500">Housekeeping Staff Registry</p>
                 
                 <p className="mt-1 text-xs font-medium text-slate-500">Add staff here. Managers can mark them present or absent before assigning daily tasks.</p>
               </div>
               <div className="text-right">
                 <p className="text-3xl font-black text-slate-900">{activeStaff.length}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Registered staff</p>
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Registered staff</p>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -614,7 +614,7 @@ function HousekeepingPageInner() {
                 ? activeStaff.map((item) => (
                     <span key={item.id} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">
                       {item.label}
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest">
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-pmedium uppercase tracking-widest">
                         {item.attendanceStatus || 'Present'}
                       </span>
                     </span>
@@ -637,7 +637,7 @@ function HousekeepingPageInner() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                    activeTab === tab.key
                      ? 'bg-[#2563EB] text-white shadow-sm'
                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -645,7 +645,7 @@ function HousekeepingPageInner() {
                >
                  {tab.label}
                  {tab.badge ? (
-                   <span className="flex items-center gap-1 rounded-md bg-red-100 px-1.5 py-0.5 text-red-600 text-[9px] font-pbold font-bold uppercase tracking-widest">
+                   <span className="flex items-center gap-1 rounded-md bg-red-100 px-1.5 py-0.5 text-red-600 text-[9px] font-pmedium uppercase tracking-widest">
                     <Zap size={9} />{tab.badge}
                   </span>
                 ) : null}
@@ -667,8 +667,8 @@ function HousekeepingPageInner() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -721,28 +721,28 @@ function HousekeepingPageInner() {
                 </div>
                 <button
                   onClick={() => setIsStaffListOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
                 >
                   <Eye size={16} />
                   Show Staff
                 </button>
                 <button
                   onClick={() => { setStaffForm(staffFormState()); setIsStaffModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
                 >
                   <Users size={16} />
                   Add Staff
                 </button>
                 <button
                   onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 whitespace-nowrap"
                 >
                   <Upload size={16} />
                   Bulk Upload
                 </button>
                 <button
                   onClick={() => { setEditingTask(null); setTaskForm(taskFormState()); setIsTaskModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} />
                   Add Scheduled Task
@@ -780,7 +780,7 @@ function HousekeepingPageInner() {
                   <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary">
                     {editingTask ? 'Edit Scheduled Task' : 'New Scheduled Task'}
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Routine Housekeeping Assignment</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Routine Housekeeping Assignment</p>
                 </div>
                 <button
                   onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }}
@@ -793,7 +793,7 @@ function HousekeepingPageInner() {
               <form onSubmit={saveTask} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Task Type *</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Task Type *</label>
                     <select
                       required
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -805,27 +805,27 @@ function HousekeepingPageInner() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       {taskForm.taskType === 'Custom' ? 'Custom Task Name *' : 'Task Name *'}
                     </label>
                     <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={taskForm.taskName} onChange={(event) => setTaskForm({ ...taskForm, taskName: event.target.value })} />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Area / Zone *</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Area / Zone *</label>
                     <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={taskForm.area} onChange={(event) => setTaskForm({ ...taskForm, area: event.target.value })} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
                       <select required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.floor} onChange={(event) => setTaskForm({ ...taskForm, floor: event.target.value })}>
                         <option value="">Select Floor...</option>
                         {FLOOR_OPTIONS.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wing *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing *</label>
                       <select required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.wing} onChange={(event) => setTaskForm({ ...taskForm, wing: event.target.value })}>
                         <option value="">Select Wing...</option>
                         {WING_OPTIONS.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
@@ -835,21 +835,21 @@ function HousekeepingPageInner() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assign To (Staff)</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Assign To (Staff)</label>
                       <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.assigneeEmployeeProfileId} onChange={(event) => { const next = presentStaff.find((item) => item.id === event.target.value); setTaskForm({ ...taskForm, assigneeEmployeeProfileId: event.target.value, assignedTo: next?.label || '' }); }}>
                         <option value="">Select Staff...</option>
                         {presentStaff.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Start Task Time *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Start Task Time *</label>
                       <input required type="time" step="300" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.startTaskTime} onChange={(event) => setTaskForm({ ...taskForm, startTaskTime: event.target.value })} />
                     </div>
                   </div>
 
                   {editingTask ? (
                     <div className="space-y-2 border-t border-slate-100 pt-6">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Update Status</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Update Status</label>
                       <select className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none" value={taskForm.status} onChange={(event) => setTaskForm({ ...taskForm, status: event.target.value })}>
                         <option>Pending</option><option>Assigned</option><option>In Progress</option><option>Completed</option><option>Cancelled</option>
                       </select>
@@ -858,8 +858,8 @@ function HousekeepingPageInner() {
                 </div>
 
                 <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700"><Plus size={18} />{editingTask ? 'Update Task' : 'Save Task'}</button>
+                  <button type="button" onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700"><Plus size={18} />{editingTask ? 'Update Task' : 'Save Task'}</button>
                 </div>
               </form>
             </div>
@@ -873,7 +873,7 @@ function HousekeepingPageInner() {
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
                 <div>
                   <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Users size={20} /> Add Housekeeping Staff</h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Basic details for task assignment</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Basic details for task assignment</p>
                 </div>
                 <button onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
@@ -881,28 +881,28 @@ function HousekeepingPageInner() {
                 <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Full Name *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Full Name *</label>
                       <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.fullName} onChange={(event) => setStaffForm({ ...staffForm, fullName: event.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Address *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Address *</label>
                       <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.address} onChange={(event) => setStaffForm({ ...staffForm, address: event.target.value })} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Email</label>
                       <input type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.email} onChange={(event) => setStaffForm({ ...staffForm, email: event.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Phone *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Phone *</label>
                       <input required type="tel" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.phone} onChange={(event) => setStaffForm({ ...staffForm, phone: event.target.value })} />
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700"><Users size={18} /> Save Staff</button>
+                  <button type="button" onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700"><Users size={18} /> Save Staff</button>
                 </div>
               </form>
             </div>
@@ -916,7 +916,7 @@ function HousekeepingPageInner() {
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
                 <div>
                   <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Users size={20} /> Housekeeping Staff</h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Present or absent is managed here</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Present or absent is managed here</p>
                 </div>
                 <button onClick={() => setIsStaffListOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
@@ -927,10 +927,10 @@ function HousekeepingPageInner() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-black text-slate-900">{member.fullName}</h3>
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest`}>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest`}>
                             {member.attendanceStatus || 'Present'}
                           </span>
-                          {member.sourceType === 'legacy-employee-profile' ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Legacy</span> : null}
+                          {member.sourceType === 'legacy-employee-profile' ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Legacy</span> : null}
                         </div>
                         <div className="mt-2 space-y-1 text-sm text-slate-600">
                           <p>{member.address || 'No address'}</p>
@@ -940,8 +940,8 @@ function HousekeepingPageInner() {
                       </div>
                       {member.sourceType === 'registry' ? (
                         <div className="flex gap-2">
-                          <button type="button" onClick={() => saveStaffAttendance(member, 'Present')} className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-green-700">Present</button>
-                          <button type="button" onClick={() => saveStaffAttendance(member, 'Absent')} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-red-700">Absent</button>
+                          <button type="button" onClick={() => saveStaffAttendance(member, 'Present')} className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-xs font-pmedium uppercase tracking-widest text-green-700">Present</button>
+                          <button type="button" onClick={() => saveStaffAttendance(member, 'Absent')} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-pmedium uppercase tracking-widest text-red-700">Absent</button>
                         </div>
                       ) : null}
                     </div>
@@ -959,7 +959,7 @@ function HousekeepingPageInner() {
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
                 <div>
                   <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Upload size={20} /> Bulk Upload</h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">One workbook with staff and scheduled tasks</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">One workbook with staff and scheduled tasks</p>
                 </div>
                 <button onClick={() => setIsBulkUploadModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
@@ -968,23 +968,23 @@ function HousekeepingPageInner() {
                   {/* <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
                     Download the workbook template, fill only the required fields shown in the <strong>Instructions</strong> sheet, then upload the completed file here.
                   </div> */}
-                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border bg-blue-600 bg-slate-100 px-5 py-4 text-sm font-black text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
+                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border bg-blue-600 bg-slate-100 px-5 py-4 text-sm font-pmedium text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
                     <Download size={16} /> Download Template
                   </button>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Upload Workbook *</label>
+                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Upload Workbook *</label>
                     <input
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium text-slate-700 outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:border-emerald-300"
                       onChange={(event) => setBulkUploadFile(event.target.files?.[0] || null)}
                     />
-                    {bulkUploadFile ? <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Selected: {bulkUploadFile.name}</p> : <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Choose the completed Excel workbook.</p>}
+                    {bulkUploadFile ? <p className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Selected: {bulkUploadFile.name}</p> : <p className="text-xs font-pmedium uppercase tracking-widest text-slate-400">Choose the completed Excel workbook.</p>}
                   </div>
                 </div>
                 <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" disabled={isBulkUploading} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60">
+                  <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+                  <button type="submit" disabled={isBulkUploading} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60">
                     {isBulkUploading ? 'Importing...' : 'Import Workbook'}
                   </button>
                 </div>
@@ -1002,14 +1002,14 @@ function HousekeepingPageInner() {
                   <div className="rounded-xl bg-red-100 p-3 text-red-600"><User size={24} /></div>
                   <div>
                     <h2 className="text-xl font-black text-red-900">Assign Staff</h2>
-                    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-red-500">{assigningTask.roomName || assigningTask.taskName}</p>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-red-500">{assigningTask.roomName || assigningTask.taskName}</p>
                   </div>
                 </div>
                 <button onClick={() => { setAssigningTask(null); setTaskForm(taskFormState()); }} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Select Housekeeping Staff</label>
+                  <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Select Housekeeping Staff</label>
                   <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.assigneeEmployeeProfileId} onChange={(event) => { const next = presentStaff.find((item) => item.id === event.target.value); setTaskForm({ ...taskForm, assigneeEmployeeProfileId: event.target.value, assignedTo: next?.label || '' }); }}>
                     <option value="">Select...</option>
                     {presentStaff.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
@@ -1018,7 +1018,7 @@ function HousekeepingPageInner() {
               </div>
               <div className="flex gap-4 border-t border-slate-100 bg-slate-50/30 px-6 py-5">
                 <button onClick={() => { setAssigningTask(null); setTaskForm(taskFormState()); }} className="flex-1 rounded-2xl bg-white py-4 font-black text-slate-500 transition-all hover:text-slate-900">Cancel</button>
-                <button disabled={!taskForm.assigneeEmployeeProfileId} onClick={assignTask} className="flex-1 rounded-2xl bg-red-600 py-4 font-black text-white shadow-sm transition-all hover:bg-red-700 disabled:bg-slate-300 disabled:shadow-none">Assign</button>
+                <button disabled={!taskForm.assigneeEmployeeProfileId} onClick={assignTask} className="flex-1 rounded-2xl bg-red-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-red-700 disabled:bg-slate-300 disabled:shadow-none">Assign</button>
               </div>
             </div>
           </div>
@@ -1034,7 +1034,7 @@ function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
   return (
     <div className="flex-1">
       <table className="w-full text-left table-auto">
-        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
           <tr>
             <th className="px-3 py-4 text-left whitespace-nowrap">Task Name & ID</th>
             <th className="px-3 py-4 text-left whitespace-nowrap">Area / Zone</th>
@@ -1050,7 +1050,7 @@ function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
             <tr key={task.id} className="transition-colors hover:bg-blue-50/30">
               <td className="px-3 py-4 align-middle">
                 <div className="text-xs font-black tracking-tight text-slate-900">{task.taskName}</div>
-                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-400">{task.taskCode}</div>
+                <div className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{task.taskCode}</div>
               </td>
               <td className="px-3 py-4 align-middle text-xs font-bold text-slate-700">{task.area || 'General'}</td>
               <td className="px-3 py-4 align-middle text-xs font-bold text-slate-700">
@@ -1058,7 +1058,7 @@ function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
                 {task.wing ? ` / ${task.wing}` : ''}
               </td>
               <td className="px-3 py-4 align-middle">
-                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-600">
+                <span className="inline-flex items-center gap-1.5 text-xs font-pmedium uppercase tracking-wider text-slate-600">
                   <User size={12} /> {task.assignedTo}
                 </span>
               </td>
@@ -1088,7 +1088,7 @@ function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
             <tr>
               <td colSpan={7} className="px-3 py-20 text-center">
                 <ShieldAlert size={32} className="mx-auto text-slate-300 mb-3" />
-                <p className="text-sm font-black uppercase tracking-widest text-slate-500">{emptyText}</p>
+                <p className="text-sm font-pmedium uppercase tracking-widest text-slate-500">{emptyText}</p>
               </td>
             </tr>
           ) : null}
@@ -1124,12 +1124,12 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
                     Floor / Wing: <span className="text-slate-700">{task.floor || 'Any'}{task.wing ? ` / ${task.wing}` : ''}</span>
                   </p>
                   <p className="mt-1 text-xs font-bold text-slate-500">Booking Ended At: <span className="text-red-500">{task.bookingEndTimeLabel || 'Pending'}</span></p>
-                  <p className="mt-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Source: {task.sourceBookingCode || task.taskCode}</p>
+                  <p className="mt-2 flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Source: {task.sourceBookingCode || task.taskCode}</p>
                 </div>
               </div>
               <div className="flex w-full items-center gap-4 md:w-auto">
                 <div className="flex flex-col items-end">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned To</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Assigned To</p>
                   {task.assignedTo === 'Unassigned' ? (
                     <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-bold text-red-500">Needs Assignment</span>
                   ) : (
@@ -1140,7 +1140,7 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
                 <button onClick={() => onAssign(task)} className="rounded-xl bg-slate-100 p-3 text-slate-600 transition-all hover:bg-blue-100 hover:text-blue-700" title="Assign Staff">
                   <User size={18} />
                 </button>
-                <button onClick={() => onDone(task)} className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-xs font-black text-white shadow-md shadow-green-200 transition-all hover:bg-green-700">
+                <button onClick={() => onDone(task)} className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-xs font-pmedium text-white shadow-md shadow-green-200 transition-all hover:bg-green-700">
                   <CheckCircle2 size={16} /> Mark Done
                 </button>
               </div>
@@ -1159,7 +1159,7 @@ function HistoryTable({ tasks, month, year }: HistoryTableProps) {
   return (
     <div className="flex-1">
       <table className="w-full text-left table-auto">
-        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
           <tr>
             <th className="px-3 py-4 text-left whitespace-nowrap">Date</th>
             <th className="px-3 py-4 text-left whitespace-nowrap">Task Name & Details</th>
@@ -1177,7 +1177,7 @@ function HistoryTable({ tasks, month, year }: HistoryTableProps) {
                   <CalendarDays size={14} className="text-slate-400 shrink-0" />
                   {task.completedAtLabel || task.dueAtLabel || task.bookingDateLabel || 'Today'}
                 </div>
-                <div className="ml-5 mt-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-400">{task.taskCode}</div>
+                <div className="ml-5 mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{task.taskCode}</div>
               </td>
               <td className="px-3 py-4 align-middle text-xs font-bold text-slate-800">{task.taskName}</td>
               <td className="px-3 py-4 align-middle text-xs font-medium text-slate-600">{task.area || task.roomName || 'General'}</td>
@@ -1197,7 +1197,7 @@ function HistoryTable({ tasks, month, year }: HistoryTableProps) {
           {tasks.length === 0 ? (
             <tr>
               <td colSpan={6} className="px-3 py-20 text-center">
-                <p className="text-sm font-black uppercase tracking-widest text-slate-500">No historical data found for {month} {year}.</p>
+                <p className="text-sm font-pmedium uppercase tracking-widest text-slate-500">No historical data found for {month} {year}.</p>
               </td>
             </tr>
           ) : null}

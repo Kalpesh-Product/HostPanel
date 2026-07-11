@@ -333,15 +333,15 @@ export function InventoryPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total SKU Types</p>
-                <p className="text-[15px] font-black text-slate-900">{scopedInventory.length}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total SKU Types</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{scopedInventory.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Package size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Available Units</p>
-                <p className="text-[15px] font-black text-[#2563EB]">
+                <p className="text-[10px] font-pmedium text-blue-500 uppercase tracking-widest mb-1">Available Units</p>
+                <p className="text-[15px] font-pmedium text-[#2563EB]">
                   {scopedInventory.reduce((acc, curr) => acc + (curr.availableQuantity || 0), 0)}
                 </p>
               </div>
@@ -349,15 +349,15 @@ export function InventoryPage() {
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Departments</p>
-                <p className="text-[15px] font-black text-slate-900">{availableDepartments.length}</p>
+                <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-widest mb-1">Departments</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{availableDepartments.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Building2 size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Stock</p>
-                <p className="text-[15px] font-black text-slate-900">
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Total Stock</p>
+                <p className="text-[15px] font-pmedium text-slate-900">
                   {scopedInventory.reduce((acc, curr) => acc + (curr.totalQuantity || 0), 0)}
                 </p>
               </div>
@@ -375,7 +375,7 @@ export function InventoryPage() {
                 <div className="relative">
                   <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
-                    className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                    className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
                     value={departmentFilter}
                     onChange={(e) => setDepartmentFilter(e.target.value)}
                   >
@@ -401,7 +401,7 @@ export function InventoryPage() {
                 setAddStockData({ name: '', category: 'Physical', trackingType: 'Consumable', department: defaultDepartment, quantity: '' });
                 setIsAddStockOpen(true);
               }}
-              className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+              className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
             >
               <Plus size={13} strokeWidth={3} /> ADD INVENTORY
             </button>
@@ -411,7 +411,7 @@ export function InventoryPage() {
             {/* Desktop Table */}
             <div className="overflow-x-auto flex-1">
               <table className="hidden lg:table w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4">Inventory Item</th>
                     <th className="px-5 py-4">Owning Dept</th>
@@ -429,7 +429,7 @@ export function InventoryPage() {
                           </div>
                           <div>
                             <p className="text-[13px] font-bold text-[#0F172A]">{item.name}</p>
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 mt-1 rounded text-[9px] font-black uppercase tracking-wider ${item.trackingType === 'Consumable' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 mt-1 rounded text-[9px] font-pmedium uppercase tracking-wider ${item.trackingType === 'Consumable' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
                               {item.trackingType}
                             </span>
                           </div>
@@ -497,7 +497,7 @@ export function InventoryPage() {
                         </div>
                         <div>
                           <h3 className="text-[13px] font-bold text-[#0F172A] leading-tight mb-1">{item.name}</h3>
-                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${item.trackingType === 'Consumable' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-wider ${item.trackingType === 'Consumable' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
                             {item.trackingType}
                           </span>
                         </div>
@@ -505,11 +505,11 @@ export function InventoryPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
                       <div>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Owning Dept</p>
+                        <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Owning Dept</p>
                         <p className="text-[11px] font-bold text-[#0F172A] truncate flex items-center gap-1"><Building2 size={10} className="text-slate-400" /> {item.department}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Avail / Total</p>
+                        <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Avail / Total</p>
                         <p className="text-[11px] font-bold text-[#0F172A]">{item.availableQuantity} <span className="text-slate-500 font-medium">/ {item.totalQuantity}</span></p>
                       </div>
                     </div>
@@ -521,14 +521,14 @@ export function InventoryPage() {
                             setTransferData({ targetDepartment: '', quantity: '' });
                             setIsTransferStockOpen(true);
                           }}
-                          className="flex-1 py-2 bg-white border border-[#2563EB] text-[#2563EB] rounded-xl text-[11px] hover:bg-blue-50 font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2 bg-white border border-[#2563EB] text-[#2563EB] rounded-xl text-[11px] hover:bg-blue-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
                         >
                           <ArrowRightLeft size={13} /> Transfer
                         </button>
                       )}
                       <button
                         onClick={() => setViewingItem(item)}
-                        className="flex-1 py-2 bg-slate-900 border border-slate-900 rounded-xl text-white font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        className="flex-1 py-2 bg-slate-900 border border-slate-900 rounded-xl text-white font-pmedium hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-sm"
                       >
                         <Eye size={14} /> View
                       </button>
@@ -565,7 +565,7 @@ export function InventoryPage() {
                   <h2 className="text-xl sm:text-2xl font-pmedium flex items-center gap-2 text-primary">
                      Add Inventory
                   </h2>
-                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">
+                  <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
                     Create stock directly in any department
                   </p>
                 </div>
@@ -576,7 +576,7 @@ export function InventoryPage() {
 
               <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Item Name</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Item Name</label>
                   <input
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm"
                     value={addStockData.name}
@@ -586,7 +586,7 @@ export function InventoryPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Category</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Category</label>
                     <div className="relative">
                       <select
                         className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm appearance-none cursor-pointer"
@@ -601,7 +601,7 @@ export function InventoryPage() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Type</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Type</label>
                     <div className="relative">
                       <select
                         className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm appearance-none cursor-pointer"
@@ -616,7 +616,7 @@ export function InventoryPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Department</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Department</label>
                   <div className="relative">
                     <select
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm appearance-none cursor-pointer"
@@ -632,7 +632,7 @@ export function InventoryPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quantity</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Quantity</label>
                   <input
                     type="number"
                     min="0"
@@ -645,13 +645,13 @@ export function InventoryPage() {
               </div>
 
               <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-                <button onClick={() => setIsAddStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
+                <button onClick={() => setIsAddStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
                   Cancel
                 </button>
                 <button
                   onClick={handleCreateStock}
                   disabled={isTransferring || !addStockData.name || !addStockData.quantity || !addStockData.department}
-                  className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isTransferring ? 'Saving...' : 'Create Inventory'}
                 </button>
@@ -677,7 +677,7 @@ export function InventoryPage() {
                   <h2 className="text-xl sm:text-2xl font-pmedium text-indigo-900 flex items-center gap-2">
                     <ArrowRightLeft size={22} className="text-indigo-600" /> Reallocate Stock
                   </h2>
-                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">From: {activeInventoryItem.department}</p>
+                  <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">From: {activeInventoryItem.department}</p>
                 </div>
                 <button onClick={() => setIsTransferStockOpen(false)} className="w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all">
                   <X size={18} strokeWidth={2.5} />
@@ -686,7 +686,7 @@ export function InventoryPage() {
 
               <div className="p-5 sm:p-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden space-y-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Department</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Target Department</label>
                   <div className="relative">
                     <select
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-[#0F172A] focus:border-[#2563EB] outline-none appearance-none transition-all cursor-pointer shadow-sm"
@@ -702,7 +702,7 @@ export function InventoryPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quantity to Transfer</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Quantity to Transfer</label>
                   <input
                     type="number"
                     min="1"
@@ -725,13 +725,13 @@ export function InventoryPage() {
               </div>
 
               <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-                <button onClick={() => setIsTransferStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
+                <button onClick={() => setIsTransferStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
                   Cancel
                 </button>
                 <button
                   onClick={handleTransferStock}
                   disabled={isTransferring || !transferData.targetDepartment || !transferData.quantity || parseInt(transferData.quantity) > activeInventoryItem.availableQuantity || parseInt(transferData.quantity) <= 0}
-                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isTransferring ? 'Transferring...' : 'Confirm Transfer'}
                 </button>
@@ -756,7 +756,7 @@ export function InventoryPage() {
                 <div>
                   <h2 className="text-xl sm:text-2xl font-pmedium text-[#0F172A] leading-tight pr-8">{viewingItem.name}</h2>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded shadow-sm">
+                    <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded shadow-sm">
                       Dept: {viewingItem.department}
                     </span>
                   </div>
@@ -774,7 +774,7 @@ export function InventoryPage() {
                   {viewingItem.ledger.length > 0 ? viewingItem.ledger.map((entry, idx) => (
                     <div key={idx} className="flex justify-between items-center p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-100/80 rounded-2xl transition-colors">
                       <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{entry.date}</p>
+                        <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{entry.date}</p>
                         <p className="font-bold text-[13px] text-[#0F172A]">{entry.target}</p>
                         <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wider mt-1.5 flex items-center w-max">
                           {entry.action}
@@ -782,7 +782,7 @@ export function InventoryPage() {
                       </div>
                       <div className="text-right">
                         <span className="font-black text-lg text-[#0F172A]">{entry.qty}</span>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mt-0.5">Units</span>
+                        <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mt-0.5">Units</span>
                       </div>
                     </div>
                   )) : (

@@ -466,7 +466,7 @@ class ResourceManagementErrorBoundary extends React.Component<ErrorBoundaryProps
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-red-600">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-red-600">
                     Error message
                   </p>
                   <p className="mt-2 text-sm font-semibold text-red-900">
@@ -476,7 +476,7 @@ class ResourceManagementErrorBoundary extends React.Component<ErrorBoundaryProps
 
                 {this.state.error?.stack ? (
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       Stack trace
                     </p>
                     <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-slate-700">
@@ -487,7 +487,7 @@ class ResourceManagementErrorBoundary extends React.Component<ErrorBoundaryProps
 
                 {this.state.errorInfo?.componentStack ? (
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       Component stack
                     </p>
                     <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-slate-700">
@@ -929,7 +929,7 @@ function ResourceManagementPageInner() {
                 key={tab.key}
                 type="button"
                 onClick={() => setStatusFilter(tab.key === 'all' ? 'All Status' : tab.key === 'active' ? 'Active' : tab.key === 'maintenance' ? 'Under Maintenance' : 'Disabled')}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                    (tab.key === 'all' && statusFilter === 'All Status') ||
                    (tab.key === 'active' && statusFilter === 'Active') ||
                    (tab.key === 'maintenance' && statusFilter === 'Under Maintenance') ||
@@ -957,8 +957,8 @@ function ResourceManagementPageInner() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
                     <Icon size={16} />
@@ -973,7 +973,7 @@ function ResourceManagementPageInner() {
             {/* ── Panel Header ── */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
               <div className="flex items-center gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                <div className="flex items-center gap-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-400 shrink-0">
                   <LayoutGrid size={14} /> Resources
                   <span className="ml-1 text-xs font-semibold text-slate-500 normal-case tracking-normal">({filteredResources.length} of {resources.length})</span>
                 </div>
@@ -1031,14 +1031,14 @@ function ResourceManagementPageInner() {
                 </div>
                 <button
                   onClick={handleBulkUploadClick}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
                 >
                   <UploadCloud size={16} />
                   
                 </button>
                 <button
                   onClick={openAddModal}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} />
                   Add Resource
@@ -1058,8 +1058,8 @@ function ResourceManagementPageInner() {
                           </div>
                           <div className="min-w-0">
                             <h3 className="truncate text-[13px] font-black tracking-tight text-slate-900">{resource.name}</h3>
-                            <p className="mt-1 truncate text-[10px] font-black uppercase tracking-widest text-slate-400">{resource.id || resource.recordId}</p>
-                            <p className="mt-1 truncate text-[10px] font-black uppercase tracking-widest text-blue-600">{getLocationLabel(resource) || 'Unassigned location'}</p>
+                            <p className="mt-1 truncate text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{resource.id || resource.recordId}</p>
+                            <p className="mt-1 truncate text-[10px] font-pmedium uppercase tracking-widest text-blue-600">{getLocationLabel(resource) || 'Unassigned location'}</p>
                           </div>
                         </div>
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${statusClass(resource.status)}`}>
@@ -1069,31 +1069,31 @@ function ResourceManagementPageInner() {
 
                       <div className="mt-4 grid grid-cols-2 gap-2.5 text-[12px]">
                         <div className="rounded-2xl bg-slate-50 px-3 py-2.5">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Category</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Category</p>
                           <p className="mt-1 font-bold text-slate-900">{getResourceCategoryLabel(resource.resourceCategory)}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-3 py-2.5">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Inventory</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Inventory</p>
                           <p className="mt-1 font-bold text-slate-900">{isDeskCategory(resource.resourceCategory) ? getInventoryModeLabel(resource.inventoryMode) : 'Not applicable'}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-3 py-2.5">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Capacity</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Capacity</p>
                           <p className="mt-1 font-bold text-slate-900">{resource.capacity} Pax</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-3 py-2.5">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits</p>
                           <p className="mt-1 font-black text-slate-900">{getCreditValue(resource)}</p>
                         </div>
                       </div>
 
                       <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Pricing</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Pricing</p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">
                           {resource.pricePerHour && resource.pricePerHour > 0
                             ? `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(resource.pricePerHour)} / hr`
                             : resource.pricing || 'Pricing pending'}
                         </p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                           {resource.pricePerDay && resource.pricePerDay > 0
                             ? `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(resource.pricePerDay)} / day`
                             : 'Daily rate not set'}
@@ -1101,7 +1101,7 @@ function ResourceManagementPageInner() {
                       </div>
 
                       {resource.currentlyBooked ? (
-                        <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-amber-600">Currently booked</p>
+                        <p className="mt-3 text-[10px] font-pmedium uppercase tracking-widest text-amber-600">Currently booked</p>
                       ) : null}
 
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -1121,7 +1121,7 @@ function ResourceManagementPageInner() {
 
                 <div className="hidden xl:block">
                   <table className="w-full text-left table-auto">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-3 py-4 text-center w-10">#</th>
                         <th className="px-3 py-4 text-left">Resource</th>
@@ -1144,13 +1144,13 @@ function ResourceManagementPageInner() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-black text-slate-900 truncate max-w-[150px]">{resource.name}</p>
-                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{resource.id || resource.recordId}</p>
+                                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{resource.id || resource.recordId}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-3 py-4 text-left">
                             <p className="text-xs font-bold text-slate-900">{resource.location || '-'}</p>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fl {resource.floor}{resource.wing ? ` / ${resource.wing}` : ''}</p>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Fl {resource.floor}{resource.wing ? ` / ${resource.wing}` : ''}</p>
                           </td>
                           <td className="px-3 py-4 text-left text-xs font-bold text-slate-900 whitespace-nowrap">{getResourceCategoryLabel(resource.resourceCategory)}</td>
                           <td className="px-3 py-4 text-center">
@@ -1162,7 +1162,7 @@ function ResourceManagementPageInner() {
                                 {getInventoryModeLabel(resource.inventoryMode)}
                               </span>
                             ) : (
-                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">—</span>
+                              <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">—</span>
                             )}
                           </td>
                           <td className="px-3 py-4 text-center text-xs font-bold text-slate-900 whitespace-nowrap">{resource.capacity}</td>
@@ -1197,7 +1197,7 @@ function ResourceManagementPageInner() {
               </>
             ) : (
               <div className="m-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
-                <p className="text-sm font-black uppercase tracking-widest text-slate-500">No resources found</p>
+                <p className="text-sm font-pmedium uppercase tracking-widest text-slate-500">No resources found</p>
                 <p className="mt-2 text-sm font-medium text-slate-500">
                   Try clearing the filters or add a new desk, meeting room, conference room, cabin, or virtual office.
                 </p>
@@ -1217,7 +1217,7 @@ function ResourceManagementPageInner() {
                     <LayoutGrid size={20} />
                     {editingResource ? 'Edit Resource' : 'Add New Resource'}
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                     {editingResource ? 'Update the workspace record' : 'Create inventory for bookings and workspace planning'}
                   </p>
                 </div>
@@ -1231,24 +1231,24 @@ function ResourceManagementPageInner() {
                   <div className="lg:col-span-2 rounded-3xl border border-slate-100 bg-slate-50/80 px-4 py-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resource snapshot</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Resource snapshot</p>
                         <p className="mt-1 text-sm font-semibold text-slate-600">A quick summary of the unit before you save it.</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
                           {getResourceCategoryLabel(form.resourceCategory)}
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-600">
                           {form.location || 'Location pending'}
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-600">
                           Floor {form.floor}
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-600">
                           Wing {form.wing || 'N/A'}
                         </span>
                         {isDeskCategory(form.resourceCategory) ? (
-                          <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                          <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">
                             {getInventoryModeLabel(form.inventoryMode)}
                           </span>
                         ) : null}
@@ -1258,7 +1258,7 @@ function ResourceManagementPageInner() {
 
                   <div className="space-y-6">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
                       <input
                         required
                         type="text"
@@ -1270,7 +1270,7 @@ function ResourceManagementPageInner() {
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Location *</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-2">
                             <input
@@ -1280,7 +1280,7 @@ function ResourceManagementPageInner() {
                               onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}
                               placeholder="Enter new location"
                             />
-                            <button type="button" onClick={() => { setLocationMode('select'); setForm((current) => ({ ...current, location: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">
+                            <button type="button" onClick={() => { setLocationMode('select'); setForm((current) => ({ ...current, location: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">
                               Back to dropdown
                             </button>
                           </div>
@@ -1312,7 +1312,7 @@ function ResourceManagementPageInner() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Category *</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
                         <select
                           required
                           className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -1346,7 +1346,7 @@ function ResourceManagementPageInner() {
 
                       {form.resourceCategory === 'open_desk' ? (
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
+                          <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
                           <div className="relative">
                             <select
                               required
@@ -1374,7 +1374,7 @@ function ResourceManagementPageInner() {
                       ) : null}
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-2">
                             <input
@@ -1384,7 +1384,7 @@ function ResourceManagementPageInner() {
                               onChange={(event) => setForm((current) => ({ ...current, floor: event.target.value }))}
                               placeholder="Enter new floor"
                             />
-                            <button type="button" onClick={() => { setFloorMode('select'); setForm((current) => ({ ...current, floor: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">
+                            <button type="button" onClick={() => { setFloorMode('select'); setForm((current) => ({ ...current, floor: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">
                               Back to dropdown
                             </button>
                           </div>
@@ -1417,7 +1417,7 @@ function ResourceManagementPageInner() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wing</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-2">
                             <input
@@ -1426,7 +1426,7 @@ function ResourceManagementPageInner() {
                               onChange={(event) => setForm((current) => ({ ...current, wing: event.target.value }))}
                               placeholder="Enter new wing or leave blank"
                             />
-                            <button type="button" onClick={() => { setWingMode('select'); setForm((current) => ({ ...current, wing: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">
+                            <button type="button" onClick={() => { setWingMode('select'); setForm((current) => ({ ...current, wing: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">
                               Back to dropdown
                             </button>
                           </div>
@@ -1458,7 +1458,7 @@ function ResourceManagementPageInner() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                         {isDeskCategory(form.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
                       {isDeskCategory(form.resourceCategory) && capacityOptions.length > 0 ? (
@@ -1501,7 +1501,7 @@ function ResourceManagementPageInner() {
                           onChange={(event) => setForm((current) => ({ ...current, capacity: event.target.value }))}
                         />
                       )}
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                         {form.resourceCategory === 'open_desk'
                           ? form.inventoryMode === 'single'
                             ? 'Single open desks are reserved for individual bookings.'
@@ -1513,7 +1513,7 @@ function ResourceManagementPageInner() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
                       <textarea
                         rows={4}
                         className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -1524,10 +1524,10 @@ function ResourceManagementPageInner() {
                   </div>
 
                   <div className="md:col-span-2 flex gap-4 border-t border-slate-100 pt-6">
-                    <button type="button" onClick={closeEditor} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">
+                    <button type="button" onClick={closeEditor} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">
                       Cancel
                     </button>
-                    <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700">
+                    <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700">
                       <Plus size={18} />
                       {editingResource ? 'Update Resource' : 'Save Resource'}
                     </button>
@@ -1546,11 +1546,11 @@ function ResourceManagementPageInner() {
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-xl font-pmedium text-primary">{viewingResource.name}</h2>
-                    <span className={`rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${statusClass(viewingResource.status)}`}>
+                    <span className={`rounded-md border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider ${statusClass(viewingResource.status)}`}>
                       {viewingResource.status}
                     </span>
                   </div>
-                  <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <p className="mt-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                     {viewingResource.id} - {getResourceCategoryLabel(viewingResource.resourceCategory)}
                   </p>
                 </div>
@@ -1561,18 +1561,18 @@ function ResourceManagementPageInner() {
 
               <div className="grid gap-4 p-8 md:grid-cols-2">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Category</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Category</p>
                   <p className="flex items-center gap-1.5 font-bold text-slate-900">
                     {typeIcon(viewingResource.type)}
                     {getResourceCategoryLabel(viewingResource.resourceCategory)}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Inventory</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Inventory</p>
                   {isDeskCategory(viewingResource.resourceCategory) ? (
                     <>
                       <p className="font-bold text-slate-900">{getInventoryModeLabel(viewingResource.inventoryMode)}</p>
-                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                         {viewingResource.inventoryMode === 'single' ? 'Standalone desk inventory' : 'Tenant area inventory'}
                       </p>
                     </>
@@ -1581,23 +1581,23 @@ function ResourceManagementPageInner() {
                   )}
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Location</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Location</p>
                   <p className="font-bold text-slate-900">{getLocationLabel(viewingResource)}</p>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     Floor {viewingResource.floor} / Wing {viewingResource.wing || '-'}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Credits</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Credits</p>
                   <p className="font-black text-blue-600">{getCreditValue(viewingResource)} Credits</p>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{getCreditSummary(viewingResource)}</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{getCreditSummary(viewingResource)}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Tenant Assignment</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Tenant Assignment</p>
                   <p className="font-bold text-slate-900">{viewingResource.assignedTenantCompanyName || 'Unassigned'}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Sales Pricing</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Sales Pricing</p>
                   <p className="font-black text-green-600">
                     {viewingResource.pricePerHour && viewingResource.pricePerHour > 0
                       ? `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(viewingResource.pricePerHour)} / hr`
@@ -1610,13 +1610,13 @@ function ResourceManagementPageInner() {
                   </p>
                 </div>
                 <div className="md:col-span-2 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description</p>
                   <p className="text-sm font-medium text-slate-700">{viewingResource.description || 'No description added yet.'}</p>
                 </div>
               </div>
 
               <div className="border-t border-slate-100 bg-slate-50/30 p-6">
-                <button onClick={() => setViewingResource(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-black text-slate-600 transition-all hover:bg-slate-100">
+                <button onClick={() => setViewingResource(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition-all hover:bg-slate-100">
                   Close Details
                 </button>
               </div>
@@ -1635,7 +1635,7 @@ function ResourceManagementPageInner() {
                   </div>
                   <div>
                     <h2 className="text-xl font-black text-red-900">Delete Resource</h2>
-                    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-red-500">{deletingResource.id}</p>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-red-500">{deletingResource.id}</p>
                   </div>
                 </div>
                 <button onClick={() => setDeletingResource(null)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
@@ -1671,7 +1671,7 @@ function ResourceManagementPageInner() {
                   {deletingResource.currentlyBooked ? 'Close' : 'Cancel'}
                 </button>
                 {!deletingResource.currentlyBooked ? (
-                  <button onClick={handleDelete} className="flex-1 rounded-2xl bg-red-600 py-4 font-black text-white shadow-sm transition-all hover:bg-red-700">
+                  <button onClick={handleDelete} className="flex-1 rounded-2xl bg-red-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-red-700">
                     Confirm Delete
                   </button>
                 ) : null}
@@ -1689,7 +1689,7 @@ function ResourceManagementPageInner() {
                   <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary tracking-tight">
                     <UploadCloud size={20} /> Bulk Upload Resources
                   </h2>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
                 </div>
                 <button onClick={() => setIsBulkUploadOpen(false)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X size={18} />
@@ -1702,7 +1702,7 @@ function ResourceManagementPageInner() {
                   onClick={() => setIsTemplateInfoOpen(!isTemplateInfoOpen)}
                   className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Template required</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Template required</p>
                   <ChevronDown
                     size={16}
                     className={`text-blue-500 transition-transform duration-200 ${isTemplateInfoOpen ? 'rotate-0' : '-rotate-90'}`}
@@ -1717,18 +1717,18 @@ function ResourceManagementPageInner() {
                       </p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
                       <div className="grid gap-2 text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-600">Required</span>
+                          <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-pmedium text-red-600">Required</span>
                           <span className="font-semibold text-slate-700">name, location, resourceCategory, floor, capacity</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-600">Conditional</span>
+                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-pmedium text-amber-600">Conditional</span>
                           <span className="font-semibold text-slate-700">inventoryMode (for open desks)</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">Optional</span>
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-pmedium text-slate-500">Optional</span>
                           <span className="font-semibold text-slate-700">wing, description, status</span>
                         </div>
                       </div>
@@ -1741,7 +1741,7 @@ function ResourceManagementPageInner() {
                   onClick={() => setIsAllowedValuesOpen(!isAllowedValuesOpen)}
                   className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Allowed values</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Allowed values</p>
                   <ChevronDown
                     size={16}
                     className={`text-blue-500 transition-transform duration-200 ${isAllowedValuesOpen ? 'rotate-0' : '-rotate-90'}`}
@@ -1773,7 +1773,7 @@ function ResourceManagementPageInner() {
                     type="button"
                     onClick={() => bulkUploadInputRef.current?.click()}
                     disabled={isBulkImporting}
-                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
+                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
                   >
                     <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
                   </button>
@@ -1781,35 +1781,35 @@ function ResourceManagementPageInner() {
 
                 {bulkUploadFileName ? (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected file</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Selected file</p>
                     <p className="mt-2 text-sm font-semibold text-slate-800">{bulkUploadFileName}</p>
                   </div>
                 ) : null}
 
                 {bulkUploadSummary ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Import summary</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Import summary</p>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                       <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-black uppercase text-slate-400">Rows</p>
+                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Rows</p>
                         <p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.totalRows}</p>
                       </div>
                       <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-black uppercase text-slate-400">Processed</p>
+                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Processed</p>
                         <p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.processedRows}</p>
                       </div>
                       <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-black uppercase text-slate-400">Created</p>
+                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Created</p>
                         <p className="mt-1 font-bold text-emerald-700">{bulkUploadSummary.createdCount}</p>
                       </div>
                       <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-black uppercase text-slate-400">Failed</p>
+                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Failed</p>
                         <p className="mt-1 font-bold text-rose-700">{bulkUploadSummary.failedCount}</p>
                       </div>
                     </div>
                     {bulkUploadSummary.failedRows?.length ? (
                       <div className="mt-3 rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">First errors</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">First errors</p>
                         <ul className="mt-2 space-y-1 text-xs font-medium text-slate-600">
                           {bulkUploadSummary.failedRows.map((rowError) => (
                             <li key={rowError}>{rowError}</li>
@@ -1822,7 +1822,7 @@ function ResourceManagementPageInner() {
               </div>
 
               <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
-                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black transition-all hover:bg-slate-50">
+                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-pmedium transition-all hover:bg-slate-50">
                   Close
                 </button>
               </div>

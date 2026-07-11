@@ -300,7 +300,7 @@ const CompactAddOnCard = ({
             {icon}
           </div>
         ) : null}
-        <span className="w-full break-words text-[10px] font-semibold leading-[1.25] text-slate-800 sm:text-[11px]">
+        <span className="w-full break-words text-[10px] font-pmedium leading-[1.25] text-slate-800 sm:text-[11px]">
           {title}
         </span>
       </div>
@@ -919,7 +919,7 @@ const AddModulesPage = () => {
                   className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
                 >
                   <div>
-                    <h3 className="text-[15px] font-bold uppercase tracking-wide text-slate-800">
+                    <h3 className="text-[15px] font-pmedium uppercase tracking-wide text-slate-800">
                       {group.roman ? `${group.roman}. ` : ""}
                       {group.label}
                     </h3>
@@ -1019,7 +1019,7 @@ const AddModulesPage = () => {
                             className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                           >
                             <div>
-                              <h4 className="text-sm font-bold uppercase tracking-wide text-slate-700">
+                              <h4 className="text-sm font-pmedium uppercase tracking-wide text-slate-700">
                                 {department.label}
                               </h4>
                               <p className="mt-1 text-[11px] text-slate-500">

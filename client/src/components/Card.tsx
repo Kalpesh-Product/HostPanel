@@ -78,7 +78,7 @@ const Card = ({
       }}
     >
       {locked ? (
-        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-pmedium text-amber-700">
           <Lock size={12} />
           Locked
         </span>

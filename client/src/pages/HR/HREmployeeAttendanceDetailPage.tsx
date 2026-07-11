@@ -149,7 +149,7 @@ const toneStyles: Record<string, string> = {
 function StatusBadge({ status }: { status?: string }) {
   const tone = getStatusTone(status);
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${toneStyles[tone]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider ${toneStyles[tone]}`}>
       {status && ["present", "approved"].includes(status.toLowerCase()) ? <CheckCircle2 size={11} /> : null}
       {status && status.toLowerCase() === "late" ? <AlertTriangle size={11} /> : null}
       {status && ["absent", "rejected"].includes(status.toLowerCase()) ? <XCircle size={11} /> : null}
@@ -174,7 +174,7 @@ function StatCard({
     <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{label}</p>
+          <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-400">{label}</p>
           <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">{value}</p>
           {hint ? <p className="mt-1 text-[11px] font-medium text-slate-500">{hint}</p> : null}
         </div>
@@ -315,12 +315,12 @@ export default function HREmployeeAttendanceDetailPage() {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
             >
               <ArrowLeft size={14} />
               Back
             </button>
-            <div className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-blue-700">
+            <div className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.28em] text-blue-700">
               {formatLongDate(selectedDate)}
             </div>
           </div>
@@ -329,7 +329,7 @@ export default function HREmployeeAttendanceDetailPage() {
             <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Employee Profile</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Employee Profile</p>
                   <h1 className="mt-2 truncate text-2xl font-black tracking-tight text-slate-900">{employeeLabel}</h1>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-slate-500">
                     <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1">
@@ -360,7 +360,7 @@ export default function HREmployeeAttendanceDetailPage() {
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Selected Date</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Selected Date</p>
                   <p className="mt-1 text-sm font-bold text-slate-900">{formatLongDate(selectedDate)}</p>
                   <p className="mt-1 text-[11px] font-medium text-slate-500">Attendance timeline for the chosen day and month.</p>
                 </div>
@@ -378,7 +378,7 @@ export default function HREmployeeAttendanceDetailPage() {
             <div className="rounded-[2rem] border border-slate-100 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Monthly Timeline</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Monthly Timeline</p>
                   <h2 className="mt-1 text-lg font-black text-slate-900">Daily attendance records</h2>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
@@ -412,27 +412,27 @@ export default function HREmployeeAttendanceDetailPage() {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                              <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">
                                 {formatLongDate(record.date)}
                               </p>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <StatusBadge status={record.status} />
                                 {record.source ? (
-                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-600">
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-slate-600">
                                     {record.source}
                                   </span>
                                 ) : null}
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Hours</p>
+                              <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-400">Hours</p>
                               <p className="mt-1 text-xl font-black text-slate-900">{formatHours(record.totalHours)}</p>
                             </div>
                           </div>
 
                           <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             <div className="rounded-2xl border border-slate-100 bg-white p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Check In</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Check In</p>
                               <p className="mt-1 text-sm font-black text-slate-900">{record.checkIn ? formatTime12h(record.checkIn) : "--"}</p>
                               {record.checkInLocation ? (
                                 <p className="mt-1 text-[11px] text-slate-500">
@@ -459,7 +459,7 @@ export default function HREmployeeAttendanceDetailPage() {
                             </div>
 
                             <div className="rounded-2xl border border-slate-100 bg-white p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Check Out</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Check Out</p>
                               <p className="mt-1 text-sm font-black text-slate-900">{record.checkOut ? formatTime12h(record.checkOut) : "--"}</p>
                               {record.checkOutLocation ? (
                                 <p className="mt-1 text-[11px] text-slate-500">
@@ -488,14 +488,14 @@ export default function HREmployeeAttendanceDetailPage() {
 
                           {Array.isArray(record.breaks) && record.breaks.length > 0 ? (
                             <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Break Timeline</p>
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Break Timeline</p>
                               <div className="mt-2 space-y-2">
                                 {record.breaks.map((breakEntry, breakIndex) => (
                                   <div key={breakIndex} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-slate-700">
                                     <span>
                                       Break {breakIndex + 1}: {breakEntry.startTime ? formatTime12h(breakEntry.startTime) : "--"} to {breakEntry.endTime ? formatTime12h(breakEntry.endTime) : "--"}
                                     </span>
-                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-pmedium uppercase tracking-wider text-slate-500">
                                       {breakEntry.duration ? `${breakEntry.duration}m` : "--"}
                                     </span>
                                   </div>
@@ -507,7 +507,7 @@ export default function HREmployeeAttendanceDetailPage() {
                           {record.correction ? (
                             <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-3">
                               <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-amber-500">Correction</p>
+                                <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-500">Correction</p>
                                 <StatusBadge status={record.correction.status} />
                               </div>
                               <p className="mt-1 text-[11px] font-semibold text-amber-800">{record.correction.reason || "No correction reason provided."}</p>
@@ -523,7 +523,7 @@ export default function HREmployeeAttendanceDetailPage() {
 
             <div className="space-y-4">
               <div className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee Snapshot</p>
+                <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Employee Snapshot</p>
                 <div className="mt-4 space-y-3">
                   {employeeMetaItems.map((item) => (
                     <div key={item.label} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
@@ -535,7 +535,7 @@ export default function HREmployeeAttendanceDetailPage() {
               </div>
 
               <div className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Quick Summary</p>
+                <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Quick Summary</p>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
                     <span className="text-sm font-semibold text-slate-600">Selected Month</span>
@@ -559,7 +559,7 @@ export default function HREmployeeAttendanceDetailPage() {
               <div className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Today</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Today</p>
                     <p className="mt-1 text-sm font-bold text-slate-900">{formatLongDate(selectedDate)}</p>
                   </div>
                   <Eye size={18} className="text-slate-400" />
@@ -567,16 +567,16 @@ export default function HREmployeeAttendanceDetailPage() {
                 {highlightedRecord ? (
                   <div className="mt-4 space-y-3">
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</p>
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Status</p>
                       <div className="mt-2"><StatusBadge status={highlightedRecord.status} /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-2xl bg-slate-50 p-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Check In</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Check In</p>
                         <p className="mt-2 text-sm font-black text-slate-900">{highlightedRecord.checkIn ? formatTime12h(highlightedRecord.checkIn) : "--"}</p>
                       </div>
                       <div className="rounded-2xl bg-slate-50 p-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Check Out</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Check Out</p>
                         <p className="mt-2 text-sm font-black text-slate-900">{highlightedRecord.checkOut ? formatTime12h(highlightedRecord.checkOut) : "--"}</p>
                       </div>
                     </div>

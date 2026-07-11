@@ -288,7 +288,7 @@ function CalendarSkeleton() {
     <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
       <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className="p-4 text-center text-xs font-black text-slate-400 uppercase tracking-wider">{day}</div>
+          <div key={day} className="p-4 text-center text-xs font-pmedium text-slate-400 uppercase tracking-wider">{day}</div>
         ))}
       </div>
       <div className="grid grid-cols-7">
@@ -507,11 +507,11 @@ function UnifiedCalendar() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
                     {showLoadingState ? (
                       <Skeleton className="h-5 w-10 rounded-lg" />
                     ) : (
-                      <p className="text-[15px] font-black text-slate-900">
+                      <p className="text-[15px] font-pmedium text-slate-900">
                         {card.key === 'holidays' ? holidayEvents.length : (summary?.[card.key as keyof CalendarSummary] || 0)}
                       </p>
                     )}
@@ -535,7 +535,7 @@ function UnifiedCalendar() {
                 <button onClick={() => changeMonth('next')} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                   <ChevronRight size={18} className="text-slate-500" />
                 </button>
-                <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold hover:bg-blue-700 transition-colors">
+                <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium hover:bg-blue-700 transition-colors">
                   Today
                 </button>
               </div>
@@ -577,7 +577,7 @@ function UnifiedCalendar() {
                 <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                   <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="p-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">{day}</div>
+                      <div key={day} className="p-3 text-center text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">{day}</div>
                     ))}
                   </div>
                   <div className="grid grid-cols-7">
@@ -684,7 +684,7 @@ function UnifiedCalendar() {
                                 {invites.slice(0, 3).map((invite, i) => (
                                   <span
                                     key={`${event.id}-invite-${i}`}
-                                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-slate-700"
+                                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-wider text-slate-700"
                                   >
                                     <span className="max-w-[8rem] truncate">{invite.invitedName || 'Guest'}</span>
                                     <span className="text-slate-400">•</span>
@@ -726,7 +726,7 @@ function UnifiedCalendar() {
                     {(() => { const Icon = getEventTypeIcon(selectedEvent.type); return <Icon size={20} />; })()}
                   </div>
                   <div>
-                    <div className="text-[10px] font-black uppercase tracking-wider opacity-70 mb-1">
+                    <div className="text-[10px] font-pmedium uppercase tracking-wider opacity-70 mb-1">
                       {META[selectedEvent.type]?.label || selectedEvent.type}
                     </div>
                     <h2 className="text-2xl font-black">{selectedEvent.title}</h2>
@@ -745,7 +745,7 @@ function UnifiedCalendar() {
                     <Clock size={20} className="text-[#2563EB]" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Date & Time</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Date & Time</p>
                     <p className="font-bold text-slate-950">{formatEventDateLabel(selectedEvent)}</p>
                     <p className="text-sm font-medium text-slate-500">{selectedEvent.time || 'All day'}</p>
                   </div>
@@ -755,7 +755,7 @@ function UnifiedCalendar() {
                     <CalendarIcon size={20} className="text-[#2563EB]" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Module</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Module</p>
                     <p className="font-bold text-slate-950">{META[selectedEvent.type]?.label || selectedEvent.type}</p>
                     <p className="text-sm font-medium text-slate-500 capitalize">{selectedEvent.type}</p>
                   </div>
@@ -772,7 +772,7 @@ function UnifiedCalendar() {
                             <Users size={20} className="text-[#2563EB]" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">{field.label}</p>
+                            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">{field.label}</p>
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {(field.value as EventInvite[]).length ? (field.value as EventInvite[]).map((invite, index) => (
                                 <div key={`${field.label}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -801,7 +801,7 @@ function UnifiedCalendar() {
                           <MapPin size={20} className="text-[#2563EB]" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">{field.label}</p>
+                          <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">{field.label}</p>
                           <p className="font-bold text-slate-950">{formatValue(field.value)}</p>
                         </div>
                       </div>
@@ -813,13 +813,13 @@ function UnifiedCalendar() {
               <div className="flex flex-wrap items-center gap-6">
                 {selectedEvent.priority && (
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Priority</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Priority</p>
                     {getPriorityBadge(selectedEvent.priority)}
                   </div>
                 )}
                 {selectedEvent.status && (
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Status</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Status</p>
                     {getStatusBadge(selectedEvent.status)}
                   </div>
                 )}
@@ -827,7 +827,7 @@ function UnifiedCalendar() {
 
               {selectedEvent.description && selectedEvent.type !== 'leave' && (
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">
                     Description
                   </p>
                   <p className="text-sm font-medium text-slate-950 bg-slate-50 p-4 rounded-xl">{selectedEvent.description}</p>

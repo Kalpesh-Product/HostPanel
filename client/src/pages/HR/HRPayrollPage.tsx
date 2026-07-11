@@ -198,7 +198,7 @@ function HandoffConfirmModal({ open, onClose, onConfirm, mode, error, submitting
             className="w-full max-w-md overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl"
           >
             <div className="bg-slate-950 px-6 py-5 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-blue-200">Payroll Handoff</p>
+              <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-200">Payroll Handoff</p>
               <h2 className="mt-2 text-xl font-bold tracking-tight">Confirm payroll transfer</h2>
             </div>
             <div className="space-y-4 px-6 py-6">
@@ -217,7 +217,7 @@ function HandoffConfirmModal({ open, onClose, onConfirm, mode, error, submitting
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 transition hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -225,7 +225,7 @@ function HandoffConfirmModal({ open, onClose, onConfirm, mode, error, submitting
                 type="button"
                 onClick={onConfirm}
                 disabled={submitting}
-                className="flex-[2] rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="flex-[2] rounded-2xl bg-slate-950 px-4 py-3 text-sm font-pmedium text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {submitting ? "Processing..." : mode === "prepare" ? "Confirm & Send to Finance" : "Send to Finance"}
               </button>
@@ -277,10 +277,10 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
                   <History size={24} className="text-blue-400" /> Payroll Record: {cycle.monthLabel || cycle.displayMonth || cycle.month} Payroll
                 </h2>
                 <div className="flex gap-4 mt-2">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">ID: {cycle.id}</p>
-                  <p className="text-[10px] font-semibold text-green-400 uppercase tracking-wider">Status: {cycle.status}</p>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Paid: {paidCount}</p>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Pending: {pendingCount}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">ID: {cycle.id}</p>
+                  <p className="text-[10px] font-pmedium text-green-400 uppercase tracking-wider">Status: {cycle.status}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Paid: {paidCount}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Pending: {pendingCount}</p>
                 </div>
               </div>
               <button onClick={onClose} className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-white transition-all">
@@ -290,7 +290,7 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
 
             <div className="overflow-x-auto flex-1 bg-white">
               <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60 sticky top-0">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60 sticky top-0">
                   <tr>
                     <th className="px-8 py-5">Employee Info</th>
                     <th className="px-8 py-5">Department & Role</th>
@@ -311,13 +311,13 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
                             </div>
                             <div>
                               <div className="font-semibold text-slate-900 text-sm">{emp.name}</div>
-                              <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{emp.id}</div>
+                              <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">{emp.id}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-5">
                           <span className="font-semibold text-slate-700 text-sm">{emp.department}</span>
-                          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{emp.role}</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">{emp.role}</p>
                         </td>
                         <td className="px-8 py-5">
                           <div className="flex flex-col items-center justify-center text-xs">
@@ -329,8 +329,8 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
                         </td>
                         <td className="px-8 py-5 text-right">
                           <div className="font-semibold text-slate-900 text-base">{formatCurrency(emp.financials?.netSalary)}</div>
-                          {(emp.financials?.hrBonus ?? 0) > 0 && <div className="text-[9px] font-semibold text-green-600 uppercase tracking-wider mt-0.5">+ Bonus Added</div>}
-                          {(emp.financials?.hrDeductions ?? 0) > 0 && <div className="text-[9px] font-semibold text-red-500 uppercase tracking-wider mt-0.5">- Extra Deduction</div>}
+                          {(emp.financials?.hrBonus ?? 0) > 0 && <div className="text-[9px] font-pmedium text-green-600 uppercase tracking-wider mt-0.5">+ Bonus Added</div>}
+                          {(emp.financials?.hrDeductions ?? 0) > 0 && <div className="text-[9px] font-pmedium text-red-500 uppercase tracking-wider mt-0.5">- Extra Deduction</div>}
                         </td>
                         <td className="px-8 py-5 text-center">
                           {(() => {
@@ -342,7 +342,7 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
                                 ? "bg-amber-50 text-amber-600 border-amber-200"
                                 : "bg-slate-50 text-slate-500 border-slate-200";
                             return (
-                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${cls}`}>
+                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${cls}`}>
                                 {paymentStatus}
                               </span>
                             );
@@ -351,7 +351,7 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
                         <td className="px-8 py-5 text-center">
                           <button
                             onClick={() => onViewEmployee(emp)}
-                            className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-semibold text-[10px] uppercase transition-all flex items-center gap-1.5 mx-auto"
+                            className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all flex items-center gap-1.5 mx-auto"
                           >
                             <Eye size={14} /> Breakdown
                           </button>
@@ -369,7 +369,7 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
               </table>
             </div>
             <div className="p-6 bg-slate-50 border-t border-slate-100/60 flex shrink-0">
-              <button onClick={onClose} className="w-full py-4 bg-white border border-slate-200 rounded-4xl font-semibold text-slate-600 hover:bg-slate-100 transition-all">
+              <button onClick={onClose} className="w-full py-4 bg-white border border-slate-200 rounded-4xl font-pmedium text-slate-600 hover:bg-slate-100 transition-all">
                 CLOSE RECORD
               </button>
             </div>
@@ -421,7 +421,7 @@ function EmployeeDetailModal({
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-bold text-slate-900 leading-none">{employee.name}&rsquo;s Salary Detail</h2>
-                <span className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded text-[10px] font-semibold uppercase tracking-wider">
+                <span className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded text-[10px] font-pmedium uppercase tracking-wider">
                   {isHistoryCycle ? "Historical" : "Current"}
                 </span>
               </div>
@@ -438,7 +438,7 @@ function EmployeeDetailModal({
           <div className="p-8 overflow-y-auto flex-1 bg-white grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div>
-                <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
                   <Calendar size={12} /> Auto-Calculated from Attendance
                 </h3>
                 <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-2xl grid grid-cols-2 gap-4">
@@ -455,7 +455,7 @@ function EmployeeDetailModal({
               </div>
 
               <div>
-                <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
                   <FileText size={12} /> Salary Breakdown
                 </h3>
                 <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl space-y-4">
@@ -533,7 +533,7 @@ function EmployeeDetailModal({
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Amount</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Amount</label>
                     <div className="relative">
                       <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
@@ -546,7 +546,7 @@ function EmployeeDetailModal({
                   </div>
 
                   <div className="space-y-2 flex-1">
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Reason / Description</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider">Reason / Description</label>
                     <textarea
                       placeholder="e.g. Performance Bonus Q1"
                       className="w-full px-5 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-medium text-slate-700 focus:border-[#2563EB] outline-none resize-none h-full min-h-25"
@@ -562,7 +562,7 @@ function EmployeeDetailModal({
                       }
                     }}
                     disabled={!adjustment.amount || !adjustment.reason}
-                    className="w-full py-4 bg-slate-900 text-white rounded-xl font-semibold shadow-lg disabled:bg-slate-300 disabled:shadow-none hover:bg-black transition-all mt-auto"
+                    className="w-full py-4 bg-slate-900 text-white rounded-xl font-pmedium shadow-lg disabled:bg-slate-300 disabled:shadow-none hover:bg-black transition-all mt-auto"
                   >
                     APPLY ADJUSTMENT
                   </button>
@@ -925,7 +925,7 @@ export default function HRPayrollPage() {
               <button
                 type="button"
                 onClick={() => loadPayrollData(selectedMonth, selectedYear)}
-                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-bold uppercase tracking-wider"
+                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-pmedium uppercase tracking-wider"
               >
                 Retry
               </button>
@@ -936,7 +936,7 @@ export default function HRPayrollPage() {
           <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               onClick={() => { setActiveTab("master"); setSearchQuery(""); }}
-              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                 activeTab === "master" 
                 ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -946,7 +946,7 @@ export default function HRPayrollPage() {
             </button>
             <button
               onClick={() => { setActiveTab("history"); setSearchQuery(""); }}
-              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                 activeTab === "history" ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
@@ -962,18 +962,18 @@ export default function HRPayrollPage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.className}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
                     {isLoadingActive ? (
                       <Skeleton className="h-6 w-20 mt-1" />
                     ) : card.type === "currency" ? (
-                      <p className="text-[15px] font-black text-slate-900">{formatCurrency(card.value as number)}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(card.value as number)}</p>
                     ) : card.type === "text" ? (
                       <p className="text-sm font-black text-purple-600 mt-1 truncate">{String(card.value)}</p>
                     ) : (
-                      <p className="text-[15px] font-black text-slate-900">{String(card.value)}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{String(card.value)}</p>
                     )}
                     {"extra" in card && card.extra && !isLoading && (
-                      <p className="text-[9px] font-semibold text-amber-600 uppercase tracking-wider mt-1">{card.extra}</p>
+                      <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-wider mt-1">{card.extra}</p>
                     )}
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>
@@ -1024,19 +1024,19 @@ export default function HRPayrollPage() {
                 <div className="bg-linear-to-r from-slate-900 to-slate-800 p-4 flex flex-col sm:flex-row justify-between items-center px-8 gap-4">
                   <div className="text-white">
                     <p className="text-sm font-semibold">Payroll Cycle: {selectedMonth} {selectedYear}</p>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5 flex items-center gap-2">
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mt-0.5 flex items-center gap-2">
                       Current Status:{" "}
                       <span className={`px-2 py-0.5 rounded ${payrollStatus === "Pending" ? "bg-slate-700" : payrollStatus === "Prepared" ? "bg-amber-500/20 text-amber-300" : "bg-green-500/20 text-green-300"}`}>
                         {payrollStatus}
                       </span>
                     </p>
                     {!payrollMonthClosed && payrollStatus === "Pending" && (
-                      <p className="mt-2 text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
+                      <p className="mt-2 text-[10px] font-pmedium text-amber-300 uppercase tracking-wider">
                         Payroll can be prepared after the month closes.
                       </p>
                     )}
                     {excludedZeroPayrollEmployees > 0 && (
-                      <p className="mt-2 text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
+                      <p className="mt-2 text-[10px] font-pmedium text-amber-300 uppercase tracking-wider">
                         {excludedZeroPayrollEmployees} employee(s) with zero net pay are hidden from finance handoff
                       </p>
                     )}
@@ -1047,7 +1047,7 @@ export default function HRPayrollPage() {
                       <button
                         onClick={() => openPayrollHandoffModal("prepare")}
                         disabled={!payrollMonthClosed}
-                        className="px-6 py-2.5 bg-white text-slate-900 rounded-xl font-semibold text-xs hover:bg-slate-200 transition-all flex items-center gap-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                        className="px-6 py-2.5 bg-white text-slate-900 rounded-xl font-pmedium text-xs hover:bg-slate-200 transition-all flex items-center gap-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                       >
                         <Calculator size={14} /> PREPARE PAYROLL (LOCK DATA)
                       </button>
@@ -1055,7 +1055,7 @@ export default function HRPayrollPage() {
                     {payrollStatus === "Prepared" && (
                       <button
                         onClick={() => openPayrollHandoffModal("send")}
-                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-xs hover:bg-blue-500 shadow-lg shadow-blue-900/50 transition-all flex items-center gap-2 animate-pulse"
+                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-xs hover:bg-blue-500 shadow-lg shadow-blue-900/50 transition-all flex items-center gap-2 animate-pulse"
                       >
                         <Send size={14} /> SEND TO FINANCE
                       </button>
@@ -1071,7 +1071,7 @@ export default function HRPayrollPage() {
                 {/* Master table */}
                 <div className="overflow-x-auto flex-1">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-8 py-5">Employee Info</th>
                         <th className="px-8 py-5">Department & Role</th>
@@ -1093,13 +1093,13 @@ export default function HRPayrollPage() {
                                   </div>
                                   <div>
                                     <div className="font-semibold text-slate-900 text-sm">{emp.name}</div>
-                                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{emp.id}</div>
+                                    <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">{emp.id}</div>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-8 py-5">
                                 <span className="font-semibold text-slate-700 text-sm">{emp.department}</span>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{emp.role}</p>
+                                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">{emp.role}</p>
                               </td>
                               <td className="px-8 py-5">
                                 <div className="flex flex-col items-center justify-center text-xs">
@@ -1111,21 +1111,21 @@ export default function HRPayrollPage() {
                               </td>
                               <td className="px-8 py-5 text-right">
                                 <div className="font-semibold text-slate-900 text-base">{formatCurrency(emp.financials?.netSalary)}</div>
-                                {(emp.financials?.benefits ?? 0) > 0 && <div className="text-[9px] font-semibold text-indigo-600 uppercase tracking-wider mt-0.5">+ Benefits Added</div>}
-                                {(emp.financials?.hrBonus ?? 0) > 0 && <div className="text-[9px] font-semibold text-green-600 uppercase tracking-wider mt-0.5">+ Manual Bonus</div>}
+                                {(emp.financials?.benefits ?? 0) > 0 && <div className="text-[9px] font-pmedium text-indigo-600 uppercase tracking-wider mt-0.5">+ Benefits Added</div>}
+                                {(emp.financials?.hrBonus ?? 0) > 0 && <div className="text-[9px] font-pmedium text-green-600 uppercase tracking-wider mt-0.5">+ Manual Bonus</div>}
                                 {((emp.financials?.attendanceDeductions ?? 0) > 0 || (emp.financials?.hrDeductions ?? 0) > 0) && (
-                                  <div className="text-[9px] font-semibold text-red-500 uppercase tracking-wider mt-0.5">- Deductions Applied</div>
+                                  <div className="text-[9px] font-pmedium text-red-500 uppercase tracking-wider mt-0.5">- Deductions Applied</div>
                                 )}
                               </td>
                               <td className="px-8 py-5 text-center">
-                                <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${getStatusBadge(payrollStatus)}`}>
+                                <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusBadge(payrollStatus)}`}>
                                   {payrollStatus}
                                 </span>
                               </td>
                               <td className="px-8 py-5 text-center">
                                 <button
                                   onClick={() => setViewingEmployee({ ...(emp as EmployeePayrollData), isHistory: false })}
-                                  className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-semibold text-[10px] uppercase transition-all flex items-center gap-1.5 mx-auto"
+                                  className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all flex items-center gap-1.5 mx-auto"
                                 >
                                   <Eye size={14} /> Breakdown
                                 </button>
@@ -1152,7 +1152,7 @@ export default function HRPayrollPage() {
             {activeTab === "history" && (
               <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left">
-                      <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                         <tr>
                           <th className="px-8 py-5">Month</th>
                           <th className="px-8 py-5">Sent Date</th>
@@ -1185,7 +1185,7 @@ export default function HRPayrollPage() {
                                       </div>
                                       <div>
                                         <div className="font-semibold text-slate-900">{label} Payroll</div>
-                                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{record.status}</div>
+                                        <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">{record.status}</div>
                                       </div>
                                     </div>
                                   </td>
@@ -1207,7 +1207,7 @@ export default function HRPayrollPage() {
                                   <td className="px-8 py-5 text-center">
                                     <button
                                       onClick={() => setViewingHistoryCycle(record)}
-                                      className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-semibold text-[10px] uppercase transition-all flex items-center gap-1.5 mx-auto"
+                                      className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all flex items-center gap-1.5 mx-auto"
                                     >
                                       <Eye size={14} /> View
                                     </button>

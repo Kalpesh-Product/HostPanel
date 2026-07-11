@@ -206,29 +206,29 @@ export default function CompanyReviews() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Reviews</p>
-                <p className="text-[15px] font-black text-slate-900">{reviewStats[0]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Reviews</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{reviewStats[0]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Pending</p>
-                <p className="text-[15px] font-black text-slate-900">{reviewStats[1]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{reviewStats[1]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Approved</p>
-                <p className="text-[15px] font-black text-slate-900">{reviewStats[2]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Approved</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{reviewStats[2]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><BadgeCheck size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-1">Rejected</p>
-                <p className="text-[15px] font-black text-slate-900">{reviewStats[3]?.value ?? 0}</p>
+                <p className="text-[10px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Rejected</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{reviewStats[3]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><X size={16} /></div>
             </div>
@@ -366,7 +366,7 @@ export default function CompanyReviews() {
                   </div>
 
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Description</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5">Description</p>
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
                       <p className="text-[12px] font-medium leading-5 text-slate-700">{selectedReview.description || selectedReview.review || "No description provided."}</p>
                     </div>
@@ -374,11 +374,11 @@ export default function CompanyReviews() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Received On</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received On</p>
                       <p className="mt-0.5 text-[12px] font-bold text-slate-900">{formatDate(selectedReview.createdAt)}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Source</p>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Source</p>
                       <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedReview.reviewSource || "—"}</p>
                     </div>
                   </div>
@@ -389,10 +389,10 @@ export default function CompanyReviews() {
                   {(selectedReview.status || "pending") === "pending" && (
                     <>
                       <button type="button" onClick={() => handleStatusChange(selectedReview._id, "approved")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-emerald-700"
                       ><CheckCircle2 size={12} /> Approve</button>
                       <button type="button" onClick={() => handleStatusChange(selectedReview._id, "rejected")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-rose-700"
                       ><X size={12} /> Reject</button>
                     </>
                   )}
@@ -424,10 +424,10 @@ export default function CompanyReviews() {
                 </p>
                 <div className="flex items-center gap-2.5">
                   <button type="button" onClick={() => setConfirmAction(null)}
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-600 transition hover:bg-slate-50"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-50"
                   >Cancel</button>
                   <button type="button" onClick={confirmStatusChange}
-                    className={`flex-1 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white transition ${
+                    className={`flex-1 rounded-xl px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white transition ${
                       confirmAction.status === "approved"
                         ? "bg-emerald-600 hover:bg-emerald-700"
                         : "bg-rose-600 hover:bg-rose-700"
