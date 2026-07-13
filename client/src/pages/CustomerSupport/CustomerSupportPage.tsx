@@ -251,7 +251,7 @@ export default function CustomerSupportPage() {
                 Customer Support
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Track issue lifecycle with clear ownership and resolution context.
+                Raise issues to the WoNo Team — every ticket is sent to the WoNo Team for reference and resolution.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
@@ -376,7 +376,7 @@ export default function CustomerSupportPage() {
                     onClick={() => setIsCreateModalOpen(true)}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
-                    <Plus size={13} strokeWidth={3} /> RAISE ISSUE
+                    <Plus size={13} strokeWidth={3} /> RAISE ISSUE TO WONO TEAM
                   </button>
                 </div>
               ) : null}
@@ -446,8 +446,8 @@ export default function CustomerSupportPage() {
 
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">Raise a Support Issue</h2>
-                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Submit a new support ticket</p>
+                <h2 className="text-lg sm:text-xl font-pmedium text-primary tracking-tight whitespace-nowrap">Raise a Support Issue to WoNo Team</h2>
+                <p className="text-[8px] sm:text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">This ticket will be sent to the WoNo Team for resolution.</p>
               </div>
               <button
                 type="button"
