@@ -18,7 +18,7 @@ import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import {
   Building2, CalendarCheck, Ticket, Eye, UserPlus,
   UserCheck, Globe, Map,
-  LayoutGrid, BarChart3, AlertCircle, ArrowRight, Zap,
+  LayoutGrid, Calendar, AlertCircle, ArrowRight, Zap,
 } from "lucide-react";
 import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
@@ -225,12 +225,12 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   const quickLinks: QuickLinkItem[] = [
     { icon: Map, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
     { icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/company-settings/website-builder", color: "#7c3aed" },
-    { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/company-settings/companies", color: "#1E3D73" },
-    { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/app/meeting-rooms", color: "#2563EB" },
-    { icon: Ticket, label: "Support Tickets", description: "Handle open tickets", route: "/app/tickets", color: "#ef4444" },
+    { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/administration/tenant-companies", color: "#1E3D73" },
+    { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/meetings/meeting-rooms", color: "#2563EB" },
+    { icon: Ticket, label: "Support Tickets", description: "Handle open tickets", route: "/tickets", color: "#ef4444" },
     { icon: UserPlus, label: "Visitor Management", description: "Check-in / check-out", route: "/visitors/visitor-management", color: "#80bf01" },
     { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/company-settings/organization-management", color: "#0891b2" },
-    { icon: BarChart3, label: "Reports", description: "Analytics & export", route: "/app/reports", color: "#059669" },
+    { icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/calendar", color: "#059669" },
   ];
 
   return (
@@ -256,11 +256,11 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Professional-plan module overview */}
       <WidgetSection layout={3} title="Overview" border normalCase>
-        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/company-settings/companies" />
-        <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/app/meeting-rooms" />
-        <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/app/meeting-rooms" />
-        <StatCard icon={Ticket} label="Support Tickets" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/app/tickets" />
-        <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/app/tickets" />
+        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/administration/tenant-companies" />
+        <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/meetings/meeting-rooms" />
+        <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/meetings/meeting-rooms" />
+        <StatCard icon={Ticket} label="Support Tickets" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/tickets" />
+        <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/tickets" />
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
       </WidgetSection>
 
@@ -271,7 +271,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent bookings and booking status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/app/meeting-rooms">
+        <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/meetings/meeting-rooms">
           {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
             <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
           )) : <p className="text-content text-gray-400 text-center py-6">No recent bookings</p>}
@@ -281,7 +281,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent tickets and ticket status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/app/tickets">
+        <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/tickets">
           {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
             <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
           )) : <p className="text-content text-gray-400 text-center py-6">No recent tickets</p>}
@@ -291,7 +291,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent tenants and tenant status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/company-settings/companies">
+        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/administration/tenant-companies">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
@@ -314,7 +314,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Expiry alert */}
       {tenantStats.expiringSoon > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/company-settings/companies")}>
+        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/administration/tenant-companies")}>
           <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
           <div>
             <p className="text-content font-pmedium text-amber-800">{tenantStats.expiringSoon} tenant agreement{tenantStats.expiringSoon > 1 ? "s" : ""} expiring within 30 days</p>
