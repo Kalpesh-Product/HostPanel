@@ -8,6 +8,7 @@ import useAuth from "../../hooks/useAuth";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
+import AccountDeletionDangerZone from "./AccountDeletionDangerZone";
 
 const CompanyProfile = () => {
   const axios = useAxiosPrivate();
@@ -375,6 +376,8 @@ const CompanyProfile = () => {
           ) : null}
         </div>
       </section>
+
+      <AccountDeletionDangerZone />
 
       {isUpgradeModalOpen ? createPortal(
         <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">

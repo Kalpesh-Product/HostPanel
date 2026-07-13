@@ -242,6 +242,11 @@ export function TicketsPage() {
     isTechTicketProfile ||
     isITTicketProfile ||
     isMaintenanceTicketProfile;
+  const isManagerTicketProfile =
+    isDepartmentManagerProfile ||
+    normalizedRole === 'manager' ||
+    normalizedRole.endsWith('_manager') ||
+    normalizedRole.endsWith('-manager');
   const profile = {
     name: displayUserName,
     role: storedUser?.role || 'owner',
@@ -259,7 +264,15 @@ export function TicketsPage() {
     () => new Set(currentUserDepartments.map((department) => normalizeRoleValue(department)).filter(Boolean)),
     [currentUserDepartments],
   );
-  const isEmployeeTicketProfile = !isOwnerProfile && !isSuperAdminProfile && !isAdminTicketProfile && !isDepartmentManagerProfile;
+  const isEmployeeTicketProfile = !isOwnerProfile && !isSuperAdminProfile && !isAdminTicketProfile && !isManagerTicketProfile;
+  // Tickets itself is a Professional/Custom module. Do not repeat the plan
+  // lookup here: staff workspace lookups can briefly fall back to "basic" and
+  // hide this tab even after the parent module access check has allowed entry.
+  const showTenantCompanyTicketsTab =
+    isOwnerProfile ||
+    isSuperAdminProfile ||
+    isAdminTicketProfile ||
+    isManagerTicketProfile;
 
   function getAdminDepartments() {
     const departments = [
@@ -432,7 +445,7 @@ export function TicketsPage() {
       return !isSpecialRoutingDepartment(ticket.department);
     }
 
-    if (!isDepartmentManagerProfile) {
+    if (!isManagerTicketProfile) {
       return false;
     }
 
@@ -461,7 +474,7 @@ export function TicketsPage() {
   }
 
   function isDepartmentMyTicket(ticket) {
-    if (!isDepartmentManagerProfile) {
+    if (!isManagerTicketProfile) {
       return false;
     }
 
@@ -498,7 +511,7 @@ export function TicketsPage() {
   const [activeTab, setActiveTab] = useState(() => (
     isAdminTicketProfile
       ? 'assigned_dept_tickets'
-      : (isDepartmentManagerProfile ? 'department_tickets' : (isEmployeeTicketProfile ? 'department_tasks' : 'all'))
+      : (isManagerTicketProfile ? 'department_tickets' : (isEmployeeTicketProfile ? 'department_tasks' : 'all'))
   ));
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
@@ -682,6 +695,48 @@ export function TicketsPage() {
     );
   }
 
+  function isTenantCompanyTicket(ticket) {
+    return Boolean(
+      ticket?.tenantCompanyId ||
+      ticket?.tenantCompanyName ||
+      getSubmittedByBadgeLabel(ticket?.submittedByDept),
+    );
+  }
+
+  function isTenantCompanyTicketVisibleToCurrentTeam(ticket) {
+    if (!isTenantCompanyTicket(ticket)) {
+      return false;
+    }
+
+    if (isOwnerProfile || isSuperAdminProfile) {
+      return true;
+    }
+
+    if (isMyReceivedTicket(ticket)) {
+      return true;
+    }
+
+    const ticketDepartmentKey = normalizeRoleValue(ticket?.department || '');
+    if (!ticketDepartmentKey) {
+      return false;
+    }
+
+    const currentMember = memberDirectory.find((member) =>
+      currentUserId && String(member?.userId || member?.id || '') === String(currentUserId),
+    );
+    const currentTeamKeys = new Set(currentUserDepartmentKeys);
+    (Array.isArray(currentMember?.departments) ? currentMember.departments : []).forEach((department) => {
+      const departmentKey = normalizeRoleValue(department);
+      if (departmentKey) currentTeamKeys.add(departmentKey);
+    });
+
+    if (isAdminTicketProfile) {
+      return adminAssignedDepartmentKeys.has(ticketDepartmentKey) || currentTeamKeys.has(ticketDepartmentKey);
+    }
+
+    return isManagerTicketProfile && currentTeamKeys.has(ticketDepartmentKey);
+  }
+
   function isAdminDepartmentTicket(ticket) {
     if (!isAdminTicketProfile) {
       return false;
@@ -794,7 +849,7 @@ export function TicketsPage() {
 
   const ticketQueueAssigneeOptions = useMemo(() => {
     const isAccessibleQueueTicket =
-      (isDepartmentManagerProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
+      (isManagerTicketProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
       (isAdminTicketProfile && viewingTicket && isAdminDepartmentQueueTicket(viewingTicket)) ||
       ((isOwnerProfile || isSuperAdminProfile) && viewingTicket && isDepartmentQueueTicket(viewingTicket));
 
@@ -820,11 +875,11 @@ export function TicketsPage() {
 
       return memberRole === 'employee';
     });
-  }, [isDepartmentManagerProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, viewingTicket, currentUserId, memberDirectory, specialRoutingAssignees]);
+  }, [isManagerTicketProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, viewingTicket, currentUserId, memberDirectory, specialRoutingAssignees]);
 
   const ticketQueueAcceptanceOptions = useMemo(() => {
     const isAccessibleQueueTicket =
-      (isDepartmentManagerProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
+      (isManagerTicketProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
       (isAdminTicketProfile && viewingTicket && isAdminDepartmentQueueTicket(viewingTicket)) ||
       ((isOwnerProfile || isSuperAdminProfile) && viewingTicket && isDepartmentQueueTicket(viewingTicket));
 
@@ -850,11 +905,11 @@ export function TicketsPage() {
 
       return memberRole === 'employee';
     });
-  }, [isDepartmentManagerProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, viewingTicket, currentUserId, ticketQueueAssigneeOptions]);
+  }, [isManagerTicketProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, viewingTicket, currentUserId, ticketQueueAssigneeOptions]);
 
   useEffect(() => {
     const isAccessibleQueueTicket =
-      (isDepartmentManagerProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
+      (isManagerTicketProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
       (isAdminTicketProfile && viewingTicket && isAdminDepartmentQueueTicket(viewingTicket)) ||
       ((isOwnerProfile || isSuperAdminProfile) && viewingTicket && isDepartmentQueueTicket(viewingTicket));
 
@@ -864,7 +919,7 @@ export function TicketsPage() {
     }
 
     setTicketQueueAssigneeUserId(currentUserId || '');
-  }, [viewingTicket, isDepartmentManagerProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, currentUserId]);
+  }, [viewingTicket, isManagerTicketProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, currentUserId]);
 
   function getAssigneeOptionsForDepartment(department) {
     if (!department) {
@@ -1475,11 +1530,13 @@ export function TicketsPage() {
 
       let matchesTab = false;
       if (isAdminTicketProfile) {
-        if (activeTab === 'assigned_dept_tickets') matchesTab = isAdminAssignedDepartmentTicket(t);
+        if (activeTab === 'assigned_dept_tickets') matchesTab = isAdminAssignedDepartmentTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_tickets') matchesTab = isAdminMyTicket(t);
         if (activeTab === 'my_assigned_tickets') matchesTab = isAdminCreatedTicket(t);
-      } else if (isDepartmentManagerProfile) {
-        if (activeTab === 'department_tickets') matchesTab = isDepartmentTicket(t);
+      } else if (isManagerTicketProfile) {
+        if (activeTab === 'department_tickets') matchesTab = isDepartmentTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_tickets') matchesTab = isDepartmentMyTicket(t);
         if (activeTab === 'my_raised') matchesTab = submittedByMe;
       } else if (isEmployeeTicketProfile) {
@@ -1487,7 +1544,8 @@ export function TicketsPage() {
         if (activeTab === 'my_tickets') matchesTab = isEmployeeMyTicket(t);
         if (activeTab === 'my_raised_tickets') matchesTab = isEmployeeRaisedTicket(t);
       } else {
-        if (activeTab === 'all') matchesTab = !isOwnerSuperAdminDirectTicket(t);
+        if (activeTab === 'all') matchesTab = !isOwnerSuperAdminDirectTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_received') matchesTab = isMyReceivedTicket(t);
         if (activeTab === 'my_raised') matchesTab = submittedByMe;
       }
@@ -1504,7 +1562,7 @@ export function TicketsPage() {
 
       return matchesTab && matchesDept && matchesStatus && matchesSearch;
     });
-  }, [tickets, activeTab, searchQuery, selectedDeptFilter, statusFilter, currentUserId, isDepartmentManagerProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments]);
+  }, [tickets, activeTab, searchQuery, selectedDeptFilter, statusFilter, currentUserId, isManagerTicketProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments, showTenantCompanyTicketsTab]);
 
   const hasMoreTickets = Boolean(pagination?.hasNextPage);
 
@@ -1521,11 +1579,13 @@ export function TicketsPage() {
 
       let matchesTab = false;
       if (isAdminTicketProfile) {
-        if (activeTab === 'assigned_dept_tickets') matchesTab = isAdminAssignedDepartmentTicket(t);
+        if (activeTab === 'assigned_dept_tickets') matchesTab = isAdminAssignedDepartmentTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_tickets') matchesTab = isAdminMyTicket(t);
         if (activeTab === 'my_assigned_tickets') matchesTab = isAdminCreatedTicket(t);
-      } else if (isDepartmentManagerProfile) {
-        if (activeTab === 'department_tickets') matchesTab = isDepartmentTicket(t);
+      } else if (isManagerTicketProfile) {
+        if (activeTab === 'department_tickets') matchesTab = isDepartmentTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_tickets') matchesTab = isDepartmentMyTicket(t);
         if (activeTab === 'my_raised') matchesTab = submittedByMe;
       } else if (isEmployeeTicketProfile) {
@@ -1533,7 +1593,8 @@ export function TicketsPage() {
         if (activeTab === 'my_tickets') matchesTab = isEmployeeMyTicket(t);
         if (activeTab === 'my_raised_tickets') matchesTab = isEmployeeRaisedTicket(t);
       } else {
-        if (activeTab === 'all') matchesTab = !isOwnerSuperAdminDirectTicket(t);
+        if (activeTab === 'all') matchesTab = !isOwnerSuperAdminDirectTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_received') matchesTab = isMyReceivedTicket(t);
         if (activeTab === 'my_raised') matchesTab = submittedByMe;
       }
@@ -1542,7 +1603,7 @@ export function TicketsPage() {
         : normalizeRoleValue(t.department) === normalizeRoleValue(selectedDeptFilter);
       return matchesTab && matchesDept;
     });
-  }, [tickets, activeTab, selectedDeptFilter, currentUserId, isDepartmentManagerProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments]);
+  }, [tickets, activeTab, selectedDeptFilter, currentUserId, isManagerTicketProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments, showTenantCompanyTicketsTab]);
 
   // Form Handlers
   const handleCreateTicket = async (e) => {
@@ -1848,10 +1909,15 @@ export function TicketsPage() {
               {isAdminTicketProfile ? (
                 <>
                   <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Assigned Dept {tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length > 0 && (
-                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length}</span>
+                    Assigned Dept {tickets.filter(t => isAdminDepartmentQueueTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t)) && t.status === 'Open').length > 0 && (
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t)) && t.status === 'Open').length}</span>
                     )}
                   </button>
+                  {showTenantCompanyTicketsTab && (
+                    <button onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      Tenant Company
+                    </button>
+                  )}
                   <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
@@ -1859,11 +1925,16 @@ export function TicketsPage() {
                     My Raised
                   </button>
                 </>
-              ) : isDepartmentManagerProfile ? (
+              ) : isManagerTicketProfile ? (
                 <>
                   <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department
                   </button>
+                  {showTenantCompanyTicketsTab && (
+                    <button onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      Tenant Company
+                    </button>
+                  )}
                   <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length}</span>
@@ -1892,6 +1963,11 @@ export function TicketsPage() {
                   <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Company
                   </button>
+                  {showTenantCompanyTicketsTab && (
+                    <button onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      Tenant Company
+                    </button>
+                  )}
                   <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length}</span>
@@ -2473,7 +2549,7 @@ export function TicketsPage() {
                 {/* ================= ACTIONS AREA ================= */}
 
                 {/* 1. Action - Accept Ticket (Automatically sets to In Progress) */}
-                {(isDepartmentManagerProfile && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
+                {(isManagerTicketProfile && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
                   (isAdminTicketProfile && isAdminDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
                   ((isOwnerProfile || isSuperAdminProfile) && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
                   (isEmployeeTicketProfile && isEmployeeDepartmentTaskTicket(viewingTicket) && viewingTicket.status === 'Open') ? (

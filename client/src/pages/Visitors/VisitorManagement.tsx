@@ -842,6 +842,52 @@ function normalizeDailyBooking(booking) {
   };
 }
 
+function RecordSubTabs({ items = [], activeKey, onChange }) {
+  return (
+    <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          onClick={() => onChange(item.key)}
+          className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-pmedium transition-all sm:text-[12px] ${activeKey === item.key
+            ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+            : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const VALIDATION_FIELD_LABELS = {
+  firstName: 'First name', lastName: 'Last name', gender: 'Gender', phone: 'Phone number', email: 'Email address',
+  country: 'Country', state: 'State', city: 'City', visitorCompany: 'Company name', purpose: 'Purpose',
+  hostGroupType: 'Host type', hostGroupValue: 'Host department or role', hostUserId: 'Host employee', reason: 'Reason for visit',
+  tenantCompanyName: 'Tenant company', pocName: 'Contact name', pocPhone: 'Contact phone', pocEmail: 'Contact email',
+  industry: 'Industry', teamSize: 'Team size', seatCount: 'Seat count', preferredSpace: 'Preferred space',
+  budgetRange: 'Budget range', moveInTimeline: 'Move-in timeline', preferredContactMethod: 'Preferred contact method',
+  name: 'Client name', spaceType: 'Space type', floor: 'Floor', wing: 'Wing', resourceName: 'Meeting room',
+  attendees: 'Attendees', seatNumber: 'Seat number', startDate: 'Start date', endDate: 'End date',
+  startTime: 'Start time', endTime: 'End time', availability: 'Availability', paymentMode: 'Payment mode',
+  transactionId: 'Transaction ID', paymentProofFile: 'Payment screenshot',
+};
+
+function ValidationSummary({ errors = {} }) {
+  const entries = Object.entries(errors);
+  if (entries.length === 0) return null;
+  return (
+    <div data-validation-summary tabIndex={-1} role="alert" aria-live="polite" className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 outline-none focus:ring-2 focus:ring-red-300">
+      <p className="flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-red-700"><AlertCircle size={13} /> Complete the following fields</p>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {entries.map(([field, message]) => <span key={field} className="text-[10px] font-pmedium text-red-600">• {VALIDATION_FIELD_LABELS[field] || field}: {message}</span>)}
+      </div>
+    </div>
+  );
+}
+
 export default function VisitorsManagementPage() {
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
@@ -976,7 +1022,9 @@ export default function VisitorsManagementPage() {
     [memberGrantedModules, userPermissions],
   );
   const [activeTab, setActiveTab] = useState('daily');
+  const [dailyStatusTab, setDailyStatusTab] = useState('all');
   const [bookingStatusTab, setBookingStatusTab] = useState('upcoming');
+  const [clientSourceTab, setClientSourceTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
 
@@ -1137,6 +1185,23 @@ export default function VisitorsManagementPage() {
     });
     return Array.from(mergedById.values());
   }, [liveVisitors, approvedVisitors, pendingVisitors]);
+
+  const dailyVisitorCollections = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = (visitor) => [visitor.name, visitor.company, visitor.phone, visitor.email, visitor.purpose, visitor.host, visitor.badgeNo]
+      .join(' ').toLowerCase().includes(query);
+    const rows = trackedVisitors.filter(matchesSearch);
+    const statusKey = (visitor) => normalizeText(visitor.status || visitor.statusKey || visitor.approvalStatus || '').replace(/[_-]+/g, ' ');
+    return {
+      all: rows,
+      pending: rows.filter((visitor) => statusKey(visitor).includes('pending') || statusKey(visitor).includes('awaiting')),
+      approved: rows.filter((visitor) => statusKey(visitor) === 'approved'),
+      checked_in: rows.filter((visitor) => statusKey(visitor).includes('checked in')),
+      checked_out: rows.filter((visitor) => statusKey(visitor).includes('checked out')),
+      rejected: rows.filter((visitor) => statusKey(visitor).includes('rejected') || statusKey(visitor).includes('cancelled')),
+    };
+  }, [searchQuery, trackedVisitors]);
+  const selectedDailyVisitors = dailyVisitorCollections[dailyStatusTab] || dailyVisitorCollections.all;
 
   useEffect(() => {
     let isCancelled = false;
@@ -1473,7 +1538,9 @@ export default function VisitorsManagementPage() {
       .filter(matchesSearch);
 
     return {
-      upcoming: externalBookings.filter((booking) => !['Completed', 'Cancelled'].includes(booking.status)),
+      all: externalBookings,
+      upcoming: externalBookings.filter((booking) => !['In Progress', 'Completed', 'Cancelled'].includes(booking.status)),
+      in_progress: externalBookings.filter((booking) => booking.status === 'In Progress'),
       completed: externalBookings.filter((booking) => booking.status === 'Completed'),
       cancelled: externalBookings.filter((booking) => booking.status === 'Cancelled'),
     };
@@ -1523,6 +1590,13 @@ export default function VisitorsManagementPage() {
         ].join(' ').toLowerCase().includes(query);
       });
   }, [bookingClients, searchQuery, upcomingBookings]);
+
+  const clientCollections = useMemo(() => ({
+    all: clientRows,
+    walk_in: clientRows.filter((client) => normalizeText(client.source) !== 'visitor-conversion'),
+    converted: clientRows.filter((client) => normalizeText(client.source) === 'visitor-conversion'),
+  }), [clientRows]);
+  const selectedClientRows = clientCollections[clientSourceTab] || clientCollections.all;
 
   const selectedBookingClient = useMemo(
     () => bookingClients.find((client) => String(client.id || client.recordId || client._id || '') === String(form.clientId || '')) || null,
@@ -2292,6 +2366,31 @@ export default function VisitorsManagementPage() {
     return nextErrors;
   }, [walkInErrors, walkInSubmitAttempted, walkInTouched]);
   const isWalkInFormComplete = Object.keys(walkInErrors).length === 0;
+
+  const activeFormValidationErrors = useMemo(() => {
+    if (visitorMode === 'standard') return standardVisitorErrors;
+    if (visitorMode === 'tour') return tourErrors;
+    if (visitorMode === 'walkin_booking') return walkInErrors;
+    return {};
+  }, [standardVisitorErrors, tourErrors, visitorMode, walkInErrors]);
+  const activeFormSubmitAttempted = visitorMode === 'standard'
+    ? standardVisitorSubmitAttempted
+    : visitorMode === 'tour'
+      ? tourSubmitAttempted
+      : visitorMode === 'walkin_booking'
+        ? walkInSubmitAttempted
+        : false;
+
+  useEffect(() => {
+    if (!isLoggingVisitor || !activeFormSubmitAttempted || Object.keys(activeFormValidationErrors).length === 0) return undefined;
+    const timer = window.setTimeout(() => {
+      const firstInvalidField = document.querySelector('[data-frontdesk-form] .border-red-300') || document.querySelector('[data-validation-summary]');
+      if (!firstInvalidField) return;
+      firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof firstInvalidField.focus === 'function') firstInvalidField.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [activeFormSubmitAttempted, activeFormValidationErrors, isLoggingVisitor, visitorMode]);
 
   useEffect(() => {
     if (lockedTopTabs.has(activeTab)) {
@@ -3439,6 +3538,20 @@ export default function VisitorsManagementPage() {
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
             <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {activeTab === 'daily' && (
+                <RecordSubTabs
+                  activeKey={dailyStatusTab}
+                  onChange={setDailyStatusTab}
+                  items={[
+                    { key: 'all', label: 'All', count: dailyVisitorCollections.all.length },
+                    { key: 'pending', label: 'Pending', count: dailyVisitorCollections.pending.length },
+                    { key: 'approved', label: 'Approved', count: dailyVisitorCollections.approved.length },
+                    { key: 'checked_in', label: 'Checked In', count: dailyVisitorCollections.checked_in.length },
+                    { key: 'checked_out', label: 'Checked Out', count: dailyVisitorCollections.checked_out.length },
+                    { key: 'rejected', label: 'Rejected', count: dailyVisitorCollections.rejected.length },
+                  ]}
+                />
+              )}
               {activeTab === 'history' && (
                 <>
                   <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyMonth} onChange={(e) => setHistoryMonth(e.target.value)}>
@@ -3450,26 +3563,28 @@ export default function VisitorsManagementPage() {
                 </>
               )}
               {activeTab === 'bookings' && (
-                <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1">
-                  {[
-                    ['upcoming', 'Upcoming', bookingCollections.upcoming.length],
-                    ['completed', 'Completed', bookingCollections.completed.length],
-                    ['cancelled', 'Cancelled', bookingCollections.cancelled.length],
-                  ].map(([key, label, count]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setBookingStatusTab(key)}
-                      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                        bookingStatusTab === key
-                          ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                          : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
-                      }`}
-                    >
-                      {label} <span className={`rounded px-1.5 py-0.5 text-[8px] font-bold ${bookingStatusTab === key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>{count}</span>
-                    </button>
-                  ))}
-                </div>
+                <RecordSubTabs
+                  activeKey={bookingStatusTab}
+                  onChange={setBookingStatusTab}
+                  items={[
+                    { key: 'all', label: 'All', count: bookingCollections.all.length },
+                    { key: 'upcoming', label: 'Upcoming', count: bookingCollections.upcoming.length },
+                    { key: 'in_progress', label: 'In Progress', count: bookingCollections.in_progress.length },
+                    { key: 'completed', label: 'Completed', count: bookingCollections.completed.length },
+                    { key: 'cancelled', label: 'Cancelled', count: bookingCollections.cancelled.length },
+                  ]}
+                />
+              )}
+              {activeTab === 'clients' && (
+                <RecordSubTabs
+                  activeKey={clientSourceTab}
+                  onChange={setClientSourceTab}
+                  items={[
+                    { key: 'all', label: 'All Clients', count: clientCollections.all.length },
+                    { key: 'walk_in', label: 'Walk-in', count: clientCollections.walk_in.length },
+                    { key: 'converted', label: 'Converted Visitors', count: clientCollections.converted.length },
+                  ]}
+                />
               )}
             </div>
 
@@ -3513,7 +3628,7 @@ export default function VisitorsManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
-                  {trackedVisitors.filter((v) => String(v.name || '').toLowerCase().includes(searchQuery.toLowerCase())).map((vis) => {
+                  {selectedDailyVisitors.map((vis) => {
                     const visitorId = vis.recordId || vis.id;
                     const normalizedStatus = normalizeText(vis.status || '').replace(/[_-]+/g, ' ');
                     const normalizedStatusKey = normalizeText(vis.statusKey || '').replace(/[_-]+/g, ' ');
@@ -3599,8 +3714,8 @@ export default function VisitorsManagementPage() {
                       </tr>
                     );
                   })}
-                  {trackedVisitors.length === 0 && (
-                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No live visitors.</td></tr>
+                  {selectedDailyVisitors.length === 0 && (
+                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No visitors found for this status.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3610,7 +3725,51 @@ export default function VisitorsManagementPage() {
           {/* --- TAB: BOOKINGS --- */}
           {activeTab === 'bookings' && (
             <div className="overflow-x-auto flex-1">
-              <div className="grid grid-cols-1 gap-4 p-6 max-w-[960px] mx-auto">
+              <table className="w-full min-w-[1080px] text-left border-collapse">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-5 py-4">Booking / Client</th>
+                    <th className="px-5 py-4">Meeting Room</th>
+                    <th className="px-5 py-4">Schedule</th>
+                    <th className="px-5 py-4">Payment</th>
+                    <th className="px-5 py-4">Amount</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {selectedBookingList.map((bkg) => (
+                    <tr key={`table-${bkg.recordId || bkg.id}`} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[13px] font-pmedium text-slate-950">{bkg.bookedBy || 'External Client'}</p>
+                        <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">{bkg.company || 'Individual'}</p>
+                        <p className="mt-1 text-[10px] font-pmedium text-blue-600">{bkg.id || bkg.bookingCode}</p>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[13px] font-pmedium text-slate-900">{bkg.resource || 'Meeting Room'}</p>
+                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-pmedium text-slate-500">{bkg.source === 'Website' ? <Globe size={11} /> : <Smartphone size={11} />} {bkg.source || 'Frontdesk'}</span>
+                      </td>
+                      <td className="px-5 py-4 align-top whitespace-nowrap">
+                        <p className="flex items-center gap-1.5 text-[12px] font-pmedium text-slate-800"><CalendarDays size={13} className="text-slate-400" /> {bkg.dateLabel || formatDisplayDate(bkg.date)}</p>
+                        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-pmedium text-slate-500"><Clock size={12} /> {bkg.time || 'Time not set'}</p>
+                      </td>
+                      <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.paymentStatus || 'Pending')}>{bkg.paymentStatus || 'Pending'}</span><p className="mt-1.5 text-[10px] font-pmedium text-slate-500">{bkg.paymentMode || 'Not set'}</p></td>
+                      <td className="px-5 py-4 align-top"><p className="text-[13px] font-pmedium text-slate-950">{formatCurrency(bkg.totalAmount || bkg.amountDue || 0)}</p>{Number(bkg.discountAmount || 0) > 0 && <p className="mt-1 text-[10px] font-pmedium text-emerald-600">Discount {formatCurrency(bkg.discountAmount)}</p>}</td>
+                      <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.status)}>{bkg.status}</span>{bkg.isExtended && <span className={statusPillClass('Extended')}>Extended</span>}</td>
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex items-center gap-1.5">
+                          <button type="button" title="View booking" onClick={() => setViewingBooking(bkg)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                          {bkg.invoiceFileUrl && <button type="button" title="Download invoice" onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"><Download size={15} strokeWidth={2.5} /></button>}
+                          {bkg.status === 'In Progress' && <button type="button" title="Extend slot" onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="p-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-all"><Clock size={15} strokeWidth={2.5} /></button>}
+                          {bkg.status !== 'In Progress' && bkg.status !== 'Completed' && bkg.status !== 'Cancelled' && <><button type="button" title="Reschedule booking" onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition-all"><CalendarIcon size={15} strokeWidth={2.5} /></button><button type="button" title="Cancel booking" onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"><XCircle size={15} strokeWidth={2.5} /></button></>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {selectedBookingList.length === 0 && <tr><td colSpan={7} className="py-20 text-center font-pmedium text-slate-400">No bookings found for this status.</td></tr>}
+                </tbody>
+              </table>
+              <div className="hidden">
                 {selectedBookingList.map((bkg) => (
                   <div key={bkg.id} className="w-full bg-white border border-slate-200 rounded-[15px] p-3.5 md:p-4 flex flex-col lg:grid lg:grid-cols-[minmax(0,1.95fr)_auto] gap-3 lg:gap-4 items-start lg:items-stretch hover:shadow-md hover:border-blue-300 transition-all group">
 
@@ -3722,7 +3881,7 @@ export default function VisitorsManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
-                  {clientRows.map((client) => (
+                  {selectedClientRows.map((client) => (
                     <tr key={client.id || client.recordId || client.clientCode} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4 align-top">
                         <div className="font-pmedium text-[#0F172A] text-[13px]">{client.name || client.company || 'Unnamed Client'}</div>
@@ -3763,8 +3922,8 @@ export default function VisitorsManagementPage() {
                       </td>
                     </tr>
                   ))}
-                  {clientRows.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No clients found.</td></tr>
+                  {selectedClientRows.length === 0 && (
+                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No clients found for this source.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3860,7 +4019,7 @@ export default function VisitorsManagementPage() {
         {/* MODAL 1: GRAND UNIFIED "LOG VISITOR & BOOKING" TERMINAL */}
         {isLoggingVisitor && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <div className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]">
+            <div data-frontdesk-form className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]">
 
               <div className="p-3 md:p-3.5 bg-white border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
                 <div>
@@ -5263,6 +5422,8 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
+              {activeFormSubmitAttempted && <ValidationSummary errors={activeFormValidationErrors} />}
+
               <div className={visitorMode === 'walkin_booking' ? 'flex flex-col-reverse items-stretch gap-3 pt-2 shrink-0 px-6 pb-4 sm:flex-row sm:justify-end' : 'flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4'}>
                 <button type="button" onClick={() => { setIsLoggingVisitor(false); setLastSelectedExistingVisitor(null); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={visitorMode === 'walkin_booking' ? 'w-full sm:flex-1 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all' : 'flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all'}>Cancel</button>
 
@@ -5463,19 +5624,19 @@ export default function VisitorsManagementPage() {
         {/* MODAL 3: CANCEL UPCOMING BOOKING */}
         {cancellingBooking && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-md">
-            <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col">
-              <div className="p-8 bg-red-50 border-b border-red-100 flex justify-between items-center">
+            <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col">
+              <div className="p-5 sm:p-6 bg-red-50/70 border-b border-red-100 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-red-100 text-red-600 rounded-xl"><XCircle size={24} /></div>
                   <div>
-                    <h2 className="text-xl font-black text-red-900 leading-none">Cancel Booking</h2>
+                    <h2 className="text-lg font-pmedium text-red-900 leading-none">Cancel Booking</h2>
                     <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mt-1">{cancellingBooking.id}</p>
                   </div>
                 </div>
                 <button onClick={() => setCancellingBooking(null)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-5 sm:p-6 space-y-5">
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3 items-start">
                   <ShieldAlert className="text-gray-500 shrink-0 mt-0.5" size={20} />
                   <div className="text-xs text-gray-600 font-medium leading-relaxed">
@@ -5505,9 +5666,9 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
-                <button onClick={() => setCancellingBooking(null)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-4 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">ABORT</button>
-                <button disabled={!cancelForm.reason || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={handleCancelUpcoming} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-4 bg-red-600 text-white shadow-lg shadow-red-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex gap-3">
+                <button onClick={() => setCancellingBooking(null)} className="rounded-xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">ABORT</button>
+                <button disabled={!cancelForm.reason || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={handleCancelUpcoming} className="rounded-xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-red-600 text-white shadow-md shadow-red-100 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
               </div>
             </div>
           </div>
@@ -5516,19 +5677,19 @@ export default function VisitorsManagementPage() {
         {/* MODAL 4: RESCHEDULE BOOKING */}
         {reschedulingBooking && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-md">
-            <div className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col">
-              <div className="p-8 bg-amber-50 border-b border-amber-100 flex justify-between items-center">
+            <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[88vh]">
+              <div className="p-5 sm:p-6 bg-amber-50/70 border-b border-amber-100 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><CalendarDays size={24} /></div>
                   <div>
-                    <h2 className="text-xl font-black text-amber-900 leading-none">Reschedule Booking</h2>
+                    <h2 className="text-lg font-pmedium text-amber-900 leading-none">Reschedule Booking</h2>
                     <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mt-1">{reschedulingBooking.resource}</p>
                   </div>
                 </div>
                 <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto">
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center gap-4">
                   <div className="flex-1">
                     <p className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest mb-1">Current Booked Slot</p>
@@ -5605,9 +5766,9 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
-                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
-                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime} onClick={handleRescheduleUpcoming} className="flex-1 py-4 bg-amber-500 text-white rounded-2xl font-pmedium shadow-lg shadow-amber-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
+                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl font-pmedium text-[10px] uppercase text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
+                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime} onClick={handleRescheduleUpcoming} className="flex-1 py-3 bg-amber-500 text-white rounded-xl text-[10px] uppercase font-pmedium shadow-md shadow-amber-100 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
                   <CheckCircle2 size={18} /> UPDATE BOOKING SLOT
                 </button>
               </div>
@@ -5765,10 +5926,10 @@ export default function VisitorsManagementPage() {
         {/* MODAL 5B: VIEW DAILY BOOKING DETAILS */}
         {viewingBooking && (
           <div className="fixed inset-0 z-[105] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
-            <div className="bg-white rounded-[40px] w-full max-w-5xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="p-6 bg-amber-50 border-b border-amber-100 flex justify-between items-start shrink-0">
+            <div className="bg-white rounded-[24px] w-full max-w-[760px] shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[82vh]">
+              <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-start shrink-0">
                 <div>
-                  <h2 className="text-2xl font-black text-gray-900 leading-none flex items-center gap-3">
+                  <h2 className="text-lg font-pmedium text-gray-900 leading-none flex flex-wrap items-center gap-2">
                     {viewingBooking.resource}
                     <span className={statusPillClass(viewingBooking.status)}>{viewingBooking.status}</span>
                   </h2>
@@ -5776,22 +5937,22 @@ export default function VisitorsManagementPage() {
                     {viewingBooking.company}
                   </p>
                 </div>
-                <button onClick={() => setViewingBooking(null)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all">
-                  <X size={20} />
+                <button onClick={() => setViewingBooking(null)} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all">
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4">
-                  <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 space-y-2">
+              <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1 bg-white">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5 space-y-1.5">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Booked By</p>
-                    <p className="text-lg font-black text-gray-900">{viewingBooking.bookedBy}</p>
-                    <p className="text-xs font-bold text-gray-500">{viewingBooking.company}</p>
+                    <p className="text-sm font-pmedium text-gray-900">{viewingBooking.bookedBy}</p>
+                    <p className="text-xs font-pmedium text-gray-500">{viewingBooking.company}</p>
                   </div>
-                  <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 space-y-2">
+                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5 space-y-1.5">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Schedule</p>
-                    <p className="text-lg font-black text-gray-900">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}</p>
-                    <p className="text-xs font-bold text-gray-500">{viewingBooking.time}</p>
+                    <p className="text-sm font-pmedium text-gray-900">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}</p>
+                    <p className="text-xs font-pmedium text-gray-500">{viewingBooking.time}</p>
                     {viewingBooking.isExtended && (
                       <div className="pt-2 space-y-1">
                         <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Original Slot</p>
@@ -5806,71 +5967,71 @@ export default function VisitorsManagementPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Status</p>
-                    <p className={`mt-2 text-sm font-black ${normalizeText(viewingBooking.paymentStatus).includes('pending') || normalizeText(viewingBooking.paymentStatus).includes('unpaid') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingBooking.paymentStatus || 'Pending Payment'}</p>
+                    <p className={`mt-2 text-sm font-pmedium ${normalizeText(viewingBooking.paymentStatus).includes('pending') || normalizeText(viewingBooking.paymentStatus).includes('unpaid') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingBooking.paymentStatus || 'Pending Payment'}</p>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4 md:col-span-1">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Amount Breakdown</p>
                     <div className="mt-3 space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-500">Base Amount</span>
-                        <span className="text-sm font-black text-gray-900">{formatCurrency(viewingBooking.subtotalBeforeDiscount || viewingBooking.baseAmount || 0)}</span>
+                        <span className="text-xs font-pmedium text-gray-500">Base Amount</span>
+                        <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.subtotalBeforeDiscount || viewingBooking.baseAmount || 0)}</span>
                       </div>
                       {Number(viewingBooking.discountAmount || 0) > 0 && (
                         <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2">
-                          <span className="text-xs font-bold text-emerald-600">
+                          <span className="text-xs font-pmedium text-emerald-600">
                             Discount{viewingBooking.discountType === 'percent' ? ` (${Number(viewingBooking.discountValue || 0)}%)` : ''}
                           </span>
-                          <span className="text-sm font-black text-emerald-700">- {formatCurrency(viewingBooking.discountAmount)}</span>
+                          <span className="text-sm font-pmedium text-emerald-700">- {formatCurrency(viewingBooking.discountAmount)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-500">GST (18%)</span>
-                        <span className="text-sm font-black text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
+                        <span className="text-xs font-pmedium text-gray-500">GST (18%)</span>
+                        <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
                       </div>
                       {Number(viewingBooking.extensionAmount || 0) > 0 && (
                         <div className="flex items-center justify-between rounded-xl bg-purple-50 px-3 py-2">
-                          <span className="text-xs font-bold text-purple-600">Extension Charges</span>
-                          <span className="text-sm font-black text-purple-700">{formatCurrency(viewingBooking.extensionAmount)}</span>
+                          <span className="text-xs font-pmedium text-purple-600">Extension Charges</span>
+                          <span className="text-sm font-pmedium text-purple-700">{formatCurrency(viewingBooking.extensionAmount)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between border-t border-gray-200 pt-2.5">
-                        <span className="text-sm font-black text-gray-900">Total Paid</span>
-                        <span className="text-base font-black text-blue-700">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amountDue || 0)}</span>
+                        <span className="text-sm font-pmedium text-gray-900">Total Paid</span>
+                        <span className="text-base font-pmedium text-blue-700">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amountDue || 0)}</span>
                       </div>
                     </div>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Mode</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingBooking.paymentMode || 'Not set'}</p>
+                    <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.paymentMode || 'Not set'}</p>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Attendees</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingBooking.attendees || 0}</p>
+                    <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.attendees || 0}</p>
                   </div>
                 </div>
 
-                <div className="rounded-3xl bg-gray-50 border border-gray-100 p-5">
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 mb-3">Contact & Source</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Phone</p>
-                      <p className="mt-1 font-bold text-gray-900">{viewingBooking.phone || 'Not provided'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.phone || 'Not provided'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Email</p>
-                      <p className="mt-1 font-bold text-gray-900 break-all">{viewingBooking.email || 'Not provided'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.email || 'Not provided'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Finance Status</p>
-                      <p className="mt-1 font-bold text-gray-900">{viewingBooking.financeStatus || 'Not set'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.financeStatus || 'Not set'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Source Reference</p>
-                      <p className="mt-1 font-bold text-gray-900 break-all">{viewingBooking.sourceReference || 'Frontdesk'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.sourceReference || 'Frontdesk'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Booking Type</p>
-                      <p className="mt-1 font-bold text-gray-900">{viewingBooking.bookingType || 'External'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.bookingType || 'External'}</p>
                     </div>
                   </div>
                   <div className="mt-4">
@@ -5880,22 +6041,22 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 shrink-0">
-                <button onClick={() => setViewingBooking(null)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-pmedium text-gray-600 hover:bg-gray-100 transition-all">
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5 shrink-0">
+                <button onClick={() => setViewingBooking(null)} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl text-[10px] uppercase font-pmedium text-gray-600 hover:bg-gray-100 transition-all">
                   CLOSE
                 </button>
                 {viewingBooking.status === 'In Progress' ? (
                   <>
-                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="flex-1 py-4 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-2xl font-pmedium hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="flex-1 py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-[10px] uppercase font-pmedium hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
                       <Clock size={18} /> EXTEND SLOT
                     </button>
                   </>
                 ) : viewingBooking.status !== 'Completed' && viewingBooking.status !== 'Cancelled' && (
                   <>
-                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); setViewingBooking(null); }} className="flex-1 py-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl font-pmedium hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); setViewingBooking(null); }} className="flex-1 py-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-[10px] uppercase font-pmedium hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
                       <CalendarIcon size={18} /> RESCHEDULE
                     </button>
-                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-pmedium shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="flex-1 py-3 bg-red-600 text-white rounded-xl text-[10px] uppercase font-pmedium shadow-md shadow-red-100 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                       <XCircle size={18} /> CANCEL
                     </button>
                   </>
@@ -5908,11 +6069,11 @@ export default function VisitorsManagementPage() {
         {/* MODAL 5C: CLIENT BOOKING HISTORY */}
         {viewingClient && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
-            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[36px] bg-white shadow-2xl animate-in zoom-in duration-200">
-              <div className="flex shrink-0 items-start justify-between border-b border-blue-100 bg-blue-50 p-6">
+            <div className="flex max-h-[82vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl animate-in zoom-in duration-200">
+              <div className="flex shrink-0 items-start justify-between border-b border-gray-100 bg-gray-50 px-5 py-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-2xl font-black leading-none text-slate-950">{viewingClient.name || viewingClient.company || 'Client'}</h2>
+                    <h2 className="text-lg font-pmedium leading-none text-slate-950">{viewingClient.name || viewingClient.company || 'Client'}</h2>
                     {viewingClient.company && (
                       <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium text-slate-600">
                         {viewingClient.company}
@@ -5926,32 +6087,32 @@ export default function VisitorsManagementPage() {
                   </div>
                   <p className="mt-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{viewingClient.phone || viewingClient.email || 'No contact'} • {viewingClient.bookingCount || 0} bookings</p>
                 </div>
-                <button onClick={() => setViewingClient(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm transition-all hover:text-red-500">
-                  <X size={20} />
+                <button onClick={() => setViewingClient(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm transition-all hover:text-red-500">
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto p-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
-                    <p className="mt-2 text-sm font-black text-slate-900">{viewingClient.phone || 'Not provided'}</p>
+                    <p className="mt-2 text-sm font-pmedium text-slate-900">{viewingClient.phone || 'Not provided'}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
-                    <p className="mt-2 break-all text-sm font-black text-slate-900">{viewingClient.email || 'Not provided'}</p>
+                    <p className="mt-2 break-all text-sm font-pmedium text-slate-900">{viewingClient.email || 'Not provided'}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Bookings</p>
-                    <p className="mt-2 text-xl font-black text-slate-900">{viewingClient.bookingCount || 0}</p>
+                    <p className="mt-2 text-xl font-pmedium text-slate-900">{viewingClient.bookingCount || 0}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Value</p>
-                    <p className="mt-2 text-xl font-black text-slate-900">{formatCurrency(viewingClient.totalBookedAmount || 0)}</p>
+                    <p className="mt-2 text-xl font-pmedium text-slate-900">{formatCurrency(viewingClient.totalBookedAmount || 0)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Source</p>
-                    <p className="mt-2 text-sm font-black text-slate-900">
+                    <p className="mt-2 text-sm font-pmedium text-slate-900">
                       {normalizeText(viewingClient.source) === 'visitor-conversion' ? 'Visitor Conversion' : 'Walk-in Booking'}
                     </p>
                   </div>
@@ -5961,7 +6122,26 @@ export default function VisitorsManagementPage() {
                   <div className="border-b border-slate-100 p-4">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Booking History</p>
                   </div>
-                  <div className="divide-y divide-slate-100">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[620px] text-left border-collapse">
+                      <thead className="bg-slate-50 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
+                        <tr><th className="px-4 py-3">Room</th><th className="px-4 py-3">Schedule</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {(viewingClient.bookings || []).map((booking) => (
+                          <tr key={`history-${booking.recordId || booking.id}`} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-3"><p className="text-xs font-pmedium text-slate-950">{booking.resource}</p><p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{booking.sourceReference || 'Frontdesk booking'}</p></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><p className="text-xs font-pmedium text-slate-800">{booking.dateLabel || booking.date}</p><p className="mt-0.5 text-[10px] font-pmedium text-slate-500">{booking.time}</p></td>
+                            <td className="px-4 py-3 text-xs font-pmedium text-slate-900">{formatCurrency(booking.totalAmount || booking.amountDue || 0)}</td>
+                            <td className="px-4 py-3"><span className={statusPillClass(booking.status)}>{booking.status}</span></td>
+                            <td className="px-4 py-3"><button type="button" title="View booking" onClick={() => { setViewingBooking(booking); setViewingClient(null); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={14} strokeWidth={2.5} /></button></td>
+                          </tr>
+                        ))}
+                        {(!viewingClient.bookings || viewingClient.bookings.length === 0) && <tr><td colSpan={5} className="p-8 text-center text-xs font-pmedium text-slate-400">No booking records found for this client yet.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="hidden">
                     {(viewingClient.bookings || []).map((booking) => (
                       <div key={booking.recordId || booking.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                         <div>
@@ -5998,8 +6178,8 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="shrink-0 border-t border-slate-100 bg-slate-50 p-6">
-                <button onClick={() => setViewingClient(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition-all hover:bg-slate-100">
+              <div className="shrink-0 border-t border-gray-100 bg-gray-50 px-5 py-3">
+                <button onClick={() => setViewingClient(null)} className="w-full rounded-xl border border-slate-200 bg-white py-3 text-[10px] uppercase font-pmedium text-slate-600 transition-all hover:bg-slate-100">
                   CLOSE
                 </button>
               </div>
