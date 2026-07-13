@@ -3,6 +3,7 @@ import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
+import ThreeDotMenu from "../../components/ThreeDotMenu";
 import { statusPillClass } from "../../lib/status-pill";
 import { createReport } from "../../services/reports";
 import { downloadReportFile } from "../../utils/report-download";
@@ -70,8 +71,13 @@ export default function CustomerSupportPage() {
   const [activeTab, setActiveTab] = useState<"raised" | "resolved">("raised");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPageUrl, setEditPageUrl] = useState("");
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [supportData, setSupportData] = useState<SupportPayload>({
     raised: [],
     history: [],
@@ -213,6 +219,42 @@ export default function CustomerSupportPage() {
     }
   };
 
+  const openEditModal = (ticket: SupportTicket) => {
+    setSelectedTicket(ticket);
+    setEditTitle(ticket.title || "");
+    setEditDescription(ticket.description || "");
+    setEditPageUrl(ticket.pageUrl || "");
+    setEditImageFile(null);
+    setIsEditModalOpen(true);
+  };
+
+  const submitEditTicket = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedTicket || !editTitle.trim() || !editDescription.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      const formData = new FormData();
+      formData.append("title", editTitle.trim());
+      formData.append("description", editDescription.trim());
+      formData.append("pageUrl", editPageUrl.trim());
+      if (editImageFile) formData.append("image", editImageFile);
+
+      await axios.patch(`${SUPPORT_TICKETS_API}/${selectedTicket.id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Support ticket updated.");
+      setIsEditModalOpen(false);
+      setIsDetailsModalOpen(false);
+      setSelectedTicket(null);
+      await loadTickets();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update support ticket.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleExportIssues = async (format = "PDF") => {
     const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
     if (!filteredList.length) { toast.error("There are no issues to export."); return; }
@@ -251,7 +293,7 @@ export default function CustomerSupportPage() {
                 Customer Support
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Track issue lifecycle with clear ownership and resolution context.
+                Raise issues to the WoNo Team — every ticket is sent to the WoNo Team for reference and resolution.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
@@ -376,7 +418,7 @@ export default function CustomerSupportPage() {
                     onClick={() => setIsCreateModalOpen(true)}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
-                    <Plus size={13} strokeWidth={3} /> RAISE ISSUE
+                    <Plus size={13} strokeWidth={3} /> RAISE ISSUE TO WONO TEAM
                   </button>
                 </div>
               ) : null}
@@ -418,15 +460,25 @@ export default function CustomerSupportPage() {
                           </td>
                           <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
                           <td className="px-5 py-4 align-top text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
-                              title="View details"
-                              aria-label={`View details for ${ticket.ticketId || ticket.title}`}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
-                            >
-                              <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
+                                title="View details"
+                                aria-label={`View details for ${ticket.ticketId || ticket.title}`}
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                              >
+                                <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
+                              </button>
+                              {ticket.status === "Open" && (
+                                <ThreeDotMenu
+                                  rowId={ticket.id}
+                                  menuItems={[
+                                    { label: "Edit Ticket", onClick: () => openEditModal(ticket) },
+                                  ]}
+                                />
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -446,8 +498,8 @@ export default function CustomerSupportPage() {
 
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">Raise a Support Issue</h2>
-                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Submit a new support ticket</p>
+                <h2 className="text-lg sm:text-xl font-pmedium text-primary tracking-tight whitespace-nowrap">Raise a Support Issue to WoNo Team</h2>
+                <p className="text-[8px] sm:text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">This ticket will be sent to the WoNo Team for resolution.</p>
               </div>
               <button
                 type="button"
@@ -749,6 +801,118 @@ export default function CustomerSupportPage() {
                 className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
               >
                 {isSubmitting ? "Submitting..." : "Submit Follow Up"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditModalOpen && selectedTicket && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-lg h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
+          <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+
+            <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">Edit Support Issue</h2>
+                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">{selectedTicket.ticketId || "-"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsEditModalOpen(false); setSelectedTicket(null); }}
+                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"
+              >
+                <X size={18} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            <form onSubmit={submitEditTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Issue Details</span>
+                </h4>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="edit-issue-title" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Title <span className="text-red-400">*</span></label>
+                  <input
+                    id="edit-issue-title"
+                    type="text"
+                    value={editTitle}
+                    onChange={(event) => setEditTitle(event.target.value)}
+                    placeholder="e.g. Platform Issue"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="edit-issue-description" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Issue <span className="text-red-400">*</span></label>
+                  <textarea
+                    id="edit-issue-description"
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    rows={5}
+                    placeholder="Describe the issue in detail"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Upload size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Attachments</span>
+                </h4>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="edit-issue-page-url" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Page URL</label>
+                  <input
+                    id="edit-issue-page-url"
+                    type="text"
+                    value={editPageUrl}
+                    onChange={(event) => setEditPageUrl(event.target.value)}
+                    placeholder="e.g. /extra-common-modules/assets"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="edit-issue-image" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Image Upload</label>
+                  <label
+                    htmlFor="edit-issue-image"
+                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-pmedium text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
+                  >
+                    <Upload size={16} />
+                    {editImageFile ? editImageFile.name : selectedTicket.image?.url ? "Replace uploaded image" : "Choose an image file"}
+                  </label>
+                  <input
+                    id="edit-issue-image"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      setEditImageFile(file || null);
+                    }}
+                  />
+                </div>
+              </div>
+            </form>
+
+            <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setIsEditModalOpen(false); setSelectedTicket(null); }}
+                className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !editTitle.trim() || !editDescription.trim()}
+                onClick={(e) => submitEditTicket(e)}
+                className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isSubmitting ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>

@@ -100,10 +100,10 @@ function TenantBillingDetails({ tenant }) {
   const depStatus = tenant.billingDetails?.securityDepositPaidStatus || 'Pending';
   return (
     <div className="grid grid-cols-2 gap-4">
-      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900 mt-1">{monthlyRent > 0 ? `₹${fmt(monthlyRent)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Amount</p><p className="text-xs font-bold text-slate-900 mt-1">{totalAmt > 0 ? `₹${fmt(totalAmt)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900 mt-1">{secDep > 0 ? `₹${fmt(secDep)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900 mt-1">{depStatus}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p><p className="text-xs font-pmedium text-slate-900 mt-1">{monthlyRent > 0 ? `₹${fmt(monthlyRent)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Amount</p><p className="text-xs font-pmedium text-slate-900 mt-1">{totalAmt > 0 ? `₹${fmt(totalAmt)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Security Deposit</p><p className="text-xs font-pmedium text-slate-900 mt-1">{secDep > 0 ? `₹${fmt(secDep)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Deposit Status</p><p className="text-xs font-pmedium text-slate-900 mt-1">{depStatus}</p></div>
     </div>
   );
 }
@@ -117,7 +117,7 @@ function DataPanel({ title, subtitle, headerRight, children }) {
       <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50">
         <div>
           <p className="text-xs font-pmedium uppercase tracking-wider text-slate-900">{title}</p>
-          {subtitle && <p className="text-[10px] font-medium text-slate-500 mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
         {headerRight && <div className="flex items-center gap-2 flex-shrink-0">{headerRight}</div>}
       </div>
@@ -257,7 +257,7 @@ export default function TenantCompanyDetailPage() {
     return (
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
-          <div className="flex items-center justify-center min-h-[40vh]"><p className="text-sm font-bold text-slate-400">Tenant company not found.</p></div>
+          <div className="flex items-center justify-center min-h-[40vh]"><p className="text-sm font-pmedium text-slate-400">Tenant company not found.</p></div>
         </PageFrame>
       </div>
     );
@@ -333,19 +333,19 @@ export default function TenantCompanyDetailPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Start</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{tenant.contractStart || 'N/A'}</p>
+                    <p className="text-sm font-pmedium text-slate-900 mt-1">{tenant.contractStart || 'N/A'}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract End</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{tenant.contractEnd || 'N/A'}</p>
+                    <p className="text-sm font-pmedium text-slate-900 mt-1">{tenant.contractEnd || 'N/A'}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Duration</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{tenant.contractDurationMonths ? `${tenant.contractDurationMonths} months` : 'N/A'}</p>
+                    <p className="text-sm font-pmedium text-slate-900 mt-1">{tenant.contractDurationMonths ? `${tenant.contractDurationMonths} months` : 'N/A'}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Area Assigned</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{tenant.space?.primaryFloor || tenant.companyDetails?.buildingName || 'Unassigned'}</p>
+                    <p className="text-sm font-pmedium text-slate-900 mt-1">{tenant.space?.primaryFloor || tenant.companyDetails?.buildingName || 'Unassigned'}</p>
                   </div>
                 </div>
 
@@ -354,12 +354,12 @@ export default function TenantCompanyDetailPage() {
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                     <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><FileText size={14} /> Sales Package Summary</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.planType || tenant.packageName || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Package</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.packageName || tenant.packageDetails?.packageName || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p><p className="text-xs font-bold text-slate-900 mt-1">{fmt(ca)}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900 mt-1">{fmt(tenant.packageDetails?.totalSeats || 0)}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Plan Type</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.planType || tenant.packageName || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Package</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.packageName || tenant.packageDetails?.packageName || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p><p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(ca)}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(tenant.packageDetails?.totalSeats || 0)}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0}</p></div>
                     </div>
                   </div>
 
@@ -374,11 +374,11 @@ export default function TenantCompanyDetailPage() {
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                     <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><Building2 size={14} /> Customer Profile</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Company</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.clientName || tenant.companyName}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.sector || tenant.businessType || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoCountry || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoState || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.customerDetails?.hoCity || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Company</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.customerDetails?.clientName || tenant.companyName}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Sector</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.customerDetails?.sector || tenant.businessType || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO Country</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.customerDetails?.hoCountry || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO State</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.customerDetails?.hoState || 'N/A'}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO City</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.customerDetails?.hoCity || 'N/A'}</p></div>
                     </div>
                   </div>
 
@@ -388,7 +388,7 @@ export default function TenantCompanyDetailPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Manager</p>
-                          <p className="text-sm font-bold text-slate-900 mt-1">{mgrEmp ? empName(mgrEmp) : tenant.contactName || 'No manager assigned'}</p>
+                          <p className="text-sm font-pmedium text-slate-900 mt-1">{mgrEmp ? empName(mgrEmp) : tenant.contactName || 'No manager assigned'}</p>
                           {mgrEmp && <p className="text-[10px] text-slate-500 mt-0.5">{mgrEmp.email}</p>}
                         </div>
                         <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider border ${mgrEmp || tenant.contactName ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
@@ -400,10 +400,10 @@ export default function TenantCompanyDetailPage() {
                     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                       <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><MapPin size={14} /> POC Details</h3>
                       <div className="grid grid-cols-2 gap-3">
-                        <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Local POC</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.pocDetails?.localPocName || 'N/A'}</p></div>
-                        <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO POC</p><p className="text-xs font-bold text-slate-900 mt-1">{tenant.pocDetails?.hoPocName || 'N/A'}</p></div>
-                        <div className="col-span-2"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Local POC Email</p><p className="text-xs font-bold text-slate-900 mt-1 break-all">{tenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
-                        <div className="col-span-2"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO POC Email</p><p className="text-xs font-bold text-slate-900 mt-1 break-all">{tenant.pocDetails?.hoPocEmail || 'N/A'}</p></div>
+                        <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Local POC</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.pocDetails?.localPocName || 'N/A'}</p></div>
+                        <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO POC</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.pocDetails?.hoPocName || 'N/A'}</p></div>
+                        <div className="col-span-2"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Local POC Email</p><p className="text-xs font-pmedium text-slate-900 mt-1 break-all">{tenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
+                        <div className="col-span-2"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">HO POC Email</p><p className="text-xs font-pmedium text-slate-900 mt-1 break-all">{tenant.pocDetails?.hoPocEmail || 'N/A'}</p></div>
                       </div>
                     </div>
                   </div>
@@ -430,7 +430,7 @@ export default function TenantCompanyDetailPage() {
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
                                 {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
                               </p>
-                              <p className="text-xs font-bold text-slate-900 mt-1">{displayVal}</p>
+                              <p className="text-xs font-pmedium text-slate-900 mt-1">{displayVal}</p>
                             </div>
                           );
                         })}
@@ -438,19 +438,19 @@ export default function TenantCompanyDetailPage() {
                       {/* Credits summary (replace Total Meeting Credits) */}
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Base Credits</p>
-                        <p className="text-xs font-bold text-slate-900 mt-1">{fmt(ca)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(ca)}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Purchased Credits</p>
-                        <p className="text-xs font-bold text-slate-900 mt-1">+{fmt(pc)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">+{fmt(pc)}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credit Used</p>
-                        <p className="text-xs font-bold text-slate-900 mt-1">{fmt(cu)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(cu)}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Remaining Credits</p>
-                        <p className="text-xs font-bold text-slate-900 mt-1">{fmt(cr)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(cr)}</p>
                       </div>
                     </div>
                   </div>
@@ -489,16 +489,16 @@ export default function TenantCompanyDetailPage() {
                                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black ${isMgr ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-2">
-                                      <p className="text-sm font-bold text-slate-900 truncate">{empName(emp)}</p>
+                                      <p className="text-sm font-pmedium text-slate-900 truncate">{empName(emp)}</p>
                                       {isMgr && <span className="px-1.5 py-0.5 bg-[#2563EB]/10 text-[#2563EB] rounded-md text-[8px] font-pmedium uppercase tracking-widest">Manager</span>}
                                     </div>
-                                    <p className="text-[10px] font-medium text-slate-500">{emp.designation || 'No designation'}</p>
+                                    <p className="text-[10px] font-pmedium text-slate-500">{emp.designation || 'No designation'}</p>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-5 py-4">
-                                <p className="text-xs font-semibold text-slate-700 flex items-center gap-1"><Mail size={11} />{emp.email || '-'}</p>
-                                {emp.phone && <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1 mt-0.5"><Phone size={10} />{emp.phone}</p>}
+                                <p className="text-xs font-pmedium text-slate-700 flex items-center gap-1"><Mail size={11} />{emp.email || '-'}</p>
+                                {emp.phone && <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1 mt-0.5"><Phone size={10} />{emp.phone}</p>}
                               </td>
                               <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${meta.cls}`}>{meta.label}</span></td>
                               <td className="px-5 py-4 text-right">
@@ -521,7 +521,7 @@ export default function TenantCompanyDetailPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100"><Users className="text-slate-400" size={24} /></div>
-                    <p className="text-slate-500 font-semibold mb-1">No employees found</p>
+                    <p className="text-slate-500 font-pmedium mb-1">No employees found</p>
                     <p className="text-slate-400 text-[13px]">Add an employee to get started.</p>
                   </div>
                 )}
@@ -550,13 +550,13 @@ export default function TenantCompanyDetailPage() {
                       <tbody className="divide-y divide-slate-100/60">
                         {bookings.map(b => (
                           <tr key={b.recordId || b.id} className="hover:bg-slate-50/50 transition-colors group">
-                            <td className="px-5 py-4"><p className="text-sm font-bold text-slate-900">{b.roomName}</p></td>
+                            <td className="px-5 py-4"><p className="text-sm font-pmedium text-slate-900">{b.roomName}</p></td>
                             <td className="px-5 py-4">
-                              <p className="text-xs font-semibold text-slate-800">{fmtDate(b.start || b.date)}</p>
+                              <p className="text-xs font-pmedium text-slate-800">{fmtDate(b.start || b.date)}</p>
                               <p className="text-[10px] text-slate-500">{b.startTime || ''} - {b.endTime || ''}</p>
                             </td>
                             <td className="px-5 py-4">
-                              <p className="text-xs font-semibold text-slate-700">{b.bookedByName || '-'}</p>
+                              <p className="text-xs font-pmedium text-slate-700">{b.bookedByName || '-'}</p>
                               <p className="text-[10px] text-slate-500">{b.bookedByEmail || ''}</p>
                             </td>
                             <td className="px-5 py-4">
@@ -576,7 +576,7 @@ export default function TenantCompanyDetailPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100"><CalendarDays className="text-slate-400" size={24} /></div>
-                    <p className="text-slate-500 font-semibold mb-1">No bookings found</p>
+                    <p className="text-slate-500 font-pmedium mb-1">No bookings found</p>
                     <p className="text-slate-400 text-[13px]">Bookings for this tenant will appear here.</p>
                   </div>
                 )}
@@ -613,19 +613,19 @@ export default function TenantCompanyDetailPage() {
                   <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50">
                     <div>
                       <p className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Monthly Credit Activity</p>
-                      <p className="text-[10px] font-medium text-slate-500 mt-0.5">{mStats.count} entr{mStats.count !== 1 ? 'ies' : 'y'} in {MONTHS[fm]} {fy}</p>
+                      <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{mStats.count} entr{mStats.count !== 1 ? 'ies' : 'y'} in {MONTHS[fm]} {fy}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="relative">
                         <select value={fm} onChange={e => setFm(Number(e.target.value))}
-                          className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-semibold text-slate-700 outline-none cursor-pointer appearance-none">
+                          className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer appearance-none">
                           {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
                         </select>
                         <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
                       <div className="relative">
                         <select value={fy} onChange={e => setFy(Number(e.target.value))}
-                          className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-semibold text-slate-700 outline-none cursor-pointer appearance-none">
+                          className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer appearance-none">
                           {yearOpts.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                         <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -663,7 +663,7 @@ export default function TenantCompanyDetailPage() {
                             <tr key={e.id || i} className="hover:bg-slate-50/50 transition-colors group">
                               <td className="px-5 py-4 text-[10px] font-pmedium text-slate-500">{fmtDate(e.date)}</td>
                               <td className="px-5 py-4">
-                                <p className="text-xs font-bold text-slate-900">{e.roomName || e.resource || e.type || 'Transaction'}</p>
+                                <p className="text-xs font-pmedium text-slate-900">{e.roomName || e.resource || e.type || 'Transaction'}</p>
                                 {e.bookedBy && <p className="text-[10px] text-slate-500">Host: {e.bookedBy}</p>}
                               </td>
                               <td className="px-5 py-4 text-right text-xs font-black text-red-500">
@@ -681,7 +681,7 @@ export default function TenantCompanyDetailPage() {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-50 mb-3 border border-slate-100"><CreditCard className="text-slate-400" size={22} /></div>
-                      <p className="text-slate-500 font-semibold mb-1">No activity this month</p>
+                      <p className="text-slate-500 font-pmedium mb-1">No activity this month</p>
                       <p className="text-slate-400 text-[13px]">No credit transactions in {MONTHS[fm]} {fy}.</p>
                     </div>
                   )}
@@ -698,7 +698,7 @@ export default function TenantCompanyDetailPage() {
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <MapPin className="mb-1 text-amber-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Area</p>
-                    <p className="text-xs font-bold text-slate-900 mt-0.5">{tenant.space?.floor || tenant.companyDetails?.buildingName || 'Unassigned'}</p>
+                    <p className="text-xs font-pmedium text-slate-900 mt-0.5">{tenant.space?.floor || tenant.companyDetails?.buildingName || 'Unassigned'}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <LayoutGrid className="mb-1 text-blue-500" size={22} />
@@ -725,12 +725,12 @@ export default function TenantCompanyDetailPage() {
                     <div className="p-4 space-y-4">
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Floor</p>
-                        <p className="text-sm font-bold text-slate-900 mt-1">{tenant.space?.floor || tenant.companyDetails?.buildingName || 'N/A'}</p>
+                        <p className="text-sm font-pmedium text-slate-900 mt-1">{tenant.space?.floor || tenant.companyDetails?.buildingName || 'N/A'}</p>
                       </div>
 
                       <div className="space-y-2">
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Seats</p>
-                        {/* <p className="text-sm font-bold text-slate-900 mt-0.5">N/A</p> */}
+                        {/* <p className="text-sm font-pmedium text-slate-900 mt-0.5">N/A</p> */}
                       </div>
 
                       <div>
@@ -775,7 +775,7 @@ export default function TenantCompanyDetailPage() {
                           return (
                             <div>
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin/Open Desks</p>
-                              <p className="text-sm font-bold text-slate-300 mt-0.5">N/A</p>
+                              <p className="text-sm font-pmedium text-slate-300 mt-0.5">N/A</p>
                             </div>
                           );
                         })()}
@@ -794,7 +794,7 @@ export default function TenantCompanyDetailPage() {
                             <span key={i} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">{l}</span>
                           ))
                         ) : (
-                          <span className="text-xs font-medium text-slate-400">No assigned location labels.</span>
+                          <span className="text-xs font-pmedium text-slate-400">No assigned location labels.</span>
                         )}
                       </div>
                     </div>
@@ -843,22 +843,22 @@ export default function TenantCompanyDetailPage() {
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Name *</label>
                 <input type="text" value={addF.name} onChange={e => setAddF({ ...addF, name: e.target.value })} required
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Employee name" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Employee name" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Email *</label>
                 <input type="email" value={addF.email} onChange={e => setAddF({ ...addF, email: e.target.value })} required
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="employee@company.com" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="employee@company.com" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone</label>
                 <input type="text" value={addF.phone} onChange={e => setAddF({ ...addF, phone: e.target.value })}
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Phone number" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Phone number" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation</label>
                 <input type="text" value={addF.designation} onChange={e => setAddF({ ...addF, designation: e.target.value })}
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Designation" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Designation" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); }}
@@ -881,18 +881,18 @@ export default function TenantCompanyDetailPage() {
               <div>
                 <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee Profile</p>
                 <h3 className="mt-0.5 text-xl font-black text-slate-900">{viewEmp.name}</h3>
-                <p className="mt-0.5 text-xs font-bold text-slate-500">{viewEmp.designation || 'Tenant Employee'}</p>
+                <p className="mt-0.5 text-xs font-pmedium text-slate-500">{viewEmp.designation || 'Tenant Employee'}</p>
               </div>
               <button onClick={() => setViewEmp(null)}
                 className="w-10 h-10 bg-white hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="grid gap-3 p-5 sm:grid-cols-2">
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{viewEmp.email}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.role || 'Employee'}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{empStatusMeta(viewEmp).label}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Designation</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.designation || 'N/A'}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewEmp.phone || 'N/A'}</p></div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant</p><p className="mt-0.5 text-xs font-bold text-slate-900">{tenant?.companyName || 'Tenant Company'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-pmedium text-slate-900">{viewEmp.email}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewEmp.role || 'Employee'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{empStatusMeta(viewEmp).label}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Designation</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewEmp.designation || 'N/A'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewEmp.phone || 'N/A'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{tenant?.companyName || 'Tenant Company'}</p></div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-5">
               <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', designation: viewEmp?.designation || '', role: viewEmp?.role || 'Employee' }); }}
@@ -925,17 +925,17 @@ export default function TenantCompanyDetailPage() {
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Full Name</label>
                 <input required type="text" value={editF.name} onChange={e => setEditF({ ...editF, name: e.target.value })}
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone</label>
                 <input type="text" value={editF.phone} onChange={e => setEditF({ ...editF, phone: e.target.value })}
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation</label>
                 <input type="text" value={editF.designation} onChange={e => setEditF({ ...editF, designation: e.target.value })}
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
@@ -963,7 +963,7 @@ export default function TenantCompanyDetailPage() {
               {mgrEmp && (
                 <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-100">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Current Manager</p>
-                  <p className="text-sm font-bold text-blue-800 mt-1">{empName(mgrEmp)}</p>
+                  <p className="text-sm font-pmedium text-blue-800 mt-1">{empName(mgrEmp)}</p>
                   <p className="text-[10px] text-blue-600">{mgrEmp.email}</p>
                 </div>
               )}
@@ -977,7 +977,7 @@ export default function TenantCompanyDetailPage() {
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-pmedium ${isCurrent ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
                       <div>
-                        <p className="text-xs font-bold text-slate-900">{empName(emp)}</p>
+                        <p className="text-xs font-pmedium text-slate-900">{empName(emp)}</p>
                         <p className="text-[9px] text-slate-500">{emp.designation || emp.email}</p>
                       </div>
                     </div>
@@ -1007,12 +1007,12 @@ export default function TenantCompanyDetailPage() {
             </div>
             <div className="p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-bold text-slate-900">{fmtDate(viewCredit.date)}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Type</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.type || 'Booking'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.roomName || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.bookingCode || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Host</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.bookedBy || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewCredit.status || 'Completed'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{fmtDate(viewCredit.date)}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Type</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewCredit.type || 'Booking'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewCredit.roomName || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewCredit.bookingCode || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Host</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewCredit.bookedBy || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewCredit.status || 'Completed'}</p></div>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 p-4">
                 <div>
@@ -1048,18 +1048,18 @@ export default function TenantCompanyDetailPage() {
             </div>
             <div className="p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.bookingCode || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.roomName || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-bold text-slate-900">{fmtDate(viewBk.start || viewBk.date)}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Time</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.startTime || '-'} - {viewBk.endTime || '-'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booked By</p><p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.bookedByName || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booking Code</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewBk.bookingCode || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewBk.roomName || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{fmtDate(viewBk.start || viewBk.date)}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Time</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewBk.startTime || '-'} - {viewBk.endTime || '-'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Booked By</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewBk.bookedByName || '-'}</p></div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p>
                   <p className="mt-0.5"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${bookingStyle(viewBk.status || viewBk.storedStatus)}`}>{viewBk.status || viewBk.storedStatus || 'Booked'}</span></p>
                 </div>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                 <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Purpose</p>
-                <p className="mt-0.5 text-xs font-bold text-slate-900">{viewBk.purpose || 'No purpose specified'}</p>
+                <p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewBk.purpose || 'No purpose specified'}</p>
               </div>
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
                 <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits Used</p>

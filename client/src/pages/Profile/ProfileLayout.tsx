@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { Lock } from "lucide-react";
 import { getProfileTabItemsForPlan } from "./profileAccess";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 
@@ -51,20 +50,6 @@ const ProfileLayout = () => {
           {profileTabs.map((tab) => {
             const isActive = activeTabId === tab.id;
             const baseClass = "flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all text-center";
-            if (!tab.unlocked) {
-              return (
-                <div
-                  key={tab.id}
-                  title="Locked in basic plan"
-                  aria-disabled="true"
-                  className={`${baseClass} inline-flex items-center justify-center gap-1.5 cursor-not-allowed border border-dashed border-slate-200 bg-slate-50 text-slate-400 opacity-90`}
-                >
-                  <Lock size={12} className="shrink-0" />
-                  {tab.label}
-                </div>
-              );
-            }
-
             return (
               <NavLink
                 key={tab.id}

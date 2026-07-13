@@ -274,7 +274,13 @@ const BASIC_DEFAULT_IDS = new Set([
   "dashboard",
   "customer-support",
   "visitor-management",
-  "visitors-management",
+  // NOT "visitors-management" (plural) — that's the same
+  // /visitors/visitor-management page duplicated as a tab id under the
+  // Administration Department group (see MODULE_GROUPS above). Granting it
+  // by default here would auto-unlock that Administration Department tab
+  // at every plan, defeating the point of making the department
+  // Custom-only. "visitor-management" (singular, Key Apps' own entry)
+  // already covers the real feature at every tier.
   "visitors_manage_internal_visitors",
   // Visitor Management start page (VisitorManagement.tsx) grants: Standard
   // visitor logging only, matching Basic = "Standard" visitor access.
@@ -318,9 +324,11 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "calendar",
   "workspace-settings",
   "workspace-management",
-  "tenant-companies-admin",
-  "bookings",
-  "resource-management",
+  // Administration Department (tenant-companies-admin, bookings,
+  // resource-management, house-keeping) is deliberately NOT granted by
+  // default at Professional anymore — Custom-only now, added per-customer
+  // via master panel's workspace module toggle like the rest of Custom's
+  // add-on set.
   "leads-management",
   "tenant-companies-sales",
   "resource-pricing",

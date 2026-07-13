@@ -11,7 +11,9 @@ const BASIC_IDS = [
   "dashboard",
   "customer-support",
   "visitor-management",
-  "visitors-management",
+  // NOT "visitors-management" (plural) — duplicate id for the same page,
+  // used only as the Administration Department tab. See the matching note
+  // in server/config/workspaceModuleCatalog.ts.
   "wono-nomad",
   "website-builder",
   "tech-website-builder",
@@ -36,9 +38,9 @@ const PROFESSIONAL_EXTRA_IDS = [
   "meeting-room-system",
   "calendar",
   "workspace-settings",
-  "tenant-companies-admin",
-  "bookings",
-  "resource-management",
+  // Administration Department (tenant-companies-admin, bookings,
+  // resource-management, house-keeping) moved to Custom-only — see the
+  // matching note in server/config/workspaceModuleCatalog.ts.
   "leads-management",
   "tenant-companies-sales",
   "resource-pricing",

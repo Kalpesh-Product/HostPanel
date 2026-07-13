@@ -1037,7 +1037,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         const routedItem = String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
 
         if (sectionId === "profile") {
-          const isEnabled = profilePlanTabs.find((tab) => tab.id === itemId)?.unlocked ?? false;
+          const profileTab = profilePlanTabs.find((tab) => tab.id === itemId);
+          if (!profileTab) return null;
+          const isEnabled = profileTab.unlocked;
           return {
             id: itemId,
             title: itemLabel,
@@ -1046,8 +1048,6 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
             isEnabled,
             isInteractive: isEnabled && Boolean(routedItem),
             upgradeLocked: !isEnabled,
-            disabledTitle: !isEnabled ? "Locked in basic plan" : undefined,
-            helperText: !isEnabled ? "Upgrade to unlock this tab" : undefined,
           };
         }
 
@@ -1293,6 +1293,11 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                 const isDeptGroup = group.key === "department-accesses";
                 const enabledCards = [...group.cards].filter((card) => card.unlocked).sort((a, b) => a.title.localeCompare(b.title));
                 const disabledCards = [...group.cards].filter((card) => !card.unlocked).sort((a, b) => a.title.localeCompare(b.title));
+                const departments = group.departments || [];
+                const enabledDepartmentCount = departments.filter((department) =>
+                  department.cards.some((card) => card.unlocked),
+                ).length;
+                const lockedDepartmentCount = departments.length - enabledDepartmentCount;
 
                 return (
                   <div key={group.key} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -1309,8 +1314,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                           {group.roman}. {group.label}
                         </h3>
                         <p className="mt-1 text-[11px] text-slate-500">
-                          {enabledCards.length} enabled &middot; {disabledCards.length} locked
-                          {isDeptGroup ? ` · ${group.departments?.length || 0} departments` : ""}
+                          {isDeptGroup ? enabledDepartmentCount : enabledCards.length} enabled &middot;{" "}
+                          {isDeptGroup ? lockedDepartmentCount : disabledCards.length} locked
+                          {isDeptGroup ? ` · ${departments.length} departments` : ""}
                         </p>
                       </div>
                       <ChevronDown

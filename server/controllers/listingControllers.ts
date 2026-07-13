@@ -2,10 +2,38 @@
 import axios from "axios";
 import HostCompany from "../models/Company.js";
 import HostUser from "../models/HostUser.js";
+import Workspace from "../models/Workspace.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../config/s3config.js";
 import { getContinentForCountry } from "../utils/countryContinent.js";
 
+const activeListingSubmissions = new Set<string>();
+
+const normalizeListingType = (value: unknown) =>
+  String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const getNomadListingPlan = async (userId: string) => {
+  const user = await HostUser.findById(userId).select("primaryWorkspace").lean();
+  let workspace = user?.primaryWorkspace
+    ? await Workspace.findById(user.primaryWorkspace).select("selectedPlan").lean()
+    : null;
+
+  if (!workspace && user?._id) {
+    const membership = await WorkspaceMember.findOne({ user: user._id, isActive: true })
+      .sort({ isPrimary: -1, createdAt: 1 })
+      .select("workspace")
+      .lean();
+    if (membership?.workspace) {
+      workspace = await Workspace.findById(membership.workspace).select("selectedPlan").lean();
+    }
+  }
+
+  return String(workspace?.selectedPlan || "basic").trim().toLowerCase();
+};
+
 export const createCompanyListing = async (req, res) => {
+  let submissionKey = "";
+  let hasSubmissionLock = false;
   try {
     // const payload = req.body.data ? JSON.parse(req.body.data) : req.body;
 
@@ -42,9 +70,25 @@ export const createCompanyListing = async (req, res) => {
       reviews,
     } = req.body;
 
+    const normalizedCompanyId = String(companyId || "").trim();
+    if (!normalizedCompanyId) {
+      return res.status(400).json({ message: "Company is required" });
+    }
+
+    const userId = String(req.user?.id || req.user?._id || req.user || "").trim();
+    submissionKey = `${userId}:${normalizedCompanyId}`;
+    if (activeListingSubmissions.has(submissionKey)) {
+      return res.status(409).json({
+        code: "NOMAD_LISTING_SUBMISSION_IN_PROGRESS",
+        message: "A Nomad listing is already being submitted. Please wait.",
+      });
+    }
+    activeListingSubmissions.add(submissionKey);
+    hasSubmissionLock = true;
+
     let parsedReviews;
 
-    const company = await HostCompany.findOne({ companyId: companyId.trim() });
+    const company = await HostCompany.findOne({ companyId: normalizedCompanyId });
 
     if (!company) {
       return res.status(400).json({ message: "Company not found" });
@@ -72,6 +116,56 @@ export const createCompanyListing = async (req, res) => {
     // company — not create a second, disconnected one under this record's
     // own companyId.
     const effectiveNomadsCompanyId = company.linkedNomadsCompanyId || company.companyId;
+
+    const selectedPlan = await getNomadListingPlan(userId);
+    const listingLimit = selectedPlan === "custom" ? null : selectedPlan === "professional" ? 4 : 2;
+    let existingListings = [];
+    try {
+      const listingsResponse = await axios.get(
+        `https://wononomadsbe.vercel.app/api/company/get-listings/${encodeURIComponent(effectiveNomadsCompanyId)}`,
+        { params: { t: Date.now() } },
+      );
+      existingListings = Array.isArray(listingsResponse.data) ? listingsResponse.data : [];
+    } catch (error) {
+      // Before a host creates their first listing, Nomads has no company
+      // record yet and returns 404. That is a valid zero-listing state.
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        existingListings = [];
+      } else {
+        console.error(
+          "Failed to verify Nomad listing allowance:",
+          axios.isAxiosError(error)
+            ? { status: error.response?.status, data: error.response?.data }
+            : error,
+        );
+        return res.status(502).json({
+          message: "Unable to verify your Nomad listing allowance. Please try again.",
+        });
+      }
+    }
+
+    if (listingLimit !== null && existingListings.length >= listingLimit) {
+      const planName = selectedPlan === "professional" ? "Professional" : "Basic";
+      return res.status(403).json({
+        code: "NOMAD_LISTING_LIMIT_REACHED",
+        message: `${planName} plan allows only ${listingLimit} Nomad listings. Delete one to add another.`,
+        limit: listingLimit,
+        used: existingListings.length,
+      });
+    }
+
+    const normalizedRequestedType = normalizeListingType(companyType);
+    if (
+      normalizedRequestedType &&
+      existingListings.some(
+        (listing) => normalizeListingType(listing?.companyType) === normalizedRequestedType,
+      )
+    ) {
+      return res.status(409).json({
+        code: "NOMAD_LISTING_TYPE_EXISTS",
+        message: "This Nomad listing type has already been added.",
+      });
+    }
 
     const listingData = {
       // Always use the logged-in host's own registered company name —
@@ -204,6 +298,10 @@ export const createCompanyListing = async (req, res) => {
   } catch (error) {
     console.log("error", error);
     res.status(500).json({ message: error.message });
+  } finally {
+    if (hasSubmissionLock && submissionKey) {
+      activeListingSubmissions.delete(submissionKey);
+    }
   }
 };
 

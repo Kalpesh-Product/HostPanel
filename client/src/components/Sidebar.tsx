@@ -102,6 +102,7 @@ interface NavItemProps {
   forceBold?: boolean;
   forceSmall?: boolean;
   tooltip?: string;
+  noTopMargin?: boolean;
 }
 
 interface WorkspaceSetupState {
@@ -449,6 +450,7 @@ const NavItem = ({
   forceBold,
   forceSmall,
   tooltip,
+  noTopMargin,
 }: NavItemProps) => {
   // Collapsed module buttons (top-level with no depth offset) use rounded-md;
   // expanded submenu items use rounded-full pill shape.
@@ -460,7 +462,7 @@ const NavItem = ({
     <button
       type="button"
       title={tooltip || (disabled ? (disabledTitle || "Coming soon") : "")}
-      className={`w-full flex items-center justify-between py-2.5 px-3 my-1.5 select-none ${shapeClass} transition-colors ${
+      className={`w-full flex items-center justify-between py-2.5 px-3 ${noTopMargin ? "mt-0 mb-1.5" : "my-1.5"} select-none ${shapeClass} transition-colors ${
         isActive
           ? "bg-gray-200 text-gray-900"
           : "text-gray-700 hover:bg-gray-200"
@@ -498,9 +500,10 @@ interface NavGroupProps {
   pathname: string;
   onNavigate: (item: NavNode, sectionKey?: string) => void;
   sectionKey?: string;
+  noTopMargin?: boolean;
 }
 
-const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey }: NavGroupProps) => {
+const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey, noTopMargin }: NavGroupProps) => {
   const [isOpen, setIsOpen] = useState(item.defaultOpen !== false);
   const hasChildren = Boolean(item.children?.length);
   const isActive = (() => {
@@ -538,6 +541,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
         forceBold={hasChildren}
         forceSmall={!hasChildren && depth > 0}
         tooltip={collapsed ? item.label : undefined}
+        noTopMargin={noTopMargin}
       />
       {hasChildren && isOpen && !collapsed && (
         <div className="mt-1 flex flex-col gap-1">
@@ -710,6 +714,11 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
 
   const planLabel =
     workspaceAccessMap?.selectedPlan || workspaceSetup.selectedPlan || "basic";
+  const isSectionOpenByDefault = (sectionKey: string) =>
+    planLabel === "basic" ||
+    sectionKey === "common-modules" ||
+    (planLabel === "professional" &&
+      (sectionKey === "key-apps" || sectionKey === "founder-core-modules"));
   const upgradePlanOptions =
     planLabel === "basic"
       ? ["professional", "custom"]
@@ -1023,10 +1032,24 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     workspaceAccessMap?.moduleMap?.sections || []
   ).map((section) => {
     const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
-    const mappedItems: NavNode[] = (section?.items || []).map((item) => {
+    const mappedItems: NavNode[] = (section?.items || []).map((item): NavNode | null => {
       const itemId = String(item?.id || "").trim();
       const itemRoute = item?.route || ROUTE_BY_ID[itemId];
       const hasTabs = Array.isArray(item?.tabs) && item.tabs.length > 0;
+
+      // Administration Department is Custom-only now (per plan/module
+      // tracking sheet) — hide the whole group on Basic/Professional
+      // instead of just locking its tabs, since one of its tabs
+      // (Visitors Management) shares an id-linked page with Key Apps'
+      // own Visitor Management entry and would otherwise always show
+      // unlocked here regardless of plan.
+      if (
+        sectionKey === "department-accesses" &&
+        itemId === "administration-department" &&
+        planLabel !== "custom"
+      ) {
+        return null;
+      }
       if (hasTabs) {
         const children = (item.tabs || [])
           .map((tab) => {
@@ -1074,7 +1097,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
               ? "You do not have access to this module"
               : undefined,
       };
-    }).filter(Boolean);
+    }).filter((item): item is NavNode => Boolean(item));
     let sortedItems = sortEnabledFirst(mappedItems);
     sortedItems = sortedItems.map((item) => {
       if (item.id === "website-leads")
@@ -1317,17 +1340,16 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
               cleanedSections.push({ key: "add-ons", title: "Add-ons", items: addonsItems });
             }
 
-            // Re-order so Add-ons appears right after Founder Core Modules
-            // (and before Department Accesses), while keeping the
-            // locked/unlocked split logic intact.
+            // Keep Add-ons immediately after Department Accesses while
+            // preserving the locked/unlocked split logic above.
             const SECTION_ORDER = [
               "common-modules",
               "extra-common-modules",
               "company-settings",
               "key-apps",
               "founder-core-modules",
-              "add-ons",
               "department-accesses",
+              "add-ons",
             ];
             const orderIndex = (key: string) => {
               const index = SECTION_ORDER.indexOf(key);
@@ -1351,6 +1373,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
                     pathname={location.pathname}
                     onNavigate={onNavigate}
                     sectionKey="add-ons"
+                    noTopMargin
                   />
                 ) : !collapsed ? (
                   <>
@@ -1361,7 +1384,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
                           ...current,
                           [section.key]: !(
                             current?.[section.key] ??
-                            (planLabel === "basic" || section.key === "common-modules")
+                            isSectionOpenByDefault(section.key)
                           ),
                         }))
                       }
@@ -1370,15 +1393,13 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
                       <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
                         {section.title}
                       </span>
-                      {openSections?.[section.key] ??
-                      (planLabel === "basic" || section.key === "common-modules") ? (
+                      {openSections?.[section.key] ?? isSectionOpenByDefault(section.key) ? (
                         <ChevronDown size={14} className="text-gray-400" />
                       ) : (
                         <ChevronRight size={14} className="text-gray-400" />
                       )}
                     </button>
-                    {(openSections?.[section.key] ??
-                      (planLabel === "basic" || section.key === "common-modules")) ? (
+                    {(openSections?.[section.key] ?? isSectionOpenByDefault(section.key)) ? (
                       <div className="space-y-1">
                         {section.items.map((item) => (
                           <NavGroup

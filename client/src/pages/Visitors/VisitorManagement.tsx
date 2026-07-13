@@ -11,9 +11,11 @@ import {
 } from '../../services/visitors';
 import { PERMISSIONS } from '../../constants/permissions';
 import {
+  createExternalClient,
   createMeetingRoomBooking,
-  getMeetingRoomClients,
+  getExternalClients,
   getMeetingRoomBookings,
+  sendExternalBookingConfirmationEmail,
   updateMeetingRoomBooking,
 } from '../../services/meeting-room-bookings';
 import { toast } from 'sonner';
@@ -383,6 +385,68 @@ function getStandardVisitorValidationErrors(form = {}, isDepartmentVisitorType =
     if (!tenantCompanyName) errors.tenantCompanyName = requiredMessage;
     if (!hostGroupValue) errors.hostGroupValue = requiredMessage;
     if (!hostUserId) errors.hostUserId = requiredMessage;
+  }
+
+  return errors;
+}
+
+function getUnitTourValidationErrors(form = {}) {
+  const errors = {};
+  const requiredMessage = 'This field is required.';
+  const pocName = String(form.pocName || '').trim();
+  const phone = String(form.pocPhone || '').trim();
+  const email = String(form.pocEmail || '').trim();
+
+  if (!pocName) errors.pocName = requiredMessage;
+  else if (!isValidName(pocName)) errors.pocName = 'Only letters and spaces are allowed.';
+
+  if (!phone) errors.pocPhone = requiredMessage;
+  else if (!isValidPhone(phone)) errors.pocPhone = 'Enter a valid 10-digit phone number.';
+
+  if (!email) errors.pocEmail = requiredMessage;
+  else if (!isValidEmail(email)) errors.pocEmail = 'Enter a valid email address.';
+
+  ['industry', 'teamSize', 'seatCount', 'preferredSpace', 'budgetRange', 'moveInTimeline', 'preferredContactMethod'].forEach((field) => {
+    if (!String(form[field] || '').trim()) errors[field] = requiredMessage;
+  });
+
+  return errors;
+}
+
+function getWalkInValidationErrors(form = {}, options = {}) {
+  const errors = {};
+  const requiredMessage = 'This field is required.';
+  const name = String(form.name || '').trim();
+  const phone = String(form.phone || '').trim();
+  const email = String(form.email || '').trim();
+  const attendees = Number(form.attendees || 0);
+
+  if (!name) errors.name = requiredMessage;
+  else if (!isValidName(name)) errors.name = 'Only letters and spaces are allowed.';
+
+  if (!phone) errors.phone = requiredMessage;
+  else if (!isValidPhone(phone)) errors.phone = 'Enter a valid 10-digit phone number.';
+
+  if (!email) errors.email = requiredMessage;
+  else if (!isValidEmail(email)) errors.email = 'Enter a valid email address.';
+
+  ['spaceType', 'floor', 'wing', 'resourceName', 'startDate', 'endDate', 'startTime', 'endTime', 'paymentMode'].forEach((field) => {
+    if (!String(form[field] || '').trim()) errors[field] = requiredMessage;
+  });
+
+  if (attendees < 1) errors.attendees = 'Enter at least one attendee.';
+  if (options.attendeeCapacity && attendees > options.attendeeCapacity) {
+    errors.attendees = `Maximum ${options.attendeeCapacity} attendees allowed.`;
+  }
+  if (options.isDeskAreaSeatBooking && !String(form.seatNumber || '').trim()) {
+    errors.seatNumber = requiredMessage;
+  }
+  if (normalizeText(form.paymentMode).includes('gpay')) {
+    if (!String(form.transactionId || '').trim()) errors.transactionId = requiredMessage;
+    if (!form.paymentProofFile) errors.paymentProofFile = 'Upload the payment screenshot.';
+  }
+  if (!options.availability?.available) {
+    errors.availability = options.availability?.reason || 'Please choose an available slot.';
   }
 
   return errors;
@@ -778,10 +842,63 @@ function normalizeDailyBooking(booking) {
   };
 }
 
+function RecordSubTabs({ items = [], activeKey, onChange }) {
+  return (
+    <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          onClick={() => onChange(item.key)}
+          className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-pmedium transition-all sm:text-[12px] ${activeKey === item.key
+            ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+            : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const VALIDATION_FIELD_LABELS = {
+  firstName: 'First name', lastName: 'Last name', gender: 'Gender', phone: 'Phone number', email: 'Email address',
+  country: 'Country', state: 'State', city: 'City', visitorCompany: 'Company name', purpose: 'Purpose',
+  hostGroupType: 'Host type', hostGroupValue: 'Host department or role', hostUserId: 'Host employee', reason: 'Reason for visit',
+  tenantCompanyName: 'Tenant company', pocName: 'Contact name', pocPhone: 'Contact phone', pocEmail: 'Contact email',
+  industry: 'Industry', teamSize: 'Team size', seatCount: 'Seat count', preferredSpace: 'Preferred space',
+  budgetRange: 'Budget range', moveInTimeline: 'Move-in timeline', preferredContactMethod: 'Preferred contact method',
+  name: 'Client name', spaceType: 'Space type', floor: 'Floor', wing: 'Wing', resourceName: 'Meeting room',
+  attendees: 'Attendees', seatNumber: 'Seat number', startDate: 'Start date', endDate: 'End date',
+  startTime: 'Start time', endTime: 'End time', availability: 'Availability', paymentMode: 'Payment mode',
+  transactionId: 'Transaction ID', paymentProofFile: 'Payment screenshot',
+};
+
+function ValidationSummary({ errors = {} }) {
+  const entries = Object.entries(errors);
+  if (entries.length === 0) return null;
+  return (
+    <div data-validation-summary tabIndex={-1} role="alert" aria-live="polite" className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 outline-none focus:ring-2 focus:ring-red-300">
+      <p className="flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-red-700"><AlertCircle size={13} /> Complete the following fields</p>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {entries.map(([field, message]) => <span key={field} className="text-[10px] font-pmedium text-red-600">• {VALIDATION_FIELD_LABELS[field] || field}: {message}</span>)}
+      </div>
+    </div>
+  );
+}
+
 export default function VisitorsManagementPage() {
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const isReadOnlySession = Boolean(auth?.impersonation);
+  const workspaceId = String(
+    auth?.user?.workspaceMembership?.workspaceId ||
+    auth?.user?.workspaceMembership?.workspace ||
+    auth?.user?.primaryWorkspace ||
+    auth?.user?.workspaceId ||
+    '',
+  ).trim();
   const userPermissions = useMemo(
     () => auth?.user?.permissions?.permissions || [],
     [auth?.user?.permissions?.permissions],
@@ -905,7 +1022,9 @@ export default function VisitorsManagementPage() {
     [memberGrantedModules, userPermissions],
   );
   const [activeTab, setActiveTab] = useState('daily');
+  const [dailyStatusTab, setDailyStatusTab] = useState('all');
   const [bookingStatusTab, setBookingStatusTab] = useState('upcoming');
+  const [clientSourceTab, setClientSourceTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
 
@@ -970,6 +1089,10 @@ export default function VisitorsManagementPage() {
   const [lastSelectedExistingVisitor, setLastSelectedExistingVisitor] = useState(null);
   const [standardVisitorTouched, setStandardVisitorTouched] = useState({});
   const [standardVisitorSubmitAttempted, setStandardVisitorSubmitAttempted] = useState(false);
+  const [tourTouched, setTourTouched] = useState({});
+  const [tourSubmitAttempted, setTourSubmitAttempted] = useState(false);
+  const [walkInTouched, setWalkInTouched] = useState({});
+  const [walkInSubmitAttempted, setWalkInSubmitAttempted] = useState(false);
   const tenantCompanyOptions = useMemo(
     () => [...new Set((bookingClients || []).map((client) => String(client?.company || '').trim()).filter(Boolean))],
     [bookingClients],
@@ -1063,6 +1186,23 @@ export default function VisitorsManagementPage() {
     return Array.from(mergedById.values());
   }, [liveVisitors, approvedVisitors, pendingVisitors]);
 
+  const dailyVisitorCollections = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = (visitor) => [visitor.name, visitor.company, visitor.phone, visitor.email, visitor.purpose, visitor.host, visitor.badgeNo]
+      .join(' ').toLowerCase().includes(query);
+    const rows = trackedVisitors.filter(matchesSearch);
+    const statusKey = (visitor) => normalizeText(visitor.status || visitor.statusKey || visitor.approvalStatus || '').replace(/[_-]+/g, ' ');
+    return {
+      all: rows,
+      pending: rows.filter((visitor) => statusKey(visitor).includes('pending') || statusKey(visitor).includes('awaiting')),
+      approved: rows.filter((visitor) => statusKey(visitor) === 'approved'),
+      checked_in: rows.filter((visitor) => statusKey(visitor).includes('checked in')),
+      checked_out: rows.filter((visitor) => statusKey(visitor).includes('checked out')),
+      rejected: rows.filter((visitor) => statusKey(visitor).includes('rejected') || statusKey(visitor).includes('cancelled')),
+    };
+  }, [searchQuery, trackedVisitors]);
+  const selectedDailyVisitors = dailyVisitorCollections[dailyStatusTab] || dailyVisitorCollections.all;
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -1123,8 +1263,13 @@ export default function VisitorsManagementPage() {
     let isCancelled = false;
 
     async function loadMeetingRoomOverview() {
+      if (!workspaceId) {
+        setMeetingRoomOverviewError('An active workspace is required to load meeting room availability.');
+        return;
+      }
+
       try {
-        const result = await getMeetingRoomBookings();
+        const result = await getMeetingRoomBookings(workspaceId);
         if (isCancelled || !result) {
           return;
         }
@@ -1208,7 +1353,7 @@ export default function VisitorsManagementPage() {
       isCancelled = true;
       window.clearInterval(refreshTimer);
     };
-  }, []);
+  }, [workspaceId]);
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
 
@@ -1393,7 +1538,9 @@ export default function VisitorsManagementPage() {
       .filter(matchesSearch);
 
     return {
-      upcoming: externalBookings.filter((booking) => !['Completed', 'Cancelled'].includes(booking.status)),
+      all: externalBookings,
+      upcoming: externalBookings.filter((booking) => !['In Progress', 'Completed', 'Cancelled'].includes(booking.status)),
+      in_progress: externalBookings.filter((booking) => booking.status === 'In Progress'),
       completed: externalBookings.filter((booking) => booking.status === 'Completed'),
       cancelled: externalBookings.filter((booking) => booking.status === 'Cancelled'),
     };
@@ -1444,8 +1591,15 @@ export default function VisitorsManagementPage() {
       });
   }, [bookingClients, searchQuery, upcomingBookings]);
 
+  const clientCollections = useMemo(() => ({
+    all: clientRows,
+    walk_in: clientRows.filter((client) => normalizeText(client.source) !== 'visitor-conversion'),
+    converted: clientRows.filter((client) => normalizeText(client.source) === 'visitor-conversion'),
+  }), [clientRows]);
+  const selectedClientRows = clientCollections[clientSourceTab] || clientCollections.all;
+
   const selectedBookingClient = useMemo(
-    () => bookingClients.find((client) => String(client.id || client.recordId || '') === String(form.clientId || '')) || null,
+    () => bookingClients.find((client) => String(client.id || client.recordId || client._id || '') === String(form.clientId || '')) || null,
     [bookingClients, form.clientId],
   );
 
@@ -1585,11 +1739,14 @@ export default function VisitorsManagementPage() {
   const hasStandardVisitorSearchQuery = normalizeText(form.standardVisitorSearch).length > 0;
 
   const applyExistingStandardVisitor = (visitor) => {
+    const nameParts = String(visitor?.name || '').trim().split(/\s+/).filter(Boolean);
+    const selectedFirstName = visitor?.firstName || nameParts[0] || '';
+    const selectedLastName = visitor?.lastName || nameParts.slice(1).join(' ');
     setLastSelectedExistingVisitor(visitor || null);
     setForm((prev) => ({
       ...prev,
-      firstName: visitor?.firstName || prev.firstName,
-      lastName: visitor?.lastName || prev.lastName,
+      firstName: selectedFirstName || prev.firstName,
+      lastName: selectedLastName || prev.lastName,
       gender: visitor?.gender || prev.gender,
       name: visitor?.name || `${visitor?.firstName || ''} ${visitor?.lastName || ''}`.trim() || prev.name,
       phone: visitor?.phone || prev.phone,
@@ -1607,10 +1764,14 @@ export default function VisitorsManagementPage() {
       hostGroupType: visitor?.hostGroupType || '',
       hostGroupValue: visitor?.hostGroupValue || '',
       hostUserId: visitor?.hostUserId || '',
+      standardVisitorSearch: '',
     }));
+    setStandardVisitorTouched({});
+    setStandardVisitorSubmitAttempted(false);
   };
 
   const switchStandardVisitorMode = (mode) => {
+    if (mode === 'new') setLastSelectedExistingVisitor(null);
     setForm((prev) => {
       if (mode === 'new') {
         const reset = getDefaultVisitorForm();
@@ -2182,6 +2343,55 @@ export default function VisitorsManagementPage() {
     return Object.keys(standardVisitorErrors).length === 0;
   }, [standardVisitorErrors]);
 
+  const tourErrors = useMemo(() => getUnitTourValidationErrors(form), [form]);
+  const visibleTourErrors = useMemo(() => {
+    const nextErrors = {};
+    Object.entries(tourErrors).forEach(([field, message]) => {
+      if (tourTouched[field] || tourSubmitAttempted) nextErrors[field] = message;
+    });
+    return nextErrors;
+  }, [tourErrors, tourSubmitAttempted, tourTouched]);
+  const isTourFormComplete = Object.keys(tourErrors).length === 0;
+
+  const walkInErrors = useMemo(() => getWalkInValidationErrors(form, {
+    attendeeCapacity,
+    availability: walkInAvailability,
+    isDeskAreaSeatBooking,
+  }), [attendeeCapacity, form, isDeskAreaSeatBooking, walkInAvailability]);
+  const visibleWalkInErrors = useMemo(() => {
+    const nextErrors = {};
+    Object.entries(walkInErrors).forEach(([field, message]) => {
+      if (walkInTouched[field] || walkInSubmitAttempted) nextErrors[field] = message;
+    });
+    return nextErrors;
+  }, [walkInErrors, walkInSubmitAttempted, walkInTouched]);
+  const isWalkInFormComplete = Object.keys(walkInErrors).length === 0;
+
+  const activeFormValidationErrors = useMemo(() => {
+    if (visitorMode === 'standard') return standardVisitorErrors;
+    if (visitorMode === 'tour') return tourErrors;
+    if (visitorMode === 'walkin_booking') return walkInErrors;
+    return {};
+  }, [standardVisitorErrors, tourErrors, visitorMode, walkInErrors]);
+  const activeFormSubmitAttempted = visitorMode === 'standard'
+    ? standardVisitorSubmitAttempted
+    : visitorMode === 'tour'
+      ? tourSubmitAttempted
+      : visitorMode === 'walkin_booking'
+        ? walkInSubmitAttempted
+        : false;
+
+  useEffect(() => {
+    if (!isLoggingVisitor || !activeFormSubmitAttempted || Object.keys(activeFormValidationErrors).length === 0) return undefined;
+    const timer = window.setTimeout(() => {
+      const firstInvalidField = document.querySelector('[data-frontdesk-form] .border-red-300') || document.querySelector('[data-validation-summary]');
+      if (!firstInvalidField) return;
+      firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof firstInvalidField.focus === 'function') firstInvalidField.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [activeFormSubmitAttempted, activeFormValidationErrors, isLoggingVisitor, visitorMode]);
+
   useEffect(() => {
     if (lockedTopTabs.has(activeTab)) {
       setActiveTab('daily');
@@ -2353,11 +2563,17 @@ export default function VisitorsManagementPage() {
   };
 
   const refreshBookingClients = async (search = '') => {
+    if (!workspaceId) return;
+
     try {
-      const response = await getMeetingRoomClients({ search, limit: 30 });
-      const clients = response?.data?.clients || response?.clients || [];
+      const response = await getExternalClients(workspaceId, search);
+      const clients = Array.isArray(response) ? response : response?.clients || [];
       if (Array.isArray(clients)) {
-        setBookingClients(clients);
+        setBookingClients(clients.map((client) => ({
+          ...client,
+          id: client.id || client.recordId || client._id || '',
+          recordId: client.recordId || client.id || client._id || '',
+        })));
       }
     } catch (error) {
       console.warn('Unable to refresh booking clients.', error);
@@ -2401,26 +2617,28 @@ export default function VisitorsManagementPage() {
     setForm((prev) => ({
       ...prev,
       clientBookingMode: 'existing',
-      clientId: client.id || client.recordId || '',
-      clientSearch: client.name || client.company || '',
+      clientId: client.id || client.recordId || client._id || '',
+      clientSearch: '',
       name: client.name || prev.name,
       phone: client.phone || prev.phone,
       email: client.email || prev.email,
       company: client.company || prev.company,
     }));
+    setWalkInTouched({});
+    setWalkInSubmitAttempted(false);
   };
 
   const handleProcessAction = async () => {
-    const fullName = `${String(form.firstName || '').trim()} ${String(form.lastName || '').trim()}`.trim();
-    if (!fullName && visitorMode !== 'verify_booking' && visitorMode !== 'tour') return alert("Visitor name is required.");
-    const normalizedCompany = form.visitorCompanyType === 'company'
-      ? String(form.visitorCompany || '').trim()
-      : 'Individual';
+    const isWalkInBooking = visitorMode === 'walkin_booking';
+    const fullName = isWalkInBooking
+      ? String(form.name || '').trim()
+      : `${String(form.firstName || '').trim()} ${String(form.lastName || '').trim()}`.trim();
+    const normalizedCompany = isWalkInBooking || visitorMode === 'tour'
+      ? String(form.company || '').trim()
+      : form.visitorCompanyType === 'company'
+        ? String(form.visitorCompany || '').trim()
+        : 'Individual';
     const normalizedEmail = form.email.trim();
-
-    if (visitorMode !== 'verify_booking' && visitorMode !== 'tour' && !normalizedEmail) {
-      return alert('Email is required.');
-    }
 
     const newId = `VIS-${Math.floor(Math.random() * 9000) + 1000}`;
     const badge = `B-${Math.floor(Math.random() * 900) + 100}`;
@@ -2574,6 +2792,8 @@ export default function VisitorsManagementPage() {
         setVerifiedBooking(null);
         setWalkInStep(1);
         setForm(getDefaultVisitorForm());
+        setTourTouched({});
+        setTourSubmitAttempted(false);
       } catch (error) {
         alert(error.message || 'Unable to log visitor right now.');
       } finally {
@@ -2583,22 +2803,13 @@ export default function VisitorsManagementPage() {
       return;
     }
     else if (visitorMode === 'tour') {
+      if (!isTourFormComplete) {
+        setTourSubmitAttempted(true);
+        return;
+      }
       const visitorName = form.pocName.trim();
       const contactPhone = form.pocPhone.trim() || form.phone.trim();
       const contactEmail = form.pocEmail.trim() || normalizedEmail;
-      const requiredTourFields = [
-        [visitorName, 'POC name is required for a sales tour.'],
-        [contactPhone, 'POC phone number is required for a sales tour.'],
-        [contactEmail, 'POC email is required for a sales tour.'],
-        [form.industry.trim(), 'Industry is required for a sales tour.'],
-        [form.teamSize.trim() || form.seatCount.trim(), 'Company size or seat count is required for a sales tour.'],
-        [form.preferredSpace.trim(), 'Preferred space is required for a sales tour.'],
-        [form.budgetRange.trim(), 'Budget range is required for a sales tour.'],
-        [form.moveInTimeline.trim(), 'Move-in timeline is required for a sales tour.'],
-        [form.preferredContactMethod.trim(), 'Preferred contact method is required for a sales tour.'],
-      ];
-      const missingTourField = requiredTourFields.find(([value]) => !String(value || '').trim());
-      if (missingTourField) return toast.error(missingTourField[1]);
       setIsSubmittingVisitor(true);
       const loadingToastId = toast.loading('Checking in visitor and syncing lead...', {
         description: 'Saving the visit for Administration and Sales follow-up.',
@@ -2706,6 +2917,8 @@ export default function VisitorsManagementPage() {
         setVerifiedBooking(null);
         setWalkInStep(1);
         setForm(getDefaultVisitorForm());
+        setTourTouched({});
+        setTourSubmitAttempted(false);
       } catch (error) {
         toast.error(error.message || 'Unable to check in the visitor right now.', {
           id: loadingToastId,
@@ -2715,15 +2928,9 @@ export default function VisitorsManagementPage() {
       }
     }
     else if (visitorMode === 'walkin_booking') {
-      if (!walkInAvailability.available) return alert(walkInAvailability.reason || 'Please choose an available slot.');
-      if (!form.phone.trim()) return alert('Phone number is required for walk-in bookings.');
-      if (!form.paymentMode) return alert('Select a payment mode for this booking.');
-      const isGPayBooking = normalizeText(form.paymentMode).includes('gpay');
-      if (isGPayBooking && !form.transactionId.trim()) {
-        return alert('Transaction number is required for GPay bookings.');
-      }
-      if (isGPayBooking && !form.paymentProofFile) {
-        return alert('Upload the payment screenshot for GPay bookings.');
+      if (!isWalkInFormComplete) {
+        setWalkInSubmitAttempted(true);
+        return;
       }
       if (form.discountType === 'percent' && walkInPricing.discountValue > 100) {
         return alert('Discount percentage cannot be greater than 100.');
@@ -2734,28 +2941,29 @@ export default function VisitorsManagementPage() {
       const walkInSeatNumber = normalizeSeatNumber(form.seatNumber);
       const bookingAttendees = isDeskAreaSeatBooking ? 1 : attendeeCount;
 
-      if (isDeskAreaSeatBooking && walkInSeatNumber == null) {
-        return alert('Select an available seat for this desk area booking.');
-      }
-
-      if (bookingAttendees < 1) return alert('Enter the attendee count.');
-
-      if (!isDeskAreaSeatBooking && attendeeCapacity && bookingAttendees > attendeeCapacity) {
-        return alert(`Attendees cannot exceed ${attendeeCapacity} seats for this room.`);
-      }
-
       let createdBooking = null;
       setIsSubmittingVisitor(true);
       try {
-        const bookingPayload = new FormData();
+        let externalClientId = form.clientBookingMode === 'existing' ? form.clientId : '';
+        if (!externalClientId && workspaceId) {
+          const createdClient = await createExternalClient({
+            workspaceId,
+            name: fullName,
+            email: normalizedEmail,
+            phone: form.phone.trim(),
+            company: normalizedCompany,
+          });
+          externalClientId = String(createdClient?._id || createdClient?.id || createdClient?.recordId || '').trim();
+        }
+
         const bookingFields = {
           bookingType: 'External',
           bookingSource: 'Frontdesk',
-          bookedByName: form.name,
+          bookedByName: fullName,
           bookedByEmail: normalizedEmail,
           bookedByPhone: form.phone,
           clientCompany: normalizedCompany,
-          clientId: form.clientBookingMode === 'existing' ? form.clientId : '',
+          externalClientId,
           sourceVisitorId: form.sourceVisitorId || '',
           roomName: selectedWalkInRoom?.name || form.resourceName,
           floor: selectedWalkInRoom?.floor || form.floor || '',
@@ -2770,7 +2978,7 @@ export default function VisitorsManagementPage() {
           financeStatus: form.paymentMode === 'Cash' ? 'Invoice Pending' : 'Sent To Finance',
           paymentVerificationStatus: form.paymentMode === 'Cash' ? '' : 'Pending',
           transactionId: form.transactionId.trim(),
-          discountType: walkInPricing.discountType,
+          discountType: walkInPricing.discountType === 'percent' ? 'percent' : 'flat',
           discountValue: walkInPricing.discountValue,
           discountAmount: walkInPricing.discountAmount,
           subtotalBeforeDiscount: walkInPricing.subtotalBeforeDiscount,
@@ -2782,22 +2990,23 @@ export default function VisitorsManagementPage() {
           bookingNotes: form.bookingNotes || `Walk-in confirmed via ${form.paymentMode}. Visitors Management capture.`,
         };
 
-        Object.entries(bookingFields).forEach(([key, value]) => {
-          if (value === undefined || value === null || value === '') {
-            return;
-          }
-          bookingPayload.append(key, value);
-        });
-
-        if (isGPayBooking && form.paymentProofFile) {
-          bookingPayload.append('paymentProof', form.paymentProofFile);
-        }
-
-        const response = await createMeetingRoomBooking(bookingPayload);
+        const response = await createMeetingRoomBooking(bookingFields);
 
         createdBooking = response?.data?.booking || response?.booking || null;
         if (createdBooking) {
-          const normalizedBooking = normalizeDailyBooking(createdBooking);
+          const enrichedBooking = {
+            ...createdBooking,
+            bookingSource: 'Frontdesk',
+            bookedByName: fullName,
+            bookedByEmail: normalizedEmail,
+            bookedByPhone: form.phone,
+            clientCompany: normalizedCompany,
+            clientId: externalClientId,
+            date: form.startDate,
+            startTime: form.startTime,
+            endTime: form.endTime,
+          };
+          const normalizedBooking = normalizeDailyBooking(enrichedBooking);
           setBookingConfirmation({
             bookingId: normalizedBooking.id,
             email: normalizedEmail,
@@ -2807,8 +3016,17 @@ export default function VisitorsManagementPage() {
             transactionId: form.transactionId.trim(),
           });
           setShowBookingConfirmationPopup(true);
-          syncDailyBookingState(createdBooking);
-          refreshBookingClients();
+          syncDailyBookingState(enrichedBooking);
+          await refreshBookingClients();
+
+          const createdBookingId = String(createdBooking._id || createdBooking.recordId || createdBooking.id || '').trim();
+          if (createdBookingId && normalizedEmail) {
+            try {
+              await sendExternalBookingConfirmationEmail(createdBookingId);
+            } catch (emailError) {
+              console.warn('Booking created, but the confirmation email could not be sent.', emailError);
+            }
+          }
 
           if (form.sourceVisitorId) {
             try {
@@ -3320,6 +3538,20 @@ export default function VisitorsManagementPage() {
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
             <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {activeTab === 'daily' && (
+                <RecordSubTabs
+                  activeKey={dailyStatusTab}
+                  onChange={setDailyStatusTab}
+                  items={[
+                    { key: 'all', label: 'All', count: dailyVisitorCollections.all.length },
+                    { key: 'pending', label: 'Pending', count: dailyVisitorCollections.pending.length },
+                    { key: 'approved', label: 'Approved', count: dailyVisitorCollections.approved.length },
+                    { key: 'checked_in', label: 'Checked In', count: dailyVisitorCollections.checked_in.length },
+                    { key: 'checked_out', label: 'Checked Out', count: dailyVisitorCollections.checked_out.length },
+                    { key: 'rejected', label: 'Rejected', count: dailyVisitorCollections.rejected.length },
+                  ]}
+                />
+              )}
               {activeTab === 'history' && (
                 <>
                   <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyMonth} onChange={(e) => setHistoryMonth(e.target.value)}>
@@ -3331,26 +3563,28 @@ export default function VisitorsManagementPage() {
                 </>
               )}
               {activeTab === 'bookings' && (
-                <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1">
-                  {[
-                    ['upcoming', 'Upcoming', bookingCollections.upcoming.length],
-                    ['completed', 'Completed', bookingCollections.completed.length],
-                    ['cancelled', 'Cancelled', bookingCollections.cancelled.length],
-                  ].map(([key, label, count]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setBookingStatusTab(key)}
-                      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                        bookingStatusTab === key
-                          ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                          : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
-                      }`}
-                    >
-                      {label} <span className={`rounded px-1.5 py-0.5 text-[8px] font-bold ${bookingStatusTab === key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>{count}</span>
-                    </button>
-                  ))}
-                </div>
+                <RecordSubTabs
+                  activeKey={bookingStatusTab}
+                  onChange={setBookingStatusTab}
+                  items={[
+                    { key: 'all', label: 'All', count: bookingCollections.all.length },
+                    { key: 'upcoming', label: 'Upcoming', count: bookingCollections.upcoming.length },
+                    { key: 'in_progress', label: 'In Progress', count: bookingCollections.in_progress.length },
+                    { key: 'completed', label: 'Completed', count: bookingCollections.completed.length },
+                    { key: 'cancelled', label: 'Cancelled', count: bookingCollections.cancelled.length },
+                  ]}
+                />
+              )}
+              {activeTab === 'clients' && (
+                <RecordSubTabs
+                  activeKey={clientSourceTab}
+                  onChange={setClientSourceTab}
+                  items={[
+                    { key: 'all', label: 'All Clients', count: clientCollections.all.length },
+                    { key: 'walk_in', label: 'Walk-in', count: clientCollections.walk_in.length },
+                    { key: 'converted', label: 'Converted Visitors', count: clientCollections.converted.length },
+                  ]}
+                />
               )}
             </div>
 
@@ -3365,7 +3599,7 @@ export default function VisitorsManagementPage() {
                 type="button"
                 disabled={!canOpenFrontdeskAction}
                 title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
-                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
+                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setLastSelectedExistingVisitor(null); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
                 className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap ${
                   canOpenFrontdeskAction
                     ? 'bg-[#2563EB] text-white hover:bg-blue-700 active:scale-95'
@@ -3394,7 +3628,7 @@ export default function VisitorsManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
-                  {trackedVisitors.filter((v) => String(v.name || '').toLowerCase().includes(searchQuery.toLowerCase())).map((vis) => {
+                  {selectedDailyVisitors.map((vis) => {
                     const visitorId = vis.recordId || vis.id;
                     const normalizedStatus = normalizeText(vis.status || '').replace(/[_-]+/g, ' ');
                     const normalizedStatusKey = normalizeText(vis.statusKey || '').replace(/[_-]+/g, ' ');
@@ -3480,8 +3714,8 @@ export default function VisitorsManagementPage() {
                       </tr>
                     );
                   })}
-                  {trackedVisitors.length === 0 && (
-                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No live visitors.</td></tr>
+                  {selectedDailyVisitors.length === 0 && (
+                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No visitors found for this status.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3491,7 +3725,51 @@ export default function VisitorsManagementPage() {
           {/* --- TAB: BOOKINGS --- */}
           {activeTab === 'bookings' && (
             <div className="overflow-x-auto flex-1">
-              <div className="grid grid-cols-1 gap-4 p-6 max-w-[960px] mx-auto">
+              <table className="w-full min-w-[1080px] text-left border-collapse">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-5 py-4">Booking / Client</th>
+                    <th className="px-5 py-4">Meeting Room</th>
+                    <th className="px-5 py-4">Schedule</th>
+                    <th className="px-5 py-4">Payment</th>
+                    <th className="px-5 py-4">Amount</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {selectedBookingList.map((bkg) => (
+                    <tr key={`table-${bkg.recordId || bkg.id}`} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[13px] font-pmedium text-slate-950">{bkg.bookedBy || 'External Client'}</p>
+                        <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">{bkg.company || 'Individual'}</p>
+                        <p className="mt-1 text-[10px] font-pmedium text-blue-600">{bkg.id || bkg.bookingCode}</p>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[13px] font-pmedium text-slate-900">{bkg.resource || 'Meeting Room'}</p>
+                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-pmedium text-slate-500">{bkg.source === 'Website' ? <Globe size={11} /> : <Smartphone size={11} />} {bkg.source || 'Frontdesk'}</span>
+                      </td>
+                      <td className="px-5 py-4 align-top whitespace-nowrap">
+                        <p className="flex items-center gap-1.5 text-[12px] font-pmedium text-slate-800"><CalendarDays size={13} className="text-slate-400" /> {bkg.dateLabel || formatDisplayDate(bkg.date)}</p>
+                        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-pmedium text-slate-500"><Clock size={12} /> {bkg.time || 'Time not set'}</p>
+                      </td>
+                      <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.paymentStatus || 'Pending')}>{bkg.paymentStatus || 'Pending'}</span><p className="mt-1.5 text-[10px] font-pmedium text-slate-500">{bkg.paymentMode || 'Not set'}</p></td>
+                      <td className="px-5 py-4 align-top"><p className="text-[13px] font-pmedium text-slate-950">{formatCurrency(bkg.totalAmount || bkg.amountDue || 0)}</p>{Number(bkg.discountAmount || 0) > 0 && <p className="mt-1 text-[10px] font-pmedium text-emerald-600">Discount {formatCurrency(bkg.discountAmount)}</p>}</td>
+                      <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.status)}>{bkg.status}</span>{bkg.isExtended && <span className={statusPillClass('Extended')}>Extended</span>}</td>
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex items-center gap-1.5">
+                          <button type="button" title="View booking" onClick={() => setViewingBooking(bkg)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                          {bkg.invoiceFileUrl && <button type="button" title="Download invoice" onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"><Download size={15} strokeWidth={2.5} /></button>}
+                          {bkg.status === 'In Progress' && <button type="button" title="Extend slot" onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="p-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-all"><Clock size={15} strokeWidth={2.5} /></button>}
+                          {bkg.status !== 'In Progress' && bkg.status !== 'Completed' && bkg.status !== 'Cancelled' && <><button type="button" title="Reschedule booking" onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition-all"><CalendarIcon size={15} strokeWidth={2.5} /></button><button type="button" title="Cancel booking" onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"><XCircle size={15} strokeWidth={2.5} /></button></>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {selectedBookingList.length === 0 && <tr><td colSpan={7} className="py-20 text-center font-pmedium text-slate-400">No bookings found for this status.</td></tr>}
+                </tbody>
+              </table>
+              <div className="hidden">
                 {selectedBookingList.map((bkg) => (
                   <div key={bkg.id} className="w-full bg-white border border-slate-200 rounded-[15px] p-3.5 md:p-4 flex flex-col lg:grid lg:grid-cols-[minmax(0,1.95fr)_auto] gap-3 lg:gap-4 items-start lg:items-stretch hover:shadow-md hover:border-blue-300 transition-all group">
 
@@ -3603,7 +3881,7 @@ export default function VisitorsManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
-                  {clientRows.map((client) => (
+                  {selectedClientRows.map((client) => (
                     <tr key={client.id || client.recordId || client.clientCode} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4 align-top">
                         <div className="font-pmedium text-[#0F172A] text-[13px]">{client.name || client.company || 'Unnamed Client'}</div>
@@ -3644,8 +3922,8 @@ export default function VisitorsManagementPage() {
                       </td>
                     </tr>
                   ))}
-                  {clientRows.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No clients found.</td></tr>
+                  {selectedClientRows.length === 0 && (
+                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No clients found for this source.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3741,7 +4019,7 @@ export default function VisitorsManagementPage() {
         {/* MODAL 1: GRAND UNIFIED "LOG VISITOR & BOOKING" TERMINAL */}
         {isLoggingVisitor && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <div className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]">
+            <div data-frontdesk-form className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]">
 
               <div className="p-3 md:p-3.5 bg-white border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
                 <div>
@@ -3760,8 +4038,8 @@ export default function VisitorsManagementPage() {
                     onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
                     className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
                   >Standard Visitor</button>
-                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
-                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
+                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => { setVisitorMode('tour'); setTourTouched({}); setTourSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
+                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
                   <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
                 </div>
               </div>
@@ -3791,7 +4069,7 @@ export default function VisitorsManagementPage() {
                           ))}
                         </div>
 
-                        {form.standardVisitorMode === 'existing' && (
+                        {form.standardVisitorMode === 'existing' && !lastSelectedExistingVisitor && (
                           <div className="space-y-3 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
                             <label className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Search Existing Visitor</label>
                             <div className="flex items-center gap-2 rounded-xl px-1 py-1">
@@ -3825,6 +4103,15 @@ export default function VisitorsManagementPage() {
                                 No matching visitor found in history.
                               </p>
                             ) : null}
+                          </div>
+                        )}
+                        {form.standardVisitorMode === 'existing' && lastSelectedExistingVisitor && (
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Visitor selected</p>
+                              <p className="truncate text-xs font-pmedium text-slate-900">{lastSelectedExistingVisitor.name || 'Visitor'} · {lastSelectedExistingVisitor.phone || lastSelectedExistingVisitor.email}</p>
+                            </div>
+                            <button type="button" onClick={() => { setLastSelectedExistingVisitor(null); setForm((prev) => ({ ...prev, standardVisitorSearch: '' })); }} className="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700 hover:bg-emerald-100">Change</button>
                           </div>
                         )}
                       </div>
@@ -3920,7 +4207,7 @@ export default function VisitorsManagementPage() {
                               </button>
                             ))}
                           </div>
-                          {form.standardVisitorMode === 'existing' && (
+                          {form.standardVisitorMode === 'existing' && !lastSelectedExistingVisitor && (
                             <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
                               <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Search Existing Visitor</label>
                               <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 border border-slate-200/60 focus-within:ring-2 focus-within:ring-[#2563EB]/20 focus-within:border-[#2563EB]">
@@ -3953,6 +4240,15 @@ export default function VisitorsManagementPage() {
                                   No matching visitor found in history.
                                 </p>
                               ) : null}
+                            </div>
+                          )}
+                          {form.standardVisitorMode === 'existing' && lastSelectedExistingVisitor && (
+                            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Visitor selected</p>
+                                <p className="truncate text-[12px] font-pmedium text-slate-900">{lastSelectedExistingVisitor.name || 'Visitor'} · {lastSelectedExistingVisitor.phone || lastSelectedExistingVisitor.email}</p>
+                              </div>
+                              <button type="button" onClick={() => { setLastSelectedExistingVisitor(null); setForm((prev) => ({ ...prev, standardVisitorSearch: '' })); }} className="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700 hover:bg-emerald-100">Change</button>
                             </div>
                           )}
                           
@@ -4311,8 +4607,9 @@ export default function VisitorsManagementPage() {
                           <div className="flex flex-col gap-1 sm:col-span-2">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">POC / Visitor Name <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="POC / Visitor Name"
-                              value={form.pocName} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.pocName} onBlur={() => setTourTouched((prev) => ({ ...prev, pocName: true }))} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.pocName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.pocName ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.pocName}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
@@ -4329,14 +4626,16 @@ export default function VisitorsManagementPage() {
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                             <input type="tel" placeholder="Phone"
-                              value={form.pocPhone} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.pocPhone} onBlur={() => setTourTouched((prev) => ({ ...prev, pocPhone: true }))} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.pocPhone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.pocPhone ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.pocPhone}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                             <input type="email" placeholder="Email"
-                              value={form.pocEmail} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.pocEmail} onBlur={() => setTourTouched((prev) => ({ ...prev, pocEmail: true }))} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.pocEmail ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.pocEmail ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.pocEmail}</span> : null}
                           </div>
                         </div>
                       </div>
@@ -4399,49 +4698,55 @@ export default function VisitorsManagementPage() {
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Industry <span className="text-red-400">*</span></label>
-                            <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.industry} onBlur={() => setTourTouched((prev) => ({ ...prev, industry: true }))} onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.industry ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Industry</option>
                               {TOUR_INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.industry ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.industry}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Team Size <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="Team Size"
-                              value={form.teamSize} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.teamSize} onBlur={() => setTourTouched((prev) => ({ ...prev, teamSize: true }))} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.teamSize ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.teamSize ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.teamSize}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seats Needed <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="Seats Needed"
-                              value={form.seatCount} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.seatCount} onBlur={() => setTourTouched((prev) => ({ ...prev, seatCount: true }))} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.seatCount ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.seatCount ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.seatCount}</span> : null}
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Preferred Space <span className="text-red-400">*</span></label>
-                            <select value={form.preferredSpace} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.preferredSpace} onBlur={() => setTourTouched((prev) => ({ ...prev, preferredSpace: true }))} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.preferredSpace ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Space Type</option>
                               {TOUR_SPACE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.preferredSpace ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.preferredSpace}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Budget Range <span className="text-red-400">*</span></label>
-                            <select value={form.budgetRange} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.budgetRange} onBlur={() => setTourTouched((prev) => ({ ...prev, budgetRange: true }))} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.budgetRange ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Budget</option>
                               {TOUR_BUDGET_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.budgetRange ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.budgetRange}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Move-in Timeline <span className="text-red-400">*</span></label>
-                            <select value={form.moveInTimeline} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.moveInTimeline} onBlur={() => setTourTouched((prev) => ({ ...prev, moveInTimeline: true }))} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.moveInTimeline ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Timeline</option>
                               {TOUR_TIMELINE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.moveInTimeline ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.moveInTimeline}</span> : null}
                           </div>
                         </div>
                       </div>
@@ -4454,14 +4759,15 @@ export default function VisitorsManagementPage() {
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Preferred Contact Method <span className="text-red-400">*</span></label>
-                            <select value={form.preferredContactMethod} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.preferredContactMethod} onBlur={() => setTourTouched((prev) => ({ ...prev, preferredContactMethod: true }))} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.preferredContactMethod ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Contact Method</option>
                               <option value="Call">Call</option>
                               <option value="WhatsApp">WhatsApp</option>
                               <option value="Email">Email</option>
                               <option value="In-person">In-person</option>
                             </select>
+                            {visibleTourErrors.preferredContactMethod ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.preferredContactMethod}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Follow-up Date</label>
@@ -4514,7 +4820,7 @@ export default function VisitorsManagementPage() {
                               ))}
                             </div>
 
-                            {form.clientBookingMode === 'existing' && (
+                            {form.clientBookingMode === 'existing' && !selectedBookingClient && (
                               <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Search Existing Client</label>
                                 <div className="flex gap-2">
@@ -4551,29 +4857,37 @@ export default function VisitorsManagementPage() {
                                 )}
                               </div>
                             )}
+                            {form.clientBookingMode === 'existing' && selectedBookingClient && (
+                              <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Client selected</p>
+                                  <p className="truncate text-[12px] font-pmedium text-slate-900">{selectedBookingClient.name || selectedBookingClient.company} · {selectedBookingClient.phone || selectedBookingClient.email}</p>
+                                </div>
+                                <button type="button" onClick={() => setForm((prev) => ({ ...prev, clientId: '', clientSearch: '' }))} className="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700 hover:bg-emerald-100">Change</button>
+                              </div>
+                            )}
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name <span className="text-red-400">*</span></label>
-                                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Client name" />
+                                <input type="text" value={form.name} onBlur={() => setWalkInTouched((prev) => ({ ...prev, name: true }))} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="Client name" />
+                                {visibleWalkInErrors.name ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.name}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
-                                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="+91..." />
+                                <input type="tel" value={form.phone} onBlur={() => setWalkInTouched((prev) => ({ ...prev, phone: true }))} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.phone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="+91..." />
+                                {visibleWalkInErrors.phone ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.phone}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
-                                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="client@email.com" />
+                                <input type="email" value={form.email} onBlur={() => setWalkInTouched((prev) => ({ ...prev, email: true }))} onChange={(e) => setForm({ ...form, email: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.email ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="client@email.com" />
+                                {visibleWalkInErrors.email ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.email}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Company</label>
                                 <input type="text" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Optional" />
                               </div>
                             </div>
-
-                            {selectedBookingClient && (
-                              <p className="text-[10px] font-pmedium text-blue-700">Using saved client {selectedBookingClient.clientCode || selectedBookingClient.name}. Contact fields are auto-filled; choose the room, schedule, and payment details below.</p>
-                            )}
 
                             {form.clientBookingMode === 'new' && matchedSavedVisitors.length > 0 && (
                               <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
@@ -4604,8 +4918,9 @@ export default function VisitorsManagementPage() {
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Space Type <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.spaceType ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.spaceType}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, spaceType: true }))}
                                   onChange={(e) => {
                                     const nextType = e.target.value;
                                     setForm({ ...form, spaceType: nextType, floor: '', wing: '', resourceName: '', seatNumber: '' });
@@ -4616,13 +4931,15 @@ export default function VisitorsManagementPage() {
                                     <option key={type} value={type}>{type}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.spaceType ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.spaceType}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.floor ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.floor}
                                   disabled={!form.spaceType}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, floor: true }))}
                                   onChange={(e) => {
                                     const nextFloor = e.target.value;
                                     setForm({ ...form, floor: nextFloor, wing: '', resourceName: '', seatNumber: '' });
@@ -4633,13 +4950,15 @@ export default function VisitorsManagementPage() {
                                     <option key={floor} value={floor}>{floor}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.floor ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.floor}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.wing ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.wing}
                                   disabled={!form.spaceType || !form.floor}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, wing: true }))}
                                   onChange={(e) => {
                                     const nextWing = e.target.value;
                                     setForm({ ...form, wing: nextWing, resourceName: '', seatNumber: '' });
@@ -4650,13 +4969,15 @@ export default function VisitorsManagementPage() {
                                     <option key={wing} value={wing}>Wing {wing}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.wing ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.wing}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Specific Room <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.resourceName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.resourceName}
                                   disabled={!form.spaceType || !form.floor || !form.wing}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, resourceName: true }))}
                                   onChange={(e) => setForm({ ...form, resourceName: e.target.value, seatNumber: '' })}
                                 >
                                   <option value="">Select a room</option>
@@ -4666,6 +4987,7 @@ export default function VisitorsManagementPage() {
                                     </option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.resourceName ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.resourceName}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attendees <span className="text-red-400">*</span></label>
@@ -4674,9 +4996,10 @@ export default function VisitorsManagementPage() {
                                   min="1"
                                   max={selectedWalkInRoom?.capacity || undefined}
                                   inputMode="numeric"
-                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${isDeskAreaSeatBooking ? 'opacity-70' : 'border-slate-200/60'}`}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.attendees ? 'border-red-300 bg-red-50' : 'border-slate-200/60'} ${isDeskAreaSeatBooking ? 'opacity-70' : ''}`}
                                   value={isDeskAreaSeatBooking ? 1 : form.attendees}
                                   disabled={isDeskAreaSeatBooking}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, attendees: true }))}
                                   onChange={(e) => {
                                     if (isDeskAreaSeatBooking) {
                                       return;
@@ -4687,6 +5010,7 @@ export default function VisitorsManagementPage() {
                                     setForm({ ...form, attendees: nextValue === '' ? 1 : nextValue });
                                   }}
                                 />
+                                {visibleWalkInErrors.attendees ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.attendees}</span> : null}
                                 <p className="text-[10px] font-medium text-slate-400">
                                   {isDeskAreaSeatBooking
                                     ? 'Desk area bookings are one seat per booking.'
@@ -4704,8 +5028,9 @@ export default function VisitorsManagementPage() {
                                 <div className="flex flex-col gap-1">
                                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seat Number <span className="text-red-400">*</span></label>
                                   <select
-                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                    className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.seatNumber ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                     value={form.seatNumber}
+                                    onBlur={() => setWalkInTouched((prev) => ({ ...prev, seatNumber: true }))}
                                     onChange={(e) => setForm({ ...form, seatNumber: e.target.value, attendees: 1 })}
                                   >
                                     <option value="">Select a seat</option>
@@ -4719,6 +5044,7 @@ export default function VisitorsManagementPage() {
                                       </option>
                                     ))}
                                   </select>
+                                  {visibleWalkInErrors.seatNumber ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.seatNumber}</span> : null}
                                 </div>
                                 <div className="rounded-xl bg-white px-4 py-3 text-right shadow-sm">
                                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seat Availability</p>
@@ -4752,20 +5078,24 @@ export default function VisitorsManagementPage() {
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.startDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.startDate}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, startDate: true }))}
                                   onChange={(e) => setForm({ ...form, startDate: e.target.value })}
                                 />
+                                {visibleWalkInErrors.startDate ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.startDate}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
                                   min={form.startDate}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.endDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.endDate}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, endDate: true }))}
                                   onChange={(e) => setForm({ ...form, endDate: e.target.value })}
                                 />
+                                {visibleWalkInErrors.endDate ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.endDate}</span> : null}
                               </div>
                             </div>
 
@@ -4782,14 +5112,16 @@ export default function VisitorsManagementPage() {
                               {meetingRoomOverviewError ? (
                                 <p className="mt-2 text-[10px] font-medium text-red-500">{meetingRoomOverviewError}</p>
                               ) : null}
+                              {visibleWalkInErrors.availability ? <p className="mt-2 text-[10px] font-medium text-red-500">{visibleWalkInErrors.availability}</p> : null}
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Time <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.startTime ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.startTime}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, startTime: true, availability: true }))}
                                   onChange={(e) => {
                                     const nextStartTime = e.target.value;
                                     const nextEndTime = nextStartTime
@@ -4807,12 +5139,14 @@ export default function VisitorsManagementPage() {
                                     <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.startTime ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.startTime}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Time <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.endTime ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.endTime}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, endTime: true, availability: true }))}
                                   onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                                 >
                                   <option value="">Select end time</option>
@@ -4820,6 +5154,7 @@ export default function VisitorsManagementPage() {
                                     <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.endTime ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.endTime}</span> : null}
                               </div>
                             </div>
                           {walkInAvailability.status === 'conflict' && walkInAvailability.slotSuggestions.length > 0 && (
@@ -4965,13 +5300,14 @@ export default function VisitorsManagementPage() {
                                   <button
                                     key={mode}
                                     type="button"
-                                    onClick={() => setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null })}
+                                    onClick={() => { setWalkInTouched((prev) => ({ ...prev, paymentMode: true })); setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null }); }}
                                     className={`rounded-lg border px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                   >
                                     {mode}
                                   </button>
                                 ))}
                               </div>
+                              {visibleWalkInErrors.paymentMode ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentMode}</span> : null}
                               {normalizeText(form.paymentMode).includes('gpay') && (
                                 <div className="space-y-3">
                                   <div className="flex flex-col gap-1">
@@ -4979,19 +5315,23 @@ export default function VisitorsManagementPage() {
                                     <input
                                       type="text"
                                       value={form.transactionId}
+                                      onBlur={() => setWalkInTouched((prev) => ({ ...prev, transactionId: true }))}
                                       onChange={(e) => setForm({ ...form, transactionId: e.target.value })}
                                       placeholder="Enter GPay reference / UTR"
-                                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.transactionId ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                     />
+                                    {visibleWalkInErrors.transactionId ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.transactionId}</span> : null}
                                   </div>
                                   <div className="flex flex-col gap-1">
                                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Screenshot <span className="text-red-400">*</span></label>
                                     <input
                                       type="file"
                                       accept="image/png,image/jpeg,image/jpg"
-                                      onChange={(e) => setForm({ ...form, paymentProofFile: e.target.files?.[0] || null })}
-                                      className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-[12px] text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300"
+                                      onBlur={() => setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true }))}
+                                      onChange={(e) => { setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true })); setForm({ ...form, paymentProofFile: e.target.files?.[0] || null }); }}
+                                      className={`block w-full rounded-lg border border-dashed bg-slate-50 px-3 py-2 text-[12px] text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300 ${visibleWalkInErrors.paymentProofFile ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}
                                     />
+                                    {visibleWalkInErrors.paymentProofFile ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentProofFile}</span> : null}
                                     {form.paymentProofFile?.name ? (
                                       <p className="text-[10px] font-medium text-blue-700">Selected: {form.paymentProofFile.name}</p>
                                     ) : null}
@@ -5082,8 +5422,10 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4">
-                <button onClick={() => { setIsLoggingVisitor(false); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); }} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
+              {activeFormSubmitAttempted && <ValidationSummary errors={activeFormValidationErrors} />}
+
+              <div className={visitorMode === 'walkin_booking' ? 'flex flex-col-reverse items-stretch gap-3 pt-2 shrink-0 px-6 pb-4 sm:flex-row sm:justify-end' : 'flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4'}>
+                <button type="button" onClick={() => { setIsLoggingVisitor(false); setLastSelectedExistingVisitor(null); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={visitorMode === 'walkin_booking' ? 'w-full sm:flex-1 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all' : 'flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all'}>Cancel</button>
 
                 {visitorMode === 'standard' && (
                   <button
@@ -5102,7 +5444,7 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {visitorMode === 'walkin_booking' && (
-                  <button disabled={!walkInAvailability.available || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-[2] py-3 bg-blue-600 text-white shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
+                  <button type="button" disabled={isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="w-full sm:flex-1 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-6 py-3 bg-[#2563EB] text-white shadow-sm shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
                     <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
@@ -5282,19 +5624,19 @@ export default function VisitorsManagementPage() {
         {/* MODAL 3: CANCEL UPCOMING BOOKING */}
         {cancellingBooking && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-md">
-            <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col">
-              <div className="p-8 bg-red-50 border-b border-red-100 flex justify-between items-center">
+            <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col">
+              <div className="p-5 sm:p-6 bg-red-50/70 border-b border-red-100 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-red-100 text-red-600 rounded-xl"><XCircle size={24} /></div>
                   <div>
-                    <h2 className="text-xl font-black text-red-900 leading-none">Cancel Booking</h2>
+                    <h2 className="text-lg font-pmedium text-red-900 leading-none">Cancel Booking</h2>
                     <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mt-1">{cancellingBooking.id}</p>
                   </div>
                 </div>
                 <button onClick={() => setCancellingBooking(null)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-5 sm:p-6 space-y-5">
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3 items-start">
                   <ShieldAlert className="text-gray-500 shrink-0 mt-0.5" size={20} />
                   <div className="text-xs text-gray-600 font-medium leading-relaxed">
@@ -5324,9 +5666,9 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
-                <button onClick={() => setCancellingBooking(null)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-4 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">ABORT</button>
-                <button disabled={!cancelForm.reason || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={handleCancelUpcoming} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-4 bg-red-600 text-white shadow-lg shadow-red-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex gap-3">
+                <button onClick={() => setCancellingBooking(null)} className="rounded-xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">ABORT</button>
+                <button disabled={!cancelForm.reason || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={handleCancelUpcoming} className="rounded-xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-red-600 text-white shadow-md shadow-red-100 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
               </div>
             </div>
           </div>
@@ -5335,19 +5677,19 @@ export default function VisitorsManagementPage() {
         {/* MODAL 4: RESCHEDULE BOOKING */}
         {reschedulingBooking && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-md">
-            <div className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col">
-              <div className="p-8 bg-amber-50 border-b border-amber-100 flex justify-between items-center">
+            <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[88vh]">
+              <div className="p-5 sm:p-6 bg-amber-50/70 border-b border-amber-100 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><CalendarDays size={24} /></div>
                   <div>
-                    <h2 className="text-xl font-black text-amber-900 leading-none">Reschedule Booking</h2>
+                    <h2 className="text-lg font-pmedium text-amber-900 leading-none">Reschedule Booking</h2>
                     <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mt-1">{reschedulingBooking.resource}</p>
                   </div>
                 </div>
                 <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto">
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center gap-4">
                   <div className="flex-1">
                     <p className="text-[10px] font-pmedium text-gray-400 uppercase tracking-widest mb-1">Current Booked Slot</p>
@@ -5424,9 +5766,9 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
-                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
-                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime} onClick={handleRescheduleUpcoming} className="flex-1 py-4 bg-amber-500 text-white rounded-2xl font-pmedium shadow-lg shadow-amber-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
+                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl font-pmedium text-[10px] uppercase text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
+                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime} onClick={handleRescheduleUpcoming} className="flex-1 py-3 bg-amber-500 text-white rounded-xl text-[10px] uppercase font-pmedium shadow-md shadow-amber-100 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
                   <CheckCircle2 size={18} /> UPDATE BOOKING SLOT
                 </button>
               </div>
@@ -5584,10 +5926,10 @@ export default function VisitorsManagementPage() {
         {/* MODAL 5B: VIEW DAILY BOOKING DETAILS */}
         {viewingBooking && (
           <div className="fixed inset-0 z-[105] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
-            <div className="bg-white rounded-[40px] w-full max-w-5xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="p-6 bg-amber-50 border-b border-amber-100 flex justify-between items-start shrink-0">
+            <div className="bg-white rounded-[24px] w-full max-w-[760px] shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[82vh]">
+              <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-start shrink-0">
                 <div>
-                  <h2 className="text-2xl font-black text-gray-900 leading-none flex items-center gap-3">
+                  <h2 className="text-lg font-pmedium text-gray-900 leading-none flex flex-wrap items-center gap-2">
                     {viewingBooking.resource}
                     <span className={statusPillClass(viewingBooking.status)}>{viewingBooking.status}</span>
                   </h2>
@@ -5595,22 +5937,22 @@ export default function VisitorsManagementPage() {
                     {viewingBooking.company}
                   </p>
                 </div>
-                <button onClick={() => setViewingBooking(null)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all">
-                  <X size={20} />
+                <button onClick={() => setViewingBooking(null)} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all">
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4">
-                  <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 space-y-2">
+              <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1 bg-white">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5 space-y-1.5">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Booked By</p>
-                    <p className="text-lg font-black text-gray-900">{viewingBooking.bookedBy}</p>
-                    <p className="text-xs font-bold text-gray-500">{viewingBooking.company}</p>
+                    <p className="text-sm font-pmedium text-gray-900">{viewingBooking.bookedBy}</p>
+                    <p className="text-xs font-pmedium text-gray-500">{viewingBooking.company}</p>
                   </div>
-                  <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 space-y-2">
+                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5 space-y-1.5">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Schedule</p>
-                    <p className="text-lg font-black text-gray-900">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}</p>
-                    <p className="text-xs font-bold text-gray-500">{viewingBooking.time}</p>
+                    <p className="text-sm font-pmedium text-gray-900">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}</p>
+                    <p className="text-xs font-pmedium text-gray-500">{viewingBooking.time}</p>
                     {viewingBooking.isExtended && (
                       <div className="pt-2 space-y-1">
                         <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Original Slot</p>
@@ -5625,71 +5967,71 @@ export default function VisitorsManagementPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Status</p>
-                    <p className={`mt-2 text-sm font-black ${normalizeText(viewingBooking.paymentStatus).includes('pending') || normalizeText(viewingBooking.paymentStatus).includes('unpaid') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingBooking.paymentStatus || 'Pending Payment'}</p>
+                    <p className={`mt-2 text-sm font-pmedium ${normalizeText(viewingBooking.paymentStatus).includes('pending') || normalizeText(viewingBooking.paymentStatus).includes('unpaid') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingBooking.paymentStatus || 'Pending Payment'}</p>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4 md:col-span-1">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Amount Breakdown</p>
                     <div className="mt-3 space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-500">Base Amount</span>
-                        <span className="text-sm font-black text-gray-900">{formatCurrency(viewingBooking.subtotalBeforeDiscount || viewingBooking.baseAmount || 0)}</span>
+                        <span className="text-xs font-pmedium text-gray-500">Base Amount</span>
+                        <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.subtotalBeforeDiscount || viewingBooking.baseAmount || 0)}</span>
                       </div>
                       {Number(viewingBooking.discountAmount || 0) > 0 && (
                         <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2">
-                          <span className="text-xs font-bold text-emerald-600">
+                          <span className="text-xs font-pmedium text-emerald-600">
                             Discount{viewingBooking.discountType === 'percent' ? ` (${Number(viewingBooking.discountValue || 0)}%)` : ''}
                           </span>
-                          <span className="text-sm font-black text-emerald-700">- {formatCurrency(viewingBooking.discountAmount)}</span>
+                          <span className="text-sm font-pmedium text-emerald-700">- {formatCurrency(viewingBooking.discountAmount)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-500">GST (18%)</span>
-                        <span className="text-sm font-black text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
+                        <span className="text-xs font-pmedium text-gray-500">GST (18%)</span>
+                        <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
                       </div>
                       {Number(viewingBooking.extensionAmount || 0) > 0 && (
                         <div className="flex items-center justify-between rounded-xl bg-purple-50 px-3 py-2">
-                          <span className="text-xs font-bold text-purple-600">Extension Charges</span>
-                          <span className="text-sm font-black text-purple-700">{formatCurrency(viewingBooking.extensionAmount)}</span>
+                          <span className="text-xs font-pmedium text-purple-600">Extension Charges</span>
+                          <span className="text-sm font-pmedium text-purple-700">{formatCurrency(viewingBooking.extensionAmount)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between border-t border-gray-200 pt-2.5">
-                        <span className="text-sm font-black text-gray-900">Total Paid</span>
-                        <span className="text-base font-black text-blue-700">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amountDue || 0)}</span>
+                        <span className="text-sm font-pmedium text-gray-900">Total Paid</span>
+                        <span className="text-base font-pmedium text-blue-700">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amountDue || 0)}</span>
                       </div>
                     </div>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Mode</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingBooking.paymentMode || 'Not set'}</p>
+                    <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.paymentMode || 'Not set'}</p>
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-4">
                     <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Attendees</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingBooking.attendees || 0}</p>
+                    <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.attendees || 0}</p>
                   </div>
                 </div>
 
-                <div className="rounded-3xl bg-gray-50 border border-gray-100 p-5">
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 mb-3">Contact & Source</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Phone</p>
-                      <p className="mt-1 font-bold text-gray-900">{viewingBooking.phone || 'Not provided'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.phone || 'Not provided'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Email</p>
-                      <p className="mt-1 font-bold text-gray-900 break-all">{viewingBooking.email || 'Not provided'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.email || 'Not provided'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Finance Status</p>
-                      <p className="mt-1 font-bold text-gray-900">{viewingBooking.financeStatus || 'Not set'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.financeStatus || 'Not set'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Source Reference</p>
-                      <p className="mt-1 font-bold text-gray-900 break-all">{viewingBooking.sourceReference || 'Frontdesk'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.sourceReference || 'Frontdesk'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Booking Type</p>
-                      <p className="mt-1 font-bold text-gray-900">{viewingBooking.bookingType || 'External'}</p>
+                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.bookingType || 'External'}</p>
                     </div>
                   </div>
                   <div className="mt-4">
@@ -5699,22 +6041,22 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 shrink-0">
-                <button onClick={() => setViewingBooking(null)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-pmedium text-gray-600 hover:bg-gray-100 transition-all">
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5 shrink-0">
+                <button onClick={() => setViewingBooking(null)} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl text-[10px] uppercase font-pmedium text-gray-600 hover:bg-gray-100 transition-all">
                   CLOSE
                 </button>
                 {viewingBooking.status === 'In Progress' ? (
                   <>
-                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="flex-1 py-4 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-2xl font-pmedium hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="flex-1 py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-[10px] uppercase font-pmedium hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
                       <Clock size={18} /> EXTEND SLOT
                     </button>
                   </>
                 ) : viewingBooking.status !== 'Completed' && viewingBooking.status !== 'Cancelled' && (
                   <>
-                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); setViewingBooking(null); }} className="flex-1 py-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl font-pmedium hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); setViewingBooking(null); }} className="flex-1 py-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-[10px] uppercase font-pmedium hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
                       <CalendarIcon size={18} /> RESCHEDULE
                     </button>
-                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-pmedium shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="flex-1 py-3 bg-red-600 text-white rounded-xl text-[10px] uppercase font-pmedium shadow-md shadow-red-100 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                       <XCircle size={18} /> CANCEL
                     </button>
                   </>
@@ -5727,11 +6069,11 @@ export default function VisitorsManagementPage() {
         {/* MODAL 5C: CLIENT BOOKING HISTORY */}
         {viewingClient && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
-            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[36px] bg-white shadow-2xl animate-in zoom-in duration-200">
-              <div className="flex shrink-0 items-start justify-between border-b border-blue-100 bg-blue-50 p-6">
+            <div className="flex max-h-[82vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl animate-in zoom-in duration-200">
+              <div className="flex shrink-0 items-start justify-between border-b border-gray-100 bg-gray-50 px-5 py-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-2xl font-black leading-none text-slate-950">{viewingClient.name || viewingClient.company || 'Client'}</h2>
+                    <h2 className="text-lg font-pmedium leading-none text-slate-950">{viewingClient.name || viewingClient.company || 'Client'}</h2>
                     {viewingClient.company && (
                       <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium text-slate-600">
                         {viewingClient.company}
@@ -5745,32 +6087,32 @@ export default function VisitorsManagementPage() {
                   </div>
                   <p className="mt-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{viewingClient.phone || viewingClient.email || 'No contact'} • {viewingClient.bookingCount || 0} bookings</p>
                 </div>
-                <button onClick={() => setViewingClient(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm transition-all hover:text-red-500">
-                  <X size={20} />
+                <button onClick={() => setViewingClient(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm transition-all hover:text-red-500">
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto p-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
-                    <p className="mt-2 text-sm font-black text-slate-900">{viewingClient.phone || 'Not provided'}</p>
+                    <p className="mt-2 text-sm font-pmedium text-slate-900">{viewingClient.phone || 'Not provided'}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
-                    <p className="mt-2 break-all text-sm font-black text-slate-900">{viewingClient.email || 'Not provided'}</p>
+                    <p className="mt-2 break-all text-sm font-pmedium text-slate-900">{viewingClient.email || 'Not provided'}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Bookings</p>
-                    <p className="mt-2 text-xl font-black text-slate-900">{viewingClient.bookingCount || 0}</p>
+                    <p className="mt-2 text-xl font-pmedium text-slate-900">{viewingClient.bookingCount || 0}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Value</p>
-                    <p className="mt-2 text-xl font-black text-slate-900">{formatCurrency(viewingClient.totalBookedAmount || 0)}</p>
+                    <p className="mt-2 text-xl font-pmedium text-slate-900">{formatCurrency(viewingClient.totalBookedAmount || 0)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Source</p>
-                    <p className="mt-2 text-sm font-black text-slate-900">
+                    <p className="mt-2 text-sm font-pmedium text-slate-900">
                       {normalizeText(viewingClient.source) === 'visitor-conversion' ? 'Visitor Conversion' : 'Walk-in Booking'}
                     </p>
                   </div>
@@ -5780,7 +6122,26 @@ export default function VisitorsManagementPage() {
                   <div className="border-b border-slate-100 p-4">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Booking History</p>
                   </div>
-                  <div className="divide-y divide-slate-100">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[620px] text-left border-collapse">
+                      <thead className="bg-slate-50 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
+                        <tr><th className="px-4 py-3">Room</th><th className="px-4 py-3">Schedule</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {(viewingClient.bookings || []).map((booking) => (
+                          <tr key={`history-${booking.recordId || booking.id}`} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-3"><p className="text-xs font-pmedium text-slate-950">{booking.resource}</p><p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{booking.sourceReference || 'Frontdesk booking'}</p></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><p className="text-xs font-pmedium text-slate-800">{booking.dateLabel || booking.date}</p><p className="mt-0.5 text-[10px] font-pmedium text-slate-500">{booking.time}</p></td>
+                            <td className="px-4 py-3 text-xs font-pmedium text-slate-900">{formatCurrency(booking.totalAmount || booking.amountDue || 0)}</td>
+                            <td className="px-4 py-3"><span className={statusPillClass(booking.status)}>{booking.status}</span></td>
+                            <td className="px-4 py-3"><button type="button" title="View booking" onClick={() => { setViewingBooking(booking); setViewingClient(null); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={14} strokeWidth={2.5} /></button></td>
+                          </tr>
+                        ))}
+                        {(!viewingClient.bookings || viewingClient.bookings.length === 0) && <tr><td colSpan={5} className="p-8 text-center text-xs font-pmedium text-slate-400">No booking records found for this client yet.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="hidden">
                     {(viewingClient.bookings || []).map((booking) => (
                       <div key={booking.recordId || booking.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                         <div>
@@ -5817,8 +6178,8 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="shrink-0 border-t border-slate-100 bg-slate-50 p-6">
-                <button onClick={() => setViewingClient(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition-all hover:bg-slate-100">
+              <div className="shrink-0 border-t border-gray-100 bg-gray-50 px-5 py-3">
+                <button onClick={() => setViewingClient(null)} className="w-full rounded-xl border border-slate-200 bg-white py-3 text-[10px] uppercase font-pmedium text-slate-600 transition-all hover:bg-slate-100">
                   CLOSE
                 </button>
               </div>
@@ -5874,7 +6235,3 @@ export default function VisitorsManagementPage() {
     </>
   );
 }
-
-
-
-

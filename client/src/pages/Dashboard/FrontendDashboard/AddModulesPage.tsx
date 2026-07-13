@@ -924,14 +924,16 @@ const AddModulesPage = () => {
                       {group.label}
                     </h3>
                     <p className="mt-1 text-[11px] text-slate-500">
-                      {(group.key === "department-accesses"
-                        ? (group.departments || []).flatMap((department) => department.cards)
-                        : group.cards || []
-                      ).filter((card) => card.isEnabled).length} enabled &middot;{" "}
-                      {(group.key === "department-accesses"
-                        ? (group.departments || []).flatMap((department) => department.cards)
-                        : group.cards || []
-                      ).filter((card) => !card.isEnabled).length} locked
+                      {group.key === "department-accesses"
+                        ? (group.departments || []).filter((department) =>
+                            department.cards.some((card) => card.isEnabled),
+                          ).length
+                        : (group.cards || []).filter((card) => card.isEnabled).length} enabled &middot;{" "}
+                      {group.key === "department-accesses"
+                        ? (group.departments || []).filter((department) =>
+                            department.cards.every((card) => !card.isEnabled),
+                          ).length
+                        : (group.cards || []).filter((card) => !card.isEnabled).length} locked
                       {group.key === "department-accesses"
                         ? ` · ${group.departments?.length || 0} departments`
                         : ""}

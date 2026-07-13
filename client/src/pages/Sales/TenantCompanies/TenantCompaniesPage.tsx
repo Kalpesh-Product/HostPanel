@@ -1219,6 +1219,12 @@ export default function TenantCompaniesPage() {
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
   const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '', role: 'Employee' });
   const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  useEffect(() => {
+    setFieldErrors({});
+    setFormError('');
+  }, [activeModal]);
   const bulkUploadInputRef = useRef(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [bulkUploadFileName, setBulkUploadFileName] = useState('');
@@ -2021,8 +2027,40 @@ export default function TenantCompaniesPage() {
     if (isSaving) return;
     setFormError('');
 
+    if (activeModal !== 'renew') {
+      const trimmedName = String(companyForm.companyName || '').trim();
+      const trimmedContact = String(companyForm.contactName || '').trim();
+      const trimmedEmail = String(companyForm.email || '').trim();
+      const trimmedPhone = String(companyForm.phone || '').trim();
+
+      const nextFieldErrors = {};
+      if (!trimmedName) nextFieldErrors.companyName = 'Company name is required.';
+      if (!trimmedContact) nextFieldErrors.contactName = 'Contact person is required.';
+      if (!trimmedEmail) nextFieldErrors.email = 'Email is required.';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) nextFieldErrors.email = 'Enter a valid email address.';
+      if (!trimmedPhone) nextFieldErrors.phone = 'Phone number is required.';
+      else if (!/^\+?[\d\s()-]{7,15}$/.test(trimmedPhone)) nextFieldErrors.phone = 'Enter a valid phone number.';
+
+      setFieldErrors(nextFieldErrors);
+      const firstError = Object.values(nextFieldErrors)[0];
+      if (firstError) {
+        setFormError(firstError);
+        toast.error(firstError);
+        return;
+      }
+    }
+
+    if (isContractDurationInvalid) {
+      const durationError = 'Contract duration must be at least 3 months.';
+      setFormError(durationError);
+      toast.error(durationError);
+      return;
+    }
+
     if (activeModal !== 'renew' && activeModal !== 'add' && !hasExistingAgreementDocuments && agreementFiles.length === 0) {
-      toast.error('At least one agreement document is required.');
+      const agreementError = 'At least one agreement document is required.';
+      setFormError(agreementError);
+      toast.error(agreementError);
       return;
     }
 
@@ -2780,21 +2818,21 @@ export default function TenantCompaniesPage() {
                               className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
                             >
                               <UploadCloud size={13} /> 
-                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                             </button>
               <button
                                 type="button"
                                 // onClick={handleExportPDF}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
                                 // onClick={handleExportExcel}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
             </div>
           </div>
@@ -2820,11 +2858,14 @@ export default function TenantCompaniesPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 shrink-0">
             {summaryCards.map((card) => {
               const Icon = card.icon;
+              const labelToneClass = card.cardClass.includes('border-l')
+                ? (card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400')
+                : 'text-slate-400';
 
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass}`}><Icon size={16} /></div>
@@ -2836,28 +2877,40 @@ export default function TenantCompaniesPage() {
 
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-110">
 
-            <div className={`p-3 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-center gap-3 shrink-0 bg-slate-50/50 ${activeTab === 'companies' ? '' : 'hidden'}`}>
-              <div className="relative w-full xl:w-72 shrink-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input type="text" placeholder="Search company or contact person..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <div className={`p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 shrink-0 bg-slate-50/50 ${activeTab === 'companies' ? '' : 'hidden'}`}>
+              {/* LEFT: status sub-tab pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {['All Status', 'Active', 'Expiring Soon', 'Expired'].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === status
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {status === 'All Status' ? 'All' : status}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex flex-wrap ml-auto items-center gap-2 w-full xl:w-auto">
-                <select className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
+              {/* RIGHT: search + package filter + add */}
+              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input type="text" placeholder="Search company or contact person..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                </div>
+                <select className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all cursor-pointer" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
                   <option>All Packages</option>
                   {tenantPackages.map((pkg) => <option key={pkg.recordId || pkg.id} value={pkg.name}>{pkg.name}</option>)}
                 </select>
-                <select className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                  <option>All Status</option><option>Active</option><option>Expiring Soon</option><option>Expired</option>
-                </select>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1 w-10px xl:w-auto">
                 <button
                   onClick={openAddCompanyModal}
-                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] hover:bg-blue-700 shadow-sm transition-all flex items-end justify-center gap-1.5"
+                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <Plus size={14} /> ADD TENANT COMPANY
+                  <Plus size={13} strokeWidth={3} /> ADD TENANT COMPANY
                 </button>
               </div>
             </div>
@@ -2889,18 +2942,18 @@ export default function TenantCompaniesPage() {
                         </div>
                       </td>
                       <td className="px-3.5 py-2 space-y-1">
-                        <p className="font-bold text-slate-800 text-xs">{tenant.contactName}</p>
+                        <p className="font-pmedium text-slate-800 text-xs">{tenant.contactName}</p>
                         <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> {tenant.email}</p>
                         <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Phone size={10} /> {tenant.phone}</p>
                       </td>
                       <td className="px-3.5 py-2">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                          <p className="text-xs font-bold text-slate-700">{tenant.contractStart}</p>
+                          <p className="text-xs font-pmedium text-slate-700">{tenant.contractStart}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                          <p className="text-xs font-bold text-slate-700">{tenant.contractEnd}</p>
+                          <p className="text-xs font-pmedium text-slate-700">{tenant.contractEnd}</p>
                         </div>
                       </td>
                       <td className="px-3.5 py-2 space-y-1.5">
@@ -2942,44 +2995,52 @@ export default function TenantCompaniesPage() {
                     </tr>
                   ))}
                   {displayedTenants.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-bold bg-slate-50/50">No companies match the current filters.</td></tr>
+                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No companies match the current filters.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
             {activeTab === 'requests' && (
-              <div className="flex flex-1 flex-col p-2">
-                <div className="rounded-[2rem] border border-slate-100 bg-white shadow-sm overflow-hidden flex flex-1 flex-col">
-                  <div className="p-3 border-b border-slate-100 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 bg-slate-50/50">
-                    <div>
-                      <h3 className="text-base font-pmedium text-primary">Extra credits requests</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+              <>
+                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50 shrink-0">
+                  {/* LEFT: status sub-tab pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                    {[
+                      { key: 'All Requests', label: 'All' },
+                      { key: 'COMPLETED', label: 'Completed' },
+                      { key: 'REJECTED', label: 'Rejected' },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setRequestStatusFilter(key)}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                          requestStatusFilter === key
+                            ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                            : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* RIGHT: search */}
+                  <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                    <div className="relative flex-1 min-w-[180px]">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input
                         type="text"
                         placeholder="Search requests..."
-                        className="w-full xl:w-64 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
-                      <select
-                        className="w-full xl:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                        value={requestStatusFilter}
-                        onChange={(e) => setRequestStatusFilter(e.target.value)}
-                      >
-                        <option>All Requests</option>
-                        <option value="PENDING_SALES_APPROVAL">Pending Sales Approval</option>
-                        <option value="APPROVED_AWAITING_PAYMENT">Awaiting Payment</option>
-                        <option value="PAYMENT_SUBMITTED">Payment Submitted</option>
-                        <option value="PAYMENT_CONFIRMED">Payment Confirmed</option>
-                        <option value="INVOICE_GENERATED">Invoice Generated</option>
-                        <option value="COMPLETED">Completed</option>
-                        <option value="REJECTED">Rejected</option>
-                      </select>
                     </div>
                   </div>
+                </div>
 
-                  <div className="overflow-x-auto flex-1">
+                <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left">
                       <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                         <tr>
@@ -3022,19 +3083,19 @@ export default function TenantCompaniesPage() {
                               )}
                             </td>
                             <td className="px-3.5 py-2">
-                              <p className="font-bold text-slate-800 text-xs">{request.invoiceNumber || 'Pending'}</p>
+                              <p className="font-pmedium text-slate-800 text-xs">{request.invoiceNumber || 'Pending'}</p>
                               {request.invoiceFileUrl ? (
                                 <a href={request.invoiceFileUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:underline">View invoice</a>
                               ) : (
-                                <p className="mt-1 text-[10px] font-medium text-slate-400">Finance will attach the invoice file here.</p>
+                                <p className="mt-1 text-[10px] font-pmedium text-slate-400">Finance will attach the invoice file here.</p>
                               )}
                               {request.paymentProofFileUrl && (
                                 <a href={request.paymentProofFileUrl} target="_blank" rel="noreferrer" className="mt-2 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400 hover:text-slate-700">View proof</a>
                               )}
                             </td>
                             <td className="px-3.5 py-2">
-                              <p className="font-bold text-slate-800 text-xs">{request.requestedByName || '--'}</p>
-                              <p className="mt-1 text-[10px] font-medium text-slate-400">{formatDateLabel(request.requestedAtAt || request.requestedAt)}</p>
+                              <p className="font-pmedium text-slate-800 text-xs">{request.requestedByName || '--'}</p>
+                              <p className="mt-1 text-[10px] font-pmedium text-slate-400">{formatDateLabel(request.requestedAtAt || request.requestedAt)}</p>
                             </td>
                             <td className="px-3.5 py-2">
                               <div className="flex flex-wrap items-center justify-center gap-2 transition-opacity">
@@ -3080,31 +3141,30 @@ export default function TenantCompaniesPage() {
                         ))}
                         {displayedCreditRequests.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="text-center py-20 text-slate-400 font-bold bg-slate-50/50">No credit requests match the current filters.</td>
+                            <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No credit requests match the current filters.</td>
                           </tr>
                         )}
                       </tbody>
                     </table>
-                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
           {isBulkUploadOpen && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
               <div className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-                <div className="flex items-start justify-between gap-4 p-4 sm:p-5 border-b border-slate-100 bg-slate-900 text-white">
-                  <div>
-                    <h2 className="mt-1.5 text-base font-pmedium text-white">Upload Tenant Companies</h2>
-                    <p className="mt-1.5 max-w-xl text-[12px] font-medium text-slate-300">
+                <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Upload Tenant Companies</h2>
+                    <p className="mt-1.5 max-w-xl text-[12px] font-pmedium text-slate-500">
                       Import only the onboarding text fields. Building name comes from sales architecture later, and package or contract values are filled during edit.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => { setIsBulkUploadOpen(false); setBulkUploadError(''); setBulkUploadSummary(null); setBulkUploadFileName(''); }}
-                    className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center text-white transition-all hover:bg-red-500 shrink-0"
+                    className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
                   >
                     <X size={16} />
                   </button>
@@ -3129,20 +3189,20 @@ export default function TenantCompaniesPage() {
                   </div>
 
                   <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400">Template rules</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Template rules</p>
                     <div className="mt-2 grid gap-2 text-[12px] text-slate-700 md:grid-cols-2">
-                      <p className="rounded-xl bg-white px-3 py-2 font-medium shadow-sm">Use one row per tenant company.</p>
-                      <p className="rounded-xl bg-white px-3 py-2 font-medium shadow-sm">Use unit numbers like 701 A, 601 B, or 501 A.</p>
-                      <p className="rounded-xl bg-white px-3 py-2 font-medium shadow-sm">Do not include building name, package, rates, seats, or contract dates.</p>
-                      <p className="rounded-xl bg-white px-3 py-2 font-medium shadow-sm">Those values are added later when the manager edits the record.</p>
+                      <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Use one row per tenant company.</p>
+                      <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Use unit numbers like 701 A, 601 B, or 501 A.</p>
+                      <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Do not include building name, package, rates, seats, or contract dates.</p>
+                      <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Those values are added later when the manager edits the record.</p>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400">Selected file</p>
-                        <h3 className="mt-0.5 text-[13px] font-bold text-slate-900">{bulkUploadFileName || 'No file selected yet'}</h3>
+                        <p className="text-[9px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Selected file</p>
+                        <h3 className="mt-0.5 text-[13px] font-pmedium text-slate-900">{bulkUploadFileName || 'No file selected yet'}</h3>
                       </div>
                       {isBulkImporting && (
                         <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">Importing</span>
@@ -3153,15 +3213,15 @@ export default function TenantCompaniesPage() {
                       <div className="mt-3 grid gap-2 sm:grid-cols-3">
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Created</p>
-                          <p className="mt-0.5 text-[13px] font-bold text-slate-900">{bulkUploadSummary.created}</p>
+                          <p className="mt-0.5 text-[13px] font-pmedium text-slate-900">{bulkUploadSummary.created}</p>
                         </div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Failed</p>
-                          <p className="mt-0.5 text-[13px] font-bold text-slate-900">{bulkUploadSummary.failed}</p>
+                          <p className="mt-0.5 text-[13px] font-pmedium text-slate-900">{bulkUploadSummary.failed}</p>
                         </div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">File</p>
-                          <p className="mt-0.5 text-[12px] font-semibold text-slate-900 break-all">{bulkUploadSummary.fileName}</p>
+                          <p className="mt-0.5 text-[12px] font-pmedium text-slate-900 break-all">{bulkUploadSummary.fileName}</p>
                         </div>
                       </div>
                     )}
@@ -3175,7 +3235,7 @@ export default function TenantCompaniesPage() {
                     {bulkUploadSummary?.errors?.length > 0 && (
                       <div className="mt-3 max-h-36 overflow-y-auto rounded-xl border border-amber-200 bg-amber-50 p-3">
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-700">Row errors</p>
-                        <ul className="mt-1.5 space-y-1 text-[11px] font-medium text-amber-800">
+                        <ul className="mt-1.5 space-y-1 text-[11px] font-pmedium text-amber-800">
                           {bulkUploadSummary.errors.map((errorText) => (
                             <li key={errorText}>{errorText}</li>
                           ))}
@@ -3220,42 +3280,43 @@ export default function TenantCompaniesPage() {
                   <button onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"><X size={16} /></button>
                 </div>
 
-                <form onSubmit={handleSaveCompany} className="p-4 sm:p-5 overflow-y-auto flex flex-1 flex-col gap-4 bg-white">
+                <form onSubmit={handleSaveCompany} noValidate className="p-3 sm:p-4 overflow-y-auto flex flex-1 flex-col gap-4 bg-slate-50/30">
 
                   {activeModal !== 'renew' && (
-                    <div className="order-5 space-y-3">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">5. Profile & Contact</h3>
+                    <div className="order-5 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">5. Profile &amp; Contact</span></h4>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company Name *</label>
-                        <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyName} onChange={e => setCompanyForm({ ...companyForm, companyName: e.target.value })} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company Name <span className="text-red-400">*</span></label>
+                        <input type="text" placeholder="Enter company name" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.companyName ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.companyName} onChange={e => { setCompanyForm({ ...companyForm, companyName: e.target.value }); if (fieldErrors.companyName) setFieldErrors((prev) => ({ ...prev, companyName: '' })); }} />
+                        {fieldErrors.companyName && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.companyName}</p>}
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Business Type</label>
-                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.businessType} onChange={e => setCompanyForm({ ...companyForm, businessType: e.target.value })} />
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.businessType} onChange={e => setCompanyForm({ ...companyForm, businessType: e.target.value })} />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Contact Person *</label>
-                          <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.contactName} onChange={e => setCompanyForm({ ...companyForm, contactName: e.target.value })} />
+                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Contact Person <span className="text-red-400">*</span></label>
+                          <input type="text" placeholder="Full name" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.contactName ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.contactName} onChange={e => { setCompanyForm({ ...companyForm, contactName: e.target.value }); if (fieldErrors.contactName) setFieldErrors((prev) => ({ ...prev, contactName: '' })); }} />
+                          {fieldErrors.contactName && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.contactName}</p>}
                         </div>
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email *</label>
-                          <input required type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.email} onChange={e => setCompanyForm({ ...companyForm, email: e.target.value })} />
+                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email <span className="text-red-400">*</span></label>
+                          <input type="email" placeholder="name@company.com" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.email ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.email} onChange={e => { setCompanyForm({ ...companyForm, email: e.target.value }); if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' })); }} />
+                          {fieldErrors.email && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.email}</p>}
                         </div>
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone *</label>
-                          <input required type="tel" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.phone} onChange={e => setCompanyForm({ ...companyForm, phone: e.target.value })} />
+                          <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone <span className="text-red-400">*</span></label>
+                          <input type="tel" placeholder="+91 00000 00000" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.phone ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.phone} onChange={e => { setCompanyForm({ ...companyForm, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: '' })); }} />
+                          {fieldErrors.phone && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.phone}</p>}
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="order-3 space-y-3">
-                    <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5">
-                      <CreditCard size={14} />
-                      Billing Details
-                    </h3>
-                    <p className="text-[10px] font-medium text-slate-400">
+                  <div className="order-3 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">3. Billing Details</span></h4>
+                    <p className="text-[10px] font-pmedium text-slate-400">
                       Calculated from desk allocation and contract duration. Security deposit is fixed at 25% of the total contract amount.
                     </p>
                     {formError && (
@@ -3269,7 +3330,7 @@ export default function TenantCompaniesPage() {
                         <input
                           type="number"
                           min="0"
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                           value={companyForm.agreementDetails?.lockInPeriod || ''}
                           onChange={(e) => {
                             const nextDurationMonths = e.target.value;
@@ -3298,7 +3359,7 @@ export default function TenantCompaniesPage() {
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Rent</label>
                         <input
                           type="text"
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-semibold text-slate-900 outline-none"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 outline-none"
                           value={formatCurrency(billingSummary.monthlyRent)}
                           readOnly
                         />
@@ -3307,7 +3368,7 @@ export default function TenantCompaniesPage() {
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Contract Amount</label>
                         <input
                           type="text"
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-semibold text-slate-900 outline-none"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 outline-none"
                           value={formatCurrency(billingSummary.totalContractAmount)}
                           readOnly
                         />
@@ -3316,7 +3377,7 @@ export default function TenantCompaniesPage() {
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Amount</label>
                         <input
                           type="text"
-                          className="w-full px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[12px] font-semibold text-emerald-900 outline-none"
+                          className="w-full px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[12px] font-pmedium text-emerald-900 outline-none"
                           value={formatCurrency(billingSummary.securityDepositAmount)}
                           readOnly
                         />
@@ -3324,7 +3385,7 @@ export default function TenantCompaniesPage() {
                       <div className="space-y-1 md:col-span-2">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Paid</label>
                         <select
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                           value={companyForm.billingDetails?.securityDepositPaidStatus || 'Pending'}
                           onChange={(e) => updateCompanySection('billingDetails', 'securityDepositPaidStatus', e.target.value)}
                         >
@@ -3337,7 +3398,7 @@ export default function TenantCompaniesPage() {
                          <div className="space-y-1">
                            <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor</label>
                            <select
-                             className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
+                             className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-pmedium text-indigo-900 outline-none"
                              value={customPackageFloor}
                              onChange={(e) => setCompanyForm((prev) => ({
                                ...prev,
@@ -3355,7 +3416,7 @@ export default function TenantCompaniesPage() {
                          <div className="space-y-1">
                            <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Wing</label>
                            <select
-                             className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
+                             className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-pmedium text-indigo-900 outline-none"
                              value={customPackageWing}
                              onChange={(e) => setCompanyForm((prev) => ({
                                ...prev,
@@ -3372,7 +3433,7 @@ export default function TenantCompaniesPage() {
                          <div className="space-y-1">
                            <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Block Mix</label>
                            <select
-                             className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
+                             className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-pmedium text-indigo-900 outline-none"
                              value={customPackageBlockMix}
                              onChange={(e) => setCompanyForm((prev) => ({
                                ...prev,
@@ -3408,7 +3469,7 @@ export default function TenantCompaniesPage() {
                                  </button>
                                );
                              }) : (
-                               <div className="rounded-xl border border-dashed border-emerald-200 bg-white px-3 py-4 text-center text-xs font-medium text-emerald-700">No open desk blocks found in this scope.</div>
+                               <div className="rounded-xl border border-dashed border-emerald-200 bg-white px-3 py-4 text-center text-xs font-pmedium text-emerald-700">No open desk blocks found in this scope.</div>
                              )}
                            </div>
                          </div>
@@ -3433,7 +3494,7 @@ export default function TenantCompaniesPage() {
                                  </button>
                                );
                              }) : (
-                               <div className="rounded-xl border border-dashed border-blue-200 bg-white px-3 py-4 text-center text-xs font-medium text-blue-700">No cabin desk blocks found in this scope.</div>
+                               <div className="rounded-xl border border-dashed border-blue-200 bg-white px-3 py-4 text-center text-xs font-pmedium text-blue-700">No cabin desk blocks found in this scope.</div>
                              )}
                            </div>
                          </div>
@@ -3459,34 +3520,34 @@ export default function TenantCompaniesPage() {
                                </button>
                              );
                            }) : (
-                             <div className="rounded-xl border border-dashed border-sky-200 bg-white px-3 py-4 text-center text-xs font-medium text-sky-700">No single open desks found in this scope.</div>
+                             <div className="rounded-xl border border-dashed border-sky-200 bg-white px-3 py-4 text-center text-xs font-pmedium text-sky-700">No single open desks found in this scope.</div>
                            )}
                          </div>
                         </div> */}
                   </div>
 
                   {activeModal !== 'renew' && (
-                    <div className="order-6 space-y-3">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">6. Customer Details</h3>
+                    <div className="order-6 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><MapPin size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">6. Customer Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1 md:col-span-2">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Name</label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocName} onChange={(e) => updateCompanySection('pocDetails', 'hoPocName', e.target.value)} />
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocName} onChange={(e) => updateCompanySection('pocDetails', 'hoPocName', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Email</label>
-                          <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'hoPocEmail', e.target.value)} />
+                          <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'hoPocEmail', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Phone</label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'hoPocPhone', e.target.value)} />
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'hoPocPhone', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Sector</label>
                           {!showCustomSector ? (
                             <div className="space-y-2">
                               <select
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                                 value={allSectorOptions.includes(companyForm.customerDetails.sector) ? companyForm.customerDetails.sector : ''}
                                 onChange={(e) => {
                                   setShowCustomSector(false);
@@ -3510,7 +3571,7 @@ export default function TenantCompaniesPage() {
                                 required
                                 type="text"
                                 placeholder="Type new sector name"
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-indigo-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-indigo-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={companyForm.customerDetails.sector}
                                 onChange={(e) => updateCompanySection('customerDetails', 'sector', e.target.value)}
                               />
@@ -3524,13 +3585,13 @@ export default function TenantCompaniesPage() {
                             </div>
                           )}
                           {!showCustomSector && companyForm.customerDetails.sector === '' && (
-                            <p className="text-[9px] font-bold text-amber-600">Select or add a sector</p>
+                            <p className="text-[9px] font-pmedium text-amber-600">Select or add a sector</p>
                           )}
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO Country</label>
                           <select
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoCountry}
                             onChange={(e) => updateCompanySection('customerDetails', 'hoCountry', e.target.value)}
                             disabled={loadingCountries}
@@ -3542,7 +3603,7 @@ export default function TenantCompaniesPage() {
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO State</label>
                           <select
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoState}
                             onChange={(e) => updateCompanySection('customerDetails', 'hoState', e.target.value)}
                             disabled={!companyForm.customerDetails.hoCountry || loadingStates}
@@ -3554,7 +3615,7 @@ export default function TenantCompaniesPage() {
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO City</label>
                           <select
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoCity}
                             onChange={(e) => updateCompanySection('customerDetails', 'hoCity', e.target.value)}
                             disabled={!companyForm.customerDetails.hoState || loadingCities}
@@ -3568,20 +3629,20 @@ export default function TenantCompaniesPage() {
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-4 space-y-3">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">4. Company Details</h3>
+                    <div className="order-4 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">4. Company Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Building Name</label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.buildingName} onChange={(e) => updateCompanySection('companyDetails', 'buildingName', e.target.value)} />
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.buildingName} onChange={(e) => updateCompanySection('companyDetails', 'buildingName', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit No</label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.unitNo} onChange={(e) => updateCompanySection('companyDetails', 'unitNo', e.target.value)} />
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.unitNo} onChange={(e) => updateCompanySection('companyDetails', 'unitNo', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Cabin Desks</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.cabinDesks} onChange={(e) => updateCompanySection('companyDetails', 'cabinDesks', e.target.value)} />
+                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.cabinDesks} onChange={(e) => updateCompanySection('companyDetails', 'cabinDesks', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
@@ -3589,17 +3650,17 @@ export default function TenantCompaniesPage() {
                             type="number"
                             min="0"
                             disabled={Boolean(companyForm.pricingPackageId)}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
                             value={companyForm.companyDetails.ratePerCabinDesk}
                             onChange={(e) => updateCompanySection('companyDetails', 'ratePerCabinDesk', e.target.value)}
                           />
                           {companyForm.pricingPackageId && (
-                            <p className="text-[9px] font-bold text-indigo-500">Pulled from the selected package.</p>
+                            <p className="text-[9px] font-pmedium text-indigo-500">Pulled from the selected package.</p>
                           )}
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Open Desks</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.openDesks} onChange={(e) => updateCompanySection('companyDetails', 'openDesks', e.target.value)} />
+                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.openDesks} onChange={(e) => updateCompanySection('companyDetails', 'openDesks', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Open Desk</label>
@@ -3607,17 +3668,17 @@ export default function TenantCompaniesPage() {
                             type="number"
                             min="0"
                             disabled={Boolean(companyForm.pricingPackageId)}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
                             value={companyForm.companyDetails.ratePerOpenDesk}
                             onChange={(e) => updateCompanySection('companyDetails', 'ratePerOpenDesk', e.target.value)}
                           />
                           {companyForm.pricingPackageId && (
-                            <p className="text-[9px] font-bold text-indigo-500">Pulled from the selected package.</p>
+                            <p className="text-[9px] font-pmedium text-indigo-500">Pulled from the selected package.</p>
                           )}
                         </div>
                         <div className="space-y-1 md:col-span-2">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
-                          <select className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={companyForm.companyDetails.status} onChange={(e) => updateCompanySection('companyDetails', 'status', e.target.value)}>
+                          <select className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={companyForm.companyDetails.status} onChange={(e) => updateCompanySection('companyDetails', 'status', e.target.value)}>
                             <option>Active</option>
                             <option>Expiring Soon</option>
                             <option>Expired</option>
@@ -3628,24 +3689,24 @@ export default function TenantCompaniesPage() {
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-7 space-y-3">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">7. Agreement Details</h3>
+                    <div className="order-7 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">7. Agreement Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual Increment</label>
-                          <input type="number" min="0" readOnly className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-bold text-emerald-900 outline-none cursor-not-allowed" value={companyForm.agreementDetails.annualIncrement} onChange={(e) => updateCompanySection('agreementDetails', 'annualIncrement', e.target.value)} />
+                          <input type="number" min="0" readOnly className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-pmedium text-emerald-900 outline-none cursor-not-allowed" value={companyForm.agreementDetails.annualIncrement} onChange={(e) => updateCompanySection('agreementDetails', 'annualIncrement', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Per Desk Meeting Credits</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.perDeskMeetingCredits} onChange={(e) => updateCompanySection('agreementDetails', 'perDeskMeetingCredits', e.target.value)} />
+                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.perDeskMeetingCredits} onChange={(e) => updateCompanySection('agreementDetails', 'perDeskMeetingCredits', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Meeting Credits</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.totalMeetingCredits} onChange={(e) => updateCompanySection('agreementDetails', 'totalMeetingCredits', e.target.value)} />
+                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.totalMeetingCredits} onChange={(e) => updateCompanySection('agreementDetails', 'totalMeetingCredits', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date</label>
-                          <input type="date" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.startDate} onChange={(e) => setCompanyForm((prev) => ({
+                          <input type="date" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.startDate} onChange={(e) => setCompanyForm((prev) => ({
                             ...prev,
                             startDate: e.target.value,
                             agreementDetails: {
@@ -3656,11 +3717,11 @@ export default function TenantCompaniesPage() {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date</label>
-                          <input type="date" className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.endDate} readOnly />
+                          <input type="date" className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-pmedium text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.endDate} readOnly />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Lock-in Period</label>
-                          <input type="number" min="0" readOnly className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.lockInPeriod} />
+                          <input type="number" min="0" readOnly className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-pmedium text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.lockInPeriod} />
                         </div>
 
                       </div>
@@ -3668,31 +3729,28 @@ export default function TenantCompaniesPage() {
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-8 space-y-3">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">8. POC Details</h3>
+                    <div className="order-8 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Phone size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">8. POC Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Name</label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocName} onChange={(e) => updateCompanySection('pocDetails', 'localPocName', e.target.value)} />
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocName} onChange={(e) => updateCompanySection('pocDetails', 'localPocName', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Email</label>
-                          <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'localPocEmail', e.target.value)} />
+                          <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'localPocEmail', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Phone</label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'localPocPhone', e.target.value)} />
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'localPocPhone', e.target.value)} />
                         </div>
                       </div>
                     </div>
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-2 space-y-3">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5">
-                        <Briefcase size={14} />
-                        2. Selected Package Details
-                      </h3>
+                    <div className="order-2 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">2. Selected Package Details</span></h4>
                       {isTenantPackageLocked && (
                         <p className="text-[10px] font-pmedium text-indigo-400">This package is locked to the company, so the package details stay read-only here.</p>
                       )}
@@ -3702,7 +3760,7 @@ export default function TenantCompaniesPage() {
                           <input
                             type="text"
                             disabled={isTenantPackageLocked}
-                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-bold text-indigo-900 outline-none focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-100/60"
+                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-pmedium text-indigo-900 outline-none focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-100/60"
                             value={companyForm.packageDetails.packageName}
                             onChange={(e) => updateCompanySection('packageDetails', 'packageName', e.target.value)}
                           />
@@ -3716,7 +3774,7 @@ export default function TenantCompaniesPage() {
                             type="number"
                             min="0"
                             disabled
-                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-bold text-indigo-900 outline-none disabled:cursor-not-allowed disabled:bg-indigo-100/60"
+                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-pmedium text-indigo-900 outline-none disabled:cursor-not-allowed disabled:bg-indigo-100/60"
                             value={companyForm.packageDetails.totalSeats}
                           />
                         </div>
@@ -3726,7 +3784,7 @@ export default function TenantCompaniesPage() {
                             type="number"
                             min="0"
                             disabled
-                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-bold text-indigo-900 outline-none disabled:cursor-not-allowed disabled:bg-indigo-100/60"
+                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-pmedium text-indigo-900 outline-none disabled:cursor-not-allowed disabled:bg-indigo-100/60"
                             value={companyForm.packageDetails.openDesks}
                           />
                         </div>
@@ -3736,7 +3794,7 @@ export default function TenantCompaniesPage() {
                             type="number"
                             min="0"
                             disabled
-                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-bold text-indigo-900 outline-none disabled:cursor-not-allowed disabled:bg-indigo-100/60"
+                            className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-pmedium text-indigo-900 outline-none disabled:cursor-not-allowed disabled:bg-indigo-100/60"
                             value={companyForm.packageDetails.cabinDesks}
                           />
                         </div>
@@ -3747,7 +3805,7 @@ export default function TenantCompaniesPage() {
                               type="number"
                               min="0"
                               disabled={isTenantPackageLocked}
-                              className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-bold text-indigo-900 outline-none focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-100/60"
+                              className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-pmedium text-indigo-900 outline-none focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-100/60"
                               value={companyForm.packageDetails.ratePerOpenDesk}
                               onChange={(e) => setCompanyForm((prev) => ({
                                 ...prev,
@@ -3770,7 +3828,7 @@ export default function TenantCompaniesPage() {
                               type="number"
                               min="0"
                               disabled={isTenantPackageLocked}
-                              className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-bold text-indigo-900 outline-none focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-100/60"
+                              className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-pmedium text-indigo-900 outline-none focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-100/60"
                               value={companyForm.packageDetails.ratePerCabinDesk}
                               onChange={(e) => setCompanyForm((prev) => ({
                                 ...prev,
@@ -3792,7 +3850,7 @@ export default function TenantCompaniesPage() {
                             type="number"
                             min="0"
                             disabled={isTenantPackageLocked}
-                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-bold text-sky-900 outline-none focus:border-sky-600 disabled:cursor-not-allowed disabled:bg-sky-100/60"
+                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-pmedium text-sky-900 outline-none focus:border-sky-600 disabled:cursor-not-allowed disabled:bg-sky-100/60"
                             value={companyForm.packageDetails.creditsPerSeat}
                             onChange={(e) => setCompanyForm((prev) => syncCustomPackageCreditFields(prev, e.target.value))}
                           />
@@ -3833,15 +3891,15 @@ export default function TenantCompaniesPage() {
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-9 space-y-4">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">9. Credit Configuration</h3>
+                    <div className="order-9 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">9. Credit Configuration</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Credits Per Seat</label>
                           <input
                             type="number"
                             min="0"
-                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-bold text-sky-900 outline-none focus:border-sky-600"
+                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-pmedium text-sky-900 outline-none focus:border-sky-600"
                             value={companyForm.packageDetails.creditsPerSeat}
                             onChange={(e) => setCompanyForm((prev) => syncCustomPackageCreditFields(prev, e.target.value))}
                           />
@@ -3858,7 +3916,7 @@ export default function TenantCompaniesPage() {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Credit Reset Cycle</label>
-                          <select disabled={isTenantPackageLocked} className="w-full px-4 py-3.5 bg-white border-2 border-sky-100 rounded-xl font-bold text-sky-900 focus:border-sky-600 outline-none cursor-pointer shadow-sm disabled:cursor-not-allowed disabled:bg-sky-50" value={companyForm.creditConfiguration.creditResetCycle} onChange={(e) => {
+                          <select disabled={isTenantPackageLocked} className="w-full px-4 py-3.5 bg-white border-2 border-sky-100 rounded-xl font-pmedium text-sky-900 focus:border-sky-600 outline-none cursor-pointer shadow-sm disabled:cursor-not-allowed disabled:bg-sky-50" value={companyForm.creditConfiguration.creditResetCycle} onChange={(e) => {
                             updateCompanySection('creditConfiguration', 'creditResetCycle', e.target.value);
                             updateCompanySection('packageDetails', 'creditResetCycle', e.target.value);
                           }}>
@@ -3869,15 +3927,15 @@ export default function TenantCompaniesPage() {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-widest">Purchased Credits</label>
-                          <input type="number" min="0" className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-bold text-emerald-900 focus:border-emerald-600 outline-none" value={companyForm.addOnCredits.purchasedCredits} onChange={(e) => updateCompanySection('addOnCredits', 'purchasedCredits', e.target.value)} />
+                          <input type="number" min="0" className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-pmedium text-emerald-900 focus:border-emerald-600 outline-none" value={companyForm.addOnCredits.purchasedCredits} onChange={(e) => updateCompanySection('addOnCredits', 'purchasedCredits', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-widest">Remaining Credits</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[12px] font-semibold text-emerald-900 outline-none" value={calculateRemainingCredits(companyForm)} readOnly />
+                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[12px] font-pmedium text-emerald-900 outline-none" value={calculateRemainingCredits(companyForm)} readOnly />
                         </div>
                         <div className="space-y-1 md:col-span-3">
                           <label className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-widest">Credit Usage Tracking</label>
-                          <textarea rows="3" disabled={isTenantPackageLocked} className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-medium text-emerald-900 focus:border-emerald-600 outline-none disabled:cursor-not-allowed disabled:bg-emerald-100/60" value={companyForm.creditConfiguration.creditUsageTracking} onChange={(e) => {
+                          <textarea rows="3" disabled={isTenantPackageLocked} className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-xl font-pmedium text-emerald-900 focus:border-emerald-600 outline-none disabled:cursor-not-allowed disabled:bg-emerald-100/60" value={companyForm.creditConfiguration.creditUsageTracking} onChange={(e) => {
                             updateCompanySection('creditConfiguration', 'creditUsageTracking', e.target.value);
                             updateCompanySection('packageDetails', 'creditUsageTracking', e.target.value);
                           }} placeholder="Track monthly usage, add-on consumption, and renewal notes here." />
@@ -3886,13 +3944,13 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  <div className="order-1 space-y-4">
-                    <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5"><Briefcase size={14} /> 1. Package Selection & Allocation</h3>
+                  <div className="order-1 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">1. Package Selection &amp; Allocation</span></h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-5 bg-indigo-50 border border-indigo-100 rounded-2xl">
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest"> Select Package</label>
                         <select
-                          className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-bold text-indigo-900 focus:border-indigo-600 outline-none cursor-pointer shadow-sm disabled:bg-indigo-50 disabled:text-indigo-500"
+                          className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-pmedium text-indigo-900 focus:border-indigo-600 outline-none cursor-pointer shadow-sm disabled:bg-indigo-50 disabled:text-indigo-500"
                           value={isCustomPackageSelected ? '__custom__' : (companyForm.pricingPackageId || '')}
                           onChange={e => handlePackageSelection(e.target.value)}
                           disabled={isTenantPackageLocked}
@@ -3905,7 +3963,7 @@ export default function TenantCompaniesPage() {
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest flex items-center gap-1">Credits Allocated (Auto)</label>
                         <input required type="number" min="0" disabled={Boolean(selectedTenantPackage)} className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-black text-indigo-700 outline-none disabled:bg-indigo-100/50 disabled:cursor-not-allowed" value={companyForm.creditsAllocated} onChange={e => setCompanyForm({ ...companyForm, creditsAllocated: parseInt(e.target.value) || 0, planType: 'Custom', pricingPackageId: '__custom__' })} />
-                        <p className="text-[9px] font-bold text-indigo-400 mt-1">Credits used for meeting room bookings.</p>
+                        <p className="text-[9px] font-pmedium text-indigo-400 mt-1">Credits used for meeting room bookings.</p>
                       </div>
                       {isCustomPackageSelected && (
                         <div className="md:col-span-2 space-y-3 rounded-xl border border-indigo-100 bg-white p-3">
@@ -3922,7 +3980,7 @@ export default function TenantCompaniesPage() {
                             <div className="space-y-1">
                               <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor</label>
                               <select
-                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
+                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-pmedium text-indigo-900 outline-none"
                                 value={customPackageFloor}
                                 onChange={(e) => setCompanyForm((prev) => ({
                                   ...prev,
@@ -3940,7 +3998,7 @@ export default function TenantCompaniesPage() {
                             <div className="space-y-1">
                               <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Wing</label>
                               <select
-                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
+                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-pmedium text-indigo-900 outline-none"
                                 value={customPackageWing}
                                 onChange={(e) => setCompanyForm((prev) => ({
                                   ...prev,
@@ -3957,7 +4015,7 @@ export default function TenantCompaniesPage() {
                             <div className="space-y-1">
                               <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Block Mix</label>
                               <select
-                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
+                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-pmedium text-indigo-900 outline-none"
                                 value={customPackageBlockMix}
                                 onChange={(e) => setCompanyForm((prev) => ({
                                   ...prev,
@@ -4007,7 +4065,7 @@ export default function TenantCompaniesPage() {
                                         </label>
                                       );
                                     }) : (
-                                      <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-center text-xs font-medium text-emerald-700">No open desk blocks in this scope.</div>
+                                      <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-center text-xs font-pmedium text-emerald-700">No open desk blocks in this scope.</div>
                                     )}
                                   </div>
                                 </div>
@@ -4044,7 +4102,7 @@ export default function TenantCompaniesPage() {
                                         </label>
                                       );
                                     }) : (
-                                      <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-medium text-blue-700">No cabin desk blocks in this scope.</div>
+                                      <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-pmedium text-blue-700">No cabin desk blocks in this scope.</div>
                                     )}
                                   </div>
                                 </div>
@@ -4071,7 +4129,7 @@ export default function TenantCompaniesPage() {
                                         </label>
                                       );
                                     }) : (
-                                      <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/50 px-3 py-4 text-center text-xs font-medium text-sky-700">No single open desks in this scope.</div>
+                                      <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/50 px-3 py-4 text-center text-xs font-pmedium text-sky-700">No single open desks in this scope.</div>
                                     )}
                                   </div>
                                 </div>
@@ -4079,15 +4137,15 @@ export default function TenantCompaniesPage() {
                             ) : (
                               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
                                 <LayoutGrid size={28} className="mx-auto mb-2 text-slate-300" />
-                                <p className="text-sm font-bold text-slate-500">No area blocks found</p>
-                                <p className="mt-1 text-xs font-medium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
+                                <p className="text-sm font-pmedium text-slate-500">No area blocks found</p>
+                                <p className="mt-1 text-xs font-pmedium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
                               </div>
                             )
                           ) : (
                             <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-6 text-center">
                               <LayoutGrid size={28} className="mx-auto mb-2 text-indigo-300" />
-                              <p className="text-sm font-bold text-indigo-600">Select floor and wing to load area blocks</p>
-                              <p className="mt-1 text-xs font-medium text-indigo-400">The open desk and cabin desk cards will appear after both scope fields are set.</p>
+                              <p className="text-sm font-pmedium text-indigo-600">Select floor and wing to load area blocks</p>
+                              <p className="mt-1 text-xs font-pmedium text-indigo-400">The open desk and cabin desk cards will appear after both scope fields are set.</p>
                             </div>
                           )}
                         </div>
@@ -4110,8 +4168,8 @@ export default function TenantCompaniesPage() {
                   </div>
 
                   {activeModal !== 'renew' && (
-                    <div className="order-10 space-y-4">
-                      <h3 className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-1.5"><FileText size={14} /> 10. Upload Document</h3>
+                    <div className="order-10 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">10. Upload Document</span></h4>
                       <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5">
                         <div className="space-y-3">
                           <label className="block text-[10px] font-pmedium text-amber-700 uppercase tracking-widest">Upload Agreement Document *</label>
@@ -4121,7 +4179,7 @@ export default function TenantCompaniesPage() {
                               multiple
                               accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg"
                               onChange={handleAgreementFilesChange}
-                              className="block w-full text-sm font-medium text-slate-700 border-none outline-none focus:ring-0 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-xs file:font-black file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
+                              className="block w-full text-sm font-pmedium text-slate-700 border-none outline-none focus:ring-0 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-xs file:font-black file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
                             />
                           </div>
                           <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600">
@@ -4149,8 +4207,8 @@ export default function TenantCompaniesPage() {
                   )}
 
                   <div className="order-11 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
-                    <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-200 transition-all">CANCEL</button>
-                    <button type="submit" disabled={!canSaveTenantCompany || isSaving || billingSummary.hasValidationError || isContractDurationInvalid} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+                    <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-50 transition-all shadow-sm">CANCEL</button>
+                    <button type="submit" disabled={isSaving} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
                       SUBMIT &amp; SEND TO FINANCE <Save size={14} />
                     </button>
                   </div>
@@ -4211,7 +4269,7 @@ export default function TenantCompaniesPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveDetailTab(tab.id)}
-                    className={`flex items-center gap-2 border-b-2 pb-4 text-sm font-bold transition-all ${
+                    className={`flex items-center gap-2 border-b-2 pb-4 text-sm font-pmedium transition-all ${
                       activeDetailTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
                     }`}
                   >
@@ -4227,11 +4285,11 @@ export default function TenantCompaniesPage() {
                     <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                         <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Start</p>
-                        <p className="text-xs font-bold text-slate-900">{selectedTenant.contractStart || selectedTenant.agreementDetails?.startDate || 'N/A'}</p>
+                        <p className="text-xs font-pmedium text-slate-900">{selectedTenant.contractStart || selectedTenant.agreementDetails?.startDate || 'N/A'}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                         <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract End</p>
-                        <p className="text-xs font-bold text-slate-900">{selectedTenant.contractEnd || selectedTenant.agreementDetails?.endDate || 'N/A'}</p>
+                        <p className="text-xs font-pmedium text-slate-900">{selectedTenant.contractEnd || selectedTenant.agreementDetails?.endDate || 'N/A'}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                         <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Base Credits</p>
@@ -4251,7 +4309,7 @@ export default function TenantCompaniesPage() {
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                         <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Area</p>
-                        <p className="text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
+                        <p className="text-xs font-pmedium text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
                       </div>
                     </div>
 
@@ -4259,20 +4317,20 @@ export default function TenantCompaniesPage() {
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                         <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Sales Package Summary</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Package Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.packageDetails?.packageName || selectedTenant.package || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Location Blocks</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageLocationLabels?.length ? selectedTenant.packageLocationLabels.join(', ') : 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900">{formatInteger(selectedTenant.packageDetails?.totalSeats || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Plan Type</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Package Name</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.packageName || selectedTenant.packageDetails?.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Location Blocks</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.packageLocationLabels?.length ? selectedTenant.packageLocationLabels.join(', ') : 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Seats</p><p className="text-xs font-pmedium text-slate-900">{formatInteger(selectedTenant.packageDetails?.totalSeats || 0)}</p></div>
                         </div>
                       </div>
 
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                         <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Billing Snapshot</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.monthlyRent || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Contract Amount</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.totalContractAmount || selectedTenant.packagePrice || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.securityDepositAmount || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900">{selectedTenant.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Monthly Rent</p><p className="text-xs font-pmedium text-slate-900">{formatCurrency(selectedTenantBillingDisplay.monthlyRent || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Contract Amount</p><p className="text-xs font-pmedium text-slate-900">{formatCurrency(selectedTenantBillingDisplay.totalContractAmount || selectedTenant.packagePrice || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Security Deposit</p><p className="text-xs font-pmedium text-slate-900">{formatCurrency(selectedTenantBillingDisplay.securityDepositAmount || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Deposit Status</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
                         </div>
                       </div>
                     </div>
@@ -4281,11 +4339,11 @@ export default function TenantCompaniesPage() {
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                         <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Customer Profile</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Company Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.clientName || selectedTenant.companyName}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.sector || selectedTenant.businessType || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCountry || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoState || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCity || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Company Name</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.customerDetails?.clientName || selectedTenant.companyName}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Sector</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.customerDetails?.sector || selectedTenant.businessType || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO Country</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.customerDetails?.hoCountry || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO State</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.customerDetails?.hoState || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO City</p><p className="text-xs font-pmedium text-slate-900">{selectedTenant.customerDetails?.hoCity || 'N/A'}</p></div>
                         </div>
                       </div>
 
@@ -4294,7 +4352,7 @@ export default function TenantCompaniesPage() {
                         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                           <div>
                             <p className="text-[10px] font-pmedium text-slate-400">Current Manager</p>
-                            <p className="text-xs font-bold text-slate-900">{selectedTenant.contactName || 'No manager assigned'}</p>
+                            <p className="text-xs font-pmedium text-slate-900">{selectedTenant.contactName || 'No manager assigned'}</p>
                             <p className="text-[10px] text-slate-500">{selectedTenant.email || 'Assign one manager from the employee list below.'}</p>
                           </div>
                           <span className="inline-flex w-max rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-pmedium uppercase tracking-wider text-blue-600">
@@ -4308,24 +4366,24 @@ export default function TenantCompaniesPage() {
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                         <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Company Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Building</p><p className="text-sm font-bold text-slate-900">{selectedTenant.companyDetails?.buildingName || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Unit No.</p><p className="text-sm font-bold text-slate-900">{selectedTenant.companyDetails?.unitNo || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Open Desks</p><p className="text-sm font-bold text-slate-900">{selectedTenantBillingDisplay.openDeskCount || selectedTenant.companyDetails?.openDesks || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Cabin Desks</p><p className="text-sm font-bold text-slate-900">{selectedTenantBillingDisplay.cabinDeskCount || selectedTenant.companyDetails?.cabinDesks || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Open Desk Rate</p><p className="text-sm font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.ratePerOpenDesk || 0)}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Cabin Desk Rate</p><p className="text-sm font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.ratePerCabinDesk || 0)}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Building</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.companyDetails?.buildingName || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Unit No.</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.companyDetails?.unitNo || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Open Desks</p><p className="text-sm font-pmedium text-slate-900">{selectedTenantBillingDisplay.openDeskCount || selectedTenant.companyDetails?.openDesks || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Cabin Desks</p><p className="text-sm font-pmedium text-slate-900">{selectedTenantBillingDisplay.cabinDeskCount || selectedTenant.companyDetails?.cabinDesks || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Open Desk Rate</p><p className="text-sm font-pmedium text-slate-900">{formatCurrency(selectedTenantBillingDisplay.ratePerOpenDesk || 0)}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Cabin Desk Rate</p><p className="text-sm font-pmedium text-slate-900">{formatCurrency(selectedTenantBillingDisplay.ratePerCabinDesk || 0)}</p></div>
                         </div>
                       </div>
 
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                         <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Package & Credits</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Plan Type</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Package Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.packageName || selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Monthly Credits</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || selectedTenant.creditsTotal || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Credits / Seat</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.creditsPerSeat || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Credit Reset</p><p className="text-sm font-bold text-slate-900">Monthly</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Usage Tracking</p><p className="text-sm font-bold text-slate-900">Per Booking</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Plan Type</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Package Name</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.packageDetails?.packageName || selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Monthly Credits</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || selectedTenant.creditsTotal || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Credits / Seat</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.packageDetails?.creditsPerSeat || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Credit Reset</p><p className="text-sm font-pmedium text-slate-900">Monthly</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Usage Tracking</p><p className="text-sm font-pmedium text-slate-900">Per Booking</p></div>
                         </div>
                       </div>
                     </div>
@@ -4334,22 +4392,22 @@ export default function TenantCompaniesPage() {
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                         <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">POC Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.localPocName || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Email</p><p className="text-sm font-bold text-slate-900 break-all">{selectedTenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Phone</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.localPocPhone || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.hoPocName || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Email</p><p className="text-sm font-bold text-slate-900 break-all">{selectedTenant.pocDetails?.hoPocEmail || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Phone</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.hoPocPhone || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Local POC Name</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.pocDetails?.localPocName || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Local POC Email</p><p className="text-sm font-pmedium text-slate-900 break-all">{selectedTenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Local POC Phone</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.pocDetails?.localPocPhone || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">HO POC Name</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.pocDetails?.hoPocName || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">HO POC Email</p><p className="text-sm font-pmedium text-slate-900 break-all">{selectedTenant.pocDetails?.hoPocEmail || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">HO POC Phone</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.pocDetails?.hoPocPhone || 'N/A'}</p></div>
                         </div>
                       </div>
 
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                         <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Agreement Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Annual Increment</p><p className="text-sm font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Meeting Credits</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Lock-in Period</p><p className="text-sm font-bold text-slate-900">{selectedTenant.agreementDetails?.lockInPeriod || selectedTenant.contractDurationMonths || 0} Months</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Status</p><p className="text-sm font-bold text-slate-900">{selectedTenant.status}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Annual Increment</p><p className="text-sm font-pmedium text-slate-900">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Meeting Credits</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Lock-in Period</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.agreementDetails?.lockInPeriod || selectedTenant.contractDurationMonths || 0} Months</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Status</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.status}</p></div>
                         </div>
                       </div>
                     </div>
@@ -4379,7 +4437,7 @@ export default function TenantCompaniesPage() {
                               <div className="flex items-start gap-2">
                                 <div className="rounded-xl bg-blue-50 p-1.5 text-blue-600"><FileText size={14} /></div>
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-bold text-slate-900">{document.name}</p>
+                                  <p className="truncate text-xs font-pmedium text-slate-900">{document.name}</p>
                                   <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
                                 </div>
                               </div>
@@ -4387,7 +4445,7 @@ export default function TenantCompaniesPage() {
                           ))}
                         </div>
                       ) : (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-medium text-slate-400">No agreement documents uploaded yet.</div>
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-pmedium text-slate-400">No agreement documents uploaded yet.</div>
                       )}
                     </div>
 
@@ -4410,7 +4468,7 @@ export default function TenantCompaniesPage() {
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Employee Directory</p>
-                          <p className="mt-0.5 text-xs font-bold text-slate-900">{normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length} managed {normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length === 1 ? 'employee' : 'employees'}</p>
+                          <p className="mt-0.5 text-xs font-pmedium text-slate-900">{normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length} managed {normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length === 1 ? 'employee' : 'employees'}</p>
                         </div>
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-600"><Users size={11} /> Active roster</span>
                       </div>
@@ -4461,7 +4519,7 @@ export default function TenantCompaniesPage() {
                       ) : (
                         <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-8 text-center">
                           <Users className="mx-auto mb-2 text-slate-300" size={24} />
-                          <p className="text-xs font-bold text-slate-500">No employees found for this tenant company.</p>
+                          <p className="text-xs font-pmedium text-slate-500">No employees found for this tenant company.</p>
                         </div>
                       )}
                     </div>
@@ -4515,16 +4573,16 @@ export default function TenantCompaniesPage() {
                               <tr key={history.id}>
                                 <td className="px-3 py-2 text-[10px] font-pmedium text-slate-500">{history.date}</td>
                                 <td className="px-3 py-2">
-                                  <p className="text-xs font-bold text-slate-900">{history.roomName || history.resource || history.type}</p>
+                                  <p className="text-xs font-pmedium text-slate-900">{history.roomName || history.resource || history.type}</p>
                                   <p className="text-[10px] text-slate-500">{history.bookingCode || history.type}</p>
                                   <p className="text-[10px] text-slate-400">{history.resource ? `Resource: ${history.resource}` : 'Meeting room credit entry'}</p>
                                 </td>
-                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">
-                                  <p className="font-semibold text-slate-800">{history.scheduledDate || history.date || '—'}</p>
-                                  <p className="font-semibold text-slate-800">{history.startTime || '—'} - {history.endTime || '—'}</p>
+                                <td className="px-3 py-2 text-[10px] font-pmedium text-slate-600">
+                                  <p className="font-pmedium text-slate-800">{history.scheduledDate || history.date || '—'}</p>
+                                  <p className="font-pmedium text-slate-800">{history.startTime || '—'} - {history.endTime || '—'}</p>
                                   <p className="text-[10px] text-slate-500">{history.bookedBy || '—'}</p>
                                 </td>
-                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">{history.location || '—'}{history.wing ? ` • Wing ${history.wing}` : ''}</td>
+                                <td className="px-3 py-2 text-[10px] font-pmedium text-slate-600">{history.location || '—'}{history.wing ? ` • Wing ${history.wing}` : ''}</td>
                                 <td className="px-3 py-2">
                                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${history.status === 'Active' || history.status === 'Completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : history.status === 'Cancelled' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{history.status || 'Booked'}</span>
                                 </td>
@@ -4536,7 +4594,7 @@ export default function TenantCompaniesPage() {
                         </table>
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-8 text-center"><p className="text-xs font-bold text-slate-500">No credit usage recorded yet.</p></div>
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-8 text-center"><p className="text-xs font-pmedium text-slate-500">No credit usage recorded yet.</p></div>
                     )}
                   </div>
                 )}
@@ -4547,7 +4605,7 @@ export default function TenantCompaniesPage() {
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
                       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
                         <MapPin className="mb-1 text-amber-500" size={18} />
-                        <p className="px-2 text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
+                        <p className="px-2 text-xs font-pmedium text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
                         <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Area</p>
                       </div>
                       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
@@ -4571,14 +4629,14 @@ export default function TenantCompaniesPage() {
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                         <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Assigned Space Breakdown</h3>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Assigned Floor</p><p className="text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Assigned Floor</p><p className="text-xs font-pmedium text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || 'N/A'}</p></div>
                           <div>
                             <p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Assigned Seats</p>
                             <div className="mt-0.5 flex flex-wrap gap-1.5">
                               {(selectedTenantSeatLabels.length > 0 ? selectedTenantSeatLabels : selectedTenantArchitectureSnapshot.assignedResources.map((r) => r.name || r.resourceCode || r.id).filter(Boolean)).length > 0 ? (selectedTenantSeatLabels.length > 0 ? selectedTenantSeatLabels : selectedTenantArchitectureSnapshot.assignedResources.map((r) => r.name || r.resourceCode || r.id).filter(Boolean)).map((seat) => (
                                 <span key={seat} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">{seat}</span>
                               )) : (
-                                <span className="text-xs font-bold text-slate-300">N/A</span>
+                                <span className="text-xs font-pmedium text-slate-300">N/A</span>
                               )}
                             </div>
                           </div>
@@ -4591,7 +4649,7 @@ export default function TenantCompaniesPage() {
                           {Array.isArray(selectedTenant.packageLocationLabels) && selectedTenant.packageLocationLabels.length > 0 ? selectedTenant.packageLocationLabels.map((label) => (
                             <span key={label} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">{label}</span>
                           )) : (
-                            <span className="text-xs font-medium text-slate-400">No assigned location labels.</span>
+                            <span className="text-xs font-pmedium text-slate-400">No assigned location labels.</span>
                           )}
                         </div>
                       </div>
@@ -4634,27 +4692,27 @@ export default function TenantCompaniesPage() {
                       <div>
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name</label>
                         <input type="text" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} required
-                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Employee name" />
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Employee name" />
                       </div>
                       <div>
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email</label>
                         <input type="email" value={employeeForm.email} onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })} required
-                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="employee@company.com" />
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="employee@company.com" />
                       </div>
                       <div>
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone</label>
                         <input type="text" value={employeeForm.phone} onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
-                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Phone number" />
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Phone number" />
                       </div>
                       <div>
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
                         <input type="text" value={employeeForm.designation} onChange={(e) => setEmployeeForm({ ...employeeForm, designation: e.target.value })}
-                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Designation" />
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Designation" />
                       </div>
                       <div>
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tenant Role</label>
                         <select value={employeeForm.role} onChange={(e) => setEmployeeForm({ ...employeeForm, role: e.target.value })}
-                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100">
                           <option value="Employee">Employee</option>
                           <option value="Manager">Manager</option>
                         </select>
@@ -4679,20 +4737,20 @@ export default function TenantCompaniesPage() {
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee Profile</p>
                         <h3 className="mt-0.5 text-xl font-black text-slate-900">{selectedEmployee.name}</h3>
-                        <p className="mt-0.5 text-xs font-bold text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
+                        <p className="mt-0.5 text-xs font-pmedium text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
                       </div>
                       <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition-colors hover:bg-slate-100"><X size={16} /></button>
                     </div>
 
                     <div className="grid gap-3 p-4 md:grid-cols-2">
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{selectedEmployee.email}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.tenantCompanyName || selectedTenant?.companyName || 'Tenant Company'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-pmedium text-slate-900">{selectedEmployee.email}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{selectedEmployee.tenantCompanyName || selectedTenant?.companyName || 'Tenant Company'}</p></div>
                     </div>
 
                     <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-4">
@@ -4718,19 +4776,19 @@ export default function TenantCompaniesPage() {
                     <form onSubmit={handleEmployeeEditSave} className="space-y-4 p-6">
                       <div>
                         <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Full Name</label>
-                        <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.name} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, name: e.target.value })} />
+                        <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-pmedium outline-none" value={employeeEditForm.name} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, name: e.target.value })} />
                       </div>
                       <div>
                         <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Phone (Optional)</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.phone} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, phone: e.target.value })} />
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-pmedium outline-none" value={employeeEditForm.phone} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, phone: e.target.value })} />
                       </div>
                       <div>
                         <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Designation</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.designation} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, designation: e.target.value })} />
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-pmedium outline-none" value={employeeEditForm.designation} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, designation: e.target.value })} />
                       </div>
                       <div>
                         <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Tenant Role</label>
-                        <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.role} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, role: e.target.value })}>
+                        <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-pmedium outline-none" value={employeeEditForm.role} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, role: e.target.value })}>
                           <option value="Employee">Employee</option>
                           <option value="Manager">Manager</option>
                         </select>
