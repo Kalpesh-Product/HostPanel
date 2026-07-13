@@ -3791,10 +3791,13 @@ export function MeetingRoomsPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {meetingSummaryCards.map((card) => {
                 const Icon = card.icon;
+                const labelToneClass = card.cardClass.includes('border-l')
+                  ? (card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400')
+                  : 'text-slate-400';
                 return (
                   <div key={card.key} className={card.cardClass}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                       <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16}/></div>

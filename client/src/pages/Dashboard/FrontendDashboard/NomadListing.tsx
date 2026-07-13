@@ -17,6 +17,11 @@ import { toast } from "sonner";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../components/UploadMultipleFilesInput";
 import useAuth from "../../../hooks/useAuth";
+import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import useNomadListingCapacity, {
+  normalizeNomadListingType,
+} from "../../../hooks/useNomadListingCapacity";
 
 // Dummy inclusions
 const inclusionOptions = [
@@ -52,17 +57,30 @@ const defaultReview = {
 
 const NomadListing = () => {
   const axios = useAxiosPrivate();
+  const navigate = useNavigate();
   const formRef = useRef(null);
+  const submitLockRef = useRef(false);
 
   const { auth } = useAuth(); // <-- get auth info
   const companyId = auth?.user?.companyId || ""; // <-- safe fallback
+  const listingCompanyId = auth?.user?.effectiveNomadsCompanyId || companyId;
   const companyName = auth?.user?.companyName || "";
+  const {
+    limit,
+    used,
+    remaining,
+    isAtLimit,
+    addedTypes,
+    limitMessage,
+    refetchListings,
+  } = useNomadListingCapacity(listingCompanyId);
 
   const {
     control,
     handleSubmit,
     reset,
     getValues,
+    watch,
     formState: { errors },
   } = useForm({
     mode: "onChange",
@@ -93,7 +111,16 @@ const NomadListing = () => {
     remove: removeReview,
   } = useFieldArray({ control, name: "reviews" });
 
-  const { mutate: createCompany, isLoading } = useMutation({
+  const selectedCompanyType = watch("companyType");
+  const selectedTypeIsAlreadyAdded = addedTypes.has(
+    normalizeNomadListingType(selectedCompanyType),
+  );
+  const projectedUsed =
+    selectedCompanyType && !selectedTypeIsAlreadyAdded ? used + 1 : used;
+  const projectedRemaining =
+    limit === null ? null : Math.max(limit - projectedUsed, 0);
+
+  const { mutate: createCompany, isPending: isCreating } = useMutation({
     mutationFn: async (fd) => {
       const res = await axios.post("/api/listings/add-company-listing", fd, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -103,13 +130,31 @@ const NomadListing = () => {
     onSuccess: () => {
       toast.success("Company added successfully!");
       reset();
+      void refetchListings();
+      navigate("/company-settings/nomad-listings");
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Failed to add company");
     },
+    onSettled: () => {
+      submitLockRef.current = false;
+    },
   });
 
   const onSubmit = (values) => {
+    if (submitLockRef.current || isCreating) return;
+    if (isAtLimit) {
+      toast.error(limitMessage, { position: "bottom-right" });
+      return;
+    }
+    if (addedTypes.has(normalizeNomadListingType(values.companyType))) {
+      toast.error("This Nomad listing type has already been added.", {
+        position: "bottom-right",
+      });
+      return;
+    }
+
+    submitLockRef.current = true;
     const formEl = formRef.current;
     const fd = new FormData(formEl);
 
@@ -223,15 +268,46 @@ const NomadListing = () => {
                   size="small"
                   label="Company Type"
                   fullWidth
+                  error={!!errors.companyType}
                 >
-                  {companyTypes.map((type) => (
-                    <MenuItem key={type} value={type.toLowerCase()}>
-                      {type}
-                    </MenuItem>
-                  ))}
+                  {companyTypes.map((type) => {
+                    const alreadyAdded = addedTypes.has(normalizeNomadListingType(type));
+                    return (
+                      <MenuItem
+                        key={type}
+                        value={type.toLowerCase()}
+                        disabled={alreadyAdded}
+                        className="font-pmedium"
+                      >
+                        <span className="flex w-full items-center justify-between gap-4 font-pmedium">
+                          <span>{type}</span>
+                          {alreadyAdded && (
+                            <span className="text-[10px] font-pmedium uppercase tracking-wide text-emerald-600">
+                              Already added
+                            </span>
+                          )}
+                        </span>
+                      </MenuItem>
+                    );
+                  })}
                 </TextField>
               )}
             />
+            <p className={`mt-1.5 text-[11px] font-pmedium ${isAtLimit ? "text-rose-600" : "text-slate-500"}`}>
+              {limit === null
+                ? `${used} listings added · Unlimited plan`
+                : selectedCompanyType && !selectedTypeIsAlreadyAdded
+                  ? `${Math.min(projectedUsed, limit)}/${limit} listings selected. ${
+                      projectedRemaining > 0
+                        ? `You can add ${projectedRemaining} more.`
+                        : "This uses your final listing slot."
+                    }`
+                  : `${used}/${limit} listings added. ${
+                      remaining > 0
+                        ? `You can add ${remaining} more.`
+                        : "Delete one to add another."
+                    }`}
+            </p>
           </div>
           <div className="mb-4 md:mb-0">
             {/* Inclusions */}
@@ -570,10 +646,16 @@ const NomadListing = () => {
           <div className="col-span-2 flex items-center justify-center gap-4">
             <button
               type="submit"
-              disabled={isLoading}
-              className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={isCreating}
+              className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
             >
-              {isLoading ? "Submitting..." : "Submit"}
+              {isCreating ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Submitting...
+                </>
+              ) : (
+                "Submit"
+              )}
             </button>
             <button
               type="button"
@@ -590,4 +672,3 @@ const NomadListing = () => {
 };
 
 export default NomadListing;
-

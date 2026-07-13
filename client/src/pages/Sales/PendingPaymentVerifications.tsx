@@ -57,7 +57,7 @@ const PendingPaymentVerifications: React.FC = () => {
 
     return (
         <div className="p-6">
-            <h2 className="text-2xl font-semibold mb-6">Pending Payment Verifications</h2>
+            <h2 className="text-2xl font-pmedium mb-6">Pending Payment Verifications</h2>
 
             {requests.length === 0 ? (
                 <p className="text-gray-500">No pending payments to verify.</p>

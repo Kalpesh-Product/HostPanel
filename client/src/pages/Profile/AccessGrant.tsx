@@ -1356,10 +1356,13 @@ export default function AccessGrantsPage() {
               { key: 'employee', label: 'Employee', value: stats.employee, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600', Icon: UserCog },
             ].map((card) => {
               const Icon = card.Icon;
+              const labelToneClass = card.cardClass.includes('border-l')
+                ? (card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400')
+                : 'text-slate-400';
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>

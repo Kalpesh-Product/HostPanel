@@ -16,7 +16,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../components/UploadMultipleFilesInput";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 // Dummy inclusions
@@ -52,6 +52,7 @@ const defaultReview = {
 };
 
 const EditNomadListing = () => {
+  const navigate = useNavigate();
   const axiosPriv = useAxiosPrivate();
   const formRef = useRef(null);
   const location = useLocation();
@@ -169,6 +170,7 @@ const EditNomadListing = () => {
     onSuccess: () => {
       toast.success("Listing updated successfully!");
       reset();
+      navigate("/company-settings/nomad-listings");
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Failed to update");
@@ -625,4 +627,3 @@ const EditNomadListing = () => {
 };
 
 export default EditNomadListing;
-

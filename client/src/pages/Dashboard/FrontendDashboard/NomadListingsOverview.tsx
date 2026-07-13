@@ -1,13 +1,14 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import PageFrame from "../../../components/Pages/PageFrame";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { CheckCircle2, Edit3, Layers, Plus, Search, Target, XCircle } from "lucide-react";
+import { CheckCircle2, Edit3, Layers, ListChecks, Plus, Search, Target, XCircle } from "lucide-react";
 import { statusPillClass } from '../../../lib/status-pill';
+import useNomadListingCapacity from "../../../hooks/useNomadListingCapacity";
 
 function formatDate(raw) {
   if (!raw) return "—";
@@ -22,7 +23,6 @@ function getInitials(value) {
 export default function NomadListingsOverview() {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
-  const location = useLocation();
   const { auth } = useAuth();
   const user = auth?.user;
   const [requestSent, setRequestSent] = useState(Boolean(user?.companiesListingRequested));
@@ -52,30 +52,16 @@ export default function NomadListingsOverview() {
     },
   });
 
-  const { data: listings = [], isPending } = useQuery({
-    queryKey: ["nomad-listings", companyId],
-    enabled: !!companyId,
-    queryFn: async () => {
-      const res = await axios.get(
-        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}`,
-        {
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-          params: { t: Date.now() },
-        },
-      );
-      return res.data || [];
-    },
-    staleTime: 0,
-    cacheTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: false,
-  });
+  const {
+    listings,
+    limit,
+    used: totalListings,
+    remaining,
+    isAtLimit,
+    isPending,
+    limitMessage,
+  } = useNomadListingCapacity(companyId);
 
-  const totalListings = listings.length;
   const activeListings = listings.filter((l) => l.isActive).length;
   const inactiveListings = listings.filter((l) => !l.isActive).length;
 
@@ -97,6 +83,10 @@ export default function NomadListingsOverview() {
   }, [listings, statusFilter, searchQuery]);
 
   const handleAddClick = () => {
+    if (isAtLimit) {
+      toast.error(limitMessage, { position: "bottom-right" });
+      return;
+    }
     navigate(`/company-settings/nomad-listings/add`, { state: { companyId } });
   };
 
@@ -149,7 +139,7 @@ export default function NomadListingsOverview() {
           )}
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-1 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Listings</p>
@@ -170,6 +160,13 @@ export default function NomadListingsOverview() {
                 <p className="text-[15px] font-pmedium text-slate-900">{inactiveListings}</p>
               </div>
               <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><XCircle size={16} /></div>
+            </div>
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+              <div className="min-w-0">
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Listings Left</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{remaining === null ? "Unlimited" : remaining}</p>
+              </div>
+              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><ListChecks size={16} /></div>
             </div>
           </div>
 
@@ -220,6 +217,11 @@ export default function NomadListingsOverview() {
                   ))}
                 </div>
                 <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                  <div className="text-[11px] font-pmedium text-slate-500 whitespace-nowrap">
+                    {limit === null
+                      ? `${totalListings} listings added · Unlimited plan`
+                      : `${totalListings}/${limit} listings added · ${remaining} left`}
+                  </div>
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
@@ -233,9 +235,14 @@ export default function NomadListingsOverview() {
                   <button
                     type="button"
                     onClick={handleAddClick}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    aria-disabled={isAtLimit}
+                    className={`px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap ${
+                      isAtLimit
+                        ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                        : "bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95"
+                    }`}
                   >
-                    <Plus size={13} strokeWidth={3} /> ADD PRODUCT
+                    <Plus size={13} strokeWidth={3} /> ADD LISTING
                   </button>
                 </div>
               </div>

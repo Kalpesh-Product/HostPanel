@@ -34,7 +34,8 @@ const bookingOnlyCats = new Set(["meeting_room", "conference_room", "virtual_off
 
 const money = (v = 0) => `Rs ${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(v || 0))}`;
 const locStr = (r = {}) => [r.floor, r.wing].filter(Boolean).join(" ").trim();
-const buildingLabelFor = (r = {}) => String(r.buildingName || r.building || r.buildingLabel || "").trim();
+// Building = the single location the user added on resources (Resource & Pricing / Resource Management).
+const buildingLabelFor = (r = {}) => String(r.buildingName || r.building || r.buildingLabel || r.location || "").trim();
 
 const normalizeDepartmentOptions = (departments = []) => {
   const merged = new Map();
@@ -177,32 +178,33 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
   const assignedTo = resource.assignedTenantCompanyName || resource.assignedDepartmentName || resource.assignmentLabel || "";
   return (
     <button type="button" onClick={() => onToggle(resource)} disabled={locked}
-      className={`group flex min-h-36 flex-col justify-between rounded-[1.75rem] border-2 p-3 text-left transition-all ${card} ${selected ? "ring-4 ring-blue-500 shadow-xl shadow-blue-100 scale-[1.02] z-10" : "shadow-sm hover:-translate-y-0.5 hover:shadow-md"} ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+      className={`group flex min-h-36 flex-col justify-between rounded-[1.75rem] border-2 p-3 text-left transition-all ${card} ${selected ? "shadow-lg -translate-y-0.5" : "shadow-sm hover:-translate-y-0.5 hover:shadow-md"} ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/70 bg-white/80 text-[#0F172A] shadow-sm">{iconFor(resource)}</div>
           <div className="min-w-0">
             <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 truncate max-w-[120px]">{resource.name || resource.resourceCode || "Space"}</p>
-            <p className="text-[11px] font-bold leading-tight text-slate-800">{kindLabel(resource)}{resource.capacity ? ` · ${resource.capacity} seats` : ""}</p>
+            <p className="text-[11px] font-pmedium leading-tight text-slate-800">{kindLabel(resource)}{resource.capacity ? ` · ${resource.capacity} seats` : ""}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {selected && <CheckCircle2 size={14} className="text-[#2563EB]" />}
           {packageLocked && <Lock size={10} className="text-indigo-500" />}
           <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${badge}`}>{label}</span>
         </div>
       </div>
       <div className="mt-2 rounded-xl bg-white/70 p-2 space-y-0.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[9px] font-bold text-slate-500">{resource.locationLabel || "--"}</span>
+          <span className="text-[9px] font-pmedium text-slate-500">{resource.locationLabel || "--"}</span>
           {resource.seatLabels?.length > 0 && (
-            <span className="text-[8px] font-bold text-slate-400">{resource.seatLabels.slice(0, 3).join(", ")}{resource.seatLabels.length > 3 ? ` +${resource.seatLabels.length - 3}` : ""}</span>
+            <span className="text-[8px] font-pmedium text-slate-400">{resource.seatLabels.slice(0, 3).join(", ")}{resource.seatLabels.length > 3 ? ` +${resource.seatLabels.length - 3}` : ""}</span>
           )}
         </div>
         {isAssigned && assignedTo && (
           <div className="flex items-center gap-1">
             <Building2 size={8} className={resource.assignmentType === "tenant" ? "text-indigo-500" : "text-amber-500"} />
-            <span className={`text-[9px] font-black truncate max-w-[140px] ${resource.assignmentType === "tenant" ? "text-indigo-700" : "text-amber-700"}`}>{assignedTo}</span>
+            <span className={`text-[9px] font-pmedium truncate max-w-[140px] ${resource.assignmentType === "tenant" ? "text-indigo-700" : "text-amber-700"}`}>{assignedTo}</span>
           </div>
         )}
       </div>
@@ -243,6 +245,13 @@ export default function SalesArchitecturePage() {
   const [organizationDepartments, setOrganizationDepartments] = useState([]);
 
   const [selectedBuilding, setSelectedBuilding] = useState(defaultBuilding);
+  const [tenantListFilter, setTenantListFilter] = useState("All");
+  const [viewDeptId, setViewDeptId] = useState("");
+  const [releaseTarget, setReleaseTarget] = useState(null);
+  const [releaseSelectedIds, setReleaseSelectedIds] = useState([]);
+  const [tenantListSearch, setTenantListSearch] = useState("");
+  const [deptListFilter, setDeptListFilter] = useState("All");
+  const [deptListSearch, setDeptListSearch] = useState("");
   const [selectedFloor, setSelectedFloor] = useState("All");
   const [selectedWing, setSelectedWing] = useState("All");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
@@ -363,7 +372,13 @@ export default function SalesArchitecturePage() {
     }
   }, [availableFloors, selectedFloor]);
 
-  const availableDepartments = useMemo(() => organizationDepartments.filter((d) => d.isActive !== false), [organizationDepartments]);
+  // "Sales & CRM" duplicates the Sales department in this workspace — keep the real 7 only.
+  const availableDepartments = useMemo(
+    () => organizationDepartments.filter(
+      (d) => d.isActive !== false && !/^sales\s*(&|and)?\s*crm$/i.test(String(d.name || "").trim()),
+    ),
+    [organizationDepartments],
+  );
   const selectedCompany = useMemo(() => tenants.find((t) => String(t.recordId || t.id) === String(selectedCompanyId)) || null, [selectedCompanyId, tenants]);
   const selectedDepartment = useMemo(() => availableDepartments.find((d) => String(d.id || d.name) === String(selectedDepartmentId)) || null, [availableDepartments, selectedDepartmentId]);
   const currentUserName = useMemo(() => currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Sales Team", [currentUser]);
@@ -606,6 +621,30 @@ export default function SalesArchitecturePage() {
     finally { setSaving(false); }
   };
 
+  const releaseSpacesByIds = async (ids = []) => {
+    const releasable = ids.map(String).filter((rid) => !packageLockedIds.has(rid));
+    if (!releasable.length) {
+      toast.info("No releasable spaces for this assignment.");
+      return;
+    }
+    setSaving(true); setError("");
+    try {
+      const updated = [];
+      for (const rid of releasable) {
+        const res = await releaseResourceAssignment(rid);
+        const resourceData = res?.data?.data?.resource || res?.data?.resource;
+        if (resourceData) updated.push(normalizeResource(resourceData));
+      }
+      if (updated.length) setResources((cur) => cur.map((r) => updated.find((x) => String(x.recordId) === String(r.recordId)) || r));
+      toast.success(`${updated.length} space(s) released.`);
+    } catch (e) {
+      setError(e.message || "Release failed.");
+      toast.error(e.message || "Release failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const usagePct = floorStats.total > 0 ? Math.round((floorStats.assigned / floorStats.total) * 100) : 0;
 
   if (loading) return (
@@ -619,14 +658,12 @@ export default function SalesArchitecturePage() {
     <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
         <Building2 size={13} className="text-blue-600" />
-        <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
-          className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
-        >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
+        <span className="text-[12px] font-pmedium text-slate-900">{selectedBuilding}</span>
       </div>
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
         <LayoutGrid size={13} className="text-blue-600" />
         <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
-          className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
+          className="bg-transparent text-[12px] font-pmedium text-slate-900 outline-none cursor-pointer"
         >
           <option value="All">All Floors</option>
           {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
@@ -635,7 +672,7 @@ export default function SalesArchitecturePage() {
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
         <Filter size={13} className="text-blue-600" />
         <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-          className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
+          className="bg-transparent text-[12px] font-pmedium text-slate-900 outline-none cursor-pointer"
         >
           <option value="All">All Wings</option>
           {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
@@ -674,7 +711,7 @@ export default function SalesArchitecturePage() {
             <AlertTriangle className="mt-0.5 shrink-0 text-amber-500" size={16} />
             <div>
               <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Error</p>
-              <p className="mt-0.5 text-[12px] font-semibold">{error}</p>
+              <p className="mt-0.5 text-[12px] font-pmedium">{error}</p>
             </div>
           </div>
         </div>
@@ -772,7 +809,7 @@ export default function SalesArchitecturePage() {
                           const id = String(r.recordId || r.id);
                           return <SpaceCard key={id} resource={r} selected={selectedIds.includes(id)} disabled={r.status !== "Active"} packageLocked={packageLockedIds.has(id)} onToggle={toggleResource} />;
                         }) : (
-                          <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-[12px] font-medium text-slate-500 md:col-span-2 xl:col-span-3">
+                          <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-[12px] font-pmedium text-slate-500 md:col-span-2 xl:col-span-3">
                             No desks mapped to Wing {wing} on Floor {selectedFloor}.
                           </div>
                         )}
@@ -790,24 +827,24 @@ export default function SalesArchitecturePage() {
             <div className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
               <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Floor Dashboard</p>
               <h2 className="text-[15px] font-pmedium text-primary">{selectedBuilding} Floor {selectedFloor}</h2>
-              <p className="text-[12px] font-medium text-slate-500 mt-1">Utilization: <span className="font-black text-blue-600">{usagePct}%</span> ({floorStats.assigned}/{floorStats.total} seats assigned)</p>
+              <p className="text-[12px] font-pmedium text-slate-500 mt-1">Utilization: <span className="font-pmedium text-blue-600">{usagePct}%</span> ({floorStats.assigned}/{floorStats.total} seats assigned)</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                 <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Floor Inventory</p>
-                <p className="text-3xl font-black text-slate-900">{floorStats.total}</p>
+                <p className="text-3xl font-pmedium text-slate-900">{floorStats.total}</p>
               </div>
               <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 rounded-[2rem] shadow-sm text-white">
                 <p className="text-[10px] font-pmedium text-emerald-100 uppercase tracking-widest mb-3">Available</p>
-                <p className="text-3xl font-black text-white">{floorStats.available}</p>
+                <p className="text-3xl font-pmedium text-white">{floorStats.available}</p>
               </div>
               <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-[2rem] shadow-sm text-white">
                 <p className="text-[10px] font-pmedium text-indigo-100 uppercase tracking-widest mb-3">Tenant Assigned</p>
-                <p className="text-3xl font-black text-white">{floorStats.tenantAssigned}</p>
+                <p className="text-3xl font-pmedium text-white">{floorStats.tenantAssigned}</p>
               </div>
               <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-5 rounded-[2rem] shadow-sm text-white">
                 <p className="text-[10px] font-pmedium text-amber-100 uppercase tracking-widest mb-3">Dept Assigned</p>
-                <p className="text-3xl font-black text-white">{floorStats.deptAssigned}</p>
+                <p className="text-3xl font-pmedium text-white">{floorStats.deptAssigned}</p>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -818,14 +855,14 @@ export default function SalesArchitecturePage() {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Floor</p>
-                      <p className="text-xl font-black text-slate-900">{f.floor}</p>
+                      <p className="text-xl font-pmedium text-slate-900">{f.floor}</p>
                     </div>
                     <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center"><LayoutGrid size={18} /></div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-emerald-50 p-2"><p className="text-[8px] font-bold uppercase text-emerald-500">Open</p><p className="text-sm font-black text-emerald-700">{f.open}</p></div>
-                    <div className="rounded-xl bg-indigo-50 p-2"><p className="text-[8px] font-bold uppercase text-indigo-400">Tenant</p><p className="text-sm font-black text-indigo-700">{f.tenant}</p></div>
-                    <div className="rounded-xl bg-amber-50 p-2"><p className="text-[8px] font-bold uppercase text-amber-400">Dept</p><p className="text-sm font-black text-amber-700">{f.dept}</p></div>
+                    <div className="rounded-xl bg-emerald-50 p-2"><p className="text-[8px] font-pmedium uppercase text-emerald-500">Open</p><p className="text-sm font-pmedium text-emerald-700">{f.open}</p></div>
+                    <div className="rounded-xl bg-indigo-50 p-2"><p className="text-[8px] font-pmedium uppercase text-indigo-400">Tenant</p><p className="text-sm font-pmedium text-indigo-700">{f.tenant}</p></div>
+                    <div className="rounded-xl bg-amber-50 p-2"><p className="text-[8px] font-pmedium uppercase text-amber-400">Dept</p><p className="text-sm font-pmedium text-amber-700">{f.dept}</p></div>
                   </div>
                 </button>
               ))}
@@ -866,14 +903,36 @@ export default function SalesArchitecturePage() {
           ))}
         </div>
 
-         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-800">Tenant Space Allocation</h3>
-          <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
-            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
-          ><ArrowRight size={14} /> Assign Space</button>
-        </div>
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+            {/* LEFT: status sub-tab pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {["All", "Active", "Expiring Soon", "Expired"].map((status) => (
+                <button key={status} type="button" onClick={() => setTenantListFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                    tenantListFilter === status
+                      ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                      : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                  }`}
+                >{status}</button>
+              ))}
+            </div>
 
-        <div className="overflow-x-auto">
+            {/* RIGHT: search + assign */}
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder="Search by company, contact..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  value={tenantListSearch} onChange={(e) => setTenantListSearch(e.target.value)} />
+              </div>
+              <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
+                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+              ><ArrowRight size={13} strokeWidth={3} /> ASSIGN SPACE</button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto flex-1">
             <table className="w-full">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
@@ -882,11 +941,18 @@ export default function SalesArchitecturePage() {
                   <th className="px-5 py-4 text-left">Location</th>
                   <th className="px-5 py-4 text-center">Assigned Seats</th>
                   <th className="px-5 py-4 text-left">Space Blocks</th>
-                  <th className="px-5 py-4 text-center">View</th>
+                  <th className="px-5 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/60">
-                {tenantsWithPackages.map((t) => {
+                {tenantsWithPackages.filter((t) => {
+                  const status = String(t.status || "Active");
+                  const matchesStatus = tenantListFilter === "All" || status === tenantListFilter;
+                  const q = tenantListSearch.trim().toLowerCase();
+                  const matchesSearch = !q || [t.companyName, t.name, t.contactName, t.businessType]
+                    .filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+                  return matchesStatus && matchesSearch;
+                }).map((t) => {
                   const tid = String(t.recordId || t.id);
                   const assignedResources = resources.filter((r) => String(r.assignedTenantCompanyId) === tid);
                   const assignedSeatCount = assignedResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0);
@@ -936,11 +1002,21 @@ export default function SalesArchitecturePage() {
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button onClick={() => setViewTenantId(viewTenantId === tid ? "" : tid)}
-                            className={`p-1.5 rounded-lg transition-all ${
-                              viewTenantId === tid ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700"
-                            }`}
-                            title="View assignment details"
-                          ><Eye size={15} strokeWidth={2.5} /></button>
+                            className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                            title="View Details"
+                          ><Eye size={15} /></button>
+                          {assignedResources.length > 0 && (
+                            <button
+                              onClick={() => {
+                                const releasable = assignedResources.filter((r) => !packageLockedIds.has(String(r.recordId || r.id)));
+                                setReleaseTarget({ type: "tenant", name: t.companyName || t.name, resources: releasable });
+                                setReleaseSelectedIds(releasable.map((r) => String(r.recordId || r.id)));
+                              }}
+                              disabled={saving}
+                              className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all active:scale-95 shadow-sm disabled:opacity-60"
+                              title="Release spaces assigned to this tenant"
+                            ><RotateCcw size={15} /></button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -952,6 +1028,7 @@ export default function SalesArchitecturePage() {
               </tbody>
             </table>
           </div>
+        </div>
 
         {/* Tenant detail modal */}
         {viewTenant && (() => {
@@ -966,96 +1043,97 @@ export default function SalesArchitecturePage() {
           const monthlyRent = Number(viewTenant.billingDetails?.monthlyRent || 0) || calcMonthly;
 
           return (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm" onClick={() => setViewTenantId("")}>
-              <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                {/* Modal header */}
-                <div className="p-5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setViewTenantId("")}>
+              <div
+                className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
                       <Building2 size={18} />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-200">Assignment Details</p>
-                      <h3 className="text-[16px] font-black">{viewTenant.companyName || viewTenant.name}</h3>
+                    <div className="min-w-0">
+                      <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{viewTenant.companyName || viewTenant.name}</h2>
+                      <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">Assignment Details</p>
                     </div>
                   </div>
-                  <button onClick={() => setViewTenantId("")}
-                    className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-red-500 transition-all"
-                  ><X size={14} /></button>
+                  <button onClick={() => setViewTenantId("")} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
                 </div>
 
-                {/* Modal body - scrollable */}
-                <div className="overflow-y-auto flex-1 p-5 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Contract info */}
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-3">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Contract Info</p>
-                      <div className="space-y-2.5">
-                        {[
-                          { label: "Contact Person", value: viewTenant.contactName || "--" },
-                          { label: "Business Type", value: viewTenant.businessType || "--" },
-                          { label: "Start Date", value: fmtDate(viewTenant.contractStart || viewTenant.agreementDetails?.startDate) },
-                          { label: "End Date", value: fmtDate(viewTenant.contractEnd || viewTenant.agreementDetails?.endDate) },
-                          { label: "Monthly Rent", value: monthlyRent > 0 ? `₹${fmt(monthlyRent)}` : "--" },
-                          { label: "Building / Unit", value: [viewTenant.companyDetails?.buildingName, viewTenant.companyDetails?.unitNo].filter(Boolean).join(" / ") || "--" },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="flex justify-between items-start gap-3">
-                            <span className="text-[11px] font-medium text-slate-500 shrink-0">{label}</span>
-                            <span className="text-[12px] font-bold text-slate-800 text-right">{value}</span>
-                          </div>
-                        ))}
-                      </div>
+                {/* Body */}
+                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <Briefcase size={14} /> Contract Info
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      {[
+                        { label: "Contact Person", value: viewTenant.contactName || "--" },
+                        { label: "Business Type", value: viewTenant.businessType || "--" },
+                        { label: "Start Date", value: fmtDate(viewTenant.contractStart || viewTenant.agreementDetails?.startDate) },
+                        { label: "End Date", value: fmtDate(viewTenant.contractEnd || viewTenant.agreementDetails?.endDate) },
+                        { label: "Monthly Rent", value: monthlyRent > 0 ? `₹${fmt(monthlyRent)}` : "--" },
+                        { label: "Building / Unit", value: [viewTenant.companyDetails?.buildingName, viewTenant.companyDetails?.unitNo].filter(Boolean).join(" / ") || "--" },
+                      ].map(({ label, value }) => (
+                        <div key={label}>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">{label}</p>
+                          <p className="text-[12px] font-pmedium text-slate-900">{value}</p>
+                        </div>
+                      ))}
                     </div>
+                  </div>
 
-                    {/* Package info */}
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-3">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Package Details</p>
-                      <div className="space-y-2.5">
-                        {[
-                          { label: "Package", value: viewTenant.packageDetails?.packageName || viewTenant.planType || "--" },
-                          { label: "Open Desks", value: openDesks || "--", highlight: openDesks > 0 },
-                          { label: "Rate / Open Desk", value: rateOpen > 0 ? `₹${fmt(rateOpen)}/day` : "--" },
-                          { label: "Cabin Desks", value: cabinDesks || "--", highlight: cabinDesks > 0 },
-                          { label: "Rate / Cabin Desk", value: rateCabin > 0 ? `₹${fmt(rateCabin)}/day` : "--" },
-                          { label: "Monthly Credits", value: viewTenant.packageDetails?.monthlyTotalCredits || viewTenant.creditsAllocated || "--" },
-                        ].map(({ label, value, highlight }) => (
-                          <div key={label} className="flex justify-between items-start gap-3">
-                            <span className="text-[11px] font-medium text-slate-500 shrink-0">{label}</span>
-                            <span className={`text-[12px] font-bold text-right ${highlight ? "text-indigo-700" : "text-slate-800"}`}>{value}</span>
-                          </div>
-                        ))}
-                      </div>
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <LayoutGrid size={14} /> Package Details
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      {[
+                        { label: "Package", value: viewTenant.packageDetails?.packageName || viewTenant.planType || "--" },
+                        { label: "Open Desks", value: openDesks || "--", highlight: openDesks > 0 },
+                        { label: "Rate / Open Desk", value: rateOpen > 0 ? `₹${fmt(rateOpen)}/day` : "--" },
+                        { label: "Cabin Desks", value: cabinDesks || "--", highlight: cabinDesks > 0 },
+                        { label: "Rate / Cabin Desk", value: rateCabin > 0 ? `₹${fmt(rateCabin)}/day` : "--" },
+                        { label: "Monthly Credits", value: viewTenant.packageDetails?.monthlyTotalCredits || viewTenant.creditsAllocated || "--" },
+                      ].map(({ label, value, highlight }) => (
+                        <div key={label}>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">{label}</p>
+                          <p className={`text-[12px] font-pmedium ${highlight ? "text-[#2563EB]" : "text-slate-900"}`}>{value}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   {/* Assigned spaces */}
-                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-600">Assigned Space Blocks</p>
-                      <span className="bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-[9px] font-black">
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2"><Users size={14} /> Assigned Space Blocks</span>
+                      <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-0.5 rounded-full text-[9px] font-pmedium normal-case">
                         {viewTenantResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} total seats
                       </span>
-                    </div>
+                    </h3>
                     {viewTenantResources.length === 0 ? (
-                      <p className="text-[12px] text-slate-400 font-medium py-6 text-center">No spaces assigned to this tenant yet.</p>
+                      <p className="text-[12px] text-slate-400 font-pmedium py-6 text-center">No spaces assigned to this tenant yet.</p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {viewTenantResources.map((r) => {
                           const labels = Array.isArray(r.seatLabels) && r.seatLabels.length > 0 ? r.seatLabels : getSeatLabels(r);
                           return (
-                            <div key={r.recordId} className="rounded-xl bg-white border border-indigo-100 p-3 shadow-sm">
+                            <div key={r.recordId} className="rounded-2xl bg-slate-50/60 border border-slate-100 p-3">
                               <div className="flex items-center justify-between mb-1.5">
                                 <div className="min-w-0">
-                                  <span className="text-[12px] font-black text-slate-900 truncate block">{r.name || r.resourceCode}</span>
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase">{kindLabel(r)}</span>
+                                  <span className="text-[12px] font-pmedium text-slate-900 truncate block">{r.name || r.resourceCode}</span>
+                                  <span className="text-[9px] font-pmedium text-slate-400 uppercase">{kindLabel(r)}</span>
                                 </div>
-                                <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-lg text-[9px] font-black shrink-0 ml-2">{r.capacity} seats</span>
+                                <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-lg text-[9px] font-pmedium shrink-0 ml-2">{r.capacity} seats</span>
                               </div>
-                              <p className="text-[10px] font-medium text-slate-500 mb-2">{r.locationLabel || `Floor ${r.floor}${r.wing ? ` Wing ${r.wing}` : ""}`}</p>
+                              <p className="text-[10px] font-pmedium text-slate-500 mb-2">{r.locationLabel || `Floor ${r.floor}${r.wing ? ` Wing ${r.wing}` : ""}`}</p>
                               {labels.length > 0 && (
                                 <div className="flex flex-wrap gap-1">
                                   {labels.map((l) => (
-                                    <span key={l} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[8px] font-black">{l}</span>
+                                    <span key={l} className="bg-white border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded text-[8px] font-pmedium">{l}</span>
                                   ))}
                                 </div>
                               )}
@@ -1065,6 +1143,11 @@ export default function SalesArchitecturePage() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0">
+                  <button onClick={() => setViewTenantId("")} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all">Close</button>
                 </div>
               </div>
             </div>
@@ -1081,7 +1164,7 @@ export default function SalesArchitecturePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           {[
             { icon: Briefcase, label: "Departments", value: availableDepartments.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
-            { icon: LayoutGrid, label: "Dept Spaces", value: resources.filter((r) => r.assignmentType === "department").length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+            { icon: LayoutGrid, label: "Dept Spaces", value: resources.filter((r) => r.assignmentType === "department").length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
             { icon: DoorOpen, label: "Available Desks", value: unassignedDesks.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
             { icon: Users, label: "Dept Seats", value: deptAssignmentMap.reduce((s, d) => s + d.seatCount, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
@@ -1095,15 +1178,36 @@ export default function SalesArchitecturePage() {
           ))}
         </div>
 
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-800">Department Space Allocation</h3>
-          <button onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
-            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
-          ><ArrowRight size={14} /> Assign Space</button>
-        </div>
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col mt-4 min-h-[400px]">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+            {/* LEFT: sub-tab pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {["All", "Assigned", "Unassigned"].map((key) => (
+                <button key={key} type="button" onClick={() => setDeptListFilter(key)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                    deptListFilter === key
+                      ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                      : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                  }`}
+                >{key}</button>
+              ))}
+            </div>
 
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col mt-4">
-          <div className="overflow-x-auto">
+            {/* RIGHT: search + assign */}
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder="Search by department, manager..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  value={deptListSearch} onChange={(e) => setDeptListSearch(e.target.value)} />
+              </div>
+              <button onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
+                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+              ><ArrowRight size={13} strokeWidth={3} /> ASSIGN SPACE</button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto flex-1">
             <table className="w-full">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
@@ -1111,18 +1215,25 @@ export default function SalesArchitecturePage() {
                   <th className="px-5 py-4 text-center">Seats</th>
                   <th className="px-5 py-4 text-left">Locations</th>
                   <th className="px-5 py-4 text-center">Spaces</th>
-                  <th className="px-5 py-4 text-center">Action</th>
+                  <th className="px-5 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/60">
-                {availableDepartments.map((d) => {
+                {availableDepartments.filter((d) => {
+                  const assignment = deptAssignmentMap.find((a) => a.name === d.name);
+                  const hasSpaces = (assignment?.resources?.length || 0) > 0;
+                  const matchesFilter = deptListFilter === "All" || (deptListFilter === "Assigned" ? hasSpaces : !hasSpaces);
+                  const q = deptListSearch.trim().toLowerCase();
+                  const matchesSearch = !q || [d.name, d.managerName].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+                  return matchesFilter && matchesSearch;
+                }).map((d) => {
                   const assignment = deptAssignmentMap.find((a) => a.name === d.name);
                   const locs = Array.from(assignment?.locationLabels || []);
                   return (
                     <tr key={d.id || d.name} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
                         <p className="text-[13px] font-pmedium text-slate-900">{d.name}</p>
-                        {d.managerName && <p className="text-[10px] text-slate-500">Manager: {d.managerName}</p>}
+                        {d.managerName && <p className="text-[10px] font-pmedium text-slate-500">Manager: {d.managerName}</p>}
                       </td>
                       <td className="px-5 py-4 text-center">
                         <span className="text-[15px] font-pmedium text-primary">{assignment?.seatCount || 0}</span>
@@ -1130,7 +1241,7 @@ export default function SalesArchitecturePage() {
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-1">
                           {locs.slice(0, 3).map((l) => (
-                            <span key={l} className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[9px] font-pmedium">{l}</span>
+                            <span key={l} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[9px] font-pmedium">{l}</span>
                           ))}
                           {locs.length > 3 && <span className="text-[9px] text-slate-500">+{locs.length - 3}</span>}
                           {locs.length === 0 && <span className="text-[11px] text-slate-400">No spaces</span>}
@@ -1140,14 +1251,31 @@ export default function SalesArchitecturePage() {
                         <span className="text-[12px] font-pmedium text-slate-700">{assignment?.resources.length || 0}</span>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <button onClick={() => {
-                          setDeptAssignSelectedId(d.id || d.name);
-                          clearSelection();
-                          setIsDeptAssignModalOpen(true);
-                        }}
-                          className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-all"
-                          title="Assign available spaces to this department"
-                        ><ArrowRight size={15} strokeWidth={2.5} /></button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => setViewDeptId(viewDeptId === String(d.id || d.name) ? "" : String(d.id || d.name))}
+                            className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                            title="View Details"
+                          ><Eye size={15} /></button>
+                          <button onClick={() => {
+                            setDeptAssignSelectedId(d.id || d.name);
+                            clearSelection();
+                            setIsDeptAssignModalOpen(true);
+                          }}
+                            className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-all active:scale-95 shadow-sm"
+                            title="Assign available spaces to this department"
+                          ><ArrowRight size={15} /></button>
+                          {(assignment?.resources?.length || 0) > 0 && (
+                            <button
+                              onClick={() => {
+                                setReleaseTarget({ type: "department", name: d.name, resources: assignment.resources });
+                                setReleaseSelectedIds(assignment.resources.map((r) => String(r.recordId || r.id)));
+                              }}
+                              disabled={saving}
+                              className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all active:scale-95 shadow-sm disabled:opacity-60"
+                              title="Release spaces assigned to this department"
+                            ><RotateCcw size={15} /></button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1159,6 +1287,107 @@ export default function SalesArchitecturePage() {
             </table>
           </div>
         </div>
+
+        {/* Department detail modal */}
+        {(() => {
+          const viewDept = viewDeptId ? availableDepartments.find((d) => String(d.id || d.name) === viewDeptId) : null;
+          if (!viewDept) return null;
+          const viewDeptAssignment = deptAssignmentMap.find((a) => a.name === viewDept.name);
+          const viewDeptResources = viewDeptAssignment?.resources || [];
+          const viewDeptLocs = Array.from(viewDeptAssignment?.locationLabels || []);
+
+          return (
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setViewDeptId("")}>
+              <div
+                className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                      <Briefcase size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{viewDept.name}</h2>
+                      <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">Department Space Details</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setViewDeptId("")} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+                </div>
+
+                {/* Body */}
+                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <Briefcase size={14} /> Department Info
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Manager</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewDept.managerName || "--"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Assigned Seats</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewDeptAssignment?.seatCount || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Space Blocks</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewDeptResources.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Locations</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewDeptLocs.length > 0 ? viewDeptLocs.join(", ") : "--"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2"><Users size={14} /> Assigned Space Blocks</span>
+                      <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-0.5 rounded-full text-[9px] font-pmedium normal-case">
+                        {viewDeptResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} total seats
+                      </span>
+                    </h3>
+                    {viewDeptResources.length === 0 ? (
+                      <p className="text-[12px] text-slate-400 font-pmedium py-6 text-center">No spaces assigned to this department yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {viewDeptResources.map((r) => {
+                          const labels = Array.isArray(r.seatLabels) && r.seatLabels.length > 0 ? r.seatLabels : getSeatLabels(r);
+                          return (
+                            <div key={r.recordId || r.id} className="rounded-2xl bg-slate-50/60 border border-slate-100 p-3">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="min-w-0">
+                                  <span className="text-[12px] font-pmedium text-slate-900 truncate block">{r.name || r.resourceCode}</span>
+                                  <span className="text-[9px] font-pmedium text-slate-400 uppercase">{kindLabel(r)}</span>
+                                </div>
+                                <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-lg text-[9px] font-pmedium shrink-0 ml-2">{r.capacity} seats</span>
+                              </div>
+                              <p className="text-[10px] font-pmedium text-slate-500 mb-2">{r.locationLabel || `Floor ${r.floor}${r.wing ? ` Wing ${r.wing}` : ""}`}</p>
+                              {labels.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {labels.map((l) => (
+                                    <span key={l} className="bg-white border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded text-[8px] font-pmedium">{l}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0">
+                  <button onClick={() => setViewDeptId("")} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all">Close</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </>
     );
   };
@@ -1182,27 +1411,24 @@ export default function SalesArchitecturePage() {
                                 // onClick={handleExportPDF}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
                                 // onClick={handleExportExcel}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {MAIN_TABS.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
-                ><Icon size={14} /> {tab.label}</button>
-              );
-            })}
+            {MAIN_TABS.map((tab) => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
+              >{tab.label}</button>
+            ))}
           </div>
 
           <div className="flex-1 mt-2">
@@ -1237,14 +1463,12 @@ export default function SalesArchitecturePage() {
                 <div className="flex flex-wrap gap-2">
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <Building2 size={12} className="text-blue-500" />
-                    <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
-                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-                    >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
+                    <span className="text-[11px] font-pmedium text-slate-900">{selectedBuilding}</span>
                   </div>
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <LayoutGrid size={12} className="text-blue-500" />
                     <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
-                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
                     >
                       <option value="All">All Floors</option>
                       {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
@@ -1253,7 +1477,7 @@ export default function SalesArchitecturePage() {
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <Filter size={12} className="text-blue-500" />
                     <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
                     >
                       <option value="All">All Wings</option>
                       {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
@@ -1297,7 +1521,7 @@ export default function SalesArchitecturePage() {
                                     </div>
                                     {isSelected && <CheckCircle2 size={14} className="text-blue-500 shrink-0" />}
                                   </div>
-                                  <p className="mt-1 text-[8px] font-bold text-slate-400">{r.locationLabel || "--"}</p>
+                                  <p className="mt-1 text-[8px] font-pmedium text-slate-400">{r.locationLabel || "--"}</p>
                                 </button>
                               );
                             })}
@@ -1347,10 +1571,10 @@ export default function SalesArchitecturePage() {
         {isDeptAssignModalOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
             <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-              <div className="p-5 bg-amber-600 text-white flex justify-between items-center shrink-0">
+              <div className="p-5 bg-blue-600 text-white flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-[15px] font-pmedium flex items-center gap-1.5"><Briefcase size={18} /> Assign Space to Department</h2>
-                  <p className="text-[10px] font-pmedium text-amber-200 uppercase tracking-widest mt-0.5">Select a department and pick available spaces</p>
+                  <p className="text-[10px] font-pmedium text-blue-200 uppercase tracking-widest mt-0.5">Select a department and pick available spaces</p>
                 </div>
                 <button onClick={() => { setIsDeptAssignModalOpen(false); clearSelection(); }} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={14} /></button>
               </div>
@@ -1359,7 +1583,7 @@ export default function SalesArchitecturePage() {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Select Department *</label>
                   <select value={deptAssignSelectedId} onChange={(e) => setDeptAssignSelectedId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
                   >
                     <option value="">-- Select Department --</option>
                     {availableDepartments.map((d) => {
@@ -1377,24 +1601,22 @@ export default function SalesArchitecturePage() {
                 {/* Building/Floor/Wing filter */}
                 <div className="flex flex-wrap gap-2">
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                    <Building2 size={12} className="text-amber-500" />
-                    <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
-                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-                    >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
+                    <Building2 size={12} className="text-blue-500" />
+                    <span className="text-[11px] font-pmedium text-slate-900">{selectedBuilding}</span>
                   </div>
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                    <LayoutGrid size={12} className="text-amber-500" />
+                    <LayoutGrid size={12} className="text-blue-500" />
                     <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
-                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
                     >
                       <option value="All">All Floors</option>
                       {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
                     </select>
                   </div>
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                    <Filter size={12} className="text-amber-500" />
+                    <Filter size={12} className="text-blue-500" />
                     <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
                     >
                       <option value="All">All Wings</option>
                       {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
@@ -1440,7 +1662,7 @@ export default function SalesArchitecturePage() {
                                       <button key={id} type="button" onClick={() => toggleResource(r)}
                                         className={`group flex min-h-[72px] flex-col justify-between rounded-xl border-2 p-2.5 text-left transition-all ${
                                           isSelected
-                                            ? "border-amber-400 bg-amber-50 ring-2 ring-amber-300 shadow-md scale-[1.01]"
+                                            ? "border-blue-400 bg-blue-50 ring-2 ring-blue-300 shadow-md scale-[1.01]"
                                             : "border-slate-200 bg-white hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-sm"
                                         }`}
                                       >
@@ -1452,9 +1674,9 @@ export default function SalesArchitecturePage() {
                                               <p className="text-[10px] font-pmedium leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
                                             </div>
                                           </div>
-                                          {isSelected && <CheckCircle2 size={14} className="text-amber-500 shrink-0" />}
+                                          {isSelected && <CheckCircle2 size={14} className="text-blue-500 shrink-0" />}
                                         </div>
-                                        <p className="mt-1 text-[8px] font-bold text-slate-400">{r.locationLabel || "--"}</p>
+                                        <p className="mt-1 text-[8px] font-pmedium text-slate-400">{r.locationLabel || "--"}</p>
                                       </button>
                                     );
                                   })}
@@ -1470,11 +1692,11 @@ export default function SalesArchitecturePage() {
 
                 {/* Selected summary */}
                 {assignableIds.length > 0 && (
-                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600 mb-1.5">Selected ({selectedSeatCount} seats)</p>
+                  <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 mb-1.5">Selected ({selectedSeatCount} seats)</p>
                     <div className="flex flex-wrap gap-1">
                       {assignableResources.map((r) => (
-                        <span key={r.recordId} className="bg-white border border-amber-200 text-amber-700 px-2 py-0.5 rounded text-[10px] font-pmedium">{r.name || r.resourceCode}</span>
+                        <span key={r.recordId} className="bg-white border border-blue-200 text-blue-700 px-2 py-0.5 rounded text-[10px] font-pmedium">{r.name || r.resourceCode}</span>
                       ))}
                     </div>
                   </div>
@@ -1494,9 +1716,94 @@ export default function SalesArchitecturePage() {
                     saveAssignment();
                     setIsDeptAssignModalOpen(false);
                   }} disabled={!deptAssignSelectedId || assignableIds.length === 0 || saving}
-                    className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-amber-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Assign to Department</>}</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Release Spaces Modal — pick which assigned spaces to free up */}
+        {releaseTarget && (
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-3" onClick={() => { setReleaseTarget(null); setReleaseSelectedIds([]); }}>
+            <div
+              className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    <RotateCcw size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">Release Spaces</h2>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1 truncate">
+                      {releaseTarget.type === "tenant" ? "Tenant" : "Department"}: {releaseTarget.name}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => { setReleaseTarget(null); setReleaseSelectedIds([]); }} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 sm:p-6 space-y-4 overflow-y-auto bg-white">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-pmedium text-slate-500">Select the spaces to release — whichever are no longer needed, or all of them.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allIds = releaseTarget.resources.map((r) => String(r.recordId || r.id));
+                      setReleaseSelectedIds(releaseSelectedIds.length === allIds.length ? [] : allIds);
+                    }}
+                    className="text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] hover:text-blue-800 transition-colors whitespace-nowrap"
+                  >
+                    {releaseSelectedIds.length === releaseTarget.resources.length ? "Clear All" : "Select All"}
+                  </button>
+                </div>
+
+                {releaseTarget.resources.length === 0 ? (
+                  <p className="text-[12px] text-slate-400 font-pmedium py-6 text-center">No releasable spaces for this assignment.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {releaseTarget.resources.map((r) => {
+                      const id = String(r.recordId || r.id);
+                      const isSelected = releaseSelectedIds.includes(id);
+                      return (
+                        <button key={id} type="button"
+                          onClick={() => setReleaseSelectedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))}
+                          className={`flex items-start justify-between gap-2 rounded-2xl border-2 p-3 text-left transition-all ${
+                            isSelected ? "border-rose-300 bg-rose-50/60 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-pmedium text-slate-900 truncate">{r.name || r.resourceCode}</p>
+                            <p className="text-[9px] font-pmedium text-slate-400 uppercase">{kindLabel(r)} · {r.capacity || 1} seats</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 mt-1">{r.locationLabel || `Floor ${r.floor}${r.wing ? ` Wing ${r.wing}` : ""}`}</p>
+                          </div>
+                          {isSelected && <CheckCircle2 size={15} className="text-rose-500 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0 flex gap-2.5">
+                <button onClick={() => { setReleaseTarget(null); setReleaseSelectedIds([]); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                <button
+                  onClick={async () => {
+                    await releaseSpacesByIds(releaseSelectedIds);
+                    setReleaseTarget(null);
+                    setReleaseSelectedIds([]);
+                  }}
+                  disabled={saving || releaseSelectedIds.length === 0}
+                  className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-rose-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RotateCcw size={14} /> {saving ? "Releasing..." : `Release ${releaseSelectedIds.length} Space${releaseSelectedIds.length === 1 ? "" : "s"}`}
+                </button>
               </div>
             </div>
           </div>

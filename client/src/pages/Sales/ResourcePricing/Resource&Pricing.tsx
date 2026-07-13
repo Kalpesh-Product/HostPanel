@@ -577,6 +577,7 @@ export default function PricingPackagesPage() {
   const [resourceFloorFilter, setResourceFloorFilter] = useState('All Floors');
   const [resourceWingFilter, setResourceWingFilter] = useState('All Wings');
   const [resourceStatusFilter, setResourceStatusFilter] = useState('All Status');
+  const [packageStatusFilter, setPackageStatusFilter] = useState('All Status');
   const [resources, setResources] = useState([]);
   const [packages, setPackages] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -702,10 +703,12 @@ export default function PricingPackagesPage() {
   const filteredPackages = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return activePackages.filter((item) => {
+      const matchesStatus = packageStatusFilter === 'All Status' || (item.status || 'Active') === packageStatusFilter;
+      if (!matchesStatus) return false;
       if (!query) return true;
       return [item.name, item.description, item.packageCode].filter(Boolean).some((value) => value.toLowerCase().includes(query));
     });
-  }, [activePackages, searchQuery]);
+  }, [activePackages, searchQuery, packageStatusFilter]);
 
   const tenantAreaResources = useMemo(
     () => {
@@ -1494,7 +1497,7 @@ export default function PricingPackagesPage() {
         {errorMessage ? (
           <div className="mb-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
             <AlertTriangle size={16} className="text-red-500 shrink-0" />
-            <p className="text-[12px] font-medium text-red-700 flex-1">{errorMessage}</p>
+            <p className="text-[12px] font-pmedium text-red-700 flex-1">{errorMessage}</p>
             <button type="button" onClick={() => setErrorMessage('')} className="text-red-400 hover:text-red-600"><X size={14} /></button>
           </div>
         ) : null}
@@ -1517,7 +1520,7 @@ export default function PricingPackagesPage() {
                                               className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
                                             >
                                               <UploadCloud size={13} /> 
-                                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                                             </button>
 
               </>
@@ -1527,14 +1530,14 @@ export default function PricingPackagesPage() {
                                 // onClick={handleExportPDF}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
                                 // onClick={handleExportExcel}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
             
           </div>
@@ -1543,17 +1546,14 @@ export default function PricingPackagesPage() {
         {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {[
-            { key: 'resource', label: 'Resources', icon: Monitor },
-            { key: 'membership', label: 'Memberships', icon: CreditCard },
-            { key: 'tenant', label: 'Tenant Packages', icon: Building2 },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-              ><Icon size={14} /> {tab.label}</button>
-            );
-          })}
+            { key: 'resource', label: 'Resources' },
+            { key: 'membership', label: 'Memberships' },
+            { key: 'tenant', label: 'Tenant Packages' },
+          ].map((tab) => (
+            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+            >{tab.label}</button>
+          ))}
         </div>
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
@@ -1589,55 +1589,56 @@ export default function PricingPackagesPage() {
         </div>
 
         <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 text-[15px] font- font-pmedium text-primary">
-                {activeTab === 'resource' && <><Monitor size={18} className="text-blue-600" /> Resource Pricing</>}
-                {activeTab === 'membership' && <><CreditCard size={18} className="text-indigo-600" /> Credit Memberships</>}
-                {activeTab === 'tenant' && <><Building2 size={18} className="text-emerald-600" /> Tenant Packages</>}
-              </h2>
-              <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
-                {activeTab === 'resource' && 'Update rates and credits by category, area block, floor, and wing.'}
-                {activeTab === 'membership' && 'Create credit plans for recurring users.'}
-                {activeTab === 'tenant' && 'Create contract bundles used by tenant companies.'}
-              </p>
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+            {/* LEFT: status sub-tab pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {(activeTab === 'resource'
+                ? ['All Status', ...resourceStatusOptions]
+                : ['All Status', ...packageStatusOptions]
+              ).map((status) => {
+                const isSelected = activeTab === 'resource' ? resourceStatusFilter === status : packageStatusFilter === status;
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => (activeTab === 'resource' ? setResourceStatusFilter(status) : setPackageStatusFilter(status))}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      isSelected
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {status === 'All Status' ? 'All' : status}
+                  </button>
+                );
+              })}
             </div>
-            <div className="relative w-full lg:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+
+            {/* RIGHT: search + primary action */}
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              </div>
+              {activeTab === 'resource' ? (
+                <button onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
+                  <Plus size={13} strokeWidth={3} /> ADD RESOURCE
+                </button>
+              ) : (
+                <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
+                  <Plus size={13} strokeWidth={3} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
+                </button>
+              )}
             </div>
-            {activeTab === 'resource' ? (
-              <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-                <Plus size={16} /> ADD RESOURCE
-              </button>
-            ) : (
-              <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-                <Plus size={16} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
-              </button>
-            )}
           </div>
 
           {activeTab === 'resource' ? (
             <div className="border-b border-slate-100 bg-white p-3">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Filters</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">Narrow resources by category, floor, wing, and status.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearResourceFilters}
-                  className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                >
-                  <X size={14} /> Reset Filters
-                </button>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 items-end">
                 <div>
                   <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Category</label>
                   <select
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                     value={resourceCategoryFilter}
                     onChange={(event) => setResourceCategoryFilter(event.target.value)}
                   >
@@ -1651,7 +1652,7 @@ export default function PricingPackagesPage() {
                 <div>
                   <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Floor</label>
                   <select
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                     value={resourceFloorFilter}
                     onChange={(event) => setResourceFloorFilter(event.target.value)}
                   >
@@ -1665,7 +1666,7 @@ export default function PricingPackagesPage() {
                 <div>
                   <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Wing</label>
                   <select
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                     value={resourceWingFilter}
                     onChange={(event) => setResourceWingFilter(event.target.value)}
                   >
@@ -1676,19 +1677,13 @@ export default function PricingPackagesPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Status</label>
-                  <select
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                    value={resourceStatusFilter}
-                    onChange={(event) => setResourceStatusFilter(event.target.value)}
-                  >
-                    <option>All Status</option>
-                    {resourceStatusOptions.map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </div>
+                <button
+                  type="button"
+                  onClick={clearResourceFilters}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <X size={14} /> Reset Filters
+                </button>
               </div>
             </div>
           ) : null}
@@ -1708,9 +1703,9 @@ export default function PricingPackagesPage() {
               <tbody className="divide-y divide-slate-50">
                 {activeTab === 'resource' ? filteredResources.map((item, index) => (
                   <tr key={item.recordId} className="transition-all hover:bg-blue-50/30">
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-500 text-center">{index + 1}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900">{item.name}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{getResourceCategoryLabel(item.resourceCategory)}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-500 text-center">{index + 1}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900">{item.name}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{getResourceCategoryLabel(item.resourceCategory)}</td>
                     <td className="px-3.5 py-2">
                       {isDeskCategory(item.resourceCategory) ? (
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest ${item.inventoryMode === 'area'
@@ -1725,12 +1720,12 @@ export default function PricingPackagesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.floor || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.wing || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.capacity} Pax</td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} ` : item.pricing || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} ` : item.pricing || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900 text-center">{getResourceCreditValue(item)}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.floor || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.wing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.capacity} Pax</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} ` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} ` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900 text-center">{getResourceCreditValue(item)}</td>
                     <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
                     <td className="px-3.5 py-2">
                       <div className="flex items-center justify-center gap-1.5">
@@ -1745,7 +1740,7 @@ export default function PricingPackagesPage() {
                 )) : filteredPackages.map((item) => (
                   <tr key={item.recordId} className={`transition-all hover:bg-indigo-50/30 ${item.status === 'Disabled' ? 'opacity-60' : ''}`}>
                     <td className="px-3.5 py-2">
-                      <p className="text-[12px] font-bold text-slate-900">{item.name}</p>
+                      <p className="text-[12px] font-pmedium text-slate-900">{item.name}</p>
                       <p className="mt-0.5 max-w-65 truncate text-[10px] font-pmedium text-slate-500" title={item.description}>{item.description || 'No description added.'}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {item.isRecommended ? <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-amber-700">Recommended</span> : null}
@@ -1757,7 +1752,7 @@ export default function PricingPackagesPage() {
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">
                       {item.category === 'Tenant' ? (
                         <div className="space-y-1">
                           <p>{Array.from(new Set((item.locationMappings || []).map((mapping) => getTenantResourceLocation(mapping)).filter(Boolean))).join(', ') || 'Unassigned'}</p>
@@ -1781,8 +1776,8 @@ export default function PricingPackagesPage() {
                         <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-pmedium uppercase text-indigo-700"><Tag size={10} /> {item.creditsIncluded} Credits</span>
                       )}
                     </td>
-                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{durationLabel(item.durationMonths)}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-bold text-emerald-600">
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{durationLabel(item.durationMonths)}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-emerald-600">
                       <div>{formatCurrency(item.price)}</div>
                       <div className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                         {item.category === 'Tenant' && item.durationMonths > 0
@@ -1828,8 +1823,8 @@ export default function PricingPackagesPage() {
                   <tr>
                     <td colSpan={activeTab === 'resource' ? 12 : activeTab === 'membership' ? 6 : 7} className="bg-slate-50/50 py-20 text-center text-slate-400">
                       <div className="mx-auto max-w-md">
-                        <p className="text-sm font-bold">{activeTab === 'resource' ? 'No resources found.' : 'No packages found yet.'}</p>
-                        <p className="mt-2 text-xs font-medium leading-relaxed">
+                        <p className="text-sm font-pmedium">{activeTab === 'resource' ? 'No resources found.' : 'No packages found yet.'}</p>
+                        <p className="mt-2 text-xs font-pmedium leading-relaxed">
                           {activeTab === 'resource' ? 'Add resources from Resource Management first, then price them here.' : 'Create a package to make it available for tenant companies.'}
                         </p>
                       </div>
@@ -1873,7 +1868,7 @@ export default function PricingPackagesPage() {
                 {isTemplateInfoOpen ? (
                   <div className="space-y-4 pl-2">
                     <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
-                      <p className="text-sm font-semibold text-blue-800">
+                      <p className="text-sm font-pmedium text-blue-800">
                         Download the template first to avoid validation errors. Cabin desks are area blocks only, so single cabin rows will be rejected.
                       </p>
                     </div>
@@ -1882,15 +1877,15 @@ export default function PricingPackagesPage() {
                       <div className="grid gap-2 text-sm">
                         <div className="flex items-center gap-2">
                           <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-pmedium text-red-600">Required</span>
-                          <span className="font-semibold text-slate-700">name, location, resourceCategory, floor, capacity</span>
+                          <span className="font-pmedium text-slate-700">name, location, resourceCategory, floor, capacity</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-pmedium text-amber-600">Conditional</span>
-                          <span className="font-semibold text-slate-700">inventoryMode (for open desks)</span>
+                          <span className="font-pmedium text-slate-700">inventoryMode (for open desks)</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-pmedium text-slate-500">Optional</span>
-                          <span className="font-semibold text-slate-700">wing, description, pricePerHour, pricePerDay, credits, status</span>
+                          <span className="font-pmedium text-slate-700">wing, description, pricePerHour, pricePerDay, credits, status</span>
                         </div>
                       </div>
                     </div>
@@ -1911,7 +1906,7 @@ export default function PricingPackagesPage() {
 
                 {isAllowedValuesOpen ? (
                   <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
-                    <p className="text-sm font-semibold text-blue-800 leading-6">
+                    <p className="text-sm font-pmedium text-blue-800 leading-6">
                       Categories: {resourceCategoryOptions.map((option) => `${option.label} (${option.value})`).join(', ')}
                       <br />
                       Inventory: {inventoryModeOptions.map((option) => option.value).join(', ')}
@@ -1924,7 +1919,7 @@ export default function PricingPackagesPage() {
                 ) : null}
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
+                  <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-pmedium inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
                     <Download size={16} /> Download Template
                   </button>
                   <button
@@ -1940,7 +1935,7 @@ export default function PricingPackagesPage() {
                 {bulkUploadFileName ? (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Selected file</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-800">{bulkUploadFileName}</p>
+                    <p className="mt-2 text-sm font-pmedium text-slate-800">{bulkUploadFileName}</p>
                   </div>
                 ) : null}
               </div>
@@ -1957,22 +1952,25 @@ export default function PricingPackagesPage() {
         {bulkUploadSummary ? (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
             <div className="w-full max-w-lg rounded-[2.5rem] bg-white shadow-2xl border border-white/70 overflow-hidden">
-              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
-                <div>
-                  <h2 className="flex items-center gap-2 text-sm font-pmedium text-white"><UploadCloud size={16} /> Bulk Upload Results</h2>
-                  <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Import completed for {bulkUploadSummary.fileName}</p>
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><UploadCloud size={18} /></div>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">Bulk Upload Results</h2>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">Import completed for {bulkUploadSummary.fileName}</p>
+                  </div>
                 </div>
-                <button type="button" onClick={() => setBulkUploadSummary(null)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
+                <button type="button" onClick={() => setBulkUploadSummary(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
               </div>
               <div className="p-4 sm:p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Created</p>
-                    <p className="mt-1 text-2xl font-black text-emerald-700">{bulkUploadSummary.createdCount}</p>
+                    <p className="mt-1 text-2xl font-pmedium text-emerald-700">{bulkUploadSummary.createdCount}</p>
                   </div>
                   <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600">Failed</p>
-                    <p className="mt-1 text-2xl font-black text-red-700">{bulkUploadSummary.failedCount}</p>
+                    <p className="mt-1 text-2xl font-pmedium text-red-700">{bulkUploadSummary.failedCount}</p>
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
@@ -1982,7 +1980,7 @@ export default function PricingPackagesPage() {
                   <div className="rounded-xl border border-red-100 bg-red-50 p-3">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600 mb-2">Errors (first 5)</p>
                     <ul className="space-y-1">
-                      {bulkUploadSummary.failedRows.map((msg, i) => <li key={i} className="text-[11px] font-medium text-red-700">{msg}</li>)}
+                      {bulkUploadSummary.failedRows.map((msg, i) => <li key={i} className="text-[11px] font-pmedium text-red-700">{msg}</li>)}
                     </ul>
                   </div>
                 ) : null}
@@ -1995,24 +1993,28 @@ export default function PricingPackagesPage() {
         {isModalOpen ? (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
             <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
-              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
-                <div>
-                  <h2 className="flex items-center gap-2 text-sm font-pmedium text-white">
-                    {modalKind === 'resource' ? (modalMode === 'add' ? <Plus size={16} /> : isViewingResource ? <Eye size={16} /> : <Monitor size={16} />) : isViewingPackage ? <Eye size={16} /> : <Plus size={16} />}
-                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
-                  </h2>
-                  <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
-                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
-                  </p>
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    {modalKind === 'resource' ? (modalMode === 'add' ? <Plus size={18} /> : isViewingResource ? <Eye size={18} /> : <Monitor size={18} />) : isViewingPackage ? <Eye size={18} /> : <Plus size={18} />}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">
+                      {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
+                    </h2>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1 truncate">
+                      {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {isViewingPackage ? (
                     <>
-                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-red-600 hover:text-white" title="Download PDF"><FileDown size={16} /></button>
-                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-emerald-600 hover:text-white" title="Download Excel"><FileSpreadsheet size={16} /></button>
+                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 hover:bg-red-50 transition-colors" title="Download PDF"><FileDown size={14} /></button>
+                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Download Excel"><FileSpreadsheet size={14} /></button>
                     </>
                   ) : null}
-                  <button type="button" onClick={closeModal} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
+                  <button type="button" onClick={closeModal} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors"><X size={16} /></button>
                 </div>
               </div>
 
@@ -2024,7 +2026,7 @@ export default function PricingPackagesPage() {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Resource snapshot</p>
-                          <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Summary before saving.</p>
+                          <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">Summary before saving.</p>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
@@ -2050,7 +2052,7 @@ export default function PricingPackagesPage() {
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
-                      <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
+                      <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
                     <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
@@ -2058,12 +2060,12 @@ export default function PricingPackagesPage() {
                         <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-1.5">
-                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
                             <button type="button" onClick={() => { setLocationMode('select'); setAddResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location || ''} onChange={(e) => {
+                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setAddResourceForm((prev) => ({ ...prev, location: '' })); return; }
                               setAddResourceForm((prev) => ({ ...prev, location: nextValue }));
@@ -2079,7 +2081,7 @@ export default function PricingPackagesPage() {
 
                       <div className="space-y-1">
                         <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
-                        <select required className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.resourceCategory} onChange={(e) => {
+                        <select required className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.resourceCategory} onChange={(e) => {
                           const nextCategory = e.target.value;
                           const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
                           setAddResourceForm((prev) => ({
@@ -2099,7 +2101,7 @@ export default function PricingPackagesPage() {
                         <div className="space-y-1">
                           <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
                           <div className="relative">
-                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.inventoryMode} onChange={(e) => {
+                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.inventoryMode} onChange={(e) => {
                               const nextInventoryMode = e.target.value;
                               setAddResourceForm((prev) => ({
                                 ...prev,
@@ -2119,12 +2121,12 @@ export default function PricingPackagesPage() {
                         <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-1.5">
-                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
                             <button type="button" onClick={() => { setFloorMode('select'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor || ''} onChange={(e) => {
+                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); return; }
                               setAddResourceForm((prev) => ({ ...prev, floor: nextValue }));
@@ -2142,12 +2144,12 @@ export default function PricingPackagesPage() {
                         <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-1.5">
-                            <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                            <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
                             <button type="button" onClick={() => { setWingMode('select'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
-                            <select className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing || ''} onChange={(e) => {
+                            <select className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); return; }
                               setAddResourceForm((prev) => ({ ...prev, wing: nextValue }));
@@ -2173,7 +2175,7 @@ export default function PricingPackagesPage() {
                         return isDeskCategory(addResourceForm.resourceCategory) && capacityOptions.length > 0 ? (
                           <div className="space-y-1.5">
                             <div className="relative">
-                              <select required disabled={isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                              <select required disabled={isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
                                 {capacityOptions.map((option) => (
                                   <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
                                 ))}
@@ -2181,18 +2183,18 @@ export default function PricingPackagesPage() {
                               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             </div>
                             {isSingleDeskInventory ? (
-                              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
+                              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[12px] font-pmedium text-emerald-800">Single desks are fixed to 1 desk.</div>
                             ) : null}
                           </div>
                         ) : (
-                          <input required type="number" min="1" placeholder="Enter capacity" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                          <input required type="number" min="1" placeholder="Enter capacity" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
                         );
                       })()}
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
-                      <textarea rows={2} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                      <textarea rows={2} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
 
                     <div className="border-t border-slate-100 pt-3">
@@ -2200,7 +2202,7 @@ export default function PricingPackagesPage() {
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-800">Price Per Hour (&#8377;)</label>
-                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
+                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
                             const hourly = Number(nextHour);
@@ -2210,7 +2212,7 @@ export default function PricingPackagesPage() {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-800">Price Per Day (&#8377;)</label>
-                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
+                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
                             const daily = Number(nextDay);
@@ -2220,14 +2222,14 @@ export default function PricingPackagesPage() {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-800">Credits</label>
-                          <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Status</label>
-                      <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                      <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
                         {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </select>
                     </div>
@@ -2236,8 +2238,8 @@ export default function PricingPackagesPage() {
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                       <p className="text-[11px] font-pmedium uppercase tracking-widest text-blue-500">Resource</p>
-                      <p className="mt-1 text-base font-black text-blue-900">{resourceForm.name || selectedItem?.name}</p>
-                      <p className="text-[12px] font-semibold text-blue-700">{resourceForm.type || selectedItem?.type}</p>
+                      <p className="mt-1 text-base font-pmedium text-blue-900">{resourceForm.name || selectedItem?.name}</p>
+                      <p className="text-[12px] font-pmedium text-blue-700">{resourceForm.type || selectedItem?.type}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
                           {getResourceCategoryLabel(resourceForm.resourceCategory)}
@@ -2256,7 +2258,7 @@ export default function PricingPackagesPage() {
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
-                      <input required disabled={isViewingResource} type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
+                      <input required disabled={isViewingResource} type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
                     <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
@@ -2264,12 +2266,12 @@ export default function PricingPackagesPage() {
                         <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-2">
-                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
                             {!isViewingResource && <button type="button" onClick={() => { setLocationMode('select'); setResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location || ''} onChange={(e) => {
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setResourceForm((prev) => ({ ...prev, location: '' })); return; }
                               setResourceForm((prev) => ({ ...prev, location: nextValue }));
@@ -2285,7 +2287,7 @@ export default function PricingPackagesPage() {
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
-                        <select required disabled={isViewingResource} className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
+                        <select required disabled={isViewingResource} className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
                           const nextCategory = e.target.value;
                           const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
                           setResourceForm((prev) => ({
@@ -2305,7 +2307,7 @@ export default function PricingPackagesPage() {
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
                           <div className="relative">
-                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
                               const nextInventoryMode = e.target.value;
                               setResourceForm((prev) => ({
                                 ...prev,
@@ -2325,12 +2327,12 @@ export default function PricingPackagesPage() {
                         <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-2">
-                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
                             {!isViewingResource && <button type="button" onClick={() => { setFloorMode('select'); setResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor || ''} onChange={(e) => {
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setResourceForm((prev) => ({ ...prev, floor: '' })); return; }
                               setResourceForm((prev) => ({ ...prev, floor: nextValue }));
@@ -2348,12 +2350,12 @@ export default function PricingPackagesPage() {
                         <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-2">
-                            <input disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                            <input disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
                             {!isViewingResource && <button type="button" onClick={() => { setWingMode('select'); setResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
-                            <select disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing || ''} onChange={(e) => {
+                            <select disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setResourceForm((prev) => ({ ...prev, wing: '' })); return; }
                               setResourceForm((prev) => ({ ...prev, wing: nextValue }));
@@ -2379,7 +2381,7 @@ export default function PricingPackagesPage() {
                         return isDeskCategory(resourceForm.resourceCategory) && capacityOptions.length > 0 ? (
                           <div className="space-y-2">
                             <div className="relative">
-                              <select required disabled={isViewingResource || isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                              <select required disabled={isViewingResource || isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-pmedium text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
                                 {capacityOptions.map((option) => (
                                   <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
                                 ))}
@@ -2387,26 +2389,26 @@ export default function PricingPackagesPage() {
                               <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             </div>
                             {isSingleDeskInventory ? (
-                              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
+                              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-pmedium text-emerald-800">Single desks are fixed to 1 desk.</div>
                             ) : null}
                           </div>
                         ) : (
-                          <input required disabled={isViewingResource} type="number" min="1" placeholder="Enter capacity" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                          <input required disabled={isViewingResource} type="number" min="1" placeholder="Enter capacity" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-pmedium text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
                         );
                       })()}
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
-                      <textarea disabled={isViewingResource} rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                      <textarea disabled={isViewingResource} rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
 
                     <div className="border-t border-slate-100 pt-4">
                       <p className="text-[11px] font-pmedium uppercase tracking-widest text-amber-600 mb-3">Pricing & Credits (set by Sales)</p>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
-                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
+                          <label className="text-[11px] font-pmedium text-slate-800">Price Per Hour (&#8377;)</label>
+                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
                             const hourly = Number(nextHour);
@@ -2415,8 +2417,8 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
-                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
+                          <label className="text-[11px] font-pmedium text-slate-800">Price Per Day (&#8377;)</label>
+                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
                             const daily = Number(nextDay);
@@ -2425,22 +2427,22 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-800">Credits</label>
-                          <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <label className="text-[11px] font-pmedium text-slate-800">Credits</label>
+                          <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Status</label>
-                      <select disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                      <select disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
                         {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </select>
                     </div>
 
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                       <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p>
-                      <p className="mt-1 text-sm font-bold text-slate-800">
+                      <p className="mt-1 text-sm font-pmedium text-slate-800">
                         {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day` : 'Daily rate not set'}
                       </p>
                       <p className="mt-1 text-[11px] font-pmedium uppercase tracking-widest text-slate-400">
@@ -2457,10 +2459,10 @@ export default function PricingPackagesPage() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Package Details</p>
-                          <h3 className="mt-1 text-lg font-black text-slate-900">{selectedPackage.name || '--'}</h3>
-                          <p className="mt-0.5 text-[12px] font-bold text-slate-600">{viewPackageCategory} Package</p>
+                          <h3 className="mt-1 text-lg font-pmedium text-slate-900">{selectedPackage.name || '--'}</h3>
+                          <p className="mt-0.5 text-[12px] font-pmedium text-slate-600">{viewPackageCategory} Package</p>
                           {selectedPackage.assignedTenantCompanyName ? (
-                            <p className="mt-0.5 text-[11px] font-bold text-slate-500">Assigned to {selectedPackage.assignedTenantCompanyName}</p>
+                            <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">Assigned to {selectedPackage.assignedTenantCompanyName}</p>
                           ) : null}
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -2485,13 +2487,13 @@ export default function PricingPackagesPage() {
                           {hasMeaningfulValue(viewPackageDurationMonths) ? (
                             <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Contract Duration</p>
-                              <p className="mt-1 text-base font-black text-blue-900">{viewPackageDurationMonths} months</p>
+                              <p className="mt-1 text-base font-pmedium text-blue-900">{viewPackageDurationMonths} months</p>
                             </div>
                           ) : null}
                           {(hasMeaningfulValue(viewPackageRatePerOpenDesk) || hasMeaningfulValue(viewPackageRatePerCabinDesk)) ? (
                             <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-700">Desk Rates</p>
-                              <p className="mt-1 text-[12px] font-black text-amber-900">
+                              <p className="mt-1 text-[12px] font-pmedium text-amber-900">
                                 {hasMeaningfulValue(viewPackageRatePerOpenDesk) ? `${formatCurrency(viewPackageRatePerOpenDesk)} open` : null}
                                 {hasMeaningfulValue(viewPackageRatePerOpenDesk) && hasMeaningfulValue(viewPackageRatePerCabinDesk) ? ' / ' : null}
                                 {hasMeaningfulValue(viewPackageRatePerCabinDesk) ? `${formatCurrency(viewPackageRatePerCabinDesk)} cabin` : null}
@@ -2501,15 +2503,15 @@ export default function PricingPackagesPage() {
                           {hasMeaningfulValue(viewPackageMonthlyRate) ? (
                             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Monthly Rent</p>
-                              <p className="mt-1 text-base font-black text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
-                              <p className="mt-0.5 text-[10px] font-medium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
+                              <p className="mt-1 text-base font-pmedium text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
+                              <p className="mt-0.5 text-[10px] font-pmedium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
                             </div>
                           ) : null}
                           {hasMeaningfulValue(viewPackageTotalContractValue) ? (
                             <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-purple-600">Total Contract Value</p>
-                              <p className="mt-1 text-base font-black text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
-                              <p className="mt-0.5 text-[10px] font-medium text-purple-600">Monthly rent x duration</p>
+                              <p className="mt-1 text-base font-pmedium text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
+                              <p className="mt-0.5 text-[10px] font-pmedium text-purple-600">Monthly rent x duration</p>
                             </div>
                           ) : null}
                         </div>
@@ -2521,25 +2523,25 @@ export default function PricingPackagesPage() {
                               {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Floor</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Wing</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageLocationMappings.length) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Selected Blocks</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageLocationMappings.length}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewPackageLocationMappings.length}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(selectedPackage.locationLabel) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Location Label</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.locationLabel}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{selectedPackage.locationLabel}</dd>
                                 </div>
                               ) : null}
                             </dl>
@@ -2551,37 +2553,37 @@ export default function PricingPackagesPage() {
                               {hasMeaningfulValue(viewPackageOpenDesks) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageOpenDesks}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewPackageOpenDesks}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageCabinDesks) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCabinDesks}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewPackageCabinDesks}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageTotalSeats) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageTotalSeats}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewPackageTotalSeats}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageCreditsPerSeat) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits / Seat</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCreditsPerSeat}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewPackageCreditsPerSeat}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
                                 <div>
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageMonthlyCredits}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewPackageMonthlyCredits}</dd>
                                 </div>
                               ) : null}
                               {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
                                 <div className="sm:col-span-2">
                                   <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Company</dt>
-                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
+                                  <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
                                 </div>
                               ) : null}
                             </dl>
@@ -2594,8 +2596,8 @@ export default function PricingPackagesPage() {
                             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {viewPackageLocationMappings.map((mapping) => (
                                 <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
-                                  <p className="text-[12px] font-black text-slate-900">{mapping.label || '--'}</p>
-                                  <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                                  <p className="text-[12px] font-pmedium text-slate-900">{mapping.label || '--'}</p>
+                                  <p className="mt-0.5 text-[10px] font-pmedium text-slate-500">
                                     {hasMeaningfulValue(mapping.floor) ? `Floor ${mapping.floor}` : null}
                                     {hasMeaningfulValue(mapping.floor) && hasMeaningfulValue(mapping.wing) ? ' / ' : ''}
                                     {hasMeaningfulValue(mapping.wing) ? `Wing ${mapping.wing}` : null}
@@ -2621,7 +2623,7 @@ export default function PricingPackagesPage() {
                             <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Feature Bullets</p>
                             <ul className="mt-2 space-y-1.5">
                               {viewPackageFeatures.map((feature) => (
-                                <li key={feature} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-medium text-slate-700">
+                                <li key={feature} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-pmedium text-slate-700">
                                   {feature}
                                 </li>
                               ))}
@@ -2635,19 +2637,19 @@ export default function PricingPackagesPage() {
                           {hasMeaningfulValue(selectedPackage.creditsIncluded) ? (
                             <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-indigo-600">Credits Included</p>
-                              <p className="mt-1 text-base font-black text-indigo-900">{selectedPackage.creditsIncluded}</p>
+                              <p className="mt-1 text-base font-pmedium text-indigo-900">{selectedPackage.creditsIncluded}</p>
                             </div>
                           ) : null}
                           {hasMeaningfulValue(viewPackagePrice) ? (
                             <div className="rounded-xl border border-slate-200 bg-white p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Price</p>
-                              <p className="mt-1 text-base font-black text-slate-900">{formatCurrency(viewPackagePrice)}</p>
+                              <p className="mt-1 text-base font-pmedium text-slate-900">{formatCurrency(viewPackagePrice)}</p>
                             </div>
                           ) : null}
                           {hasMeaningfulValue(viewPackageDurationMonths) ? (
                             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Duration</p>
-                              <p className="mt-1 text-base font-black text-emerald-700">{viewPackageDurationMonths} months</p>
+                              <p className="mt-1 text-base font-pmedium text-emerald-700">{viewPackageDurationMonths} months</p>
                             </div>
                           ) : null}
                         </div>
@@ -2658,25 +2660,25 @@ export default function PricingPackagesPage() {
                             {hasMeaningfulValue(viewPackageTotalSeats) ? (
                               <div>
                                 <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Seats Included</p>
-                                <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageTotalSeats}</p>
+                                <p className="mt-1 text-sm font-pmedium text-slate-700">{viewPackageTotalSeats}</p>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
                               <div>
                                 <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p>
-                                <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageMonthlyCredits}</p>
+                                <p className="mt-1 text-sm font-pmedium text-slate-700">{viewPackageMonthlyCredits}</p>
                               </div>
                             ) : null}
                             {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
                               <div>
                                 <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Recommended</p>
-                                <p className="mt-1 text-sm font-bold text-slate-700">Yes</p>
+                                <p className="mt-1 text-sm font-pmedium text-slate-700">Yes</p>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
                               <div className="sm:col-span-2">
                                 <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Company</p>
-                                <p className="mt-1 text-sm font-bold text-slate-700">{selectedPackage.assignedTenantCompanyName}</p>
+                                <p className="mt-1 text-sm font-pmedium text-slate-700">{selectedPackage.assignedTenantCompanyName}</p>
                               </div>
                             ) : null}
                           </div>
@@ -2694,7 +2696,7 @@ export default function PricingPackagesPage() {
                             <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Feature Bullets</p>
                             <ul className="mt-3 space-y-2">
                               {viewPackageFeatures.map((feature) => (
-                                <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                                <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-pmedium text-slate-700">
                                   {feature}
                                 </li>
                               ))}
@@ -2707,12 +2709,12 @@ export default function PricingPackagesPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <label className="text-[13px] font-bold text-slate-400">Package Name *</label>
+                      <label className="text-[13px] font-pmedium text-slate-400">Package Name *</label>
                       <input
                         required
                         type="text"
                         disabled={isTenantPackageRateEdit}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                         value={packageForm.name}
                         onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))}
                       />
@@ -2727,11 +2729,11 @@ export default function PricingPackagesPage() {
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-slate-400">Floor *</label>
+                              <label className="text-[11px] font-pmedium text-slate-400">Floor *</label>
                               <select
                                 required
                                 disabled={isTenantPackageRateEdit}
-                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={packageForm.floor}
                                 onChange={(e) => {
                                   const nextFloor = e.target.value;
@@ -2748,11 +2750,11 @@ export default function PricingPackagesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-slate-400">Wing *</label>
+                              <label className="text-[11px] font-pmedium text-slate-400">Wing *</label>
                               <select
                                 required
                                 disabled={isTenantPackageRateEdit}
-                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={packageForm.wing}
                                 onChange={(e) => updateTenantScopeSelection(packageForm.floor, e.target.value.toUpperCase())}
                               >
@@ -2761,10 +2763,10 @@ export default function PricingPackagesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-slate-400">Block Mix</label>
+                              <label className="text-[11px] font-pmedium text-slate-400">Block Mix</label>
                               <select
                                 disabled={isTenantPackageRateEdit}
-                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={tenantSelectionPreset}
                                 onChange={(e) => handleTenantSelectionPresetChange(e.target.value)}
                               >
@@ -2796,7 +2798,7 @@ export default function PricingPackagesPage() {
                                     <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-emerald-200'}`}>
                                       <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
                                       <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
+                                        <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name}</p>
                                         <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                         {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
                                           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -2811,7 +2813,7 @@ export default function PricingPackagesPage() {
                                     </label>
                                   );
                                 }) : (
-                                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-center text-xs font-medium text-emerald-700">No open desk blocks in this scope.</div>
+                                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-center text-xs font-pmedium text-emerald-700">No open desk blocks in this scope.</div>
                                 )}
                               </div>
                             </div>
@@ -2833,7 +2835,7 @@ export default function PricingPackagesPage() {
                                     <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
                                       <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
                                       <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
+                                        <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name}</p>
                                         <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                         {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
                                           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -2848,7 +2850,7 @@ export default function PricingPackagesPage() {
                                     </label>
                                   );
                                 }) : (
-                                  <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-medium text-blue-700">No cabin desk blocks in this scope.</div>
+                                  <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-pmedium text-blue-700">No cabin desk blocks in this scope.</div>
                                 )}
                               </div>
                             </div>
@@ -2856,8 +2858,8 @@ export default function PricingPackagesPage() {
                         ) : (
                           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
                             <LayoutGrid size={24} className="mx-auto mb-2 text-slate-300" />
-                            <p className="text-[12px] font-bold text-slate-500">No area blocks found</p>
-                            <p className="mt-1 text-[10px] font-medium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
+                            <p className="text-[12px] font-pmedium text-slate-500">No area blocks found</p>
+                            <p className="mt-1 text-[10px] font-pmedium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
                           </div>
                         )}
 
@@ -2870,23 +2872,23 @@ export default function PricingPackagesPage() {
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-amber-800">Open Desk Rate / Day *</label>
+                              <label className="text-[11px] font-pmedium text-amber-800">Open Desk Rate / Day *</label>
                               <input
                                 required
                                 type="number"
                                 min="0"
-                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
                                 value={packageForm.ratePerOpenDesk}
                                 onChange={(e) => setPackageForm((current) => ({ ...current, ratePerOpenDesk: e.target.value }))}
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-amber-800">Cabin Desk Rate / Day *</label>
+                              <label className="text-[11px] font-pmedium text-amber-800">Cabin Desk Rate / Day *</label>
                               <input
                                 required
                                 type="number"
                                 min="0"
-                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
                                 value={packageForm.ratePerCabinDesk}
                                 onChange={(e) => setPackageForm((current) => ({ ...current, ratePerCabinDesk: e.target.value }))}
                               />
@@ -2895,15 +2897,15 @@ export default function PricingPackagesPage() {
                           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
                             <div className="rounded-xl border border-white/70 bg-white p-2.5">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Daily Rent</p>
-                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.dailyRateTotal)}</p>
+                              <p className="mt-1 text-sm font-pmedium text-slate-900">{formatCurrency(tenantPackageSummary.dailyRateTotal)}</p>
                             </div>
                             <div className="rounded-xl border border-white/70 bg-white p-2.5">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p>
-                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
+                              <p className="mt-1 text-sm font-pmedium text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
                             </div>
                             <div className="rounded-xl border border-white/70 bg-white p-2.5">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Value</p>
-                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
+                              <p className="mt-1 text-sm font-pmedium text-slate-900">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
                             </div>
                           </div>
                         </div>
@@ -2913,28 +2915,28 @@ export default function PricingPackagesPage() {
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                             <div className="rounded-xl border border-emerald-100 bg-white p-2.5 text-center shadow-sm">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p>
-                              <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.totalSeats}</p>
-                              <p className="text-[9px] font-bold text-slate-400">{tenantPackageSummary.openDesks} open / {tenantPackageSummary.cabinDesks} cabin</p>
+                              <p className="mt-1 text-base font-pmedium text-slate-900">{tenantPackageSummary.totalSeats}</p>
+                              <p className="text-[9px] font-pmedium text-slate-400">{tenantPackageSummary.openDesks} open / {tenantPackageSummary.cabinDesks} cabin</p>
                             </div>
                             <div className="rounded-xl border border-indigo-100 bg-white p-2.5 text-center shadow-sm">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits / Seat</p>
-                              <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.creditsPerSeat}</p>
-                              <p className="text-[9px] font-bold text-slate-400">per month</p>
+                              <p className="mt-1 text-base font-pmedium text-slate-900">{tenantPackageSummary.creditsPerSeat}</p>
+                              <p className="text-[9px] font-pmedium text-slate-400">per month</p>
                             </div>
                             <div className="rounded-xl border-2 border-purple-300 bg-purple-50/70 p-2.5 text-center shadow-sm">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-purple-600">Total Monthly Credits</p>
-                              <p className="mt-1 text-base font-black text-purple-700">{tenantPackageSummary.monthlyCredits}</p>
-                              <p className="text-[9px] font-bold text-purple-600">auto-renews</p>
+                              <p className="mt-1 text-base font-pmedium text-purple-700">{tenantPackageSummary.monthlyCredits}</p>
+                              <p className="text-[9px] font-pmedium text-purple-600">auto-renews</p>
                             </div>
                             <div className="rounded-xl border border-blue-100 bg-white p-2.5 text-center shadow-sm">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rate</p>
-                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
-                              <p className="text-[9px] font-bold text-slate-400">{formatCurrency(tenantPackageSummary.dailyRateTotal)} / day</p>
+                              <p className="mt-1 text-sm font-pmedium text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
+                              <p className="text-[9px] font-pmedium text-slate-400">{formatCurrency(tenantPackageSummary.dailyRateTotal)} / day</p>
                             </div>
                             <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 p-2.5 text-center shadow-sm">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Contract Value</p>
-                              <p className="mt-1 text-sm font-black text-emerald-700">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
-                              <p className="text-[9px] font-bold text-emerald-600">{Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || 0) || TENANT_PACKAGE_MIN_DURATION_MONTHS)} months</p>
+                              <p className="mt-1 text-sm font-pmedium text-emerald-700">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
+                              <p className="text-[9px] font-pmedium text-emerald-600">{Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || 0) || TENANT_PACKAGE_MIN_DURATION_MONTHS)} months</p>
                             </div>
                           </div>
                         </div>
@@ -2942,26 +2944,26 @@ export default function PricingPackagesPage() {
                     ) : (
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1">
-                          <label className="text-[13px] font-bold text-slate-400">Credits Included *</label>
+                          <label className="text-[13px] font-pmedium text-slate-400">Credits Included *</label>
                           <input
                             required
                             type="number"
                             min="0"
                             disabled={isTenantPackageRateEdit}
-                            className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                            className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
                             value={packageForm.creditsIncluded}
                             onChange={(e) => setPackageForm((current) => ({ ...current, creditsIncluded: e.target.value }))}
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[13px] font-bold text-slate-400">Price (₹) *</label>
+                          <label className="text-[13px] font-pmedium text-slate-400">Price (₹) *</label>
                           <input
                             required
                             type="number"
                             min="0"
                             disabled={isTenantPackageRateEdit}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                             value={packageForm.price}
                             onChange={(e) => setPackageForm((current) => ({ ...current, price: e.target.value }))}
                           />
@@ -2973,13 +2975,13 @@ export default function PricingPackagesPage() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-[13px] font-bold text-slate-400">Duration (months)</label>
+                        <label className="text-[13px] font-pmedium text-slate-400">Duration (months)</label>
                         <input
                           required
                           type="number"
                           min={packageForm.category === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1}
                           disabled={isTenantPackageRateEdit}
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                           value={packageForm.durationMonths}
                           onChange={(e) => setPackageForm((current) => ({ ...current, durationMonths: e.target.value }))}
                         />
@@ -2993,7 +2995,7 @@ export default function PricingPackagesPage() {
                           min="0"
                           readOnly={packageForm.category === 'Tenant'}
                           disabled={isTenantPackageRateEdit}
-                          className={`w-full px-3 py-2.5 border rounded-xl text-[12px] font-medium outline-none transition-all ${packageForm.category === 'Tenant'
+                          className={`w-full px-3 py-2.5 border rounded-xl text-[12px] font-pmedium outline-none transition-all ${packageForm.category === 'Tenant'
                             ? 'cursor-not-allowed border-dashed border-emerald-200 bg-emerald-50 text-emerald-900'
                             : 'bg-slate-50 border-slate-200 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10'
                             }`}
@@ -3004,23 +3006,23 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[13px] font-bold text-slate-400">Description</label>
+                      <label className="text-[13px] font-pmedium text-slate-400">Description</label>
                       <textarea
                         rows={3}
                         disabled={isTenantPackageRateEdit}
-                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                         value={packageForm.description}
                         onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))}
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[13px] font-bold text-slate-400">Feature Bullets</label>
+                      <label className="text-[13px] font-pmedium text-slate-400">Feature Bullets</label>
                       <textarea
                         rows={4}
                         placeholder="One feature per line"
                         disabled={isTenantPackageRateEdit}
-                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                         value={packageForm.featuresText}
                         onChange={(e) => setPackageForm((current) => ({ ...current, featuresText: e.target.value }))}
                       />
@@ -3028,10 +3030,10 @@ export default function PricingPackagesPage() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-[13px] font-bold text-slate-400">Status</label>
+                        <label className="text-[13px] font-pmedium text-slate-400">Status</label>
                         <select
                           disabled={isTenantPackageRateEdit}
-                          className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                           value={packageForm.status}
                           onChange={(e) => setPackageForm((current) => ({ ...current, status: e.target.value }))}
                         >
@@ -3045,14 +3047,14 @@ export default function PricingPackagesPage() {
                           checked={packageForm.isRecommended}
                           onChange={(e) => setPackageForm((current) => ({ ...current, isRecommended: e.target.checked }))}
                         />
-                        <span className="text-[13px] font-medium text-slate-600">Mark as recommended</span>
+                        <span className="text-[13px] font-pmedium text-slate-600">Mark as recommended</span>
                       </label>
                     </div>
 
                     {packageForm.category === 'Tenant' ? (
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                         <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Tenant package note</p>
-                        <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
+                        <p className="mt-1 text-[11px] font-pmedium leading-relaxed text-slate-600">
                           Tenant packages should reflect the number of open desks and private cabins granted to the company. Monthly credits are derived from total seats multiplied by credits per seat and automatically renew each month.
                         </p>
                       </div>
