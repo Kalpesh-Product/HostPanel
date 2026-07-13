@@ -162,6 +162,65 @@ export const createSupportTicket = async (req, res, next) => {
   }
 };
 
+export const updateSupportTicket = async (req, res, next) => {
+  try {
+    const ticket = await SupportTicket.findById(req.params.ticketId).exec();
+    if (!ticket) return res.status(404).json({ message: "Support ticket not found." });
+
+    if (String(ticket.requestedBy || "") !== String(req.user || "")) {
+      return res.status(403).json({ message: "You can only edit a ticket you raised." });
+    }
+
+    // Once the Wono team has accepted the ticket, `status` moves off "Open"
+    // and acceptedBy/acceptedByName/acceptedByEmail get set — that's the
+    // signal that someone is already acting on it, so the host user can no
+    // longer edit the details out from under them.
+    if (normalizeStatus(ticket.status) !== "Open") {
+      return res.status(400).json({
+        message: "This ticket has already been accepted by the Wono team and can no longer be edited.",
+      });
+    }
+
+    const { title, description, pageUrl } = req.body;
+
+    if (title !== undefined) {
+      if (!String(title).trim()) {
+        return res.status(400).json({ message: "Title cannot be empty." });
+      }
+      ticket.title = String(title).trim();
+    }
+
+    if (description !== undefined) {
+      if (!String(description).trim()) {
+        return res.status(400).json({ message: "Description cannot be empty." });
+      }
+      ticket.description = String(description).trim();
+    }
+
+    if (pageUrl !== undefined) {
+      ticket.pageUrl = String(pageUrl || "").trim();
+    }
+
+    if (req.file) {
+      const cleanName = String(req.file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
+      const route = `support-tickets/${req.workspaceMembership?.workspace || "default"}/${Date.now()}-${cleanName}`;
+      try {
+        ticket.image = await uploadFileToS3(route, req.file);
+      } catch (uploadError: any) {
+        return res.status(502).json({
+          message: "Attachment upload failed. Please try again.",
+          error: uploadError?.message || "S3 upload error",
+        });
+      }
+    }
+
+    await ticket.save();
+    return res.status(200).json({ message: "Support ticket updated.", data: ticket });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const closeSupportTicket = async (req, res, next) => {
   try {
     const ticket = await SupportTicket.findById(req.params.ticketId).exec();
