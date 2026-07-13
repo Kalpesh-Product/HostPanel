@@ -52,7 +52,7 @@ function RepairLogModal({ open, onClose }: any) {
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full border border-slate-100 animate-in zoom-in-95 duration-200">
-        <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+        <h3 className="text-lg font-pmedium text-slate-900 mb-2 flex items-center gap-2">
           <Wrench className="text-cyan-600" size={20} /> Repair Log Modal (Stub)
         </h3>
         <p className="text-slate-500 text-xs mb-4 leading-relaxed">
@@ -247,7 +247,7 @@ export function TicketsPage() {
     role: storedUser?.role || 'owner',
     dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (storedUser?.workspaceMembership?.departments?.[0] || 'Executive')),
   };
-  const currentUserId = storedUser?._id || storedUser?.id || '';
+  const currentUserId = String(storedUser?._id || storedUser?.id || storedUser?.userId || '').trim();
   const currentUserDepartments = [
     ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
     storedUser?.workspaceMembership?.department,
@@ -399,18 +399,7 @@ export function TicketsPage() {
       return false;
     }
 
-    const assignedId = ticket?.assigneeUserId ? String(ticket.assigneeUserId) : '';
-    const me = currentUserId ? String(currentUserId) : '';
-
-    if (me && assignedId === me) {
-      return true;
-    }
-
-    if (!assignedId) {
-      return isCurrentUserName(ticket?.assignedTo);
-    }
-
-    return false;
+    return isMyReceivedTicket(ticket);
   }
 
   function isEmployeeRaisedTicket(ticket) {
@@ -418,34 +407,19 @@ export function TicketsPage() {
       return false;
     }
 
-    const requesterId = ticket?.requesterUserId ? String(ticket.requesterUserId) : '';
-    const me = currentUserId ? String(currentUserId) : '';
-
-    if (me && requesterId && requesterId === me) {
-      return true;
-    }
-
-    return isCurrentUserName(ticket?.submittedBy);
+    return isMyRaisedTicket(ticket);
   }
 
   function isMyRaisedTicket(ticket) {
     const requesterId = ticket?.requesterUserId ? String(ticket.requesterUserId) : '';
     const me = currentUserId ? String(currentUserId) : '';
-    const ticketRaisedDept = normalizeRoleValue(ticket?.submittedByDept || '');
-    const myRaisedDept = isOwnerProfile
-      ? 'owner'
-      : isSuperAdminProfile
-        ? 'super_admin'
-        : normalizeRoleValue(profile.dept || '');
 
-    if (me && requesterId && requesterId === me) {
-      return true;
+    if (requesterId) {
+      return Boolean(me && requesterId === me);
     }
 
-    if (ticketRaisedDept && myRaisedDept && ticketRaisedDept !== myRaisedDept) {
-      return false;
-    }
-
+    // Older tickets may not have requesterUserId, so retain a name fallback only
+    // when there is no authoritative requester ID on the ticket.
     return isCurrentUserName(ticket?.submittedBy);
   }
 
@@ -491,18 +465,7 @@ export function TicketsPage() {
       return false;
     }
 
-    const assigneeId = ticket?.assigneeUserId ? String(ticket.assigneeUserId) : '';
-    const me = currentUserId ? String(currentUserId) : '';
-
-    if (me && assigneeId === me) {
-      return true;
-    }
-
-    if (!assigneeId) {
-      return isCurrentUserName(ticket?.assignedTo);
-    }
-
-    return false;
+    return isMyReceivedTicket(ticket);
   }
 
   function isAdminAssignedDepartmentTicket(ticket) {
@@ -651,6 +614,10 @@ export function TicketsPage() {
   }
 
   function shouldShowDepartmentOption(department) {
+    if (/^sales\s*(&|and)?\s*crm$/i.test(String(department || '').trim())) {
+      return false;
+    }
+
     const normalized = normalizeRoleValue(department);
     if (isOwnerProfile && normalized === 'owner') {
       return false;
@@ -736,18 +703,7 @@ export function TicketsPage() {
       return false;
     }
 
-    const assignedId = ticket?.assigneeUserId ? String(ticket.assigneeUserId) : '';
-    const me = currentUserId ? String(currentUserId) : '';
-
-    if (me && assignedId === me) {
-      return true;
-    }
-
-    if (!assignedId) {
-      return isCurrentUserName(ticket?.assignedTo);
-    }
-
-    return false;
+    return isMyReceivedTicket(ticket);
   }
 
   function canCurrentUserChangeTicketStatus(ticket) {
@@ -770,28 +726,7 @@ export function TicketsPage() {
       return false;
     }
 
-    const ticketKey = normalizeRoleValue(ticket?.department || '');
-    if (!ticketKey || !adminAssignedDepartmentKeys.has(ticketKey)) {
-      return false;
-    }
-
-    const requesterId = ticket?.requesterUserId ? String(ticket.requesterUserId) : '';
-    if (requesterId && currentUserId && requesterId === String(currentUserId)) {
-      const assignedId = ticket?.assigneeUserId ? String(ticket.assigneeUserId) : '';
-      const acceptedId = ticket?.acceptedByUserId ? String(ticket.acceptedByUserId) : '';
-
-      if (assignedId === String(currentUserId) || acceptedId === String(currentUserId)) {
-        return false;
-      }
-
-      if (isCurrentUserName(ticket?.assignedTo) || isCurrentUserName(ticket?.acceptedBy)) {
-        return false;
-      }
-
-      return true;
-    }
-
-    return isCurrentUserName(ticket?.submittedBy);
+    return isMyRaisedTicket(ticket);
   }
 
   const availableDepartments = useMemo(() => {
@@ -1880,11 +1815,11 @@ export function TicketsPage() {
   }
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
         {isInitialLoading && <TicketsSkeleton />}
         {!isInitialLoading && (
-          <div className="flex flex-col gap-4 text-slate-700 font-sans">
+          <div className="flex flex-col gap-4 text-slate-700 font-pmedium">
 
             {/* 1. HEADER */}
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
@@ -1903,7 +1838,7 @@ export function TicketsPage() {
             </div>
 
             {errorMessage ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">
                 {errorMessage}
               </div>
             ) : null}
@@ -1914,7 +1849,7 @@ export function TicketsPage() {
                 <>
                   <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Assigned Dept {tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length > 0 && (
-                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length}</span>
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
                   <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -1931,7 +1866,7 @@ export function TicketsPage() {
                   </button>
                   <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length > 0 && (
-                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length}</span>
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
                   <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -1942,7 +1877,7 @@ export function TicketsPage() {
                 <>
                   <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department {tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length > 0 && (
-                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length}</span>
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
                   <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -1959,7 +1894,7 @@ export function TicketsPage() {
                   </button>
                   <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length > 0 && (
-                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length}</span>
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
                   <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -2104,9 +2039,11 @@ export function TicketsPage() {
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top text-center">
                           <button
                             onClick={() => setViewingTicket(ticket)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5 mx-auto"
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 mx-auto"
+                            aria-label={`View details for ${ticket.id || ticket.title}`}
+                            title="View details"
                           >
-                            <Eye size={14} strokeWidth={2} /> View
+                            <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
                           </button>
                         </td>
                       </tr>
@@ -2122,8 +2059,8 @@ export function TicketsPage() {
                       <div key={ticket.id} className={`bg-white border p-4 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${isTicketOpen ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1 flex flex-col gap-1.5">
-                            <span className="font-mono text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{ticket.id}</span>
-                            <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">
+                            <span className="font-pmedium text-[10px] text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{ticket.id}</span>
+                            <h3 className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]">
                               {ticket.title}
                             </h3>
                             <p className="text-[12px] text-slate-500 line-clamp-2">{ticket.description}</p>
@@ -2137,7 +2074,7 @@ export function TicketsPage() {
                         <div className="grid grid-cols-2 gap-3 bg-slate-55 p-3 rounded-xl border border-slate-100 mt-1">
                           <div>
                             <span className={statusPillClass("Raised By")}>Raised By</span>
-                            <span className="text-[11px] font-semibold text-[#0F172A] truncate block" title={ticket.submittedBy}>{formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}</span>
+                            <span className="text-[11px] font-pmedium text-[#0F172A] truncate block" title={ticket.submittedBy}>{formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}</span>
                             {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
                               <span className={statusPillClass(getSubmittedByBadgeLabel(ticket.submittedByDept))}>
                                 {getSubmittedByBadgeLabel(ticket.submittedByDept)}
@@ -2151,28 +2088,30 @@ export function TicketsPage() {
                           </div>
                           <div>
                             <span className={statusPillClass("Routed To")}>Routed To</span>
-                            <span className="text-[11px] font-semibold text-[#2563EB] truncate block" title={ticket.department}>{ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo.split(' ')[0]}` : ''}</span>
+                            <span className="text-[11px] font-pmedium text-[#2563EB] truncate block" title={ticket.department}>{ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo.split(' ')[0]}` : ''}</span>
                           </div>
                         </div>
 
                         {ticket.acceptedBy && (
                           <div className="flex items-center gap-1.5 bg-indigo-50/50 p-2 rounded-lg border border-indigo-100/50 mt-1">
-                            <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700 flex items-center gap-1.5"><User size={12} strokeWidth={2.5} /> Accepted By: {ticket.acceptedBy}</span>
+                            <span className="text-[10px] sm:text-[11px] font-pmedium text-indigo-700 flex items-center gap-1.5"><User size={12} strokeWidth={2.5} /> Accepted By: {ticket.acceptedBy}</span>
                           </div>
                         )}
 
                         <div className="flex justify-between items-center mt-1 border-t border-slate-100/60 pt-3">
                           <div className="flex flex-col">
-                            <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Clock size={12} /> {ticket.updated}</span>
+                            <span className="font-pmedium text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Clock size={12} /> {ticket.updated}</span>
                             {ticket.status === 'Resolved' && ticket.resolutionNote && (
                               <span className={statusPillClass("Note Attached")}>Note Attached</span>
                             )}
                           </div>
                           <button
                             onClick={() => setViewingTicket(ticket)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                            aria-label={`View details for ${ticket.id || ticket.title}`}
+                            title="View details"
                           >
-                            <Eye size={14} strokeWidth={2} /> View
+                            <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
                           </button>
                         </div>
                       </div>
@@ -2186,7 +2125,7 @@ export function TicketsPage() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100">
                       <Search className="text-slate-400" size={24} />
                     </div>
-                    <p className="text-slate-500 font-semibold mb-1">No tickets found</p>
+                    <p className="text-slate-500 font-pmedium mb-1">No tickets found</p>
                     <p className="text-slate-400 text-[13px]">Try adjusting your filters or search terms.</p>
                   </div>
                 )}
@@ -2247,11 +2186,11 @@ export function TicketsPage() {
                           ))}
                         </select>
                         {selectedTicketAsset ? (
-                          <p className="text-[10px] font-medium text-slate-400">
+                          <p className="text-[10px] font-pmedium text-slate-400">
                             {selectedTicketAsset.assetName || selectedTicketAsset.name} will be tagged on this ticket and the repair log.
                           </p>
                         ) : (
-                          <p className="text-[10px] font-medium text-slate-400">
+                          <p className="text-[10px] font-pmedium text-slate-400">
                             Select the assigned asset only for IT or Maintenance issue reports.
                           </p>
                         )}
@@ -2350,7 +2289,7 @@ export function TicketsPage() {
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div className="min-w-0">
-                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{issue.title}</p>
+                                  <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{issue.title}</p>
                                   <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
                                     {issue.description || 'Use this as a starting point for the issue details.'}
                                   </p>
@@ -2383,19 +2322,19 @@ export function TicketsPage() {
                     <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Paperclip className="text-[#2563EB]" size={20} />
                     </div>
-                    <p className="text-[12px] sm:text-[13px] font-bold text-[#0F172A]">Upload screenshot or document</p>
+                    <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
                     <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG or PDF up to 10MB</p>
                   </div>
                 </div>
 
-                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:flex-1 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
+                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
+                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="w-full sm:flex-[2] py-3 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isSaving ? 'SUBMITTING...' : 'SUBMIT TICKET'} <Plus size={16} strokeWidth={2.5} />
+                    {isSaving ? 'SUBMITTING...' : 'SUBMIT TICKET'} <Plus size={13} strokeWidth={3} />
                   </button>
                 </div>
               </form>
@@ -2421,7 +2360,7 @@ export function TicketsPage() {
                   <div className="min-w-0">
                     <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{viewingTicket.title}</h2>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingTicket.id}</span>
+                      <span className="font-pmedium text-[10px] text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingTicket.id}</span>
                       {getPriorityBadge(viewingTicket.priority)}
                       {getStatusBadge(viewingTicket.status)}
                     </div>
@@ -2540,10 +2479,10 @@ export function TicketsPage() {
                   (isEmployeeTicketProfile && isEmployeeDepartmentTaskTicket(viewingTicket) && viewingTicket.status === 'Open') ? (
                   <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col gap-4 shadow-sm animate-in slide-in-from-bottom-4">
                     <div>
-                      <h4 className="font-bold text-amber-900 text-[14px]">
+                      <h4 className="font-pmedium text-amber-900 text-[14px]">
                         Accept Department Ticket
                       </h4>
-                      <p className="text-[11px] text-amber-700 font-medium mt-0.5">
+                      <p className="text-[11px] text-amber-700 font-pmedium mt-0.5">
                         {isEmployeeTicketProfile
                           ? 'Accept this ticket for yourself only.'
                           : 'Accept for yourself or assign it directly to a department member.'}
@@ -2587,8 +2526,8 @@ export function TicketsPage() {
                 ) : isMyReceivedTicket(viewingTicket) && viewingTicket.status === 'Open' && (
                   <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
                     <div>
-                      <h4 className="font-bold text-amber-900 text-[14px]">Acknowledge Ticket</h4>
-                      <p className="text-[11px] text-amber-700 font-medium mt-0.5">Accepting this will move it to "In Progress".</p>
+                      <h4 className="font-pmedium text-amber-900 text-[14px]">Acknowledge Ticket</h4>
+                      <p className="text-[11px] text-amber-700 font-pmedium mt-0.5">Accepting this will move it to "In Progress".</p>
                     </div>
                     <button onClick={() => handleAcceptTicket()} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-pmedium text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase">
                       ACCEPT TICKET
@@ -2601,7 +2540,7 @@ export function TicketsPage() {
                   <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="w-full sm:w-auto text-left">
                       <h3 className="text-[11px] font-pmedium text-slate-800 uppercase tracking-wider">Update Progress</h3>
-                      <p className="text-[12px] text-slate-500 font-medium mt-0.5">Is the issue completely fixed?</p>
+                      <p className="text-[12px] text-slate-500 font-pmedium mt-0.5">Is the issue completely fixed?</p>
                     </div>
                     <button onClick={() => handleUpdateStatus('Resolved')} className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white shadow-sm">
                       <CheckCircle2 size={16} strokeWidth={2.5} /> Resolve Issue
@@ -2632,8 +2571,8 @@ export function TicketsPage() {
                 {((activeTab === 'my_raised' || activeTab === 'my_raised_tickets') || isMyRaisedTicket(viewingTicket) || isEmployeeRaisedTicket(viewingTicket)) && viewingTicket.status === 'Resolved' && (
                   <div className="bg-red-50 border border-red-100 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
                     <div className="w-full sm:w-auto">
-                      <h4 className="font-bold text-red-900 text-[14px]">Issue Not Fixed?</h4>
-                      <p className="text-[11px] text-red-700 font-medium mt-0.5">Re-open this loop with a linked follow-up ticket.</p>
+                      <h4 className="font-pmedium text-red-900 text-[14px]">Issue Not Fixed?</h4>
+                      <p className="text-[11px] text-red-700 font-pmedium mt-0.5">Re-open this loop with a linked follow-up ticket.</p>
                     </div>
                     <button onClick={handleRaiseFollowUp} className="px-5 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
                       <Reply size={14} strokeWidth={2.5} /> Raise Follow-up
@@ -2644,8 +2583,8 @@ export function TicketsPage() {
                 {canCurrentUserChangeTicketStatus(viewingTicket) && viewingTicket.status === 'Resolved' && (
                   <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                     <div className="w-full sm:w-auto">
-                      <h4 className="font-bold text-slate-900 text-[14px]">Close Ticket</h4>
-                      <p className="text-[11px] text-slate-600 font-medium mt-0.5">Mark this resolved ticket as formally closed.</p>
+                      <h4 className="font-pmedium text-slate-900 text-[14px]">Close Ticket</h4>
+                      <p className="text-[11px] text-slate-600 font-pmedium mt-0.5">Mark this resolved ticket as formally closed.</p>
                     </div>
                     <button onClick={() => handleUpdateStatus('Closed')} className="px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
                       <CheckSquare size={14} strokeWidth={2.5} /> Close Ticket
@@ -2656,19 +2595,19 @@ export function TicketsPage() {
                 {canCreateRepairLogForTicket(viewingTicket) && (
                   <div className="bg-cyan-50 border border-cyan-100 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                     <div className="w-full sm:w-auto">
-                      <h4 className="font-bold text-cyan-950 text-[14px]">Create Repair Log</h4>
-                      <p className="text-[11px] text-cyan-800 font-medium mt-0.5">Push this IT or Maintenance ticket into the repair-log workflow.</p>
+                      <h4 className="font-pmedium text-cyan-950 text-[14px]">Create Repair Log</h4>
+                      <p className="text-[11px] text-cyan-800 font-pmedium mt-0.5">Push this IT or Maintenance ticket into the repair-log workflow.</p>
                       {hasLinkedRepairLog ? (
                         <div className="mt-2 space-y-2">
                           <p className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-wider text-cyan-700">
                             Repair log added{linkedRepairLogCode ? ` • ${linkedRepairLogCode}` : ''}
                           </p>
-                          <p className="text-[11px] font-semibold text-cyan-900">
-                            Assigned to <span className="font-black">{linkedRepairLogAssignee || 'Unassigned'}</span>
+                          <p className="text-[11px] font-pmedium text-cyan-900">
+                            Assigned to <span className="font-pmedium">{linkedRepairLogAssignee || 'Unassigned'}</span>
                           </p>
                           {linkedRepairLogStatus ? (
-                            <p className="text-[11px] font-semibold text-cyan-900">
-                              Status <span className="font-black">{linkedRepairLogStatus}</span>
+                            <p className="text-[11px] font-pmedium text-cyan-900">
+                              Status <span className="font-pmedium">{linkedRepairLogStatus}</span>
                             </p>
                           ) : null}
                         </div>

@@ -11,9 +11,11 @@ import {
 } from '../../services/visitors';
 import { PERMISSIONS } from '../../constants/permissions';
 import {
+  createExternalClient,
   createMeetingRoomBooking,
-  getMeetingRoomClients,
+  getExternalClients,
   getMeetingRoomBookings,
+  sendExternalBookingConfirmationEmail,
   updateMeetingRoomBooking,
 } from '../../services/meeting-room-bookings';
 import { toast } from 'sonner';
@@ -383,6 +385,68 @@ function getStandardVisitorValidationErrors(form = {}, isDepartmentVisitorType =
     if (!tenantCompanyName) errors.tenantCompanyName = requiredMessage;
     if (!hostGroupValue) errors.hostGroupValue = requiredMessage;
     if (!hostUserId) errors.hostUserId = requiredMessage;
+  }
+
+  return errors;
+}
+
+function getUnitTourValidationErrors(form = {}) {
+  const errors = {};
+  const requiredMessage = 'This field is required.';
+  const pocName = String(form.pocName || '').trim();
+  const phone = String(form.pocPhone || '').trim();
+  const email = String(form.pocEmail || '').trim();
+
+  if (!pocName) errors.pocName = requiredMessage;
+  else if (!isValidName(pocName)) errors.pocName = 'Only letters and spaces are allowed.';
+
+  if (!phone) errors.pocPhone = requiredMessage;
+  else if (!isValidPhone(phone)) errors.pocPhone = 'Enter a valid 10-digit phone number.';
+
+  if (!email) errors.pocEmail = requiredMessage;
+  else if (!isValidEmail(email)) errors.pocEmail = 'Enter a valid email address.';
+
+  ['industry', 'teamSize', 'seatCount', 'preferredSpace', 'budgetRange', 'moveInTimeline', 'preferredContactMethod'].forEach((field) => {
+    if (!String(form[field] || '').trim()) errors[field] = requiredMessage;
+  });
+
+  return errors;
+}
+
+function getWalkInValidationErrors(form = {}, options = {}) {
+  const errors = {};
+  const requiredMessage = 'This field is required.';
+  const name = String(form.name || '').trim();
+  const phone = String(form.phone || '').trim();
+  const email = String(form.email || '').trim();
+  const attendees = Number(form.attendees || 0);
+
+  if (!name) errors.name = requiredMessage;
+  else if (!isValidName(name)) errors.name = 'Only letters and spaces are allowed.';
+
+  if (!phone) errors.phone = requiredMessage;
+  else if (!isValidPhone(phone)) errors.phone = 'Enter a valid 10-digit phone number.';
+
+  if (!email) errors.email = requiredMessage;
+  else if (!isValidEmail(email)) errors.email = 'Enter a valid email address.';
+
+  ['spaceType', 'floor', 'wing', 'resourceName', 'startDate', 'endDate', 'startTime', 'endTime', 'paymentMode'].forEach((field) => {
+    if (!String(form[field] || '').trim()) errors[field] = requiredMessage;
+  });
+
+  if (attendees < 1) errors.attendees = 'Enter at least one attendee.';
+  if (options.attendeeCapacity && attendees > options.attendeeCapacity) {
+    errors.attendees = `Maximum ${options.attendeeCapacity} attendees allowed.`;
+  }
+  if (options.isDeskAreaSeatBooking && !String(form.seatNumber || '').trim()) {
+    errors.seatNumber = requiredMessage;
+  }
+  if (normalizeText(form.paymentMode).includes('gpay')) {
+    if (!String(form.transactionId || '').trim()) errors.transactionId = requiredMessage;
+    if (!form.paymentProofFile) errors.paymentProofFile = 'Upload the payment screenshot.';
+  }
+  if (!options.availability?.available) {
+    errors.availability = options.availability?.reason || 'Please choose an available slot.';
   }
 
   return errors;
@@ -782,6 +846,13 @@ export default function VisitorsManagementPage() {
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const isReadOnlySession = Boolean(auth?.impersonation);
+  const workspaceId = String(
+    auth?.user?.workspaceMembership?.workspaceId ||
+    auth?.user?.workspaceMembership?.workspace ||
+    auth?.user?.primaryWorkspace ||
+    auth?.user?.workspaceId ||
+    '',
+  ).trim();
   const userPermissions = useMemo(
     () => auth?.user?.permissions?.permissions || [],
     [auth?.user?.permissions?.permissions],
@@ -970,6 +1041,10 @@ export default function VisitorsManagementPage() {
   const [lastSelectedExistingVisitor, setLastSelectedExistingVisitor] = useState(null);
   const [standardVisitorTouched, setStandardVisitorTouched] = useState({});
   const [standardVisitorSubmitAttempted, setStandardVisitorSubmitAttempted] = useState(false);
+  const [tourTouched, setTourTouched] = useState({});
+  const [tourSubmitAttempted, setTourSubmitAttempted] = useState(false);
+  const [walkInTouched, setWalkInTouched] = useState({});
+  const [walkInSubmitAttempted, setWalkInSubmitAttempted] = useState(false);
   const tenantCompanyOptions = useMemo(
     () => [...new Set((bookingClients || []).map((client) => String(client?.company || '').trim()).filter(Boolean))],
     [bookingClients],
@@ -1123,8 +1198,13 @@ export default function VisitorsManagementPage() {
     let isCancelled = false;
 
     async function loadMeetingRoomOverview() {
+      if (!workspaceId) {
+        setMeetingRoomOverviewError('An active workspace is required to load meeting room availability.');
+        return;
+      }
+
       try {
-        const result = await getMeetingRoomBookings();
+        const result = await getMeetingRoomBookings(workspaceId);
         if (isCancelled || !result) {
           return;
         }
@@ -1208,7 +1288,7 @@ export default function VisitorsManagementPage() {
       isCancelled = true;
       window.clearInterval(refreshTimer);
     };
-  }, []);
+  }, [workspaceId]);
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
 
@@ -1445,7 +1525,7 @@ export default function VisitorsManagementPage() {
   }, [bookingClients, searchQuery, upcomingBookings]);
 
   const selectedBookingClient = useMemo(
-    () => bookingClients.find((client) => String(client.id || client.recordId || '') === String(form.clientId || '')) || null,
+    () => bookingClients.find((client) => String(client.id || client.recordId || client._id || '') === String(form.clientId || '')) || null,
     [bookingClients, form.clientId],
   );
 
@@ -1585,11 +1665,14 @@ export default function VisitorsManagementPage() {
   const hasStandardVisitorSearchQuery = normalizeText(form.standardVisitorSearch).length > 0;
 
   const applyExistingStandardVisitor = (visitor) => {
+    const nameParts = String(visitor?.name || '').trim().split(/\s+/).filter(Boolean);
+    const selectedFirstName = visitor?.firstName || nameParts[0] || '';
+    const selectedLastName = visitor?.lastName || nameParts.slice(1).join(' ');
     setLastSelectedExistingVisitor(visitor || null);
     setForm((prev) => ({
       ...prev,
-      firstName: visitor?.firstName || prev.firstName,
-      lastName: visitor?.lastName || prev.lastName,
+      firstName: selectedFirstName || prev.firstName,
+      lastName: selectedLastName || prev.lastName,
       gender: visitor?.gender || prev.gender,
       name: visitor?.name || `${visitor?.firstName || ''} ${visitor?.lastName || ''}`.trim() || prev.name,
       phone: visitor?.phone || prev.phone,
@@ -1607,10 +1690,14 @@ export default function VisitorsManagementPage() {
       hostGroupType: visitor?.hostGroupType || '',
       hostGroupValue: visitor?.hostGroupValue || '',
       hostUserId: visitor?.hostUserId || '',
+      standardVisitorSearch: '',
     }));
+    setStandardVisitorTouched({});
+    setStandardVisitorSubmitAttempted(false);
   };
 
   const switchStandardVisitorMode = (mode) => {
+    if (mode === 'new') setLastSelectedExistingVisitor(null);
     setForm((prev) => {
       if (mode === 'new') {
         const reset = getDefaultVisitorForm();
@@ -2182,6 +2269,30 @@ export default function VisitorsManagementPage() {
     return Object.keys(standardVisitorErrors).length === 0;
   }, [standardVisitorErrors]);
 
+  const tourErrors = useMemo(() => getUnitTourValidationErrors(form), [form]);
+  const visibleTourErrors = useMemo(() => {
+    const nextErrors = {};
+    Object.entries(tourErrors).forEach(([field, message]) => {
+      if (tourTouched[field] || tourSubmitAttempted) nextErrors[field] = message;
+    });
+    return nextErrors;
+  }, [tourErrors, tourSubmitAttempted, tourTouched]);
+  const isTourFormComplete = Object.keys(tourErrors).length === 0;
+
+  const walkInErrors = useMemo(() => getWalkInValidationErrors(form, {
+    attendeeCapacity,
+    availability: walkInAvailability,
+    isDeskAreaSeatBooking,
+  }), [attendeeCapacity, form, isDeskAreaSeatBooking, walkInAvailability]);
+  const visibleWalkInErrors = useMemo(() => {
+    const nextErrors = {};
+    Object.entries(walkInErrors).forEach(([field, message]) => {
+      if (walkInTouched[field] || walkInSubmitAttempted) nextErrors[field] = message;
+    });
+    return nextErrors;
+  }, [walkInErrors, walkInSubmitAttempted, walkInTouched]);
+  const isWalkInFormComplete = Object.keys(walkInErrors).length === 0;
+
   useEffect(() => {
     if (lockedTopTabs.has(activeTab)) {
       setActiveTab('daily');
@@ -2353,11 +2464,17 @@ export default function VisitorsManagementPage() {
   };
 
   const refreshBookingClients = async (search = '') => {
+    if (!workspaceId) return;
+
     try {
-      const response = await getMeetingRoomClients({ search, limit: 30 });
-      const clients = response?.data?.clients || response?.clients || [];
+      const response = await getExternalClients(workspaceId, search);
+      const clients = Array.isArray(response) ? response : response?.clients || [];
       if (Array.isArray(clients)) {
-        setBookingClients(clients);
+        setBookingClients(clients.map((client) => ({
+          ...client,
+          id: client.id || client.recordId || client._id || '',
+          recordId: client.recordId || client.id || client._id || '',
+        })));
       }
     } catch (error) {
       console.warn('Unable to refresh booking clients.', error);
@@ -2401,26 +2518,28 @@ export default function VisitorsManagementPage() {
     setForm((prev) => ({
       ...prev,
       clientBookingMode: 'existing',
-      clientId: client.id || client.recordId || '',
-      clientSearch: client.name || client.company || '',
+      clientId: client.id || client.recordId || client._id || '',
+      clientSearch: '',
       name: client.name || prev.name,
       phone: client.phone || prev.phone,
       email: client.email || prev.email,
       company: client.company || prev.company,
     }));
+    setWalkInTouched({});
+    setWalkInSubmitAttempted(false);
   };
 
   const handleProcessAction = async () => {
-    const fullName = `${String(form.firstName || '').trim()} ${String(form.lastName || '').trim()}`.trim();
-    if (!fullName && visitorMode !== 'verify_booking' && visitorMode !== 'tour') return alert("Visitor name is required.");
-    const normalizedCompany = form.visitorCompanyType === 'company'
-      ? String(form.visitorCompany || '').trim()
-      : 'Individual';
+    const isWalkInBooking = visitorMode === 'walkin_booking';
+    const fullName = isWalkInBooking
+      ? String(form.name || '').trim()
+      : `${String(form.firstName || '').trim()} ${String(form.lastName || '').trim()}`.trim();
+    const normalizedCompany = isWalkInBooking || visitorMode === 'tour'
+      ? String(form.company || '').trim()
+      : form.visitorCompanyType === 'company'
+        ? String(form.visitorCompany || '').trim()
+        : 'Individual';
     const normalizedEmail = form.email.trim();
-
-    if (visitorMode !== 'verify_booking' && visitorMode !== 'tour' && !normalizedEmail) {
-      return alert('Email is required.');
-    }
 
     const newId = `VIS-${Math.floor(Math.random() * 9000) + 1000}`;
     const badge = `B-${Math.floor(Math.random() * 900) + 100}`;
@@ -2574,6 +2693,8 @@ export default function VisitorsManagementPage() {
         setVerifiedBooking(null);
         setWalkInStep(1);
         setForm(getDefaultVisitorForm());
+        setTourTouched({});
+        setTourSubmitAttempted(false);
       } catch (error) {
         alert(error.message || 'Unable to log visitor right now.');
       } finally {
@@ -2583,22 +2704,13 @@ export default function VisitorsManagementPage() {
       return;
     }
     else if (visitorMode === 'tour') {
+      if (!isTourFormComplete) {
+        setTourSubmitAttempted(true);
+        return;
+      }
       const visitorName = form.pocName.trim();
       const contactPhone = form.pocPhone.trim() || form.phone.trim();
       const contactEmail = form.pocEmail.trim() || normalizedEmail;
-      const requiredTourFields = [
-        [visitorName, 'POC name is required for a sales tour.'],
-        [contactPhone, 'POC phone number is required for a sales tour.'],
-        [contactEmail, 'POC email is required for a sales tour.'],
-        [form.industry.trim(), 'Industry is required for a sales tour.'],
-        [form.teamSize.trim() || form.seatCount.trim(), 'Company size or seat count is required for a sales tour.'],
-        [form.preferredSpace.trim(), 'Preferred space is required for a sales tour.'],
-        [form.budgetRange.trim(), 'Budget range is required for a sales tour.'],
-        [form.moveInTimeline.trim(), 'Move-in timeline is required for a sales tour.'],
-        [form.preferredContactMethod.trim(), 'Preferred contact method is required for a sales tour.'],
-      ];
-      const missingTourField = requiredTourFields.find(([value]) => !String(value || '').trim());
-      if (missingTourField) return toast.error(missingTourField[1]);
       setIsSubmittingVisitor(true);
       const loadingToastId = toast.loading('Checking in visitor and syncing lead...', {
         description: 'Saving the visit for Administration and Sales follow-up.',
@@ -2706,6 +2818,8 @@ export default function VisitorsManagementPage() {
         setVerifiedBooking(null);
         setWalkInStep(1);
         setForm(getDefaultVisitorForm());
+        setTourTouched({});
+        setTourSubmitAttempted(false);
       } catch (error) {
         toast.error(error.message || 'Unable to check in the visitor right now.', {
           id: loadingToastId,
@@ -2715,15 +2829,9 @@ export default function VisitorsManagementPage() {
       }
     }
     else if (visitorMode === 'walkin_booking') {
-      if (!walkInAvailability.available) return alert(walkInAvailability.reason || 'Please choose an available slot.');
-      if (!form.phone.trim()) return alert('Phone number is required for walk-in bookings.');
-      if (!form.paymentMode) return alert('Select a payment mode for this booking.');
-      const isGPayBooking = normalizeText(form.paymentMode).includes('gpay');
-      if (isGPayBooking && !form.transactionId.trim()) {
-        return alert('Transaction number is required for GPay bookings.');
-      }
-      if (isGPayBooking && !form.paymentProofFile) {
-        return alert('Upload the payment screenshot for GPay bookings.');
+      if (!isWalkInFormComplete) {
+        setWalkInSubmitAttempted(true);
+        return;
       }
       if (form.discountType === 'percent' && walkInPricing.discountValue > 100) {
         return alert('Discount percentage cannot be greater than 100.');
@@ -2734,28 +2842,29 @@ export default function VisitorsManagementPage() {
       const walkInSeatNumber = normalizeSeatNumber(form.seatNumber);
       const bookingAttendees = isDeskAreaSeatBooking ? 1 : attendeeCount;
 
-      if (isDeskAreaSeatBooking && walkInSeatNumber == null) {
-        return alert('Select an available seat for this desk area booking.');
-      }
-
-      if (bookingAttendees < 1) return alert('Enter the attendee count.');
-
-      if (!isDeskAreaSeatBooking && attendeeCapacity && bookingAttendees > attendeeCapacity) {
-        return alert(`Attendees cannot exceed ${attendeeCapacity} seats for this room.`);
-      }
-
       let createdBooking = null;
       setIsSubmittingVisitor(true);
       try {
-        const bookingPayload = new FormData();
+        let externalClientId = form.clientBookingMode === 'existing' ? form.clientId : '';
+        if (!externalClientId && workspaceId) {
+          const createdClient = await createExternalClient({
+            workspaceId,
+            name: fullName,
+            email: normalizedEmail,
+            phone: form.phone.trim(),
+            company: normalizedCompany,
+          });
+          externalClientId = String(createdClient?._id || createdClient?.id || createdClient?.recordId || '').trim();
+        }
+
         const bookingFields = {
           bookingType: 'External',
           bookingSource: 'Frontdesk',
-          bookedByName: form.name,
+          bookedByName: fullName,
           bookedByEmail: normalizedEmail,
           bookedByPhone: form.phone,
           clientCompany: normalizedCompany,
-          clientId: form.clientBookingMode === 'existing' ? form.clientId : '',
+          externalClientId,
           sourceVisitorId: form.sourceVisitorId || '',
           roomName: selectedWalkInRoom?.name || form.resourceName,
           floor: selectedWalkInRoom?.floor || form.floor || '',
@@ -2770,7 +2879,7 @@ export default function VisitorsManagementPage() {
           financeStatus: form.paymentMode === 'Cash' ? 'Invoice Pending' : 'Sent To Finance',
           paymentVerificationStatus: form.paymentMode === 'Cash' ? '' : 'Pending',
           transactionId: form.transactionId.trim(),
-          discountType: walkInPricing.discountType,
+          discountType: walkInPricing.discountType === 'percent' ? 'percent' : 'flat',
           discountValue: walkInPricing.discountValue,
           discountAmount: walkInPricing.discountAmount,
           subtotalBeforeDiscount: walkInPricing.subtotalBeforeDiscount,
@@ -2782,22 +2891,23 @@ export default function VisitorsManagementPage() {
           bookingNotes: form.bookingNotes || `Walk-in confirmed via ${form.paymentMode}. Visitors Management capture.`,
         };
 
-        Object.entries(bookingFields).forEach(([key, value]) => {
-          if (value === undefined || value === null || value === '') {
-            return;
-          }
-          bookingPayload.append(key, value);
-        });
-
-        if (isGPayBooking && form.paymentProofFile) {
-          bookingPayload.append('paymentProof', form.paymentProofFile);
-        }
-
-        const response = await createMeetingRoomBooking(bookingPayload);
+        const response = await createMeetingRoomBooking(bookingFields);
 
         createdBooking = response?.data?.booking || response?.booking || null;
         if (createdBooking) {
-          const normalizedBooking = normalizeDailyBooking(createdBooking);
+          const enrichedBooking = {
+            ...createdBooking,
+            bookingSource: 'Frontdesk',
+            bookedByName: fullName,
+            bookedByEmail: normalizedEmail,
+            bookedByPhone: form.phone,
+            clientCompany: normalizedCompany,
+            clientId: externalClientId,
+            date: form.startDate,
+            startTime: form.startTime,
+            endTime: form.endTime,
+          };
+          const normalizedBooking = normalizeDailyBooking(enrichedBooking);
           setBookingConfirmation({
             bookingId: normalizedBooking.id,
             email: normalizedEmail,
@@ -2807,8 +2917,17 @@ export default function VisitorsManagementPage() {
             transactionId: form.transactionId.trim(),
           });
           setShowBookingConfirmationPopup(true);
-          syncDailyBookingState(createdBooking);
-          refreshBookingClients();
+          syncDailyBookingState(enrichedBooking);
+          await refreshBookingClients();
+
+          const createdBookingId = String(createdBooking._id || createdBooking.recordId || createdBooking.id || '').trim();
+          if (createdBookingId && normalizedEmail) {
+            try {
+              await sendExternalBookingConfirmationEmail(createdBookingId);
+            } catch (emailError) {
+              console.warn('Booking created, but the confirmation email could not be sent.', emailError);
+            }
+          }
 
           if (form.sourceVisitorId) {
             try {
@@ -3365,7 +3484,7 @@ export default function VisitorsManagementPage() {
                 type="button"
                 disabled={!canOpenFrontdeskAction}
                 title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
-                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
+                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setLastSelectedExistingVisitor(null); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
                 className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap ${
                   canOpenFrontdeskAction
                     ? 'bg-[#2563EB] text-white hover:bg-blue-700 active:scale-95'
@@ -3760,8 +3879,8 @@ export default function VisitorsManagementPage() {
                     onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
                     className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
                   >Standard Visitor</button>
-                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
-                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
+                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => { setVisitorMode('tour'); setTourTouched({}); setTourSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
+                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
                   <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
                 </div>
               </div>
@@ -3791,7 +3910,7 @@ export default function VisitorsManagementPage() {
                           ))}
                         </div>
 
-                        {form.standardVisitorMode === 'existing' && (
+                        {form.standardVisitorMode === 'existing' && !lastSelectedExistingVisitor && (
                           <div className="space-y-3 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
                             <label className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Search Existing Visitor</label>
                             <div className="flex items-center gap-2 rounded-xl px-1 py-1">
@@ -3825,6 +3944,15 @@ export default function VisitorsManagementPage() {
                                 No matching visitor found in history.
                               </p>
                             ) : null}
+                          </div>
+                        )}
+                        {form.standardVisitorMode === 'existing' && lastSelectedExistingVisitor && (
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Visitor selected</p>
+                              <p className="truncate text-xs font-pmedium text-slate-900">{lastSelectedExistingVisitor.name || 'Visitor'} · {lastSelectedExistingVisitor.phone || lastSelectedExistingVisitor.email}</p>
+                            </div>
+                            <button type="button" onClick={() => { setLastSelectedExistingVisitor(null); setForm((prev) => ({ ...prev, standardVisitorSearch: '' })); }} className="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700 hover:bg-emerald-100">Change</button>
                           </div>
                         )}
                       </div>
@@ -3920,7 +4048,7 @@ export default function VisitorsManagementPage() {
                               </button>
                             ))}
                           </div>
-                          {form.standardVisitorMode === 'existing' && (
+                          {form.standardVisitorMode === 'existing' && !lastSelectedExistingVisitor && (
                             <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
                               <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Search Existing Visitor</label>
                               <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 border border-slate-200/60 focus-within:ring-2 focus-within:ring-[#2563EB]/20 focus-within:border-[#2563EB]">
@@ -3953,6 +4081,15 @@ export default function VisitorsManagementPage() {
                                   No matching visitor found in history.
                                 </p>
                               ) : null}
+                            </div>
+                          )}
+                          {form.standardVisitorMode === 'existing' && lastSelectedExistingVisitor && (
+                            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Visitor selected</p>
+                                <p className="truncate text-[12px] font-pmedium text-slate-900">{lastSelectedExistingVisitor.name || 'Visitor'} · {lastSelectedExistingVisitor.phone || lastSelectedExistingVisitor.email}</p>
+                              </div>
+                              <button type="button" onClick={() => { setLastSelectedExistingVisitor(null); setForm((prev) => ({ ...prev, standardVisitorSearch: '' })); }} className="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700 hover:bg-emerald-100">Change</button>
                             </div>
                           )}
                           
@@ -4311,8 +4448,9 @@ export default function VisitorsManagementPage() {
                           <div className="flex flex-col gap-1 sm:col-span-2">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">POC / Visitor Name <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="POC / Visitor Name"
-                              value={form.pocName} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.pocName} onBlur={() => setTourTouched((prev) => ({ ...prev, pocName: true }))} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.pocName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.pocName ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.pocName}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
@@ -4329,14 +4467,16 @@ export default function VisitorsManagementPage() {
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                             <input type="tel" placeholder="Phone"
-                              value={form.pocPhone} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.pocPhone} onBlur={() => setTourTouched((prev) => ({ ...prev, pocPhone: true }))} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.pocPhone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.pocPhone ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.pocPhone}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                             <input type="email" placeholder="Email"
-                              value={form.pocEmail} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.pocEmail} onBlur={() => setTourTouched((prev) => ({ ...prev, pocEmail: true }))} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.pocEmail ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.pocEmail ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.pocEmail}</span> : null}
                           </div>
                         </div>
                       </div>
@@ -4399,49 +4539,55 @@ export default function VisitorsManagementPage() {
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Industry <span className="text-red-400">*</span></label>
-                            <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.industry} onBlur={() => setTourTouched((prev) => ({ ...prev, industry: true }))} onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.industry ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Industry</option>
                               {TOUR_INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.industry ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.industry}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Team Size <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="Team Size"
-                              value={form.teamSize} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.teamSize} onBlur={() => setTourTouched((prev) => ({ ...prev, teamSize: true }))} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.teamSize ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.teamSize ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.teamSize}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seats Needed <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="Seats Needed"
-                              value={form.seatCount} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              value={form.seatCount} onBlur={() => setTourTouched((prev) => ({ ...prev, seatCount: true }))} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.seatCount ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} />
+                            {visibleTourErrors.seatCount ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.seatCount}</span> : null}
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Preferred Space <span className="text-red-400">*</span></label>
-                            <select value={form.preferredSpace} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.preferredSpace} onBlur={() => setTourTouched((prev) => ({ ...prev, preferredSpace: true }))} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.preferredSpace ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Space Type</option>
                               {TOUR_SPACE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.preferredSpace ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.preferredSpace}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Budget Range <span className="text-red-400">*</span></label>
-                            <select value={form.budgetRange} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.budgetRange} onBlur={() => setTourTouched((prev) => ({ ...prev, budgetRange: true }))} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.budgetRange ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Budget</option>
                               {TOUR_BUDGET_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.budgetRange ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.budgetRange}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Move-in Timeline <span className="text-red-400">*</span></label>
-                            <select value={form.moveInTimeline} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.moveInTimeline} onBlur={() => setTourTouched((prev) => ({ ...prev, moveInTimeline: true }))} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.moveInTimeline ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Timeline</option>
                               {TOUR_TIMELINE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
+                            {visibleTourErrors.moveInTimeline ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.moveInTimeline}</span> : null}
                           </div>
                         </div>
                       </div>
@@ -4454,14 +4600,15 @@ export default function VisitorsManagementPage() {
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Preferred Contact Method <span className="text-red-400">*</span></label>
-                            <select value={form.preferredContactMethod} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                            <select value={form.preferredContactMethod} onBlur={() => setTourTouched((prev) => ({ ...prev, preferredContactMethod: true }))} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleTourErrors.preferredContactMethod ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}>
                               <option value="">Select Contact Method</option>
                               <option value="Call">Call</option>
                               <option value="WhatsApp">WhatsApp</option>
                               <option value="Email">Email</option>
                               <option value="In-person">In-person</option>
                             </select>
+                            {visibleTourErrors.preferredContactMethod ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.preferredContactMethod}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Follow-up Date</label>
@@ -4514,7 +4661,7 @@ export default function VisitorsManagementPage() {
                               ))}
                             </div>
 
-                            {form.clientBookingMode === 'existing' && (
+                            {form.clientBookingMode === 'existing' && !selectedBookingClient && (
                               <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Search Existing Client</label>
                                 <div className="flex gap-2">
@@ -4551,29 +4698,37 @@ export default function VisitorsManagementPage() {
                                 )}
                               </div>
                             )}
+                            {form.clientBookingMode === 'existing' && selectedBookingClient && (
+                              <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Client selected</p>
+                                  <p className="truncate text-[12px] font-pmedium text-slate-900">{selectedBookingClient.name || selectedBookingClient.company} · {selectedBookingClient.phone || selectedBookingClient.email}</p>
+                                </div>
+                                <button type="button" onClick={() => setForm((prev) => ({ ...prev, clientId: '', clientSearch: '' }))} className="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700 hover:bg-emerald-100">Change</button>
+                              </div>
+                            )}
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name <span className="text-red-400">*</span></label>
-                                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Client name" />
+                                <input type="text" value={form.name} onBlur={() => setWalkInTouched((prev) => ({ ...prev, name: true }))} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="Client name" />
+                                {visibleWalkInErrors.name ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.name}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
-                                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="+91..." />
+                                <input type="tel" value={form.phone} onBlur={() => setWalkInTouched((prev) => ({ ...prev, phone: true }))} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.phone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="+91..." />
+                                {visibleWalkInErrors.phone ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.phone}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
-                                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="client@email.com" />
+                                <input type="email" value={form.email} onBlur={() => setWalkInTouched((prev) => ({ ...prev, email: true }))} onChange={(e) => setForm({ ...form, email: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.email ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="client@email.com" />
+                                {visibleWalkInErrors.email ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.email}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Company</label>
                                 <input type="text" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Optional" />
                               </div>
                             </div>
-
-                            {selectedBookingClient && (
-                              <p className="text-[10px] font-pmedium text-blue-700">Using saved client {selectedBookingClient.clientCode || selectedBookingClient.name}. Contact fields are auto-filled; choose the room, schedule, and payment details below.</p>
-                            )}
 
                             {form.clientBookingMode === 'new' && matchedSavedVisitors.length > 0 && (
                               <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
@@ -4604,8 +4759,9 @@ export default function VisitorsManagementPage() {
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Space Type <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.spaceType ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.spaceType}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, spaceType: true }))}
                                   onChange={(e) => {
                                     const nextType = e.target.value;
                                     setForm({ ...form, spaceType: nextType, floor: '', wing: '', resourceName: '', seatNumber: '' });
@@ -4616,13 +4772,15 @@ export default function VisitorsManagementPage() {
                                     <option key={type} value={type}>{type}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.spaceType ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.spaceType}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.floor ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.floor}
                                   disabled={!form.spaceType}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, floor: true }))}
                                   onChange={(e) => {
                                     const nextFloor = e.target.value;
                                     setForm({ ...form, floor: nextFloor, wing: '', resourceName: '', seatNumber: '' });
@@ -4633,13 +4791,15 @@ export default function VisitorsManagementPage() {
                                     <option key={floor} value={floor}>{floor}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.floor ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.floor}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.wing ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.wing}
                                   disabled={!form.spaceType || !form.floor}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, wing: true }))}
                                   onChange={(e) => {
                                     const nextWing = e.target.value;
                                     setForm({ ...form, wing: nextWing, resourceName: '', seatNumber: '' });
@@ -4650,13 +4810,15 @@ export default function VisitorsManagementPage() {
                                     <option key={wing} value={wing}>Wing {wing}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.wing ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.wing}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Specific Room <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.resourceName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.resourceName}
                                   disabled={!form.spaceType || !form.floor || !form.wing}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, resourceName: true }))}
                                   onChange={(e) => setForm({ ...form, resourceName: e.target.value, seatNumber: '' })}
                                 >
                                   <option value="">Select a room</option>
@@ -4666,6 +4828,7 @@ export default function VisitorsManagementPage() {
                                     </option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.resourceName ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.resourceName}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attendees <span className="text-red-400">*</span></label>
@@ -4674,9 +4837,10 @@ export default function VisitorsManagementPage() {
                                   min="1"
                                   max={selectedWalkInRoom?.capacity || undefined}
                                   inputMode="numeric"
-                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${isDeskAreaSeatBooking ? 'opacity-70' : 'border-slate-200/60'}`}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.attendees ? 'border-red-300 bg-red-50' : 'border-slate-200/60'} ${isDeskAreaSeatBooking ? 'opacity-70' : ''}`}
                                   value={isDeskAreaSeatBooking ? 1 : form.attendees}
                                   disabled={isDeskAreaSeatBooking}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, attendees: true }))}
                                   onChange={(e) => {
                                     if (isDeskAreaSeatBooking) {
                                       return;
@@ -4687,6 +4851,7 @@ export default function VisitorsManagementPage() {
                                     setForm({ ...form, attendees: nextValue === '' ? 1 : nextValue });
                                   }}
                                 />
+                                {visibleWalkInErrors.attendees ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.attendees}</span> : null}
                                 <p className="text-[10px] font-medium text-slate-400">
                                   {isDeskAreaSeatBooking
                                     ? 'Desk area bookings are one seat per booking.'
@@ -4704,8 +4869,9 @@ export default function VisitorsManagementPage() {
                                 <div className="flex flex-col gap-1">
                                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seat Number <span className="text-red-400">*</span></label>
                                   <select
-                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                    className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.seatNumber ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                     value={form.seatNumber}
+                                    onBlur={() => setWalkInTouched((prev) => ({ ...prev, seatNumber: true }))}
                                     onChange={(e) => setForm({ ...form, seatNumber: e.target.value, attendees: 1 })}
                                   >
                                     <option value="">Select a seat</option>
@@ -4719,6 +4885,7 @@ export default function VisitorsManagementPage() {
                                       </option>
                                     ))}
                                   </select>
+                                  {visibleWalkInErrors.seatNumber ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.seatNumber}</span> : null}
                                 </div>
                                 <div className="rounded-xl bg-white px-4 py-3 text-right shadow-sm">
                                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seat Availability</p>
@@ -4752,20 +4919,24 @@ export default function VisitorsManagementPage() {
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.startDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.startDate}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, startDate: true }))}
                                   onChange={(e) => setForm({ ...form, startDate: e.target.value })}
                                 />
+                                {visibleWalkInErrors.startDate ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.startDate}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
                                   min={form.startDate}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.endDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.endDate}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, endDate: true }))}
                                   onChange={(e) => setForm({ ...form, endDate: e.target.value })}
                                 />
+                                {visibleWalkInErrors.endDate ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.endDate}</span> : null}
                               </div>
                             </div>
 
@@ -4782,14 +4953,16 @@ export default function VisitorsManagementPage() {
                               {meetingRoomOverviewError ? (
                                 <p className="mt-2 text-[10px] font-medium text-red-500">{meetingRoomOverviewError}</p>
                               ) : null}
+                              {visibleWalkInErrors.availability ? <p className="mt-2 text-[10px] font-medium text-red-500">{visibleWalkInErrors.availability}</p> : null}
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Time <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.startTime ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.startTime}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, startTime: true, availability: true }))}
                                   onChange={(e) => {
                                     const nextStartTime = e.target.value;
                                     const nextEndTime = nextStartTime
@@ -4807,12 +4980,14 @@ export default function VisitorsManagementPage() {
                                     <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.startTime ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.startTime}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Time <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.endTime ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.endTime}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, endTime: true, availability: true }))}
                                   onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                                 >
                                   <option value="">Select end time</option>
@@ -4820,6 +4995,7 @@ export default function VisitorsManagementPage() {
                                     <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
                                   ))}
                                 </select>
+                                {visibleWalkInErrors.endTime ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.endTime}</span> : null}
                               </div>
                             </div>
                           {walkInAvailability.status === 'conflict' && walkInAvailability.slotSuggestions.length > 0 && (
@@ -4965,13 +5141,14 @@ export default function VisitorsManagementPage() {
                                   <button
                                     key={mode}
                                     type="button"
-                                    onClick={() => setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null })}
+                                    onClick={() => { setWalkInTouched((prev) => ({ ...prev, paymentMode: true })); setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null }); }}
                                     className={`rounded-lg border px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                   >
                                     {mode}
                                   </button>
                                 ))}
                               </div>
+                              {visibleWalkInErrors.paymentMode ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentMode}</span> : null}
                               {normalizeText(form.paymentMode).includes('gpay') && (
                                 <div className="space-y-3">
                                   <div className="flex flex-col gap-1">
@@ -4979,19 +5156,23 @@ export default function VisitorsManagementPage() {
                                     <input
                                       type="text"
                                       value={form.transactionId}
+                                      onBlur={() => setWalkInTouched((prev) => ({ ...prev, transactionId: true }))}
                                       onChange={(e) => setForm({ ...form, transactionId: e.target.value })}
                                       placeholder="Enter GPay reference / UTR"
-                                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.transactionId ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                     />
+                                    {visibleWalkInErrors.transactionId ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.transactionId}</span> : null}
                                   </div>
                                   <div className="flex flex-col gap-1">
                                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Screenshot <span className="text-red-400">*</span></label>
                                     <input
                                       type="file"
                                       accept="image/png,image/jpeg,image/jpg"
-                                      onChange={(e) => setForm({ ...form, paymentProofFile: e.target.files?.[0] || null })}
-                                      className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-[12px] text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300"
+                                      onBlur={() => setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true }))}
+                                      onChange={(e) => { setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true })); setForm({ ...form, paymentProofFile: e.target.files?.[0] || null }); }}
+                                      className={`block w-full rounded-lg border border-dashed bg-slate-50 px-3 py-2 text-[12px] text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300 ${visibleWalkInErrors.paymentProofFile ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}
                                     />
+                                    {visibleWalkInErrors.paymentProofFile ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentProofFile}</span> : null}
                                     {form.paymentProofFile?.name ? (
                                       <p className="text-[10px] font-medium text-blue-700">Selected: {form.paymentProofFile.name}</p>
                                     ) : null}
@@ -5082,8 +5263,8 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4">
-                <button onClick={() => { setIsLoggingVisitor(false); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); }} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
+              <div className={visitorMode === 'walkin_booking' ? 'flex flex-col-reverse items-stretch gap-3 pt-2 shrink-0 px-6 pb-4 sm:flex-row sm:justify-end' : 'flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4'}>
+                <button type="button" onClick={() => { setIsLoggingVisitor(false); setLastSelectedExistingVisitor(null); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={visitorMode === 'walkin_booking' ? 'w-full sm:flex-1 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all' : 'flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all'}>Cancel</button>
 
                 {visitorMode === 'standard' && (
                   <button
@@ -5102,7 +5283,7 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {visitorMode === 'walkin_booking' && (
-                  <button disabled={!walkInAvailability.available || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-[2] py-3 bg-blue-600 text-white shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
+                  <button type="button" disabled={isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="w-full sm:flex-1 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-6 py-3 bg-[#2563EB] text-white shadow-sm shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
                     <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
@@ -5874,7 +6055,3 @@ export default function VisitorsManagementPage() {
     </>
   );
 }
-
-
-
-
