@@ -1023,10 +1023,24 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     workspaceAccessMap?.moduleMap?.sections || []
   ).map((section) => {
     const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
-    const mappedItems: NavNode[] = (section?.items || []).map((item) => {
+    const mappedItems: NavNode[] = (section?.items || []).map((item): NavNode | null => {
       const itemId = String(item?.id || "").trim();
       const itemRoute = item?.route || ROUTE_BY_ID[itemId];
       const hasTabs = Array.isArray(item?.tabs) && item.tabs.length > 0;
+
+      // Administration Department is Custom-only now (per plan/module
+      // tracking sheet) — hide the whole group on Basic/Professional
+      // instead of just locking its tabs, since one of its tabs
+      // (Visitors Management) shares an id-linked page with Key Apps'
+      // own Visitor Management entry and would otherwise always show
+      // unlocked here regardless of plan.
+      if (
+        sectionKey === "department-accesses" &&
+        itemId === "administration-department" &&
+        planLabel !== "custom"
+      ) {
+        return null;
+      }
       if (hasTabs) {
         const children = (item.tabs || [])
           .map((tab) => {
@@ -1074,7 +1088,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
               ? "You do not have access to this module"
               : undefined,
       };
-    }).filter(Boolean);
+    }).filter((item): item is NavNode => Boolean(item));
     let sortedItems = sortEnabledFirst(mappedItems);
     sortedItems = sortedItems.map((item) => {
       if (item.id === "website-leads")
