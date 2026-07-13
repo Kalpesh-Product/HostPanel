@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, FileDown, FileSpreadsheet, Plus } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, FileDown, FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
@@ -553,77 +553,126 @@ export default function CustomerSupportPage() {
       )}
 
       {isDetailsModalOpen && selectedTicket ? (
-        <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center">
-          <div onClick={() => { setIsDetailsModalOpen(false); setSelectedTicket(null); }} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
-          <div className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-xl max-h-[92vh] md:max-h-[85vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
-              <div>
-                <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Ticket Details</h2>
-                <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{selectedTicket.ticketId || "-"}</p>
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => { setIsDetailsModalOpen(false); setSelectedTicket(null); }}>
+          <div
+            className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                  <AlertCircle size={18} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{selectedTicket.title || "Ticket Details"}</h2>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className={statusPillClass(selectedTicket.status)}>{selectedTicket.status}</span>
+                    <span className="text-[10px] font-pmedium text-slate-500">{selectedTicket.ticketId || "-"}</span>
+                  </div>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => { setIsDetailsModalOpen(false); setSelectedTicket(null); }}
-                className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors"
+                className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
               >
-                <X size={20} strokeWidth={2.5} />
+                <X size={16} />
               </button>
             </div>
 
-              <div className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Ticket ID</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.ticketId || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.workspaceName || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role</p><p className="text-[13px] font-pmedium text-[#0F172A]">{capitalizeFirst(selectedTicket.role)}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Requested At</p><p className="text-[13px] font-pmedium text-[#0F172A]">{formatDate(selectedTicket.requestedAt)}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted By</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.acceptedByName || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolved By</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.resolvedByName || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</p><span className={statusPillClass(selectedTicket.status)}>{selectedTicket.status}</span></div>
-                </div>
-
-                <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Title</p>
-                  <p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.title || "-"}</p>
-                </div>
-
-                <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Description / Follow Up</p>
-                  <p className="text-[13px] font-bold text-[#0F172A] whitespace-pre-wrap max-h-20 overflow-y-auto">{selectedTicket.description || "-"}</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Attachment</p>
-                    {selectedTicket.image?.url ? (
-                      <a href={selectedTicket.image.url} target="_blank" rel="noreferrer" className="text-[13px] font-bold text-[#2563EB] underline">View Uploaded Image</a>
-                    ) : (
-                      <p className="text-[13px] font-bold text-slate-400">No attachment</p>
-                    )}
+            {/* Body */}
+            <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <AlertCircle size={14} /> Ticket Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Ticket ID</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.ticketId || "—"}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolution Attachment</p>
-                    {selectedTicket.resolutionAttachment?.url ? (
-                      <a href={selectedTicket.resolutionAttachment.url} target="_blank" rel="noreferrer" className="text-[13px] font-bold text-[#2563EB] underline">View Resolution File</a>
-                    ) : (
-                      <p className="text-[13px] font-bold text-slate-400">No resolution attachment</p>
-                    )}
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Unit</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.workspaceName || "—"}</p>
                   </div>
-                </div>
-
-                <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolution</p>
-                  <p className="text-[13px] font-bold text-[#0F172A] whitespace-pre-wrap max-h-20 overflow-y-auto">{selectedTicket.resolutionMessage || "-"}</p>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Role</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{capitalizeFirst(selectedTicket.role)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Requested At</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{formatDate(selectedTicket.requestedAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Accepted By</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.acceptedByName || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Resolved By</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.resolvedByName || "—"}</p>
+                  </div>
                 </div>
               </div>
 
-            <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0 flex flex-wrap gap-3 justify-end">
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <FileText size={14} /> Issue Details
+                </h3>
+                <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Title</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.title || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Description / Follow Up</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 whitespace-pre-wrap max-h-24 overflow-y-auto">{selectedTicket.description || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Attachment</p>
+                    {selectedTicket.image?.url ? (
+                      <a href={selectedTicket.image.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors">
+                        <ExternalLink size={11} /> View Uploaded Image
+                      </a>
+                    ) : (
+                      <p className="text-[12px] font-pmedium text-slate-400">No attachment</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <CheckCircle2 size={14} /> Resolution
+                </h3>
+                <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Resolution Message</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 whitespace-pre-wrap max-h-24 overflow-y-auto">{selectedTicket.resolutionMessage || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Resolution Attachment</p>
+                    {selectedTicket.resolutionAttachment?.url ? (
+                      <a href={selectedTicket.resolutionAttachment.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors">
+                        <ExternalLink size={11} /> View Resolution File
+                      </a>
+                    ) : (
+                      <p className="text-[12px] font-pmedium text-slate-400">No resolution attachment</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0 flex gap-2.5">
               {selectedTicket.status === "Resolved" ? (
                 <>
                   <button
                     type="button"
                     onClick={() => { setIsFollowUpModalOpen(true); }}
                     disabled={isSubmitting}
-                    className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+                    className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
                   >
                     Follow Up
                   </button>
@@ -631,12 +680,20 @@ export default function CustomerSupportPage() {
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => void closeTicket(selectedTicket)}
-                    className="px-6 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-[13px] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                    className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all"
                   >
                     {isSubmitting ? "Closing..." : "Close Ticket"}
                   </button>
                 </>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setIsDetailsModalOpen(false); setSelectedTicket(null); }}
+                  className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>

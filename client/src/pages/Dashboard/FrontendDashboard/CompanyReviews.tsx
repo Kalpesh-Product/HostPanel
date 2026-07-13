@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import {
-  AlertTriangle, BadgeCheck, CheckCircle2, Eye, Search, Sparkles, Star, Target, X,
+  AlertTriangle, BadgeCheck, CheckCircle2, Eye, FileText, Search, Sparkles, Star, Target, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -333,19 +333,20 @@ export default function CompanyReviews() {
 
           {/* DETAIL MODAL */}
           {selectedReview && (
-            <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#0F172A]/60 backdrop-blur-md p-3 sm:p-4 flex items-center justify-center">
-              <div className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-sm" onClick={() => setSelectedReviewId(null)} />
-              <div className="relative z-10 flex flex-col w-full max-w-[580px] max-h-[88vh] overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-2xl">
-
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedReviewId(null)}>
+              <div
+                className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {/* Header */}
-                <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 shrink-0">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black text-white shadow-sm">
+                <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center text-[12px] font-pmedium shadow-sm shrink-0 bg-[#2563EB] text-white">
                       {getInitials(selectedReview.name || selectedReview.reviewerName)}
                     </div>
-                    <div>
-                      <h3 className="text-[13px] font-black leading-tight text-slate-900">{selectedReview.name || selectedReview.reviewerName || "Anonymous"}</h3>
-                      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                    <div className="min-w-0">
+                      <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{selectedReview.name || selectedReview.reviewerName || "Anonymous"}</h2>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className={statusPillClass(selectedReview.status || "pending")}>{selectedReview.status || "pending"}</span>
                         {selectedReview.reviewSource && (
                           <span className={statusPillClass(selectedReview.reviewSource)}>{selectedReview.reviewSource}</span>
@@ -353,54 +354,59 @@ export default function CompanyReviews() {
                       </div>
                     </div>
                   </div>
-                  <button type="button" onClick={() => setSelectedReviewId(null)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:text-rose-600"
-                  ><X size={14} /></button>
+                  <button type="button" onClick={() => setSelectedReviewId(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
                 </div>
 
                 {/* Body */}
-                <div className="overflow-y-auto flex-1 p-5 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className={statusPillClass("Rating")}>Rating</span>
-                    <StarRating count={selectedReview.starCount || selectedReview.rating || selectedReview.ratingValue} />
+                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <Star size={14} /> Review Details
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Rating</p>
+                        <StarRating count={selectedReview.starCount || selectedReview.rating || selectedReview.ratingValue} />
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Source</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{selectedReview.reviewSource || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received On</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{formatDate(selectedReview.createdAt)}</p>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5">Description</p>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
-                      <p className="text-[12px] font-medium leading-5 text-slate-700">{selectedReview.description || selectedReview.review || "No description provided."}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received On</p>
-                      <p className="mt-0.5 text-[12px] font-bold text-slate-900">{formatDate(selectedReview.createdAt)}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Source</p>
-                      <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedReview.reviewSource || "—"}</p>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <FileText size={14} /> Description
+                    </h3>
+                    <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <p className="text-[12px] font-pmedium leading-5 text-slate-700">{selectedReview.description || selectedReview.review || "No description provided."}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer actions */}
-                <div className="border-t border-slate-100 bg-slate-50 px-5 py-3 flex items-center justify-end gap-2 shrink-0">
-                  {(selectedReview.status || "pending") === "pending" && (
+                {/* Footer */}
+                <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0 flex gap-2.5">
+                  {(selectedReview.status || "pending") === "pending" ? (
                     <>
-                      <button type="button" onClick={() => handleStatusChange(selectedReview._id, "approved")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-emerald-700"
-                      ><CheckCircle2 size={12} /> Approve</button>
                       <button type="button" onClick={() => handleStatusChange(selectedReview._id, "rejected")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-rose-700"
-                      ><X size={12} /> Reject</button>
+                        className="flex-1 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[12px] hover:bg-red-50 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                      ><XCircle size={14} /> Reject</button>
+                      <button type="button" onClick={() => handleStatusChange(selectedReview._id, "approved")}
+                        className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
+                      ><CheckCircle2 size={14} /> Approve</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 flex items-center justify-center text-[11px] font-pmedium text-slate-500">This review has already been {selectedReview.status}.</span>
+                      <button type="button" onClick={() => setSelectedReviewId(null)} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all">Close</button>
                     </>
                   )}
-                  {(selectedReview.status || "pending") !== "pending" && (
-                    <span className={statusPillClass("This review has already been")}>This review has already been {selectedReview.status}.</span>
-                  )}
                 </div>
-
               </div>
             </div>
           )}

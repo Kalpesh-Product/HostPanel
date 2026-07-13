@@ -7,7 +7,7 @@
  *   tenant-companies-admin, bookings, resource-management,
  *   leads-management, tenant-companies-sales, resource-pricing, sales-architecture
  *
- * Focus: Tenants, meeting room bookings, tickets, visitors, org + financial snapshot.
+ * Focus: Tenants, meeting room bookings, tickets, visitors and organization.
  * Upgrade nudge → opens the upgrade modal (Custom plan only).
  */
 import { useMemo } from "react";
@@ -17,14 +17,14 @@ import WidgetSection from "../../../../components/WidgetSection";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import {
   Building2, CalendarCheck, Ticket, Eye, UserPlus,
-  Banknote, UserCheck, TrendingUp, Globe, Map,
-  LayoutGrid, BarChart3, Users, AlertCircle, ArrowRight, Zap,
+  UserCheck, Globe, Map,
+  LayoutGrid, BarChart3, AlertCircle, ArrowRight, Zap,
 } from "lucide-react";
 import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
-import { statusBadgeColor, humanRelTime, fmtINR } from "./dashboardUtils";
+import { statusBadgeColor, humanRelTime } from "./dashboardUtils";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
 import { getTickets } from "../../../../services/tickets";
@@ -94,8 +94,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     const confirmed = bookingsRaw.filter((b: any) => ["confirmed", "Confirmed"].includes(b.status)).length;
     const cancelled = bookingsRaw.filter((b: any) => ["cancelled", "Cancelled"].includes(b.status)).length;
     const pending = bookingsRaw.filter((b: any) => ["pending", "Pending"].includes(b.status)).length;
-    const revenue = bookingsRaw.reduce((s: number, b: any) => s + (b.totalAmount || b.amount || 0), 0);
-    return { total: bookingsRaw.length, todayCount: todayBookings.length, confirmed, cancelled, pending, revenue };
+    return { total: bookingsRaw.length, todayCount: todayBookings.length, confirmed, cancelled, pending };
   }, [bookingsRaw]);
 
   const ticketStats = useMemo(() => {
@@ -126,6 +125,55 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     return [{ name: "Bookings", data: counts }];
   }, [bookingsRaw]);
 
+  const ticketsByMonth = useMemo(() => {
+    const received = new Array(12).fill(0);
+    const pending = new Array(12).fill(0);
+    const resolved = new Array(12).fill(0);
+
+    ticketsRaw.forEach((ticket: any) => {
+      const date = new Date(ticket.createdAt || ticket.receivedAt || "");
+      if (isNaN(date.getTime())) return;
+      const monthIndex = (date.getMonth() + 9) % 12;
+      const isResolved = /resolved|closed/i.test(ticket.status || "");
+      received[monthIndex]++;
+      if (isResolved) resolved[monthIndex]++;
+      else pending[monthIndex]++;
+    });
+
+    return [
+      { name: "Total Received", data: received },
+      { name: "Pending", data: pending },
+      { name: "Resolved", data: resolved },
+    ];
+  }, [ticketsRaw]);
+
+  const tenantsByMonth = useMemo(() => {
+    const joined = new Array(12).fill(0);
+    const renewed = new Array(12).fill(0);
+
+    tenantsRaw.forEach((tenant: any) => {
+      const joinedAt = new Date(tenant.createdAt || "");
+      if (!isNaN(joinedAt.getTime())) joined[(joinedAt.getMonth() + 9) % 12]++;
+
+      const renewedAt = new Date(
+        tenant.renewedAt || tenant.renewalDate || tenant.contractStart || tenant.agreementDetails?.startDate || ""
+      );
+      // Contract renewal resets contractStart, while the original createdAt remains unchanged.
+      if (
+        !isNaN(renewedAt.getTime()) &&
+        !isNaN(joinedAt.getTime()) &&
+        renewedAt.getTime() - joinedAt.getTime() > 86400000
+      ) {
+        renewed[(renewedAt.getMonth() + 9) % 12]++;
+      }
+    });
+
+    return [
+      { name: "Joined", data: joined },
+      { name: "Renewed", data: renewed },
+    ];
+  }, [tenantsRaw]);
+
   const bookingBarOptions = {
     chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
     colors: ["#1E3D73"],
@@ -134,6 +182,16 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     dataLabels: { enabled: false },
     grid: { borderColor: "#f0f0f0" },
     tooltip: { theme: "light" },
+  };
+
+  const ticketBarOptions = {
+    ...bookingBarOptions,
+    colors: ["#2563EB", "#f59e0b", "#22c55e"],
+  };
+
+  const tenantBarOptions = {
+    ...bookingBarOptions,
+    colors: ["#1E3D73", "#80bf01"],
   };
 
   // Donut data
@@ -196,64 +254,63 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
         <ArrowRight size={14} className="text-blue-600 flex-shrink-0" />
       </div>
 
-      {/* Top stat row */}
-      <WidgetSection layout={4} title="Overview" border normalCase>
+      {/* Professional-plan module overview */}
+      <WidgetSection layout={3} title="Overview" border normalCase>
         <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/company-settings/companies" />
         <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/app/meeting-rooms" />
+        <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/app/meeting-rooms" />
         <StatCard icon={Ticket} label="Support Tickets" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/app/tickets" />
+        <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/app/tickets" />
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
       </WidgetSection>
 
-      {/* Financial snapshot */}
-      <WidgetSection layout={3} title="Financial Snapshot" border normalCase>
-        <StatCard icon={Banknote} label="Booking Revenue" value={fmtINR(bookingStats.revenue)} sub="All-time meeting room revenue" color="#f59e0b" route="/app/finance/billing-payments" />
-        <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/app/meeting-rooms" />
-        <StatCard icon={TrendingUp} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/app/tickets" />
+      {/* Quick links */}
+      <WidgetSection layout={4} title="Quick Links" border normalCase>
+        {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
       </WidgetSection>
 
-      {/* Three donuts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <DonutWidget title="Tenant Status" series={tenantDonut.series} labels={tenantDonut.labels} colors={tenantDonut.colors} centerLabel="Tenants" />
-        <DonutWidget title="Booking Status" series={bookingDonut.series} labels={bookingDonut.labels} colors={bookingDonut.colors} centerLabel="Bookings" />
-        <DonutWidget title="Ticket Status" series={ticketDonut.series} labels={ticketDonut.labels} colors={ticketDonut.colors} centerLabel="Tickets" />
-      </div>
-
-      {/* Monthly bookings bar chart */}
-      <BarWidget title="Monthly Booking Trend (FY)" chartId="pro-monthly-bookings" series={bookingsByMonth} options={bookingBarOptions} height={260} />
-
-      {/* Recent bookings + tickets */}
+      {/* Recent bookings and booking status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/app/meeting-rooms">
           {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
             <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
           )) : <p className="text-content text-gray-400 text-center py-6">No recent bookings</p>}
         </SectionCard>
+        <DonutWidget title="Booking Status" series={bookingDonut.series} labels={bookingDonut.labels} colors={bookingDonut.colors} centerLabel="Bookings" />
+      </div>
+
+      {/* Recent tickets and ticket status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/app/tickets">
           {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
             <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
           )) : <p className="text-content text-gray-400 text-center py-6">No recent tickets</p>}
         </SectionCard>
+        <DonutWidget title="Ticket Status" series={ticketDonut.series} labels={ticketDonut.labels} colors={ticketDonut.colors} centerLabel="Tickets" />
       </div>
 
-      {/* Recent tenants */}
-      <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/company-settings/companies">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
-              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-pbold text-content flex-shrink-0">
-                {(t.companyName || t.name || "T").charAt(0).toUpperCase()}
+      {/* Recent tenants and tenant status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/company-settings/companies">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
+                <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-pbold text-content flex-shrink-0">
+                  {(t.companyName || t.name || "T").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-content font-pmedium text-gray-900 truncate">{t.companyName || t.name || "Tenant"}</p>
+                  <p className="text-small text-gray-500 truncate">{t.companyCode || t.sector || "—"}</p>
+                </div>
+                <span className={`ml-auto flex-shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black uppercase border ${statusBadgeColor(t.status || "")}`}>
+                  {t.status || "—"}
+                </span>
               </div>
-              <div className="min-w-0">
-                <p className="text-content font-pmedium text-gray-900 truncate">{t.companyName || t.name || "Tenant"}</p>
-                <p className="text-small text-gray-500 truncate">{t.companyCode || t.sector || "—"}</p>
-              </div>
-              <span className={`ml-auto flex-shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black uppercase border ${statusBadgeColor(t.status || "")}`}>
-                {t.status || "—"}
-              </span>
-            </div>
-          )) : <p className="col-span-3 text-content text-gray-400 text-center py-6">No tenant data</p>}
-        </div>
-      </SectionCard>
+            )) : <p className="col-span-2 text-content text-gray-400 text-center py-6">No tenant data</p>}
+          </div>
+        </SectionCard>
+        <DonutWidget title="Tenant Status" series={tenantDonut.series} labels={tenantDonut.labels} colors={tenantDonut.colors} centerLabel="Tenants" />
+      </div>
 
       {/* Expiry alert */}
       {tenantStats.expiringSoon > 0 && (
@@ -267,10 +324,10 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
         </div>
       )}
 
-      {/* Quick links */}
-      <WidgetSection layout={4} title="Quick Links" border normalCase>
-        {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
-      </WidgetSection>
+      {/* Monthly operational trends */}
+      <BarWidget title="Monthly Booking Trend (FY)" chartId="pro-monthly-bookings" series={bookingsByMonth} options={bookingBarOptions} height={260} />
+      <BarWidget title="Monthly Ticket Trend (FY)" chartId="pro-monthly-tickets" series={ticketsByMonth} options={ticketBarOptions} height={260} />
+      <BarWidget title="Monthly Tenant Trend (FY)" chartId="pro-monthly-tenants" series={tenantsByMonth} options={tenantBarOptions} height={260} />
 
     </div>
   );

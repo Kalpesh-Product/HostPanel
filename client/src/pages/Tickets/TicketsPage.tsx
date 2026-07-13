@@ -2404,46 +2404,69 @@ export function TicketsPage() {
         {/* MODAL 2: VIEW & UPDATE TICKET */}
         {/* ======================================================= */}
         {viewingTicket && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-2xl h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
-
-              <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-start shrink-0 relative">
-                <div>
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <span className="font-mono text-[11px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingTicket.id}</span>
-                    {getPriorityBadge(viewingTicket.priority)}
-                    {getStatusBadge(viewingTicket.status)}
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); }}>
+            <div
+              className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    <AlertCircle size={18} />
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight pr-8">{viewingTicket.title}</h2>
-                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1"><Calendar size={12} /> Raised: {viewingTicket.created}</p>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{viewingTicket.title}</h2>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingTicket.id}</span>
+                      {getPriorityBadge(viewingTicket.priority)}
+                      {getStatusBadge(viewingTicket.status)}
+                    </div>
+                  </div>
                 </div>
-                <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8"><X size={18} strokeWidth={2.5} /></button>
+                <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); }} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
               </div>
 
-              <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 bg-white">
 
                 <div>
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12} /> Issue Description</p>
-                  <p className="text-[13px] font-medium text-slate-700 leading-relaxed bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{viewingTicket.description}</p>
+                  <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                    <FileText size={14} /> Issue Details
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Calendar size={10} /> Raised On</p>
+                      <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.created}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Description</p>
+                      <p className="text-[12px] font-pmedium text-slate-900 leading-relaxed whitespace-pre-wrap">{viewingTicket.description}</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Resolution Note Display (If resolved) */}
                 {viewingTicket.status === 'Resolved' && viewingTicket.resolutionNote && (
-                  <div className="bg-emerald-50 border border-emerald-100 p-4 sm:p-5 rounded-xl shadow-sm">
-                    <p className="text-[10px] font-pmedium text-emerald-700 uppercase tracking-wider mb-1 flex items-center gap-1"><CheckCircle2 size={12} /> Official Resolution Note</p>
-                    <p className="text-[13px] font-semibold text-emerald-900 leading-relaxed">{viewingTicket.resolutionNote}</p>
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <CheckCircle2 size={14} /> Official Resolution Note
+                    </h3>
+                    <div className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100">
+                      <p className="text-[12px] font-pmedium text-emerald-900 leading-relaxed">{viewingTicket.resolutionNote}</p>
+                    </div>
                   </div>
                 )}
 
-                {/* Routing Meta Info (Rich Format) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 bg-blue-50/50 p-4 sm:p-5 rounded-2xl border border-blue-100 items-stretch">
-                  <div className="min-w-0 h-full">
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Raised By</p>
-                    <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-pmedium">{getInitials(viewingTicket.submittedBy)}</div>
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.submittedBy}</span>
+                {/* Routing Meta Info */}
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                    <User size={14} /> Routing & People
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                    <div className="min-w-0">
+                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Raised By</p>
+                      <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.submittedBy}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
                         {!viewingTicket.submittedBy?.includes('(Owner)') ? (
                           <span className={statusPillClass(viewingTicket.submittedByDept)}>{viewingTicket.submittedByDept}</span>
                         ) : null}
@@ -2459,49 +2482,47 @@ export function TicketsPage() {
                         ) : null}
                       </div>
                     </div>
-                  </div>
-                  <div className="min-w-0 h-full">
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
-                    <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-pmedium">{getInitials(viewingTicket.assignedTo)}</div>
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.assignedTo}</span>
+                    <div className="min-w-0">
+                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Assigned To</p>
+                      <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.assignedTo}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
                         <span className={statusPillClass(viewingTicket.department)}>{viewingTicket.department}</span>
                       </div>
                     </div>
+                    {viewingTicket.acceptedBy && (
+                      <div className="sm:col-span-2">
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Currently Accepted By</p>
+                        <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.acceptedBy}</p>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Accepted By Tracking */}
-                  {viewingTicket.acceptedBy && (
-                    <div className="col-span-1 sm:col-span-2 border-t border-blue-100 pt-3 mt-1">
-                      <p className="text-[10px] font-pmedium text-indigo-700 uppercase tracking-wider flex flex-wrap items-center gap-1.5 bg-indigo-50 w-full px-3 py-1.5 rounded-lg border border-indigo-100"><User size={12} strokeWidth={2.5} /> Currently Accepted By: <span className="font-black text-indigo-900 wrap-break-word normal-case ml-0 sm:ml-1">{viewingTicket.acceptedBy}</span></p>
-                    </div>
-                  )}
                 </div>
 
                 {((viewingTicket.assetName || viewingTicket.assetCode || viewingTicket.assetDepartment) && requiresAssetSnapshotDepartment(viewingTicket.department)) && (
-                  <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Asset Snapshot</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <Wrench size={14} /> Asset Snapshot
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                       <div>
-                        <p className="text-slate-400 font-semibold">Asset</p>
-                        <p className="font-bold text-slate-900">{viewingTicket.assetName || 'Asset'}</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Asset</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.assetName || 'Asset'}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 font-semibold">Asset Code</p>
-                        <p className="font-bold text-slate-900">{viewingTicket.assetCode || viewingTicket.assetId || 'N/A'}</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Asset Code</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.assetCode || viewingTicket.assetId || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 font-semibold">Department</p>
-                        <p className="font-bold text-slate-900">{viewingTicket.assetDepartment || viewingTicket.department}</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Department</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.assetDepartment || viewingTicket.department}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 font-semibold">Assigned To</p>
-                        <p className="font-bold text-slate-900">{viewingTicket.assetAssignedTo || 'Unassigned'}</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Assigned To</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.assetAssignedTo || 'Unassigned'}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 font-semibold">Due Date</p>
-                        <p className="font-bold text-slate-900">{viewingTicket.dueDate || 'Not set'}</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Due Date</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.dueDate || 'Not set'}</p>
                       </div>
                     </div>
                   </div>

@@ -4,7 +4,7 @@ import {
   Search, Plus, X, Briefcase, Users, FileText,
   CheckCircle2, XCircle, MapPin, Building, Calendar,
   UserCheck, UserPlus, ChevronDown, ChevronRight, Mail, Phone, ExternalLink,
-  History, ToggleRight, ToggleLeft, DollarSign, GraduationCap,
+  History, ToggleRight, ToggleLeft, DollarSign, GraduationCap, Eye,
   Target, AlignLeft, Award, Clock, Loader2, Globe, UploadCloud, FileSpreadsheet, FileDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -271,219 +271,152 @@ function CandidateDetailModal({
   const customFieldEntries = parseCustomFields(fd.customFields || "");
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-8 bg-slate-50 border-b border-slate-100/60 flex justify-between items-start shrink-0">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-3xl font-pmedium text-primary leading-none">{candidate.name}</h2>
-              <span className={`px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusStyle(candidate.status || "")}`}>
-                {candidate.status}
-              </span>
+    <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={onClose}>
+      <div
+        className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-[12px] font-pmedium shadow-sm shrink-0 bg-[#2563EB] text-white">
+              {getInitials(candidate.name || "")}
             </div>
-            <p className="text-sm font-medium text-blue-600">
-              {candidate.position} <span className="text-slate-400 font-normal ml-2">Source: {candidate.source}</span>
-            </p>
+            <div className="min-w-0">
+              <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{candidate.name}</h2>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className={`px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${getStatusStyle(candidate.status || "")}`}>
+                  {candidate.status}
+                </span>
+                <span className="text-[10px] font-pmedium text-slate-500 truncate">{candidate.position}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <button
+              title="Send Email"
               onClick={() => onSendEmail(candidate)}
               disabled={busyId === candidate.id}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-pmedium transition-all shadow-sm h-10 disabled:opacity-60"
+              className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-[#2563EB] hover:bg-blue-50 transition-colors disabled:opacity-60"
             >
-              <Mail size={14} /> {busyId === candidate.id ? "SENDING..." : "SEND EMAIL"}
+              {busyId === candidate.id ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
             </button>
-            <button onClick={onClose} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 transition-all">
-              <X size={20} />
-            </button>
+            <button onClick={onClose} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors"><X size={16} /></button>
           </div>
         </div>
 
-        <div className="p-8 space-y-8 overflow-y-auto flex-1 bg-white">
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
           <div>
-            <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
-              <Users size={16} /> Basic Information
+            <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+              <Users size={14} /> Basic Information
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/60">
-              <div className="col-span-2 md:col-span-4">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Name</p>
-                <p className="font-semibold text-slate-900">{candidate.name}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Mail size={12} /> Email Address</p>
-                <p className="font-semibold text-slate-900">{candidate.email}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Phone size={12} /> Mobile Number</p>
-                <p className="font-semibold text-slate-900">{candidate.phone || "-"}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
+                <p className="text-[12px] font-pmedium text-slate-900 break-all">{candidate.email || "—"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Date of Birth</p>
-                <p className="font-semibold text-slate-900">{fd.dob || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Country</p>
-                  <p className="font-semibold text-slate-900">{resolveCountryName(fd.country)}</p>
-                </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">State</p>
-                <p className="font-semibold text-slate-900">{fd.state || "-"}</p>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Phone size={10} /> Mobile Number</p>
+                <p className="text-[12px] font-pmedium text-slate-900">{candidate.phone || "—"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">City</p>
-                <p className="font-semibold text-slate-900">{fd.city || "-"}</p>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Date of Birth</p>
+                <p className="text-[12px] font-pmedium text-slate-900">{fd.dob || "—"}</p>
               </div>
-              <div className="col-span-2 md:col-span-4">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><FileText size={12} /> Resume</p>
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                  <p className="font-semibold text-slate-900">{candidate.resume || "Resume file"}</p>
-                  {resumeUrl ? (
-                    <a
-                      href={resumeUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-pmedium uppercase tracking-wider text-blue-700 transition hover:bg-blue-100"
-                    >
-                      <ExternalLink size={12} /> View Resume
-                    </a>
-                  ) : (
-                    <span className="text-[11px] font-pmedium uppercase tracking-wider text-slate-400">No file available</span>
-                  )}
-                </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Country</p>
+                <p className="text-[12px] font-pmedium text-slate-900">{resolveCountryName(fd.country)}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">State</p>
+                <p className="text-[12px] font-pmedium text-slate-900">{fd.state || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">City</p>
+                <p className="text-[12px] font-pmedium text-slate-900">{fd.city || "—"}</p>
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
-              <Target size={16} /> Job-Specific Details
+            <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+              <Target size={14} /> Application Details
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8 bg-blue-50/30 p-5 rounded-2xl border border-blue-100">
-              <div className="col-span-2">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Briefcase size={12} /> Position Applied For</p>
-                <p className="font-semibold text-blue-900">{candidate.position}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Briefcase size={10} /> Position Applied</p>
+                <p className="text-[12px] font-pmedium text-slate-900">{candidate.position || "—"}</p>
               </div>
-              {/* <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Calendar size={12} /> Earliest Start Date</p>
-                <p className="font-semibold text-slate-900">{fd.earliestStartDate}</p>
-              </div> */}
-              {/* <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Clock size={12} /> Availability</p>
-                <p className="font-semibold text-slate-900">{fd.availability}</p>
-              </div> */}
-              {/* <div className="col-span-2">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><DollarSign size={12} /> Expected Salary (CTC)</p>
-                <p className="font-semibold text-slate-900">{fd.expectedSalary}</p>
-              </div> */}
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Source</p>
+                <p className="text-[12px] font-pmedium text-slate-900">{candidate.source || "—"}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><FileText size={10} /> Resume</p>
+                {resumeUrl ? (
+                  <a
+                    href={resumeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors"
+                  >
+                    <ExternalLink size={11} /> View Resume
+                  </a>
+                ) : (
+                  <p className="text-[12px] font-pmedium text-slate-400">No file available</p>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* <div>
-            <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
-              <Award size={16} /> Professional Background
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Briefcase size={12} /> Employment History</p>
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/60 text-sm font-medium text-slate-800 leading-relaxed">
-                    {fd.employmentHistory}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><GraduationCap size={12} /> Educational Background</p>
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/60 text-sm font-medium text-slate-800">
-                    {fd.education}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Target size={12} /> Skills & Certifications</p>
-                  <div className="space-y-2">
-                    <p className="font-semibold text-blue-700 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 text-sm">{fd.skills}</p>
-                    <p className="font-semibold text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 text-sm">{fd.certifications}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-span-1 md:col-span-2">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><AlignLeft size={12} /> Cover Letter / Motivation</p>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/60 text-sm font-medium text-slate-700 italic leading-relaxed">
-                  &ldquo;{fd.coverLetter}&rdquo;
-                </div>
-              </div>
-            </div>
-          </div> */}
-
-          {customFieldEntries.length > 0 ? (
+          {customFieldEntries.length > 0 && (
             <div>
-                <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
-                  <FileText size={16} /> Custom Fields
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-8 bg-purple-50/30 p-5 rounded-2xl border border-purple-100">
-                  {customFieldEntries.map(([key, val]) => (
-                    <div key={key}>
-                    <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">{key.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim()}</p>
-                    <p className="font-semibold text-slate-900">{val || "-"}</p>
+              <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                <FileText size={14} /> Custom Fields
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                {customFieldEntries.map(([key, val]) => (
+                  <div key={key}>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">{key.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim()}</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{val || "—"}</p>
                   </div>
                 ))}
-              </div>
-            </div>
-          ) : null}
-
-          {resumeUrl ? null : (
-            <div>
-              <h3 className="text-xs font-pmedium text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
-                <FileText size={16} /> Application Attachments
-              </h3>
-              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-white shadow-sm rounded-xl text-blue-600"><FileText size={24} /></div>
-                  <div>
-                    <p className="font-semibold text-slate-900 text-sm">{candidate.resume}</p>
-                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Mandatory Upload | PDF</p>
-                  </div>
-                </div>
-                <span className="p-2 bg-white text-slate-400 rounded-lg shadow-sm border border-slate-200 text-xs font-medium px-4">
-                  No file available
-                </span>
               </div>
             </div>
           )}
         </div>
 
-        <div className="p-6 bg-slate-50 border-t border-slate-100/60 flex gap-4 shrink-0">
+        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0 flex gap-2.5">
           {candidate.status === "Applied" ? (
             <>
               <button
                 onClick={() => candidate.id && onReject(candidate.id)}
                 disabled={busyId === candidate.id}
-                className="flex-1 py-4 bg-white border border-red-200 text-red-600 rounded-4xl font-pmedium hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex-1 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[12px] hover:bg-red-50 transition-colors shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
-                <XCircle size={18} /> REJECT CANDIDATE
+                <XCircle size={14} /> Reject
               </button>
               <button
                 onClick={() => candidate.id && onAccept(candidate.id)}
                 disabled={busyId === candidate.id}
-                className="flex-1 py-4 bg-[#2563EB] text-white rounded-4xl font-pmedium shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
-                <CheckCircle2 size={18} /> ACCEPT FOR SCREENING
+                <CheckCircle2 size={14} /> Accept for Screening
               </button>
             </>
           ) : (
-            <div className="flex gap-4 w-full">
-              <button onClick={onClose} className="flex-1 py-4 bg-blue-600 text-white border border-slate-200 rounded-2xl font-semibold transition-all">
-                CLOSE PROFILE
+            <>
+              <button onClick={onClose} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm">
+                Close
               </button>
               {candidate.status === "Selected" && (
                 <button
                   onClick={() => onConvert(candidate)}
-                  className="flex-1 py-4 bg-linear-to-r from-green-500 to-teal-500 text-white rounded-4xl font-semibold flex items-center justify-center gap-2 hover:shadow-lg hover:scale-105 transition-all"
+                  className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
                 >
-                  <UserPlus size={18} /> CONVERT TO EMPLOYEE
+                  <UserPlus size={14} /> Convert to Employee
                 </button>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>
@@ -944,8 +877,9 @@ function HistoryModal({ open, onClose, data }: HistoryModalProps) {
 export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "careers" } = {}) {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("candidates");
+  const [activeTab, setActiveTab] = useState("jobs");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingCandidate, setIsSavingCandidate] = useState(false);
   const [isBulkUploading, setIsBulkUploading] = useState(false);
@@ -1006,18 +940,25 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
   }, []);
 
   const displayedCandidates = useMemo(() => {
-    return candidates.filter((c) =>
-      (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.position || "").toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [candidates, searchQuery]);
+    return candidates.filter((c) => {
+      if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      return (
+        (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.position || "").toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  }, [candidates, searchQuery, statusFilter]);
 
   const displayedJobs = useMemo(() => {
-    return jobOpenings.filter((job) =>
-      (job.designation || job.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (job.department || "").toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [jobOpenings, searchQuery]);
+    return jobOpenings.filter((job) => {
+      if (statusFilter === "active" && !job.isActive) return false;
+      if (statusFilter === "inactive" && job.isActive) return false;
+      return (
+        (job.designation || job.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (job.department || "").toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  }, [jobOpenings, searchQuery, statusFilter]);
 
   const refreshJobOpenings = async () => {
     const response = await getRecruitmentJobOpenings();
@@ -1500,17 +1441,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
           {/* ── Main Pill Tabs ── */}
           <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
-              onClick={() => { setActiveTab("candidates"); setSearchQuery(""); }}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                activeTab === "candidates"
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              {mode === "careers" ? "APPLICATIONS" : "CANDIDATES TRACKING"}
-            </button>
-            <button
-              onClick={() => { setActiveTab("jobs"); setSearchQuery(""); }}
+              onClick={() => { setActiveTab("jobs"); setSearchQuery(""); setStatusFilter("all"); }}
               className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === "jobs"
                   ? "bg-[#2563EB] text-white shadow-sm"
@@ -1518,6 +1449,16 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
               }`}
             >
               JOB OPENINGS
+            </button>
+            <button
+              onClick={() => { setActiveTab("candidates"); setSearchQuery(""); setStatusFilter("all"); }}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                activeTab === "candidates"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              {mode === "careers" ? "APPLICATIONS" : "CANDIDATES TRACKING"}
             </button>
           </div>
 
@@ -1543,36 +1484,66 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
             {/* Data panel header row */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col lg:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex flex-col md:flex-row gap-3 w-full lg:w-revert-rule">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              {/* LEFT: status sub-tab pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {(activeTab === "jobs"
+                  ? [
+                    { key: "all", label: "All" },
+                    { key: "active", label: "Active" },
+                    { key: "inactive", label: "Inactive" },
+                  ]
+                  : [
+                    { key: "all", label: "All" },
+                    { key: "Screening", label: "Screening" },
+                    { key: "Interview Scheduled", label: "Interview Scheduled" },
+                    { key: "Interviewed", label: "Interviewed" },
+                    { key: "Selected", label: "Selected" },
+                  ]
+                ).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setStatusFilter(key)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === key
+                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* RIGHT: search + primary action */}
+              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     type="text"
-                    placeholder={`Search ${activeTab}...`}
+                    placeholder={activeTab === "jobs" ? "Search by title, department..." : "Search by name, position..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
                 {activeTab === "candidates" ? (
                   mode !== "careers" && (
                     <button
                       onClick={() => setIsCandidateModalOpen(true)}
-                      className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
-                      <Plus size={13} strokeWidth={2.5} /> ADD CANDIDATE
+                      <Plus size={13} strokeWidth={3} /> ADD CANDIDATE
                     </button>
                   )
                 ) : (
-                  <div className="flex flex-wrap gap-2 justify-end">
-                      <button
-                        onClick={openCreateJobModal}
-                        className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                      >
-                      <Plus size={13} strokeWidth={2.5} /> PUBLISH JOB
-                    </button>
-                  </div>
+                  <button
+                    onClick={openCreateJobModal}
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                  >
+                    <Plus size={13} strokeWidth={3} /> PUBLISH JOB
+                  </button>
                 )}
               </div>
             </div>
@@ -1654,10 +1625,11 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                           <td className="px-5 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                               <button
+                                title="View Details"
                                 onClick={() => setViewingCandidate(can)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg font-pmedium text-[10px] uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
+                                className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
                               >
-                                <FileText size={11} /> {can.status === "Applied" ? "Review" : "Profile"}
+                                <Eye size={15} />
                               </button>
                               {can.status === "Selected" && (
                                 <button

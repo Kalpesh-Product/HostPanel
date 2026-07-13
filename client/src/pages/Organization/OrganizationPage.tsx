@@ -4,7 +4,7 @@ import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
   Mail, Calendar, Briefcase, Shield, Send, DollarSign, Wrench,
   CheckCircle2, Search, Crown, CheckSquare, ChevronDown,
-  Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2
+  Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2, Eye
 } from 'lucide-react';
 import { Switch } from '@mui/material';
 import useAuth from '../../hooks/useAuth';
@@ -141,6 +141,10 @@ type TeamMember = {
   departmentNames?: string[];
   transferredToWorkspaceName?: string;
   transferredToWorkspaceLocation?: string;
+  grantedModules?: string[];
+  enabledModules?: string[];
+  workspaceAccesses?: Array<{ id?: string; workspaceName?: string; location?: string }>;
+  joinedAt?: string;
 };
 
 type TeamMemberFormData = {
@@ -244,6 +248,7 @@ export function OrganizationPage() {
 
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [viewingMember, setViewingMember] = useState<TeamMember | null>(null);
   const [transferredTeamMembers, setTransferredTeamMembers] = useState<TeamMember[]>([]);
   const [workspacePlan, setWorkspacePlan] = useState('basic');
   const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
@@ -1269,6 +1274,7 @@ export function OrganizationPage() {
                 <th className="px-5 py-4 text-left">Department</th>
                 <th className="px-5 py-4 text-center">Status</th>
                 <th className="px-5 py-4 text-left">Access</th>
+                <th className="px-5 py-4 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/60">
@@ -1401,10 +1407,19 @@ export function OrganizationPage() {
                         );
                       })()}
                     </td>
+                    <td className="px-5 py-4 text-center">
+                      <button
+                        title="View Details"
+                        onClick={() => setViewingMember(member)}
+                        className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                      >
+                        <Eye size={15} />
+                      </button>
+                    </td>
                   </tr>
                 )})}
                 {filteredTeamMembers.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-20 text-slate-400 font-pmedium"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
                 )}
               </tbody>
             </table>
@@ -2078,6 +2093,108 @@ export function OrganizationPage() {
       )}
 
       {/* 4. Add Platform Administrator Modal */}
+      {viewingMember && (
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setViewingMember(null)}>
+          <div
+            className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center text-[12px] font-pmedium shadow-sm shrink-0 ${normalizeRoleValue(viewingMember.role) === 'owner' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'}`}>
+                  {getInitials(viewingMember.name)}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{viewingMember.name || 'Unknown User'}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    {getRoleBadge(viewingMember.role)}
+                    {getStatusBadge(viewingMember.status)}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setViewingMember(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <Users size={14} /> Basic Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Employee ID</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingMember.employeeId || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 break-all">{viewingMember.email || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Shield size={10} /> Access Role</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{getRoleBadge(viewingMember.role)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Calendar size={10} /> Joined On</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {viewingMember.joinedAt ? new Date(viewingMember.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <Briefcase size={14} /> Departments
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {(normalizeRoleValue(viewingMember.role) === 'owner' || normalizeRoleValue(viewingMember.role) === 'super-admin'
+                    ? ['All Departments']
+                    : (Array.isArray(viewingMember.departmentNames) && viewingMember.departmentNames.length > 0
+                      ? viewingMember.departmentNames
+                      : ['—'])
+                  ).map((dept, i) => (
+                    <span key={i} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-pmedium tracking-wide">{normalizeDepartmentLabel(dept)}</span>
+                  ))}
+                </div>
+              </div>
+
+              {Array.isArray(viewingMember.grantedModules) && viewingMember.grantedModules.length > 0 && (
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                    <CheckSquare size={14} /> Granted Modules
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewingMember.grantedModules.map((moduleId, i) => (
+                      <span key={i} className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide">{formatModuleLabel(moduleId)}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {Array.isArray(viewingMember.workspaceAccesses) && viewingMember.workspaceAccesses.length > 0 && (
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                    <Building2 size={14} /> Linked Workspaces
+                  </h3>
+                  <div className="space-y-2">
+                    {viewingMember.workspaceAccesses.map((access, i) => (
+                      <div key={access.id || i} className="flex items-center justify-between p-3 bg-slate-50/60 border border-slate-100 rounded-xl">
+                        <span className="text-[12px] font-pmedium text-slate-800">{access.workspaceName || 'Workspace'}</span>
+                        {access.location && <span className="text-[10px] font-pmedium text-slate-500">{access.location}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0">
+              <button onClick={() => setViewingMember(null)} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTeamMemberModal && (
         <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
           <div className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">

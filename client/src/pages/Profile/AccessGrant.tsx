@@ -1346,31 +1346,6 @@ export default function AccessGrantsPage() {
             </div>
           </div>
 
-          {/* 2. MAIN TABS — role filter pill nav */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {ROLE_FILTERS.map((role) => (
-              <button
-                key={role}
-                onClick={() => setSelectedRole(role)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${
-                  selectedRole === role
-                    ? 'bg-[#2563EB] text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                {role === 'All Roles' ? 'All' : role}
-                {role !== 'All Roles' && (() => {
-                  const count = users.filter(u => u.roleGroup === role).length;
-                  return count > 0 ? (
-                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-bold ${
-                      selectedRole === role ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600'
-                    }`}>{count}</span>
-                  ) : null;
-                })()}
-              </button>
-            ))}
-          </div>
-
           {/* 3. STAT CARDS — 5-col grid matching DESIGN.md pattern */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
             {[

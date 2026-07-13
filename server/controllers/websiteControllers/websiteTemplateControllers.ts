@@ -1,5 +1,5 @@
-﻿import sharp from "sharp";
-// @ts-nocheck
+﻿// @ts-nocheck
+import sharp from "sharp";
 import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
 import mongoose from "mongoose";
 import {
@@ -45,7 +45,6 @@ const normalizeVertical = (value) => {
     aliasMap[raw] || aliasMap[compact] || aliasMap[withHyphen] || withHyphen;
   return VALID_VERTICALS.has(canonical) ? canonical : "co-working";
 };
-
 const businessTypeLabelByVertical = {
   "co-working": "Co-Working",
   "co-living": "Co-Living",
@@ -117,6 +116,23 @@ const toNum = (value, fallback = 0) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 };
+
+const SOCIAL_PLATFORM_KEYS = [
+  "instagram",
+  "facebook",
+  "twitter",
+  "linkedin",
+  "whatsapp",
+];
+
+const normalizeSocials = (value = {}) =>
+  SOCIAL_PLATFORM_KEYS.reduce((socials, key) => {
+    socials[key] = {
+      enabled: value?.[key]?.enabled === true,
+      link: String(value?.[key]?.link || "").trim(),
+    };
+    return socials;
+  }, {});
 
 const normalizePageNavItems = (items = []) =>
   (Array.isArray(items) ? items : []).map((item) => ({
@@ -240,10 +256,11 @@ const serializeProductDropdownPagesForClient = (items = [], products = []) => {
 const serializeWebsiteTemplateForClient = (template) => {
   const payload = template?.toObject ? template.toObject() : { ...template };
   payload.mapUrl = normalizeMapUrl(payload.mapUrl);
-  payload.companyName =
+    payload.companyName =
     resolveUsableCompanyName(payload.companyName, payload.registeredCompanyName) ||
     payload.searchKey ||
     "";
+  payload.socials = normalizeSocials(payload.socials);
   payload.pageNavItems = Array.isArray(payload.pageNavItems)
     ? normalizePageNavItems(payload.pageNavItems)
     : [];
@@ -585,6 +602,9 @@ export const saveTemplateDraft = async (req, res) => {
       draftData?.copyrightText !== undefined
         ? String(draftData.copyrightText || "").trim()
         : template.copyrightText;
+    if (draftData?.socials !== undefined) {
+      template.socials = normalizeSocials(draftData.socials);
+    }
     template.pageNavItems =
       draftData?.pageNavItems !== undefined
         ? normalizePageNavItems(draftData.pageNavItems)
@@ -1188,6 +1208,7 @@ export const createTemplate = async (req, res, next) => {
       sectionOverrides,
       styleConfig,
       inclusions,
+      socials,
       source = "Host Panel",
     } = req.body;
 
@@ -1214,6 +1235,7 @@ export const createTemplate = async (req, res, next) => {
     enabledSections = safeParse(enabledSections, []);
     sectionOverrides = safeParse(sectionOverrides, {});
     styleConfig = safeParse(styleConfig, {});
+    socials = normalizeSocials(safeParse(socials, {}));
 
     const vertical = normalizeVertical(
       req.body.vertical ?? req.body.verticalType,
@@ -1464,6 +1486,7 @@ export const createTemplate = async (req, res, next) => {
             req.body.companyName,
           ) || req.body.registeredCompanyName,
         copyrightText: req.body.copyrightText,
+        socials,
         heroVariant: req.body.heroVariant || "text-image",
         themeVariant: req.body.themeVariant || "default",
         themeId,
@@ -1554,6 +1577,7 @@ export const createTemplate = async (req, res, next) => {
             req.body.companyName,
           ) || req.body.registeredCompanyName,
         copyrightText: req.body.copyrightText,
+        socials,
         heroVariant: req.body.heroVariant || "text-image",
         themeVariant: req.body.themeVariant || "default",
         themeId,
@@ -2328,6 +2352,7 @@ export const editTemplate = async (req, res, next) => {
       styleConfig,
       companyName,
       inclusions,
+      socials,
     } = req.body;
 
     const safeParse = (val, fallback) => {
@@ -2353,6 +2378,7 @@ export const editTemplate = async (req, res, next) => {
     enabledSections = safeParse(enabledSections, null);
     sectionOverrides = safeParse(sectionOverrides, null);
     styleConfig = safeParse(styleConfig, null);
+    socials = socials === undefined ? null : normalizeSocials(safeParse(socials, {}));
     const parsedInclusions = safeParse(inclusions, null);
 
     const formatCompanyName = (name) =>
@@ -2576,6 +2602,7 @@ export const editTemplate = async (req, res, next) => {
           template.companyName,
         ) || template.registeredCompanyName,
       copyrightText: req.body.copyrightText ?? template.copyrightText,
+      socials: socials === null ? template.socials : socials,
       heroVariant: req.body.heroVariant ?? template.heroVariant ?? "text-image",
       themeVariant: req.body.themeVariant ?? template.themeVariant ?? "default",
       enabledSections:
@@ -3255,18 +3282,3 @@ export const publishWebsite = async (req, res, next) => {
     return next(error);
   }
 };
-
-﻿// @ts-nocheck
-import sharp from "sharp";
-import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
-import mongoose from "mongoose";
-import {
-  deleteFileFromS3ByUrl,
-  uploadFileToS3,
-} from "../../config/s3config.js";
-import HostCompany from "../../models/Company.js";
-import Workspace from "../../models/Workspace.js";
-import axios from "axios";
-import { VERTICAL_CONFIG } from "../../config/verticalConfig.js";
-import { THEME_TOKENS } from "../../config/themeTokens.js";
-import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";

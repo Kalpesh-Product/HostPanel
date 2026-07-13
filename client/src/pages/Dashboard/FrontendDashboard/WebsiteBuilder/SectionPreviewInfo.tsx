@@ -334,19 +334,44 @@ const FooterMock = () => (
   </div>
 );
 
-// Founders: black about-page band with yellow heading and photo cards.
+// About page: shared intro followed by the story, mission and vision blocks.
+const AboutPageMock = () => (
+  <div className="rounded-lg bg-black px-4 py-6 text-white">
+    <p className={`text-center text-[16px] font-semibold text-[#f7e53f] ${POPPINS}`}>About Our Vision</p>
+    <p className={`mx-auto mt-3 max-w-md text-center text-[9px] leading-[1.7] text-white/90 ${POPPINS}`}>
+      The About Us paragraphs shared from Home introduce the company here.
+    </p>
+    <div className="mt-4 grid grid-cols-3 gap-2 text-left">
+      {[
+        ["Our Story", "How the company started and the journey so far."],
+        ["Our Mission", "What the company works to achieve every day."],
+        ["Our Vision", "The long-term future the company is building."],
+      ].map(([title, body]) => (
+        <article key={title} className="rounded-lg border border-white/10 bg-white/5 p-3">
+          <p className={`text-[10px] font-semibold text-[#f7e53f] ${POPPINS}`}>{title}</p>
+          <p className={`mt-1.5 text-[8px] leading-relaxed text-white/85 ${POPPINS}`}>{body}</p>
+        </article>
+      ))}
+    </div>
+  </div>
+);
+
+// Founders: wide image-and-copy rows that alternate sides like the real About page.
 const FoundersMock = () => (
   <div className="rounded-lg bg-black px-4 py-5 text-white">
     <p className={`text-center text-[14px] font-semibold text-[#f7e53f] ${POPPINS}`}>Our Founders</p>
-    <div className="mt-3 grid grid-cols-2 gap-3">
+    <div className="mt-4 space-y-4">
       {[
-        ["Anita Desai", "Co-Founder & CEO", IMG.person2],
-        ["Vikram Mehta", "Co-Founder & COO", IMG.person1],
-      ].map(([name, role, src]) => (
-        <div key={name} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-          <img src={src} alt={name} className="mx-auto h-14 w-14 rounded-full object-cover" />
-          <p className={`mt-2 text-[10px] font-semibold ${POPPINS}`}>{name}</p>
-          <p className={`text-[8px] uppercase tracking-widest text-white/70 ${POPPINS}`}>{role}</p>
+        ["Anita Desai", "Co-Founder & CEO", IMG.person2, "Building thoughtful spaces and strong communities."],
+        ["Vikram Mehta", "Co-Founder & COO", IMG.person1, "Turning the company vision into a dependable experience."],
+      ].map(([name, role, src, bio], idx) => (
+        <div key={name} className={`flex overflow-hidden rounded-xl border border-white/10 bg-white/5 ${idx % 2 === 1 ? "flex-row-reverse" : ""}`}>
+          <img src={src} alt={name} className="h-24 w-2/5 object-cover" />
+          <div className="flex w-3/5 flex-col justify-center px-3 text-left">
+            <p className={`text-[10px] font-semibold text-[#f7e53f] ${POPPINS}`}>{name}</p>
+            <p className={`text-[7px] uppercase tracking-widest text-white/70 ${POPPINS}`}>{role}</p>
+            <p className={`mt-1.5 text-[8px] leading-relaxed text-white/80 ${POPPINS}`}>{bio}</p>
+          </div>
         </div>
       ))}
     </div>
@@ -373,13 +398,58 @@ const TeamMock = () => (
   </div>
 );
 
-// Partners: lined heading + static logo row (gallery-page partner strip).
-const PartnersMock = () => (
+// Gallery page: the complete image grid, without the Home-page Show More action.
+const GalleryPageMock = () => (
   <div className="space-y-4">
-    <LinedHeading title="Our Partners" />
-    <div className="flex items-center justify-center gap-6">
-      {LOGO_MARKS.slice(0, 4).map((LogoMark, idx) => (
-        <LogoMark key={idx} size={28} strokeWidth={1.7} className="text-slate-400" />
+    <LinedHeading title="Gallery" />
+    <div className="grid grid-cols-3 gap-1.5">
+      {[IMG.desk, IMG.meeting, IMG.team, IMG.laptops, IMG.lounge, IMG.cafe].map((src, idx) => (
+        <img key={idx} src={src} alt={`Gallery ${idx + 1}`} className="h-20 w-full rounded-lg object-cover" />
+      ))}
+    </div>
+  </div>
+);
+
+// Partner page: body copy on the left and the inquiry form on the right.
+const PartnerPageMock = () => (
+  <div className="space-y-4">
+    <LinedHeading title="Become A Partner" />
+    <div className="grid grid-cols-2 gap-4">
+      <div className={`space-y-2 text-[9px] leading-relaxed text-[#374151] ${POPPINS}`}>
+        <p>We welcome partnerships that create more value for our community.</p>
+        <p>Share your idea and our team will connect with you.</p>
+      </div>
+      <div className={`rounded-xl bg-[#f8f8f8] p-3 shadow-sm ${POPPINS}`}>
+        <p className="text-center text-[10px] font-semibold text-[#111827]">Partner With Us</p>
+        <div className="mt-2 space-y-1.5">
+          {["Your Name", "Your Email", "Mobile Number", "Your Message"].map((label) => (
+            <div key={label} className="rounded border border-slate-300 bg-white px-2 py-1.5 text-[8px] text-slate-400">{label}</div>
+          ))}
+        </div>
+        <div className="mt-2 text-center">
+          <span className="inline-block rounded-full bg-black px-5 py-1.5 text-[7px] font-semibold uppercase tracking-wider text-white">Connect</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Careers page: intro followed by the grouped Open Positions list.
+const CareersPageMock = () => (
+  <div className="space-y-4">
+    <LinedHeading title="Join Our Team - Company Name" />
+    <p className={`mx-auto max-w-md text-center text-[9px] leading-relaxed text-[#374151] ${POPPINS}`}>
+      Introduce your company culture and invite candidates to explore the roles currently open.
+    </p>
+    <LinedHeading title="Open Positions" />
+    <div className={`space-y-2 ${POPPINS}`}>
+      {["I  TECHNOLOGY", "II  OPERATIONS", "III  SALES & MARKETING"].map((label, idx) => (
+        <div key={label} className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <div className="flex items-center justify-between text-[9px] font-semibold text-[#111827]">
+            <span>{label}</span><span>{idx === 0 ? "-" : "+"}</span>
+          </div>
+          {idx === 0 ? <p className="mt-2 border-t border-slate-100 pt-2 text-[8px] text-[#374151]">Frontend Developer · Full Time · Goa</p> : null}
+        </div>
       ))}
     </div>
   </div>
@@ -467,13 +537,16 @@ const SECTION_MOCKUPS = {
   productsPage: { title: "Products Page", node: <ProductsPageMock /> },
   productDetails: { title: "Product Page", node: <ProductDetailsMock /> },
   heroBanner: { title: "Page Hero Banner", node: <HeroMock small title="Page Title" /> },
+  aboutPage: { title: "About Us Page", node: <AboutPageMock /> },
+  galleryPage: { title: "Gallery Page", node: <GalleryPageMock /> },
+  partnerPage: { title: "Partner Page", node: <PartnerPageMock /> },
+  careersPage: { title: "Careers Page", node: <CareersPageMock /> },
   leadForm: { title: "Lead / Enquiry Form", node: <LeadFormMock /> },
   faq: { title: "FAQ Section", node: <FaqMock /> },
   inclusions: { title: "Inclusions Section", node: <InclusionsMock /> },
   founders: { title: "Founders Section", node: <FoundersMock /> },
   team: { title: "Team Section", node: <TeamMock /> },
   gallery: { title: "Gallery Section", node: <GalleryMock /> },
-  partners: { title: "Partners Section", node: <PartnersMock /> },
   applyForm: { title: "Careers Application Form", node: <ApplyFormMock /> },
   contactPerson: { title: "Contact Person Card", node: <ContactPersonMock /> },
   hero: { title: "Home Hero Section", node: <HeroMock carousel /> },

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import {
-  BadgeCheck, CheckCircle2, Eye, FileDown, FileSpreadsheet, Mail, Phone, Search, Sparkles, Target, X,
+  BadgeCheck, CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Mail, Phone, Search, Sparkles, Target, Users, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -317,19 +317,20 @@ export default function CompanyLeads() {
 
           {/* DETAIL MODAL */}
           {selectedLead && (
-            <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#0F172A]/60 backdrop-blur-md p-3 sm:p-4 flex items-center justify-center">
-              <div className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-sm" onClick={() => setSelectedLeadId(null)} />
-              <div className="relative z-10 flex flex-col w-full max-w-[620px] max-h-[88vh] overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-2xl">
-
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedLeadId(null)}>
+              <div
+                className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {/* Header */}
-                <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 shrink-0">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black text-white shadow-sm">
+                <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center text-[12px] font-pmedium shadow-sm shrink-0 bg-[#2563EB] text-white">
                       {getInitials(selectedLead.fullName)}
                     </div>
-                    <div>
-                      <h3 className="text-[13px] font-black leading-tight text-slate-900">{selectedLead.fullName}</h3>
-                      <div className="mt-1.5 flex flex-wrap gap-1">
+                    <div className="min-w-0">
+                      <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{selectedLead.fullName}</h2>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className={statusPillClass(selectedLead.status || "Pending")}>{selectedLead.status || "Pending"}</span>
                         {(() => {
                           const pt = (selectedLead.productType || "").trim();
@@ -342,60 +343,43 @@ export default function CompanyLeads() {
                       </div>
                     </div>
                   </div>
-                  <button type="button" onClick={() => setSelectedLeadId(null)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:text-rose-600"
-                  ><X size={14} /></button>
+                  <button type="button" onClick={() => setSelectedLeadId(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
                 </div>
 
-                {/* Scrollable Body */}
-                <div className="overflow-y-auto flex-1 p-4 space-y-3">
-
-                  {/* Core contact fields */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
-                      <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedLead.mobileNumber || "Not shared"}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
-                      <p className="mt-0.5 break-all text-[12px] font-bold text-slate-900">{selectedLead.email || "Not shared"}</p>
-                    </div>
-                    {(() => {
-                      const pt = (selectedLead.productType || "").trim();
-                      const v = (selectedLead.vertical || "").trim();
-                      const product = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "");
-                      return product ? (
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Product / Service</p>
-                          <p className="mt-0.5 text-[12px] font-bold text-slate-900">{product}</p>
-                        </div>
-                      ) : null;
-                    })()}
-                    {selectedLead.noOfPeople && (
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">No. of People</p>
-                        <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedLead.noOfPeople}</p>
+                {/* Body */}
+                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <Users size={14} /> Contact Information
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Phone size={10} /> Phone</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{selectedLead.mobileNumber || "Not shared"}</p>
                       </div>
-                    )}
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received On</p>
-                      <p className="mt-0.5 text-[12px] font-bold text-slate-900">{formatDateLabel(selectedLead.recievedDate || selectedLead.createdAt)}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Received Via</p>
-                      <p className="mt-0.5 text-[12px] font-bold text-slate-900">
-                        {(() => {
-                          const s = (selectedLead.source || "").toLowerCase();
-                          if (s.includes("preview")) return "Website Preview";
-                          if (s.includes("hosted") || s.includes("live") || s.includes("wono")) return "Hosted Website";
-                          if (s.includes("direct")) return "Direct";
-                          return selectedLead.source || "Website";
-                        })()}
-                      </p>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
+                        <p className="text-[12px] font-pmedium text-slate-900 break-all">{selectedLead.email || "Not shared"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received On</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{formatDateLabel(selectedLead.recievedDate || selectedLead.createdAt)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received Via</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">
+                          {(() => {
+                            const s = (selectedLead.source || "").toLowerCase();
+                            if (s.includes("preview")) return "Website Preview";
+                            if (s.includes("hosted") || s.includes("live") || s.includes("wono")) return "Hosted Website";
+                            if (s.includes("direct")) return "Direct";
+                            return selectedLead.source || "Website";
+                          })()}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Booking / Enquiry details */}
                   {(() => {
                     const norm = (v) => String(v || "").toLowerCase().trim();
                     const vertical = norm(selectedLead.vertical);
@@ -407,6 +391,10 @@ export default function CompanyLeads() {
                       return !s || s === vertical || s === product || (vertical && product && s === `${vertical} · ${product}`);
                     };
                     const sameAsNop = (val) => { const s = norm(val); return !s || s === nop; };
+
+                    const pt = (selectedLead.productType || "").trim();
+                    const v = (selectedLead.vertical || "").trim();
+                    const productLabel = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "");
 
                     const sd = selectedLead.startDate || null;
                     const ed = selectedLead.endDate || null;
@@ -421,6 +409,8 @@ export default function CompanyLeads() {
                     const loc = selectedLead.location || null;
 
                     const fields = [
+                      productLabel && { label: "Product / Service", value: productLabel },
+                      selectedLead.noOfPeople && { label: "No. of People", value: selectedLead.noOfPeople },
                       sd && { label: "Start Date", value: formatDateLabel(sd) },
                       ed && { label: "End Date", value: formatDateLabel(ed) },
                       dur && { label: "Stay Duration", value: dur },
@@ -437,12 +427,14 @@ export default function CompanyLeads() {
                     if (!fields.length) return null;
                     return (
                       <div>
-                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-2 px-0.5">Booking / Enquiry Details</p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                          <Target size={14} /> Booking / Enquiry Details
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                           {fields.map(({ label, value }) => (
-                            <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{label}</p>
-                              <p className="mt-0.5 text-[12px] font-bold text-slate-900">{value}</p>
+                            <div key={label}>
+                              <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">{label}</p>
+                              <p className="text-[12px] font-pmedium text-slate-900">{value}</p>
                             </div>
                           ))}
                         </div>
@@ -450,26 +442,27 @@ export default function CompanyLeads() {
                     );
                   })()}
 
-                  {/* Message */}
                   {selectedLead.message && (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Message</p>
-                      <p className="text-[12px] font-medium leading-5 text-slate-700">{selectedLead.message}</p>
+                    <div>
+                      <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                        <FileText size={14} /> Message
+                      </h3>
+                      <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                        <p className="text-[12px] font-pmedium leading-5 text-slate-700">{selectedLead.message}</p>
+                      </div>
                     </div>
                   )}
-
                 </div>
 
-                {/* Sticky Footer */}
-                <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-end gap-2 shrink-0">
-                  <button type="button" onClick={() => { handleStatusChange(selectedLead._id, "Closed"); setSelectedLeadId(null); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-emerald-700"
-                  ><CheckCircle2 size={12} /> Close Lead</button>
+                {/* Footer */}
+                <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0 flex gap-2.5">
                   <button type="button" onClick={() => { handleStatusChange(selectedLead._id, "Rejected"); setSelectedLeadId(null); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-rose-700"
-                  ><X size={12} /> Reject Lead</button>
+                    className="flex-1 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[12px] hover:bg-red-50 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                  ><XCircle size={14} /> Reject Lead</button>
+                  <button type="button" onClick={() => { handleStatusChange(selectedLead._id, "Closed"); setSelectedLeadId(null); }}
+                    className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
+                  ><CheckCircle2 size={14} /> Close Lead</button>
                 </div>
-
               </div>
             </div>
           )}
