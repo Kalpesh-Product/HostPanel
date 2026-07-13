@@ -4999,27 +4999,41 @@ export function MeetingRoomsPage() {
       {/* 2. VIEW DETAILS MODAL */}
       <AnimatePresence>
         {viewingBooking && (
-          <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center">
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-3">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setViewingBooking(null)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
             <motion.div
-              initial={{ y: "100%", opacity: 0, scale: 0.95 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: "100%", opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-md max-h-[85vh] overflow-y-auto shadow-2xl relative z-[90] flex flex-col"
+              className="bg-white rounded-[2rem] max-w-xl w-full max-h-[90vh] shadow-2xl border border-white/70 relative z-[90] flex flex-col overflow-hidden"
             >
-              <div className="w-full flex justify-center py-3 md:hidden">
-                <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
-              </div>
-
-              <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
-                <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Meeting Details</h2>
-                <button onClick={() => setViewingBooking(null)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
-                  <X size={20} strokeWidth={2.5} />
+              {/* Header */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    <Building size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">Meeting Details</h2>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={statusPillClass(viewingBooking.liveStatus || viewingBooking.status || '')}>
+                        {viewingBooking.liveStatus || viewingBooking.status}
+                      </span>
+                      {isRescheduledBooking(viewingBooking) && (
+                        <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+                          Rescheduled
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setViewingBooking(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0">
+                  <X size={16} />
                 </button>
               </div>
 
-              <div className="p-6 md:p-8 space-y-5">
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
                 {isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' ? (
                   <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5 text-center">
                     <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-widest">External booking</p>
@@ -5028,170 +5042,164 @@ export function MeetingRoomsPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Location</span>
-                      <span className="font-pmedium text-[#2563EB] text-[13px] flex items-center gap-1.5"><Building size={14} /> {viewingBooking.roomName}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Host / Dept</span>
-                      <div className="text-right">
-                        <p className="font-pmedium text-[#0F172A] text-[13px]">
-                          {(viewingBooking as any).bookedForName || viewingBooking.bookedByName}
-                        </p>
-                        {/* {viewingBooking.department && <p className="font-pmedium text-slate-400 text-[11px]">{viewingBooking.department}</p>} */}
-                        <span className={`mt-2 inline-flex px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
-                          {getBookingTagLabel(viewingBooking)}
-                        </span>
-                      </div>
-                    </div>
-                    {(viewingBooking as any).bookedForName && normalize(viewingBooking.bookingType) === 'internal' && (
-                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Booked By</span>
-                        <p className="font-pmedium text-[#0F172A] text-[13px]">{viewingBooking.bookedByName}</p>
-                      </div>
-                    )}
-                    {viewingBooking.isInvitedMeeting && (
-                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Type</span>
-                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${viewingBooking.currentInviteStatus === 'accepted'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : viewingBooking.currentInviteStatus === 'rejected'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}>
-                          {getInviteMeetingLabel(viewingBooking)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Schedule</span>
-                      <div className="text-right">
-                        {renderScheduleSummary(viewingBooking)}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Attendees</span>
-                      <span className="font-pmedium text-[#0F172A] text-[13px] flex items-center gap-1.5">
-                        <Users size={14} className="text-slate-400" />
-                        {(() => {
-                          // Host (1) + accepted invitees
-                          const acceptedCount = Array.isArray(viewingBooking.invites)
-                            ? viewingBooking.invites.filter((inv: any) => inv.status === 'accepted').length
-                            : 0;
-                          const total = 1 + acceptedCount;
-                          return `${total} ${total === 1 ? 'Person' : 'People'}`;
-                        })()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Status</span>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={statusPillClass(viewingBooking.liveStatus || viewingBooking.status || '')}>
-                          {viewingBooking.liveStatus || viewingBooking.status}
-                        </span>
-                        {isRescheduledBooking(viewingBooking) && (
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
-                            Rescheduled
+                    <div>
+                      <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                        <Building size={14} /> Booking Information
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                        <div>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Location</p>
+                          <p className="text-[12px] font-pmedium text-slate-900">{viewingBooking.roomName}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Host / Dept</p>
+                          <p className="text-[12px] font-pmedium text-slate-900">
+                            {(viewingBooking as any).bookedForName || viewingBooking.bookedByName}
+                          </p>
+                          <span className={`mt-1 inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
+                            {getBookingTagLabel(viewingBooking)}
                           </span>
+                        </div>
+                        {(viewingBooking as any).bookedForName && normalize(viewingBooking.bookingType) === 'internal' && (
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Booked By</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{viewingBooking.bookedByName}</p>
+                          </div>
+                        )}
+                        {viewingBooking.isInvitedMeeting && (
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Meeting Type</p>
+                            <span className={`inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${viewingBooking.currentInviteStatus === 'accepted'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : viewingBooking.currentInviteStatus === 'rejected'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>
+                              {getInviteMeetingLabel(viewingBooking)}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Schedule</p>
+                          <div className="text-[12px] font-pmedium text-slate-900">
+                            {renderScheduleSummary(viewingBooking)}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Attendees</p>
+                          <p className="text-[12px] font-pmedium text-slate-900 flex items-center gap-1.5">
+                            <Users size={12} className="text-slate-400" />
+                            {(() => {
+                              // Host (1) + accepted invitees
+                              const acceptedCount = Array.isArray(viewingBooking.invites)
+                                ? viewingBooking.invites.filter((inv: any) => inv.status === 'accepted').length
+                                : 0;
+                              const total = 1 + acceptedCount;
+                              return `${total} ${total === 1 ? 'Person' : 'People'}`;
+                            })()}
+                          </p>
+                        </div>
+                        {(Number(viewingBooking.totalAmount || 0) > 0 || Number(viewingBooking.extensionAmount || 0) > 0) && (
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Amount</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{formatCurrency(viewingBooking.totalAmount || 0)}</p>
+                            {Number(viewingBooking.extensionAmount || 0) > 0 && (
+                              <p className="text-[10px] font-pmedium text-slate-500">Extension: {formatCurrency(viewingBooking.extensionAmount)}</p>
+                            )}
+                          </div>
+                        )}
+                        {viewingBooking.currentInviteStatus && (
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Your Invite</p>
+                            <span className={statusPillClass(statusLabel(viewingBooking.currentInviteStatus))}>
+                              {statusLabel(viewingBooking.currentInviteStatus)}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    {(Number(viewingBooking.totalAmount || 0) > 0 || Number(viewingBooking.extensionAmount || 0) > 0) && (
-                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Amount</span>
-                        <div className="text-right">
-                          <p className="font-pmedium text-[#0F172A] text-[13px]">{formatCurrency(viewingBooking.totalAmount || 0)}</p>
-                          {Number(viewingBooking.extensionAmount || 0) > 0 && (
-                            <p className="text-[10px] font-pmedium text-slate-500">Extension: {formatCurrency(viewingBooking.extensionAmount)}</p>
+                    {/* ── External-specific fields (Task 20) ── */}
+                    {!isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' && (
+                      <div>
+                        <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                          <Users size={14} /> Client & Payment
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Client Name</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).bookedForName || '—'}</p>
+                          </div>
+                          {(viewingBooking as any).paymentMode && (
+                            <div>
+                              <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Payment Mode</p>
+                              <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).paymentMode}</p>
+                            </div>
+                          )}
+                          {(viewingBooking as any).paymentStatus && (
+                            <div>
+                              <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Payment Status</p>
+                              <span className={`inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${
+                                (viewingBooking as any).paymentStatus === 'Paid'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>
+                                {(viewingBooking as any).paymentStatus}
+                              </span>
+                            </div>
+                          )}
+                          {(viewingBooking as any).transactionId && (
+                            <div>
+                              <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Transaction ID</p>
+                              <p className="text-[12px] font-pmedium text-slate-900 font-mono">{(viewingBooking as any).transactionId}</p>
+                            </div>
+                          )}
+                          {(Number(viewingBooking.baseAmount || 0) > 0 || Number(viewingBooking.totalAmount || 0) > 0) && (
+                            <div className="sm:col-span-2">
+                              <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-2">Pricing Breakdown</p>
+                              <div className="rounded-xl border border-slate-100 bg-white p-3 space-y-1.5 text-[12px]">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-pmedium">Base Amount</span>
+                                  <span className="font-pmedium text-[#0F172A]">{formatCurrency(viewingBooking.baseAmount || 0)}</span>
+                                </div>
+                                {Number((viewingBooking as any).discountValue || 0) > 0 && (
+                                  <div className="flex justify-between text-emerald-700">
+                                    <span className="font-pmedium">Discount</span>
+                                    <span className="font-pmedium">−{formatCurrency(Math.abs((viewingBooking as any).discountAmount || 0))}</span>
+                                  </div>
+                                )}
+                                {Number(viewingBooking.gstAmount || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500 font-pmedium">GST (18%)</span>
+                                    <span className="font-pmedium text-[#0F172A]">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between pt-1.5 border-t border-slate-200">
+                                  <span className="font-pmedium text-[#0F172A]">Total</span>
+                                  <span className="font-pmedium text-[#2563EB]">{formatCurrency(viewingBooking.totalAmount || 0)}</span>
+                                </div>
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
                     )}
 
-                    {/* ── External-specific fields (Task 20) ── */}
-                    {!isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' && (
-                      <>
-                        <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                          <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Client Name</span>
-                          <p className="font-pmedium text-[#0F172A] text-[13px]">{(viewingBooking as any).bookedForName || '—'}</p>
-                        </div>
-                        {(viewingBooking as any).paymentMode && (
-                          <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Mode</span>
-                            <p className="font-pmedium text-[#0F172A] text-[13px]">{(viewingBooking as any).paymentMode}</p>
-                          </div>
-                        )}
-                        {(viewingBooking as any).paymentStatus && (
-                          <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Status</span>
-                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${
-                              (viewingBooking as any).paymentStatus === 'Paid'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}>
-                              {(viewingBooking as any).paymentStatus}
-                            </span>
-                          </div>
-                        )}
-                        {(viewingBooking as any).transactionId && (
-                          <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Transaction ID</span>
-                            <p className="font-pmedium text-[#0F172A] text-[13px] font-mono">{(viewingBooking as any).transactionId}</p>
-                          </div>
-                        )}
-                        {(Number(viewingBooking.baseAmount || 0) > 0 || Number(viewingBooking.totalAmount || 0) > 0) && (
-                          <div className="pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest block mb-2">Pricing Breakdown</span>
-                            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-1.5 text-[12px]">
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-pmedium">Base Amount</span>
-                                <span className="font-pmedium text-[#0F172A]">{formatCurrency(viewingBooking.baseAmount || 0)}</span>
-                              </div>
-                              {Number((viewingBooking as any).discountValue || 0) > 0 && (
-                                <div className="flex justify-between text-emerald-700">
-                                  <span className="font-pmedium">Discount</span>
-                                  <span className="font-pmedium">−{formatCurrency(Math.abs((viewingBooking as any).discountAmount || 0))}</span>
-                                </div>
-                              )}
-                              {Number(viewingBooking.gstAmount || 0) > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500 font-pmedium">GST (18%)</span>
-                                  <span className="font-pmedium text-[#0F172A]">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between pt-1.5 border-t border-slate-200">
-                                <span className="font-pmedium text-[#0F172A]">Total</span>
-                                <span className="font-pmedium text-[#2563EB]">{formatCurrency(viewingBooking.totalAmount || 0)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {viewingBooking.currentInviteStatus && (
-                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Your Invite</span>
-                        <span className={statusPillClass(statusLabel(viewingBooking.currentInviteStatus))}>
-                          {statusLabel(viewingBooking.currentInviteStatus)}
-                        </span>
-                      </div>
-                    )}
-
                     {Array.isArray(viewingBooking.invites) && viewingBooking.invites.length > 0 && (
-                      <div className="space-y-3 pt-2">
-                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={12} /> Invited Members</span>
+                      <div>
+                        <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                          <Users size={14} /> Invited Members
+                        </h3>
                         <div className="space-y-2">
                           {viewingBooking.invites.map((invite: any) => {
                             const inviteName = resolveInviteDisplayName(invite);
                             const inviteRole = resolveInviteDisplayRole(invite);
 
                             return (
-                              <div key={`${invite.invitedUserId}-${inviteName}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                              <div key={`${invite.invitedUserId}-${inviteName}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
                                 <div>
-                                  <p className="text-[13px] font-pmedium text-[#0F172A]">{inviteName}</p>
-                                  <p className="text-[11px] font-pmedium text-slate-400">{formatInviteGroupLabel(inviteRole)}</p>
+                                  <p className="text-[12px] font-pmedium text-slate-900">{inviteName}</p>
+                                  <p className="text-[10px] font-pmedium text-slate-400">{formatInviteGroupLabel(inviteRole)}</p>
                                 </div>
                                 <div className="text-right">
                                   <span className={statusPillClass(statusLabel(invite.status))}>
@@ -5209,27 +5217,33 @@ export function MeetingRoomsPage() {
                     )}
 
                     {viewingBooking.status === 'cancelled' && viewingBooking.cancelReason && (
-                      <div className="space-y-2 pt-2">
-                        <span className="text-[10px] font-pmedium text-red-400 uppercase tracking-widest flex items-center gap-1.5"><AlertCircle size={12} /> Cancellation Reason</span>
-                        <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl font-pmedium text-red-900 text-[13px] leading-relaxed">"{viewingBooking.cancelReason}"</div>
+                      <div>
+                        <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                          <AlertCircle size={14} /> Cancellation Reason
+                        </h3>
+                        <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl font-pmedium text-red-900 text-[12px] leading-relaxed">"{viewingBooking.cancelReason}"</div>
                       </div>
                     )}
 
-                    <div className="space-y-2 pt-2">
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Eye size={12} /> Purpose</span>
-                      <div className="p-4 bg-slate-50 border border-slate-100/60 rounded-2xl italic font-pmedium text-slate-700 text-[13px] leading-relaxed">"{viewingBooking.purpose}"</div>
+                    <div>
+                      <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                        <Eye size={14} /> Purpose
+                      </h3>
+                      <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                        <p className="text-[12px] font-pmedium leading-5 text-slate-700 italic">"{viewingBooking.purpose}"</p>
+                      </div>
                     </div>
 
                     {(mainBookingTab === 'tenant_bookings' ? canManageOwnBooking(viewingBooking) : (isMyBooking(viewingBooking) && !viewingBooking.isInvitedMeeting && canManageOwnBooking(viewingBooking))) && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                         {canRescheduleOwnBooking(viewingBooking) && (
                           <>
-                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setRescheduleInviteeIds(viewingBooking.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="w-full py-3.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[13px] text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"><CalendarClock size={16} /> Reschedule</button>
-                            <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-3.5 bg-red-50 border border-red-200 rounded-xl font-pmedium text-[13px] text-red-700 hover:bg-red-100 transition-all shadow-sm flex items-center justify-center gap-2"><XCircle size={16} /> Cancel</button>
+                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setRescheduleInviteeIds(viewingBooking.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[12px] text-slate-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><CalendarClock size={14} /> Reschedule</button>
+                            <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-2.5 bg-white border border-red-200 rounded-xl font-pmedium text-[12px] text-red-600 hover:bg-red-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><XCircle size={14} /> Cancel</button>
                           </>
                         )}
                         {canExtendOwnBooking(viewingBooking) && (
-                          <button onClick={() => { setExtendBooking(viewingBooking); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="w-full py-3.5 bg-amber-50 border border-amber-200 rounded-xl font-pmedium text-[13px] text-amber-700 hover:bg-amber-100 transition-all shadow-sm flex items-center justify-center gap-2 sm:col-span-2"><Clock size={16} /> Extend Booking</button>
+                          <button onClick={() => { setExtendBooking(viewingBooking); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 sm:col-span-2"><Clock size={14} /> Extend Booking</button>
                         )}
                       </div>
                     )}

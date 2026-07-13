@@ -3278,7 +3278,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "about-us" ? (
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Us Hero Section <SectionPreviewInfo section="heroBanner" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Us Hero Section <SectionPreviewInfo section="aboutPage" /></span>
                 {aboutPageNavIndex >= 0 ? (
                   <div>
                     <Controller
@@ -3318,8 +3318,8 @@ const CreateWebsite = () => {
                   <div>
                     <div className="border-b-default border-borderGray py-4">
                     <span className="text-subtitle font-pmedium">
-                      Company Overview (Synced From Home About)
-                    </span> <SectionPreviewInfo section="about" />
+                      About Us (Synced From Home About)
+                    </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
                       Same about paragraphs are shared with Home section.
@@ -3590,7 +3590,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "gallery" ? (
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Hero Section <SectionPreviewInfo section="heroBanner" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Hero Section <SectionPreviewInfo section="galleryPage" /></span>
                 {galleryPageNavIndex >= 0 ? (
                   <div>
                     <Controller
@@ -3626,7 +3626,7 @@ const CreateWebsite = () => {
                   />
                   <div>
                     <div className="py-2 border-b-default border-borderGray">
-                      <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Images (Synced) <SectionPreviewInfo section="gallery" /></span>
+                      <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Images (Synced)</span>
                     </div>
                     <div className="mt-3">
                       <Controller
@@ -3657,7 +3657,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "partner" ? (
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Partner Page Section <SectionPreviewInfo section="partners" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Partner Page Section <SectionPreviewInfo section="partnerPage" /></span>
                 {partnerPageNavIndex >= 0 ? (
                   <div>
                     <Controller
@@ -3731,7 +3731,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "careers" ? (
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Careers Hero Section <SectionPreviewInfo section="heroBanner" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Careers Hero Section <SectionPreviewInfo section="careersPage" /></span>
                 {careersPageNavIndex >= 0 ? (
                   <div>
                     <Controller
@@ -3818,7 +3818,7 @@ const CreateWebsite = () => {
                   </div>
                   <div>
                     <div className="border-b-default border-borderGray py-4">
-                      <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Additional Form Fields <SectionPreviewInfo section="applyForm" /></span>
+                      <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Additional Form Fields</span>
                     </div>
                     <p className="mt-0.5 text-[10px] text-slate-500">
                       These appear on the Apply Now form after the Resume upload and stay enabled.
@@ -3925,7 +3925,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "contact-us" ? (
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Contact Hero Section <SectionPreviewInfo section="heroBanner" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Contact Hero Section <SectionPreviewInfo section="contact" /></span>
                 {contactPageNavIndex >= 0 ? (
                   <div>
                     <Controller
@@ -3977,7 +3977,7 @@ const CreateWebsite = () => {
                     <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">
                         Contact Details (Synced with Home)
-                      </span> <SectionPreviewInfo section="contact" />
+                      </span>
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                       <Controller
@@ -5347,5 +5347,4 @@ const CreateWebsite = () => {
 };
 
 export default CreateWebsite;
-
 

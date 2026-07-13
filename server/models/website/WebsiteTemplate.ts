@@ -84,6 +84,28 @@ const templateSchema = new mongoose.Schema(
     //footer
     registeredCompanyName: { type: String },
     copyrightText: { type: String },
+    socials: {
+      instagram: {
+        enabled: { type: Boolean, default: false },
+        link: { type: String, default: "", trim: true },
+      },
+      facebook: {
+        enabled: { type: Boolean, default: false },
+        link: { type: String, default: "", trim: true },
+      },
+      twitter: {
+        enabled: { type: Boolean, default: false },
+        link: { type: String, default: "", trim: true },
+      },
+      linkedin: {
+        enabled: { type: Boolean, default: false },
+        link: { type: String, default: "", trim: true },
+      },
+      whatsapp: {
+        enabled: { type: Boolean, default: false },
+        link: { type: String, default: "", trim: true },
+      },
+    },
     vertical: {
       type: String,
       enum: [
