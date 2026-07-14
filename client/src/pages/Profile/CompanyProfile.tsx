@@ -10,6 +10,8 @@ import PrimaryButton from "../../components/PrimaryButton";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
 import AccountDeletionDangerZone from "./AccountDeletionDangerZone";
 
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+
 const CompanyProfile = () => {
   const axios = useAxiosPrivate();
   const { auth, setAuth } = useAuth();
@@ -156,7 +158,7 @@ const CompanyProfile = () => {
       .toLowerCase();
 
     try {
-      const hostCompaniesResponse = await axios.get("http://localhost:5007/api/hosts/host-companies");
+      const hostCompaniesResponse = await axios.get(`${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`);
       const hostCompanies = (Array.isArray(hostCompaniesResponse?.data)
         ? hostCompaniesResponse.data
         : Array.isArray(hostCompaniesResponse?.data?.data)
@@ -229,7 +231,7 @@ const CompanyProfile = () => {
         return;
       }
 
-      const response = await axios.patch("http://localhost:5007/api/hosts/request-upgrade-plan", {
+      const response = await axios.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
         companyId,
         requestedPlan: plan,
       });

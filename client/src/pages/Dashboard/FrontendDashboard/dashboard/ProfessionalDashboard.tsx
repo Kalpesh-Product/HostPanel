@@ -227,7 +227,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     { icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/company-settings/website-builder", color: "#7c3aed" },
     { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/administration/tenant-companies", color: "#1E3D73" },
     { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/meetings/meeting-rooms", color: "#2563EB" },
-    { icon: Ticket, label: "Support Tickets", description: "Handle open tickets", route: "/tickets", color: "#ef4444" },
+    { icon: Ticket, label: "Customer Support", description: "Handle open tickets", route: "/company-settings/customer-support", color: "#ef4444" },
     { icon: UserPlus, label: "Visitor Management", description: "Check-in / check-out", route: "/visitors/visitor-management", color: "#80bf01" },
     { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/company-settings/organization-management", color: "#0891b2" },
     { icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/calendar", color: "#059669" },
@@ -259,8 +259,8 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
         <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/administration/tenant-companies" />
         <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/meetings/meeting-rooms" />
         <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/meetings/meeting-rooms" />
-        <StatCard icon={Ticket} label="Support Tickets" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/tickets" />
-        <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/tickets" />
+        <StatCard icon={Ticket} label="Customer Support" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/company-settings/customer-support" />
+        <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/company-settings/customer-support" />
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
       </WidgetSection>
 
@@ -281,7 +281,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent tickets and ticket status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/tickets">
+        <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/company-settings/customer-support">
           {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
             <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
           )) : <p className="text-content text-gray-400 text-center py-6">No recent tickets</p>}

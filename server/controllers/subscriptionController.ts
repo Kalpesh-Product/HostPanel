@@ -2,9 +2,11 @@
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
 import {
   MONTHLY_BASE_CREDITS,
+  creditsForPlan,
   findWorkspaceSubscription,
   getFirstDayOfNextMonthUtc,
   renewMonthlyCreditsIfNeeded,
+  resolveWorkspacePlan,
 } from "./subscriptionHelpers.js";
 
 export const getSubscription = async (req, res, next) => {
@@ -30,10 +32,12 @@ export const getSubscription = async (req, res, next) => {
     });
 
     if (!subscription) {
+      const plan = await resolveWorkspacePlan({ workspaceId, companyId });
       subscription = await WorkspaceSubscription.create({
         companyId: companyId || workspaceId || routeId || undefined,
         workspaceId: workspaceId || companyId || routeId || undefined,
-        creditsLimit: MONTHLY_BASE_CREDITS,
+        plan,
+        creditsLimit: creditsForPlan(plan),
         creditsUsed: 0,
         addOnCreditsPurchased: 0,
         creditsResetDate: getFirstDayOfNextMonthUtc(),
@@ -65,15 +69,17 @@ export const resetCredits = async (req, res, next) => {
     let subscription = await findWorkspaceSubscription({ workspaceId, routeId: workspaceId });
 
     if (!subscription) {
+      const plan = await resolveWorkspacePlan({ workspaceId });
       subscription = await WorkspaceSubscription.create({
         workspaceId,
-        creditsLimit: MONTHLY_BASE_CREDITS,
+        plan,
+        creditsLimit: creditsForPlan(plan),
         creditsUsed: 0,
         addOnCreditsPurchased: 0,
         creditsResetDate: getFirstDayOfNextMonthUtc(),
       });
     } else {
-      subscription.creditsLimit = MONTHLY_BASE_CREDITS;
+      subscription.creditsLimit = creditsForPlan(subscription.plan);
       subscription.creditsUsed = 0;
       subscription.creditsResetDate = getFirstDayOfNextMonthUtc();
       await subscription.save();
@@ -98,15 +104,17 @@ export const devResetCredits = async (req, res, next) => {
     let subscription = await findWorkspaceSubscription({ workspaceId, routeId: workspaceId });
 
     if (!subscription) {
+      const plan = await resolveWorkspacePlan({ workspaceId });
       subscription = await WorkspaceSubscription.create({
         workspaceId,
-        creditsLimit: MONTHLY_BASE_CREDITS,
+        plan,
+        creditsLimit: creditsForPlan(plan),
         creditsUsed: 0,
         addOnCreditsPurchased: 0,
         creditsResetDate: getFirstDayOfNextMonthUtc(),
       });
     } else {
-      subscription.creditsLimit = MONTHLY_BASE_CREDITS;
+      subscription.creditsLimit = creditsForPlan(subscription.plan);
       subscription.creditsUsed = 0;
       subscription.creditsResetDate = getFirstDayOfNextMonthUtc();
       await subscription.save();

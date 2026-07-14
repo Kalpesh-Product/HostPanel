@@ -811,7 +811,7 @@ function ClientDetailsTab({
     }
   };
 
-  const inputClass = 'w-full text-sm px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-colors';
+  const inputClass = 'w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all';
 
   return (
     <div className="flex flex-col gap-4">
@@ -983,7 +983,7 @@ function ClientDetailsTab({
           type="button"
           disabled={isConfirming}
           onClick={handleConfirmClient}
-          className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+          className="w-full px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {isConfirming
             ? 'Saving…'
@@ -998,7 +998,7 @@ function ClientDetailsTab({
         <button
           type="button"
           onClick={() => setActiveDialogTab('booking')}
-          className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 hover:bg-blue-600 transition-all active:scale-[0.98]"
+          className="w-full px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
         >
           Continue to Booking Details →
         </button>
@@ -1127,7 +1127,7 @@ function ExternalBookingDialog({
         setBookingErrors((prev) => { const n = { ...prev }; delete n.discount; return n; });
       }
     }
-  }, [bookingForm.discountValue, bookingForm.discountType, externalPricing.basePriceRaw]);
+  }, [bookingForm.discountValue, bookingForm.discountType, externalPricing.basePriceRaw, bookingErrors.discount]);
 
   // ── Slot conflict detection (Task 15) ───────────────────────────────────────
   const externalSlotConflict = useMemo(() => {
@@ -1278,7 +1278,7 @@ function ExternalBookingDialog({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: '100%', opacity: 0, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
+            className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-4xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden font-pmedium"
           >
             {/* Mobile drag indicator */}
             <div className="w-full flex justify-center py-3 md:hidden">
@@ -1286,9 +1286,10 @@ function ExternalBookingDialog({
             </div>
 
             {/* Header */}
-            <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
+            <div className="px-6 py-4 md:p-8 flex justify-between items-start gap-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
               <div>
-                <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">New Booking</p>
+                <h2 className="mt-1 text-xl md:text-2xl font-pmedium text-primary tracking-tight">
                   External Booking
                 </h2>
                 <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">
@@ -1298,14 +1299,14 @@ function ExternalBookingDialog({
               <button
                 type="button"
                 onClick={handleClose}
-                className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors"
+                className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-200"
               >
                 <X size={20} strokeWidth={2.5} />
               </button>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 md:px-8 py-5 flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto px-3 py-5 sm:px-4 sm:py-6 md:px-5 md:py-8 flex flex-col gap-5 bg-slate-50/30">
               {/* Error banner */}
               {errorMessage && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">
@@ -1339,28 +1340,38 @@ function ExternalBookingDialog({
 
               {/* Tab content placeholders */}
               {activeDialogTab === 'client' && (
-                <ClientDetailsTab
-                  workspaceId={workspaceId}
-                  clientMode={clientMode}
-                  setClientMode={setClientMode}
-                  clientSearch={clientSearch}
-                  setClientSearch={setClientSearch}
-                  clientSearchResults={clientSearchResults}
-                  setClientSearchResults={setClientSearchResults}
-                  selectedClient={selectedClient}
-                  setSelectedClient={setSelectedClient}
-                  newClientForm={newClientForm}
-                  setNewClientForm={setNewClientForm}
-                  clientErrors={clientErrors}
-                  setClientErrors={setClientErrors}
-                  setErrorMessage={setErrorMessage}
-                  setActiveDialogTab={setActiveDialogTab}
-                />
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
+                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Client Details</span>
+                  </div>
+                  <ClientDetailsTab
+                    workspaceId={workspaceId}
+                    clientMode={clientMode}
+                    setClientMode={setClientMode}
+                    clientSearch={clientSearch}
+                    setClientSearch={setClientSearch}
+                    clientSearchResults={clientSearchResults}
+                    setClientSearchResults={setClientSearchResults}
+                    selectedClient={selectedClient}
+                    setSelectedClient={setSelectedClient}
+                    newClientForm={newClientForm}
+                    setNewClientForm={setNewClientForm}
+                    clientErrors={clientErrors}
+                    setClientErrors={setClientErrors}
+                    setErrorMessage={setErrorMessage}
+                    setActiveDialogTab={setActiveDialogTab}
+                  />
+                </div>
               )}
               {activeDialogTab === 'booking' && (
-                <div className="booking-tab-content">
+                <div className="booking-tab-content rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><CalIcon size={16} /></span>
+                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Booking Details</span>
+                  </div>
                   {/* Booking Details — two-column grid */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                     {/* Row 1 — Type filter (left) + Floor filter (right) */}
                     <div className="flex flex-col gap-1">
@@ -1594,7 +1605,7 @@ function ExternalBookingDialog({
 
                     {/* ── Availability status block (col-span-2) ─────────────────── */}
                     {bookingForm.resourceName && bookingForm.date && (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         {(() => {
                           const dayBookings = allBookings.filter(
                             (b) => b.roomName === bookingForm.resourceName && b.date === bookingForm.date && b.status !== 'cancelled'
@@ -1705,7 +1716,7 @@ function ExternalBookingDialog({
                     )}
 
                     {/* ── Row 5: Purpose (full-width, col-span-2) ──────────────────── */}
-                    <div className="col-span-2 flex flex-col gap-1">
+                    <div className="sm:col-span-2 flex flex-col gap-1">
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Purpose <span className="text-red-400">*</span>
                       </label>
@@ -1725,7 +1736,7 @@ function ExternalBookingDialog({
                     </div>
 
                     {/* ── Row 6: Payment Mode pills (full-width, col-span-2) ─────────── */}
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
                         Payment Mode <span className="text-red-500">*</span>
                       </label>
@@ -1800,7 +1811,7 @@ function ExternalBookingDialog({
                     </div>
 
                     {/* ── Row 7.5: Discount (full-width, col-span-2, optional) ─────── */}
-                    <div className="col-span-2 flex flex-col gap-1">
+                    <div className="sm:col-span-2 flex flex-col gap-1">
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Discount <span className="text-slate-300 font-pmedium normal-case tracking-normal">(optional)</span>
                       </label>
@@ -1842,7 +1853,7 @@ function ExternalBookingDialog({
                     </div>
 
                     {/* ── Row 8: Notes (full-width, col-span-2, optional) ──────────── */}
-                    <div className="col-span-2 flex flex-col gap-1">
+                    <div className="sm:col-span-2 flex flex-col gap-1">
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Notes{' '}
                         <span className="text-slate-300 font-pmedium normal-case tracking-normal">(optional)</span>
@@ -1857,7 +1868,7 @@ function ExternalBookingDialog({
                     </div>
 
                     {/* ── Row 9: Pricing Summary Box (full-width, col-span-2) ──────── */}
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <div className="rounded-2xl border border-blue-200/60 bg-blue-50/40 p-4 flex flex-col gap-2">
                         <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 mb-1">Pricing Summary</p>
                         {/* Base Price */}
@@ -1898,14 +1909,14 @@ function ExternalBookingDialog({
             </div>
 
             {/* Footer */}
-            <div className="px-6 md:px-8 py-4 bg-slate-50/50 border-t border-slate-100/60 flex gap-3 sticky bottom-0 shrink-0">
+            <div className="p-3 sm:p-4 bg-white border-t border-slate-100 flex gap-3 sticky bottom-0 shrink-0">
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={handleClose}
-                className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50"
+                className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Close
+                Cancel
               </button>
               <button
                 type="button"
@@ -1924,7 +1935,7 @@ function ExternalBookingDialog({
                   Object.values(bookingErrors).some(Boolean)
                 }
                 onClick={handleDialogSubmit}
-                className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isSaving ? 'Saving...' : 'Confirm Booking'}
               </button>
@@ -3887,7 +3898,7 @@ export function MeetingRoomsPage() {
                       </button>
                     )}
                     {mainBookingTab === 'tenant_bookings' && (
-                      <button onClick={() => setShowTenantBookingDialog(true)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95">
+                      <button onClick={() => setShowTenantBookingDialog(true)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
                         <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
                       </button>
                     )}
@@ -4612,384 +4623,421 @@ export function MeetingRoomsPage() {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: "100%", opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[85vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
+              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-4xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
             >
               <div className="w-full flex justify-center py-3 md:hidden">
                 <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
               </div>
 
-              <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
+              <div className="px-6 py-4 md:p-8 flex justify-between items-start gap-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Book Meeting Room</h2>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">New Booking</p>
+                  <h2 className="mt-1 text-xl md:text-2xl font-pmedium text-primary tracking-tight">Book Meeting Room</h2>
                   <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">Host: {managerProfile.name}</p>
                 </div>
-                <button onClick={() => setShowBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                <button type="button" onClick={() => setShowBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-200">
                   <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <div className="p-5 sm:p-6 md:p-8 space-y-5 overflow-y-auto flex-1">
-                {/* ── Row 1: Meeting Type + Floor ── */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Type</label>
-                    <div className="relative">
-                      <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
-                        value={newBooking.roomType}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSelectedBookingRoomType(v);
-                          setNewBooking((prev) => ({ ...prev, roomType: v, floor: '', wing: '', location: '', roomName: '' }));
-                          setSelectedBookingFloor(''); setSelectedBookingWing('');
-                        }}
-                      >
-                        <option value="" disabled>Select type</option>
-                        {availableRoomTypes.filter(type => {
-                          const t = normalize(type);
-                          return t.includes('meeting') || t.includes('conference');
-                        }).map((type) => (
-                          <option key={type} value={type}>{type}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              <div className="px-3 py-5 sm:px-4 sm:py-6 md:px-5 md:py-8 space-y-5 overflow-y-auto flex-1 bg-slate-50/30">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CalIcon size={16} /></span>
+                      <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Room Selection</span>
                     </div>
+                    <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Meeting / Conference</span>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Floor</label>
-                    <div className="relative">
-                      <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
-                        value={newBooking.floor}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSelectedBookingFloor(v);
-                          setNewBooking((prev) => ({ ...prev, floor: v, wing: '', location: '', roomName: '' }));
-                          setSelectedBookingWing('');
-                        }}
-                      >
-                        <option value="" disabled>Select floor</option>
-                        {availableFloors.map((floor) => (
-                          <option key={floor} value={floor}>{floor}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Row 2: Wing + Room ── */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Wing <span className="text-slate-300 normal-case font-pmedium">(optional)</span></label>
-                    <div className="relative">
-                      <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
-                        value={newBooking.wing}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSelectedBookingWing(v);
-                          setNewBooking((prev) => ({ ...prev, wing: v, location: '', roomName: '' }));
-                        }}
-                      >
-                        <option value="">{floorHasWingValues ? 'Any wing' : 'No wing'}</option>
-                        {availableWings.map((wing) => (
-                          <option key={wing} value={wing}>{wing}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Room</label>
-                    <div className="relative">
-                      <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
-                        value={newBooking.roomName}
-                        onChange={(e) => {
-                          const roomName = e.target.value;
-                          const sel = roomCatalog.find((room) => room.name === roomName);
-                          setNewBooking((prev) => ({
-                            ...prev,
-                            roomName,
-                            floor: sel?.floor || prev.floor,
-                            wing: sel?.wing || prev.wing,
-                            location: sel?.location || prev.location,
-                            roomType: sel?.type || prev.roomType,
-                          }));
-                        }}
-                      >
-                        <option value="">Choose room</option>
-                        {bookingRoomsAtSelectedLocation.length > 0 ? (
-                          bookingRoomsAtSelectedLocation.map((room) => (
-                            <option key={room.name} value={room.name} disabled={!isActiveRoom(room)}>
-                              {getRoomOptionLabel(room.name)}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>
-                            {canShowRoomTypeCount
-                              ? `No ${selectedBookingRoomType.toLowerCase()} on this floor`
-                              : 'Select type and floor first'}
-                          </option>
-                        )}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
-                  </div>
-                </div>
-                {/* Capacity hint */}
-                {selectedRoomCapacity ? (
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-pmedium text-blue-800 flex items-center justify-between">
-                    <span>Capacity: <strong>{selectedRoomCapacity}</strong> seats</span>
-                    <span>Invite slots left: <strong>{Math.max(Number(selectedRoomCapacity) - 1 - Number(newBooking.inviteeUserIds.length || 0), 0)}</strong></span>
-                  </div>
-                ) : canShowRoomTypeCount ? (
-                  <p className={`text-[12px] font-pmedium ${selectedFloorRoomTypeCount > 0 ? 'text-blue-700' : 'text-rose-600'}`}>
-                    {selectedFloorRoomTypeCount > 0
-                      ? `${selectedFloorRoomTypeCount} room${selectedFloorRoomTypeCount === 1 ? '' : 's'} available${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`
-                      : `No rooms available for this floor${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`}
-                  </p>
-                ) : null}
-
-                {/* ── Row 3: Date + Start Time + End Time ── */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Date</label>
-                    <input
-                      type="date"
-                      min={todayStr}
-                      value={newBooking.date}
-                      className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all"
-                      onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Start Time</label>
-                    <div className="relative">
-                      <select
-                        value={newBooking.startTime || ''}
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
-                        onChange={(e) => {
-                          const nextStartTime = e.target.value;
-                          const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
-                          const currentEndMinutes = timeToMinutes(newBooking.endTime);
-                          const minimumEndMinutes = timeToMinutes(minimumEndTime);
-                          setNewBooking({
-                            ...newBooking,
-                            startTime: nextStartTime,
-                            endTime: !newBooking.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : newBooking.endTime,
-                          });
-                        }}
-                      >
-                        <option value="">Start</option>
-                        {createStartTimeOptions.map((timeValue) => (
-                          <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">End Time</label>
-                    <div className="relative">
-                      <select
-                        value={newBooking.endTime || ''}
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
-                        onChange={(e) => setNewBooking({ ...newBooking, endTime: e.target.value })}
-                      >
-                        <option value="">End</option>
-                        {createEndTimeOptions.map((timeValue) => (
-                          <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Availability banners ── */}
-                {!bookingTimeValidation.valid && (
-                  <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                    <p className="text-[13px] text-red-800 font-pmedium">{bookingTimeValidation.reason}</p>
-                  </div>
-                )}
-                {bookingTimeValidation.valid && roomDayStatus === 'available' && !newBooking.startTime && (
-                  <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
-                    <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-emerald-800 font-pmedium">Room is fully free on this date. Pick a slot.</p>
-                  </div>
-                )}
-                {bookingTimeValidation.valid && roomDayStatus === 'partial' && !newBooking.startTime && (
-                  <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
-                    <AlertCircle className="text-amber-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-amber-800 font-pmedium">Some slots taken on this date. Choose an open time.</p>
-                  </div>
-                )}
-                {bookingTimeValidation.valid && roomDayStatus === 'full' && !newBooking.startTime && (
-                  <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
-                    <AlertCircle className="text-red-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-red-800 font-pmedium">Room fully booked on this date. Choose another date.</p>
-                  </div>
-                )}
-                {bookingTimeValidation.valid && bookingStatus === 'available' && newBooking.startTime && newBooking.endTime && (
-                  <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
-                    <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-emerald-800 font-pmedium">Slot is available.</p>
-                  </div>
-                )}
-                {bookingTimeValidation.valid && bookingStatus === 'capacity' && (
-                  <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
-                    <AlertCircle className="text-amber-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-amber-800 font-pmedium">Room capacity too small for this booking. Pick a bigger room.</p>
-                  </div>
-                )}
-                {bookingTimeValidation.valid && bookingStatus === 'full' && (
-                  <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
-                    <AlertCircle className="text-red-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-red-800 font-pmedium">Room fully booked on this date. Choose another date.</p>
-                  </div>
-                )}
-                {bookingTimeValidation.valid && bookingStatus === 'conflict' && (
-                  <div className="p-3.5 bg-red-50 rounded-2xl border border-red-100 space-y-2.5">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="text-red-500 shrink-0" size={16} />
-                      <p className="text-[12px] text-red-800 font-pmedium">Time conflict — slot already booked.</p>
-                    </div>
-                    {bookingSuggestions.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] font-pmedium text-red-600 uppercase tracking-widest">Try these open slots:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {bookingSuggestions.map((slot: any) => (
-                            <button
-                              key={`${slot.start}-${slot.end}`}
-                              type="button"
-                              onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
-                              className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-pmedium text-red-700 hover:bg-red-100 transition-colors"
-                            >
-                              {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {/* Recommended slots for the day (shown when room + date selected, no conflict) */}
-                {bookingTimeValidation.valid && newBooking.roomName && newBooking.date && newBooking.startTime && newBooking.endTime && bookingStatus === 'available' && bookingSuggestions.length > 0 && (
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Other available slots today:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {bookingSuggestions.map((slot: any) => (
-                        <button
-                          key={`rec-${slot.start}-${slot.end}`}
-                          type="button"
-                          onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
-                          className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-[11px] font-pmedium text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Type</label>
+                      <div className="relative">
+                        <select
+                          className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                          value={newBooking.roomType}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSelectedBookingRoomType(v);
+                            setNewBooking((prev) => ({ ...prev, roomType: v, floor: '', wing: '', location: '', roomName: '' }));
+                            setSelectedBookingFloor('');
+                            setSelectedBookingWing('');
+                          }}
                         >
-                          {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
-                        </button>
-                      ))}
+                          <option value="" disabled>Select type</option>
+                          {availableRoomTypes.filter(type => {
+                            const t = normalize(type);
+                            return t.includes('meeting') || t.includes('conference');
+                          }).map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Floor</label>
+                      <div className="relative">
+                        <select
+                          className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                          value={newBooking.floor}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSelectedBookingFloor(v);
+                            setNewBooking((prev) => ({ ...prev, floor: v, wing: '', location: '', roomName: '' }));
+                            setSelectedBookingWing('');
+                          }}
+                        >
+                          <option value="" disabled>Select floor</option>
+                          {availableFloors.map((floor) => (
+                            <option key={floor} value={floor}>{floor}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
                     </div>
                   </div>
-                )}
-
-                {/* ── Purpose ── */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Q3 Roadmap Review…"
-                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
-                    onChange={(e) => setNewBooking({ ...newBooking, purpose: e.target.value })}
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Wing <span className="text-slate-300 normal-case font-pmedium">(optional)</span></label>
+                      <div className="relative">
+                        <select
+                          className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                          value={newBooking.wing}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSelectedBookingWing(v);
+                            setNewBooking((prev) => ({ ...prev, wing: v, location: '', roomName: '' }));
+                          }}
+                        >
+                          <option value="">{floorHasWingValues ? 'Any wing' : 'No wing'}</option>
+                          {availableWings.map((wing) => (
+                            <option key={wing} value={wing}>{wing}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Room</label>
+                      <div className="relative">
+                        <select
+                          className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                          value={newBooking.roomName}
+                          onChange={(e) => {
+                            const roomName = e.target.value;
+                            const sel = roomCatalog.find((room) => room.name === roomName);
+                            setNewBooking((prev) => ({
+                              ...prev,
+                              roomName,
+                              floor: sel?.floor || prev.floor,
+                              wing: sel?.wing || prev.wing,
+                              location: sel?.location || prev.location,
+                              roomType: sel?.type || prev.roomType,
+                            }));
+                          }}
+                        >
+                          <option value="">Choose room</option>
+                          {bookingRoomsAtSelectedLocation.length > 0 ? (
+                            bookingRoomsAtSelectedLocation.map((room) => (
+                              <option key={room.name} value={room.name} disabled={!isActiveRoom(room)}>
+                                {getRoomOptionLabel(room.name)}
+                              </option>
+                            ))
+                          ) : (
+                            <option value="" disabled>
+                              {canShowRoomTypeCount
+                                ? `No ${selectedBookingRoomType.toLowerCase()} on this floor`
+                                : 'Select type and floor first'}
+                            </option>
+                          )}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                    </div>
+                  </div>
+                  {selectedRoomCapacity ? (
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-pmedium text-blue-800 flex items-center justify-between">
+                      <span>Capacity: <strong>{selectedRoomCapacity}</strong> seats</span>
+                      <span>Invite slots left: <strong>{Math.max(Number(selectedRoomCapacity) - 1 - Number(newBooking.inviteeUserIds.length || 0), 0)}</strong></span>
+                    </div>
+                  ) : canShowRoomTypeCount ? (
+                    <p className={`text-[12px] font-pmedium ${selectedFloorRoomTypeCount > 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                      {selectedFloorRoomTypeCount > 0
+                        ? `${selectedFloorRoomTypeCount} room${selectedFloorRoomTypeCount === 1 ? '' : 's'} available${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`
+                        : `No rooms available for this floor${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`}
+                    </p>
+                  ) : null}
                 </div>
 
-                {/* ── Invite Members (capacity-gated) ── */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Members</label>
-                    <div className="flex items-center gap-2">
-                      {selectedRoomCapacity ? (
-                        <span className={`text-[11px] font-pmedium ${newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1 ? 'text-rose-500' : 'text-slate-500'}`}>
-                          {newBooking.inviteeUserIds.length} / {Math.max(Number(selectedRoomCapacity) - 1, 0)} seats
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-pmedium text-slate-500">{newBooking.inviteeUserIds.length} selected</span>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><Clock size={16} /></span>
+                      <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Timing & Slot</span>
+                    </div>
+                    <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{selectedRoomCapacity || '—'} seats</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Date</label>
+                      <input
+                        type="date"
+                        min={todayStr}
+                        value={newBooking.date}
+                        className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all"
+                        onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Start Time</label>
+                      <div className="relative">
+                        <select
+                          value={newBooking.startTime || ''}
+                          className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
+                          onChange={(e) => {
+                            const nextStartTime = e.target.value;
+                            const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
+                            const currentEndMinutes = timeToMinutes(newBooking.endTime);
+                            const minimumEndMinutes = timeToMinutes(minimumEndTime);
+                            setNewBooking({
+                              ...newBooking,
+                              startTime: nextStartTime,
+                              endTime: !newBooking.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : newBooking.endTime,
+                            });
+                          }}
+                        >
+                          <option value="">Start</option>
+                          {createStartTimeOptions.map((timeValue) => (
+                            <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">End Time</label>
+                      <div className="relative">
+                        <select
+                          value={newBooking.endTime || ''}
+                          className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
+                          onChange={(e) => setNewBooking({ ...newBooking, endTime: e.target.value })}
+                        >
+                          <option value="">End</option>
+                          {createEndTimeOptions.map((timeValue) => (
+                            <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 shrink-0"><CheckCircle2 size={16} /></span>
+                      <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Availability</span>
+                    </div>
+                    <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Live slot check</span>
+                  </div>
+                  {!bookingTimeValidation.valid && (
+                    <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
+                      <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+                      <p className="text-[13px] text-red-800 font-pmedium">{bookingTimeValidation.reason}</p>
+                    </div>
+                  )}
+                  {bookingTimeValidation.valid && roomDayStatus === 'available' && !newBooking.startTime && (
+                    <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
+                      <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
+                      <p className="text-[12px] text-emerald-800 font-pmedium">Room is fully free on this date. Pick a slot.</p>
+                    </div>
+                  )}
+                  {bookingTimeValidation.valid && roomDayStatus === 'partial' && !newBooking.startTime && (
+                    <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
+                      <AlertCircle className="text-amber-500 shrink-0" size={16} />
+                      <p className="text-[12px] text-amber-800 font-pmedium">Some slots taken on this date. Choose an open time.</p>
+                    </div>
+                  )}
+                  {bookingTimeValidation.valid && roomDayStatus === 'full' && !newBooking.startTime && (
+                    <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
+                      <AlertCircle className="text-red-500 shrink-0" size={16} />
+                      <p className="text-[12px] text-red-800 font-pmedium">Room fully booked on this date. Choose another date.</p>
+                    </div>
+                  )}
+                  {bookingTimeValidation.valid && bookingStatus === 'available' && newBooking.startTime && newBooking.endTime && (
+                    <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
+                      <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
+                      <p className="text-[12px] text-emerald-800 font-pmedium">Slot is available.</p>
+                    </div>
+                  )}
+                  {bookingTimeValidation.valid && bookingStatus === 'capacity' && (
+                    <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
+                      <AlertCircle className="text-amber-500 shrink-0" size={16} />
+                      <p className="text-[12px] text-amber-800 font-pmedium">Room capacity too small for this booking. Pick a bigger room.</p>
+                    </div>
+                  )}
+                  {bookingTimeValidation.valid && bookingStatus === 'full' && (
+                    <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
+                      <AlertCircle className="text-red-500 shrink-0" size={16} />
+                      <p className="text-[12px] text-red-800 font-pmedium">Room fully booked on this date. Choose another date.</p>
+                    </div>
+                  )}
+                  {bookingTimeValidation.valid && bookingStatus === 'conflict' && (
+                    <div className="p-3.5 bg-red-50 rounded-2xl border border-red-100 space-y-2.5">
+                      <div className="flex items-center gap-3">
+                        <AlertCircle className="text-red-500 shrink-0" size={16} />
+                        <p className="text-[12px] text-red-800 font-pmedium">Time conflict — slot already booked.</p>
+                      </div>
+                      {bookingSuggestions.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-pmedium text-red-600 uppercase tracking-widest">Try these open slots:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {bookingSuggestions.map((slot: any) => (
+                              <button
+                                key={`${slot.start}-${slot.end}`}
+                                type="button"
+                                onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
+                                className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-pmedium text-red-700 hover:bg-red-100 transition-colors"
+                              >
+                                {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  {selectedRoomCapacity && Number(selectedRoomCapacity) <= 1 && (
-                    <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 — no additional members can be invited.</p>
                   )}
-                  <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
-                    {inviteDepartments.map((group: any) => (
-                      <div key={group.department} className="rounded-2xl border border-slate-200/60 bg-slate-50/70 p-4">
-                        <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500 mb-3">
-                          {group.label}
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {group.members.map((member: any) => {
-                            const memberId = resolveMemberUserId(member);
-                            const checked = newBooking.inviteeUserIds.includes(memberId);
-                            const atCapacity = selectedRoomCapacity
-                              ? newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1
-                              : false;
-                            const disabled = !checked && atCapacity;
-                            const memberRole = normalize(member.role || '');
-                            const isManagement = memberRole === 'owner' || memberRole === 'founder' || memberRole === 'super_admin' || memberRole === 'super-admin' || memberRole === 'admin';
-                            const sublabel = isManagement
-                              ? formatInviteGroupLabel(member.role)
-                              : ((member as any).departments?.[0] || (member as any).department || formatInviteGroupLabel(member.role || 'Member'));
-                            return (
-                              <label
-                                key={memberId}
-                                className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${
-                                  disabled
-                                    ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed'
-                                    : checked
-                                    ? 'border-[#2563EB] bg-blue-50 cursor-pointer'
-                                    : 'border-slate-200 bg-white hover:bg-slate-50 cursor-pointer'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  disabled={disabled}
-                                  onChange={() => !disabled && setNewBooking((prev) => ({
-                                    ...prev,
-                                    inviteeUserIds: checked
-                                      ? prev.inviteeUserIds.filter((id) => id !== memberId)
-                                      : [...prev.inviteeUserIds, memberId],
-                                  }))}
-                                  className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
-                                />
-                                <div className="min-w-0">
-                                  <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
-                                  <p className="text-[11px] font-pmedium text-slate-500">{sublabel}</p>
-                                </div>
-                              </label>
-                            );
-                          })}
-                        </div>
+                  {bookingTimeValidation.valid && newBooking.roomName && newBooking.date && newBooking.startTime && newBooking.endTime && bookingStatus === 'available' && bookingSuggestions.length > 0 && (
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Other available slots today:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {bookingSuggestions.map((slot: any) => (
+                          <button
+                            key={`rec-${slot.start}-${slot.end}`}
+                            type="button"
+                            onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
+                            className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-[11px] font-pmedium text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                          >
+                            {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                    {inviteDepartments.length === 0 && (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-pmedium text-slate-400">
-                        No inviteable members found.
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><Users size={16} /></span>
+                      <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Details & Guests</span>
+                    </div>
+                    <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Host + invitees</span>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Q3 Roadmap Review…"
+                      className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
+                      onChange={(e) => setNewBooking({ ...newBooking, purpose: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Members</label>
+                      <div className="flex items-center gap-2">
+                        {selectedRoomCapacity ? (
+                          <span className={`text-[11px] font-pmedium ${newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1 ? 'text-rose-500' : 'text-slate-500'}`}>
+                            {newBooking.inviteeUserIds.length} / {Math.max(Number(selectedRoomCapacity) - 1, 0)} seats
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-pmedium text-slate-500">{newBooking.inviteeUserIds.length} selected</span>
+                        )}
                       </div>
+                    </div>
+                    {selectedRoomCapacity && Number(selectedRoomCapacity) <= 1 && (
+                      <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 — no additional members can be invited.</p>
                     )}
+                    <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
+                      {inviteDepartments.map((group: any) => (
+                        <div key={group.department} className="rounded-2xl border border-slate-200/60 bg-slate-50/70 p-4">
+                          <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500 mb-3">
+                            {group.label}
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {group.members.map((member: any) => {
+                              const memberId = resolveMemberUserId(member);
+                              const checked = newBooking.inviteeUserIds.includes(memberId);
+                              const atCapacity = selectedRoomCapacity
+                                ? newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1
+                                : false;
+                              const disabled = !checked && atCapacity;
+                              const memberRole = normalize(member.role || '');
+                              const isManagement = memberRole === 'owner' || memberRole === 'founder' || memberRole === 'super_admin' || memberRole === 'super-admin' || memberRole === 'admin';
+                              const sublabel = isManagement
+                                ? formatInviteGroupLabel(member.role)
+                                : ((member as any).departments?.[0] || (member as any).department || formatInviteGroupLabel(member.role || 'Member'));
+                              return (
+                                <label
+                                  key={memberId}
+                                  className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${
+                                    disabled
+                                      ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed'
+                                      : checked
+                                      ? 'border-[#2563EB] bg-blue-50 cursor-pointer'
+                                      : 'border-slate-200 bg-white hover:bg-slate-50 cursor-pointer'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={disabled}
+                                    onChange={() => !disabled && setNewBooking((prev) => ({
+                                      ...prev,
+                                      inviteeUserIds: checked
+                                        ? prev.inviteeUserIds.filter((id) => id !== memberId)
+                                        : [...prev.inviteeUserIds, memberId],
+                                    }))}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
+                                    <p className="text-[11px] font-pmedium text-slate-500">{sublabel}</p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                      {inviteDepartments.length === 0 && (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-pmedium text-slate-400">
+                          No inviteable members found.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
+              <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
                 <button
+                  type="button"
+                  onClick={() => setShowBookingDialog(false)}
+                  className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
                   disabled={bookingStatus !== 'available' || isSavingBooking || !newBooking.purpose.trim() || !newBooking.roomType || !newBooking.roomName || !newBooking.date || !newBooking.startTime || !newBooking.endTime}
                   onClick={handleCreateBooking}
-                  className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-pmedium text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                  className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isSavingBooking ? 'Saving...' : 'Confirm Booking'}
                 </button>
@@ -6108,28 +6156,28 @@ export function MeetingRoomsPage() {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: "100%", opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
+              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-4xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden font-pmedium"
             >
               <div className="w-full flex justify-center py-3 md:hidden"><div className="w-12 h-1.5 bg-slate-200 rounded-full" /></div>
 
               {/* Header */}
-              <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
+              <div className="px-6 py-4 md:p-8 flex justify-between items-start gap-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Internal Booking</h2>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">New Booking</p>
+                  <h2 className="mt-1 text-xl md:text-2xl font-pmedium text-primary tracking-tight">Internal Booking</h2>
                   <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">Booking on behalf of a member</p>
                 </div>
-                <button onClick={() => setShowInternalBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                <button type="button" onClick={() => setShowInternalBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-200">
                   <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
+              <div className="px-3 py-5 sm:px-4 sm:py-6 md:px-5 md:py-8 space-y-5 overflow-y-auto flex-1 bg-slate-50/30">
                 {/* Booking For */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Booking For</span>
-                    <div className="h-px flex-1 bg-slate-100" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
+                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Booking For</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-2">
@@ -6191,11 +6239,10 @@ export function MeetingRoomsPage() {
                 </div>
 
                 {/* Room Selection */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
-                    <div className="h-px flex-1 bg-slate-100" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><CalIcon size={16} /></span>
+                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Room Selection</span>
                   </div>
                   {(() => {
                     const activeRooms = roomCatalog.filter(r => isActiveRoom(r) && isMeetingCalendarRoom(r));
@@ -6259,11 +6306,10 @@ export function MeetingRoomsPage() {
                 </div>
 
                 {/* Date & Time */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
-                    <div className="h-px flex-1 bg-slate-100" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><Clock size={16} /></span>
+                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Timing & Slot</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-2">
@@ -6362,6 +6408,12 @@ export function MeetingRoomsPage() {
                     )}
                   </>
                 )}
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><Users size={16} /></span>
+                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Details & Guests</span>
+                  </div>
 
                 {/* Purpose */}
                 <div className="space-y-2">
@@ -6466,10 +6518,14 @@ export function MeetingRoomsPage() {
                   <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
                   <textarea rows={2} placeholder="Any additional context..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={internalBookingForm.notes} onChange={e => setInternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
                 </div>
+                </div>
               </div>
 
-              <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingInternalBooking || !internalBookingForm.bookedForUserId || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime || internalBookingAvailability === 'conflict' || internalBookingAvailability === 'full' || !internalBookingTimeValidation.valid} onClick={(e: any) => handleSubmitInternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-pmedium text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+              <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+                <button type="button" onClick={() => setShowInternalBookingDialog(false)} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+                  Cancel
+                </button>
+                <button type="button" disabled={isSavingInternalBooking || !internalBookingForm.bookedForUserId || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime || internalBookingAvailability === 'conflict' || internalBookingAvailability === 'full' || !internalBookingTimeValidation.valid} onClick={(e: any) => handleSubmitInternalBooking(e)} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                   {isSavingInternalBooking ? 'Booking...' : 'Confirm Internal Booking'}
                 </button>
               </div>
@@ -6488,32 +6544,32 @@ export function MeetingRoomsPage() {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: "100%", opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
+              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-4xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden font-pmedium"
             >
               <div className="w-full flex justify-center py-3 md:hidden"><div className="w-12 h-1.5 bg-slate-200 rounded-full" /></div>
 
               {/* Header */}
-              <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
+              <div className="px-6 py-4 md:p-8 flex justify-between items-start gap-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Tenant Booking</h2>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">New Booking</p>
+                  <h2 className="mt-1 text-xl md:text-2xl font-pmedium text-primary tracking-tight">Tenant Booking</h2>
                   <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">Book a meeting room for a tenant company</p>
                 </div>
-                <button onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                <button type="button" onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-200">
                   <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
+              <div className="px-3 py-5 sm:px-4 sm:py-6 md:px-5 md:py-8 space-y-5 overflow-y-auto flex-1 bg-slate-50/30">
                 {tenantBookingError && (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">{tenantBookingError}</div>
                 )}
 
                 {/* Tenant Company Selection */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Select Tenant Company</span>
-                    <div className="h-px flex-1 bg-slate-100" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span>
+                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Select Tenant Company</span>
                   </div>
                   {isLoadingTenants ? (
                     <div className="py-8 text-center text-xs font-pmedium text-slate-400">Loading tenant companies...</div>
@@ -6539,11 +6595,10 @@ export function MeetingRoomsPage() {
 
                 {/* Room Selection */}
                 {tenantBookingForm.tenantCompanyId && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="h-px flex-1 bg-slate-100" />
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
-                      <div className="h-px flex-1 bg-slate-100" />
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                    <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                      <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><CalIcon size={16} /></span>
+                      <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Room Selection</span>
                     </div>
                     {(() => {
                       const activeRooms = roomCatalog.filter(r => isActiveRoom(r) && isMeetingCalendarRoom(r));
@@ -6650,11 +6705,10 @@ export function MeetingRoomsPage() {
 
                 {/* Date & Time */}
                 {tenantBookingForm.tenantCompanyId && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="h-px flex-1 bg-slate-100" />
-                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
-                      <div className="h-px flex-1 bg-slate-100" />
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+                    <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                      <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><Clock size={16} /></span>
+                      <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Timing & Guests</span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                       <div className="space-y-2">
@@ -6682,7 +6736,7 @@ export function MeetingRoomsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div className="space-y-2">
                         <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Attendees</label>
                         <input type="number" min="1" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.attendees} onChange={e => setTenantBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} />
@@ -6774,8 +6828,11 @@ export function MeetingRoomsPage() {
                 )}
               </div>
 
-              <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId || !tenantBookingForm.roomName || !tenantBookingForm.date || !tenantBookingForm.startTime || !tenantBookingForm.endTime} onClick={(e: any) => handleSubmitTenantBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-pmedium text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+              <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+                <button type="button" onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+                  Cancel
+                </button>
+                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId || !tenantBookingForm.roomName || !tenantBookingForm.date || !tenantBookingForm.startTime || !tenantBookingForm.endTime} onClick={(e: any) => handleSubmitTenantBooking(e)} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                   {isSavingTenantBooking ? 'Booking...' : 'Confirm Tenant Booking'}
                 </button>
               </div>

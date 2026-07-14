@@ -50,32 +50,57 @@ const app = express();
 dotenv.config();
 const PORT = process.env.PORT || 5006;
 
-// Start the HTTP server immediately and connect to the DB in parallel. This keeps
-// `tsx watch` auto-restart working and avoids any startup delay. Mongoose buffers
-// queries until the connection is ready, so the brief connect window is invisible.
-const server = app.listen(PORT, () => {
-  console.log(`server is running on PORT ${PORT}`);
-});
+// mongoose.set("bufferCommands", false);
 
-mongoose
-  .connect(process.env.DB_URL)
-  .then(async () => {
-    console.log("connected to mongoDB");
-    // Run idempotent seeds/migrations in the BACKGROUND so they never delay
-    // request serving. No-ops once the data is already clean.
-    seedSystemRoles().catch((error) => {
-      console.error("seed/migration error:", error?.message || error);
+const startServer = async () => {
+  const databaseUrl = process.env.DB_URL;
+
+  if (!databaseUrl) {
+    console.error("DB_URL environment variable is missing.");
+    process.exit(1);
+  }
+
+  try {
+    await mongoose.connect(databaseUrl, {
+      serverSelectionTimeoutMS: 15000,
+      connectTimeoutMS: 15000,
     });
-  })
-  .catch((error) => {
-    // Do NOT exit the process — exiting breaks `tsx watch` auto-restart and takes
-    // the server down on transient DB blips. Log and let mongoose keep retrying.
-    console.error("mongoDB connection error:", error?.message || error);
-  });
+
+    console.log("Connected to MongoDB");
+
+    // Run seeds without blocking the API after MongoDB is connected.
+    seedSystemRoles().catch((error) => {
+      console.error(
+        "Seed/migration error:",
+        error?.message || error
+      );
+    });
+
+    app.listen(PORT, () => {
+      console.log(`Server is running on PORT ${PORT}`);
+    });
+  } catch (error) {
+    console.error(
+      "MongoDB connection failed:",
+      error?.message || error
+    );
+
+    // Let the production hosting platform restart the server.
+    process.exit(1);
+  }
+};
 
 mongoose.connection.on("error", (error) => {
-  console.error("mongoDB runtime error:", error?.message || error);
+  console.error(
+    "MongoDB runtime error:",
+    error?.message || error
+  );
 });
+
+mongoose.connection.on("disconnected", () => {
+  console.error("MongoDB disconnected");
+});
+
 
 app.use(cors(corsConfig));
 app.use(express.json({ limit: "10mb" }));
@@ -145,3 +170,20 @@ app.use((err, req, res, next) => {
     message: err?.message || "Internal server error",
   });
 });
+
+
+app.use((err, req, res, next) => {
+  console.error("Unhandled API error:", err?.stack || err?.message || err);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const statusCode = err?.statusCode || err?.status || 500;
+
+  return res.status(statusCode).json({
+    message: err?.message || "Internal server error",
+  });
+});
+
+startServer();

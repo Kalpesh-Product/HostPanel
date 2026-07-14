@@ -2,8 +2,6 @@
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
 import WebsiteCreditsRequest from "../models/WebsiteCreditsRequest.js";
 
-const MONTHLY_BASE_CREDITS = 5;
-
 export const requestCredits = async (req, res) => {
   try {
     const { companyId, workspaceId, requestedCredits } = req.body || {};
@@ -93,7 +91,8 @@ export const approveCreditsRequest = async (req, res) => {
       return res.status(404).json({ message: "Workspace subscription not found" });
     }
 
-    subscription.creditsLimit = MONTHLY_BASE_CREDITS;
+    // creditsLimit is plan-based (professional: 8, basic: 5) and managed by
+    // the credit middleware — approving add-on credits must not reset it.
     subscription.addOnCreditsPurchased =
       Number(subscription.addOnCreditsPurchased || 0) + Number(creditRequest.requestedCredits || 0);
     await subscription.save();

@@ -142,6 +142,8 @@ interface RoleAccessContext {
   grantedModules: string[];
 }
 
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+
 const readWorkspaceSetup = (): WorkspaceSetupState => {
   try {
     const raw = localStorage.getItem("workspace_setup");
@@ -461,7 +463,7 @@ const NavItem = ({
   return (
     <button
       type="button"
-      title={tooltip || (disabled ? (disabledTitle || "Coming soon") : "")}
+      title={tooltip || (disabled ? (disabledTitle) : "")}
       className={`w-full flex items-center justify-between py-2.5 px-3 ${noTopMargin ? "mt-0 mb-1.5" : "my-1.5"} select-none ${shapeClass} transition-colors ${
         isActive
           ? "bg-gray-200 text-gray-900"
@@ -771,7 +773,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     const companyNameHint = String(authUser?.companyName || "").trim().toLowerCase();
 
     try {
-      const hostCompaniesResponse = await axiosPrivate.get("http://localhost:5007/api/hosts/host-companies");
+      const hostCompaniesResponse = await axiosPrivate.get(`${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`);
       const hostCompanies = (Array.isArray(hostCompaniesResponse?.data)
         ? hostCompaniesResponse.data
         : Array.isArray(hostCompaniesResponse?.data?.data)
@@ -1147,7 +1149,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         return;
       }
 
-      const response = await axiosPrivate.patch("http://localhost:5007/api/hosts/request-upgrade-plan", {
+      const response = await axiosPrivate.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
         companyId,
         requestedPlan: plan,
       });

@@ -33,6 +33,8 @@ type UpgradeRequestState = {
   requestedAt?: string;
 };
 
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+
 const planCardHighlightStyles = {
   borderRadius: "40px",
   borderColor: "#1d9ae8",
@@ -291,7 +293,7 @@ const FinalizeSetupPage: React.FC = () => {
     if ((looksLikeLegacyCompanyCode || looksLikeLegacyResolvedId) && legacyCompanyId) {
       try {
         const hostCompaniesResponse = await axiosPrivate.get(
-          "http://localhost:5007/api/hosts/host-companies",
+          `${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`,
         );
         const hostCompanies =
           (Array.isArray(hostCompaniesResponse?.data)
@@ -343,7 +345,7 @@ const FinalizeSetupPage: React.FC = () => {
       if (localState && active) setUpgradeRequestState(localState);
 
       try {
-        const response = await axiosPrivate.get("http://localhost:5007/api/hosts/host-companies");
+        const response = await axiosPrivate.get(`${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`);
         const companies = Array.isArray(response?.data)
           ? response.data
           : Array.isArray(response?.data?.data)
@@ -408,7 +410,7 @@ const FinalizeSetupPage: React.FC = () => {
           toast.error("Company id not found in session. Please re-login and try again.");
           return;
         }
-        const response = await axiosPrivate.patch("http://localhost:5007/api/hosts/request-upgrade-plan", {
+        const response = await axiosPrivate.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
           companyId: resolvedCompanyId,
           requestedPlan: plan.key,
         });
@@ -759,7 +761,7 @@ const FinalizeSetupPage: React.FC = () => {
             <div className="w-12 h-12 md:w-14 md:h-14 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-4">
               <CheckCircle2 className="text-[#2d67f0]" size={28} strokeWidth={2.5} />
             </div>
-            <h2 className="text-[24px] md:text-[30px] leading-tight font-bold text-[#102a56] mb-2">
+            <h2 className="text-[24px] md:text-[30px] leading-tight font-pmedium text-[#102a56] mb-2">
               Thank You
             </h2>
             <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">

@@ -8,6 +8,8 @@ export const allowedOrigins = [
   "http://localhost:5006",
   "http://localhost:5007",
   "https://wonohostfe.vercel.app",
+  "https://wonomasterbe.vercel.app",
+  "https://wonomasterfe.vercel.app",
 ];
 
 export const corsConfig = {

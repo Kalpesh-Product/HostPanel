@@ -737,9 +737,13 @@ const isSameCompanyTemplate = ({
   const itemCompanyName = String(item?.companyName || "").trim().toLowerCase();
   const normalizedCompanyName = String(companyName || "").trim().toLowerCase();
 
-  if (companyId) return itemCompanyId === String(companyId).trim();
-  if (workspaceId) return itemWorkspaceId === String(workspaceId).trim();
-  if (normalizedCompanyName) return itemCompanyName === normalizedCompanyName;
+  // Cascade instead of early-return: templates are sometimes stored with a
+  // companyId from a different source than the one in the session, so a
+  // companyId mismatch must still fall through to the workspace/name checks.
+  if (companyId && itemCompanyId === String(companyId).trim()) return true;
+  if (workspaceId && itemWorkspaceId === String(workspaceId).trim()) return true;
+  if (normalizedCompanyName && itemCompanyName === normalizedCompanyName)
+    return true;
   return false;
 };
 
@@ -771,6 +775,7 @@ const CreateWebsite = () => {
   const [creditsLimit, setCreditsLimit] = useState(5);
   const [creditsResetDate, setCreditsResetDate] = useState(null);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [showResetConfirmPopup, setShowResetConfirmPopup] = useState(false);
   const [isRedirectingAfterCreate, setIsRedirectingAfterCreate] = useState(false);
   const [publishedWebsiteUrl, setPublishedWebsiteUrl] = useState("");
   const [draftTemplateId, setDraftTemplateId] = useState("");
@@ -5234,7 +5239,7 @@ const CreateWebsite = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={resetFormToEmpty}
+                  onClick={() => setShowResetConfirmPopup(true)}
                   className="px-8 py-2.5 bg-red-500 border border-slate-200 text-slate-100 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-red-600 transition-all"
                 >
                   Reset
@@ -5336,6 +5341,59 @@ const CreateWebsite = () => {
                     : effectiveEditMode
                       ? "Confirm & Submit"
                       : "Confirm & Publish"}
+                </button>
+              </DialogActions>
+            </Dialog>
+
+              <Dialog
+              open={showResetConfirmPopup}
+              onClose={() => setShowResetConfirmPopup(false)}
+              fullWidth
+              maxWidth="sm"
+              PaperProps={{
+                sx: { borderRadius: 3, overflow: "hidden" },
+              }}
+            >
+              <DialogTitle sx={{ pb: 1 }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-slate-900">
+                    Reset Website Form?
+                  </span>
+                  <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                    Cannot Be Undone
+                  </span>
+                </div>
+              </DialogTitle>
+              <DialogContent>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-700">
+                    This will clear everything you have entered in the form —
+                    all text, pages, products, images and settings. Your
+                    published website is not affected until you submit again.
+                  </p>
+                  <p className="mt-2 text-xs text-slate-600">
+                    If you only want to discard a few changes, edit those
+                    fields instead of resetting the whole form.
+                  </p>
+                </div>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirmPopup(false)}
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="px-6 py-2.5 bg-red-500 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-600 transition-all"
+                  onClick={() => {
+                    setShowResetConfirmPopup(false);
+                    resetFormToEmpty();
+                  }}
+                >
+                  Yes, Reset Form
                 </button>
               </DialogActions>
             </Dialog>
