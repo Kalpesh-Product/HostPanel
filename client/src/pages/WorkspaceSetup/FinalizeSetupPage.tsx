@@ -33,6 +33,8 @@ type UpgradeRequestState = {
   requestedAt?: string;
 };
 
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+
 const planCardHighlightStyles = {
   borderRadius: "40px",
   borderColor: "#1d9ae8",
@@ -291,7 +293,7 @@ const FinalizeSetupPage: React.FC = () => {
     if ((looksLikeLegacyCompanyCode || looksLikeLegacyResolvedId) && legacyCompanyId) {
       try {
         const hostCompaniesResponse = await axiosPrivate.get(
-          "http://localhost:5007/api/hosts/host-companies",
+          `${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`,
         );
         const hostCompanies =
           (Array.isArray(hostCompaniesResponse?.data)
@@ -343,7 +345,7 @@ const FinalizeSetupPage: React.FC = () => {
       if (localState && active) setUpgradeRequestState(localState);
 
       try {
-        const response = await axiosPrivate.get("http://localhost:5007/api/hosts/host-companies");
+        const response = await axiosPrivate.get(`${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`);
         const companies = Array.isArray(response?.data)
           ? response.data
           : Array.isArray(response?.data?.data)
@@ -408,7 +410,7 @@ const FinalizeSetupPage: React.FC = () => {
           toast.error("Company id not found in session. Please re-login and try again.");
           return;
         }
-        const response = await axiosPrivate.patch("http://wonomasterbe/api/hosts/request-upgrade-plan", {
+        const response = await axiosPrivate.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
           companyId: resolvedCompanyId,
           requestedPlan: plan.key,
         });
