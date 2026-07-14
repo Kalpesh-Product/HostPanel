@@ -463,7 +463,7 @@ const NavItem = ({
   return (
     <button
       type="button"
-      title={tooltip || (disabled ? (disabledTitle || "Coming soon") : "")}
+      title={tooltip || (disabled ? (disabledTitle) : "")}
       className={`w-full flex items-center justify-between py-2.5 px-3 ${noTopMargin ? "mt-0 mb-1.5" : "my-1.5"} select-none ${shapeClass} transition-colors ${
         isActive
           ? "bg-gray-200 text-gray-900"

@@ -26,10 +26,10 @@ const websiteCreditsSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-// Monthly limit is plan-based: professional gets 10, everything else the base
+// Monthly limit is plan-based: professional gets 8, everything else the base
 // 5. creditsLimit is kept in sync by syncSubscriptionPlan and used as a
 // fallback for legacy rows that predate the plan field.
-const PROFESSIONAL_MONTHLY_CREDITS = 10;
+const PROFESSIONAL_MONTHLY_CREDITS = 8;
 const getMonthlyLimit = (doc) => {
   if (doc.plan === "professional") return PROFESSIONAL_MONTHLY_CREDITS;
   return Number(doc.creditsLimit || 0) > 0

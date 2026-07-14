@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 import Workspace from "../models/Workspace.js";
 
 export const MONTHLY_BASE_CREDITS = 5;
-export const PROFESSIONAL_MONTHLY_CREDITS = 10;
+export const PROFESSIONAL_MONTHLY_CREDITS = 8;
 
 // Monthly website-edit credits are plan-based and tracked on the
-// website_credits doc itself: professional workspaces get 10, everything else
+// website_credits doc itself: professional workspaces get 8, everything else
 // (static-free/basic/custom/unknown) gets the base 5.
 export const creditsForPlan = (plan) =>
   String(plan || "").trim() === "professional"
