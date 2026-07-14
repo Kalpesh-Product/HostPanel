@@ -408,7 +408,7 @@ const FinalizeSetupPage: React.FC = () => {
           toast.error("Company id not found in session. Please re-login and try again.");
           return;
         }
-        const response = await axiosPrivate.patch("http://localhost:5007/api/hosts/request-upgrade-plan", {
+        const response = await axiosPrivate.patch("http://wonomasterbe/api/hosts/request-upgrade-plan", {
           companyId: resolvedCompanyId,
           requestedPlan: plan.key,
         });
@@ -759,7 +759,7 @@ const FinalizeSetupPage: React.FC = () => {
             <div className="w-12 h-12 md:w-14 md:h-14 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-4">
               <CheckCircle2 className="text-[#2d67f0]" size={28} strokeWidth={2.5} />
             </div>
-            <h2 className="text-[24px] md:text-[30px] leading-tight font-bold text-[#102a56] mb-2">
+            <h2 className="text-[24px] md:text-[30px] leading-tight font-pmedium text-[#102a56] mb-2">
               Thank You
             </h2>
             <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">

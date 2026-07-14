@@ -52,9 +52,14 @@ const isSameCompanyTemplate = ({
     .toLowerCase();
   const normalizedBusinessName = String(businessName || "").trim().toLowerCase();
 
-  if (companyId) return websiteCompanyId === String(companyId).trim();
-  if (workspaceId) return websiteWorkspaceId === String(workspaceId).trim();
-  if (normalizedBusinessName) return websiteCompanyName === normalizedBusinessName;
+  // Cascade instead of early-return: templates are sometimes stored with a
+  // companyId from a different source than the one in the session (e.g. base
+  // host-company id vs workspace-suffixed id), so a companyId mismatch must
+  // still fall through to the workspace/business-name checks.
+  if (companyId && websiteCompanyId === String(companyId).trim()) return true;
+  if (workspaceId && websiteWorkspaceId === String(workspaceId).trim()) return true;
+  if (normalizedBusinessName && websiteCompanyName === normalizedBusinessName)
+    return true;
   return false;
 };
 

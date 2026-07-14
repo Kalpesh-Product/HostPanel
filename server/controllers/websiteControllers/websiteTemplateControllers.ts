@@ -1,6 +1,10 @@
 ﻿// @ts-nocheck
 import sharp from "sharp";
 import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
+import {
+  creditsForPlan,
+  resolveWorkspacePlan,
+} from "../../utils/websiteCredits.js";
 import mongoose from "mongoose";
 import {
   deleteFileFromS3ByUrl,
@@ -251,6 +255,20 @@ const serializeProductDropdownPagesForClient = (items = [], products = []) => {
         : [],
     };
   });
+};
+
+// Freezes the current top-level template fields into publishedData — the copy the
+// hosted website serves. Draft auto-saves keep mutating the top-level fields, so
+// the live site must never read them directly once a snapshot exists.
+const buildPublishedSnapshot = (template) => {
+  const snapshot = template?.toObject
+    ? template.toObject({ depopulate: true })
+    : { ...template };
+  delete snapshot.__v;
+  delete snapshot.draftData;
+  delete snapshot.draftUpdatedAt;
+  delete snapshot.publishedData;
+  return snapshot;
 };
 
 const serializeWebsiteTemplateForClient = (template) => {
@@ -2094,6 +2112,10 @@ export const createTemplate = async (req, res, next) => {
       template = latestTemplate;
     }
 
+    // Submit pushes the site live: refresh the snapshot the hosted website serves.
+    template.publishedData = buildPublishedSnapshot(template);
+    template.publishedAt = new Date();
+
     const savedTemplate = await template.save();
 
     if (!savedTemplate) {
@@ -3189,6 +3211,10 @@ export const editTemplate = async (req, res, next) => {
       }
     }
 
+    // Submit pushes the site live: refresh the snapshot the hosted website serves.
+    template.publishedData = buildPublishedSnapshot(template);
+    template.publishedAt = new Date();
+
     // Validate before saving to catch schema validation errors
     await template.validate();
 
@@ -3247,10 +3273,15 @@ export const publishWebsite = async (req, res, next) => {
     }
 
     if (!subscription) {
+      const plan = await resolveWorkspacePlan({
+        workspaceId: resolvedWorkspaceId,
+        companyId: resolvedCompanyId,
+      });
       subscription = await WorkspaceSubscription.create({
         companyId: resolvedCompanyId || resolvedWorkspaceId,
         workspaceId: resolvedWorkspaceId || resolvedCompanyId,
-        creditsLimit: 5,
+        plan,
+        creditsLimit: creditsForPlan(plan),
         creditsUsed: 0,
         addOnCreditsPurchased: 0,
       });
@@ -3266,6 +3297,8 @@ export const publishWebsite = async (req, res, next) => {
       template.productDropdownPages,
     );
     template.menuItems = sanitizeMenuItemsForPersistence(template.menuItems);
+    template.publishedData = buildPublishedSnapshot(template);
+    template.publishedAt = deployedAt;
     await template.save();
 
     subscription.publishedProjectId = websiteId;
