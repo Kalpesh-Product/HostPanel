@@ -264,6 +264,26 @@ const mapLocalReviewForResponse = (review) => ({
   submittedAt: review?.createdAt || null,
 });
 
+const isWebsiteReviewRecord = (review) => {
+  const source = sanitizeValue(review?.source).toLowerCase();
+  const reviewSource = sanitizeValue(review?.reviewSource).toLowerCase();
+
+  if (reviewSource.includes("nomad")) return false;
+  if (reviewSource === "website reviews") return true;
+
+  return (
+    ["website", "website form", "website preview", "website reviews"].includes(source)
+  );
+};
+
+const parseListingList = (response) => {
+  const listings = response?.data?.listings ?? response?.data?.data ?? response?.data;
+  return Array.isArray(listings) ? listings : [];
+};
+
+const getReviewCompanyRecordId = (review) =>
+  sanitizeValue(review?.company?._id || review?.company);
+
 const mergeReviews = (remoteReviews = [], localReviews = []) => {
   const seen = new Set();
   const merged = [];
@@ -348,7 +368,8 @@ export const createWebsiteReview = async (req, res, next) => {
       workspaceId: resolvedWorkspaceId,
       companyName: resolvedCompanyName,
       companyType: sanitizeValue(body.companyType),
-      source: sanitizeValue(body.source) || "website",
+      source: "website",
+      reviewSource: "Website Reviews",
       searchKey: sanitizeValue(body.searchKey || template?.searchKey),
       websiteUrl: sanitizeValue(body.websiteUrl || body.siteUrl || body.url),
       status: sanitizeValue(body.status || "pending").toLowerCase(),
@@ -432,7 +453,9 @@ export const getApprovedWebsiteReviews = async (req, res, next) => {
           ...(workspaceId ? { workspaceId } : {}),
         },
       });
-      remoteReviews = parseReviewList(response);
+      remoteReviews = parseReviewList(response).filter(
+        (review) => review?.isEnabled === true && isWebsiteReviewRecord(review),
+      );
     } catch (error) {
       remoteReviews = [];
     }
@@ -450,14 +473,15 @@ export const getApprovedWebsiteReviews = async (req, res, next) => {
       }
     }
 
-    const localReviews = await WebsiteReview.find(
-      buildLocalReviewQuery({
+    const localReviews = await WebsiteReview.find({
+      ...buildLocalReviewQuery({
         companyId,
         workspaceId,
         searchKey,
         status: "approved",
       }),
-    )
+      isEnabled: true,
+    })
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -482,34 +506,53 @@ export const getApprovedWebsiteReviews = async (req, res, next) => {
 export const updateReviewStatus = async (req, res, next) => {
   try {
     const { reviewId } = req.params;
-    const { status } = req.body;
-    let data = { status, userType: "HOST" };
+    const { status, isEnabled } = req.body || {};
+    const hasStatusUpdate = typeof status === "string";
+    const hasVisibilityUpdate = typeof isEnabled === "boolean";
+    const data = {
+      ...(hasStatusUpdate ? { status } : {}),
+      ...(hasVisibilityUpdate ? { isEnabled } : {}),
+      userType: "HOST",
+      userId: req.user,
+      date: new Date(),
+    };
 
     if (!reviewId) {
       return res.status(400).json({ message: "Review id is required" });
     }
 
-    const allowedStatuses = ["approved", "rejected"];
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid review status" });
+    if (!hasStatusUpdate && !hasVisibilityUpdate) {
+      return res.status(400).json({
+        message: "Review status or isEnabled value is required",
+      });
     }
 
-    if (status === "approved") {
-      data = { ...data, userId: req.user, date: new Date() };
-    } else {
-      data = { ...data, userId: req.user, date: new Date() };
+    const allowedStatuses = ["approved", "rejected"];
+    if (hasStatusUpdate && !allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid review status" });
     }
 
     if (/^[a-f\d]{24}$/i.test(String(reviewId || ""))) {
       const localReview = await WebsiteReview.findById(reviewId).exec();
       if (localReview) {
-        localReview.status = status;
-        if (status === "approved") {
-          localReview.approvedBy = data;
-          localReview.rejectedBy = null;
-        } else {
-          localReview.rejectedBy = data;
-          localReview.approvedBy = null;
+        if (hasVisibilityUpdate && localReview.status !== "approved") {
+          return res.status(400).json({
+            message: "Only approved reviews can be enabled or disabled",
+          });
+        }
+
+        if (hasStatusUpdate) {
+          localReview.status = status;
+          if (status === "approved") {
+            localReview.approvedBy = data;
+            localReview.rejectedBy = null;
+          } else {
+            localReview.rejectedBy = data;
+            localReview.approvedBy = null;
+          }
+        }
+        if (hasVisibilityUpdate) {
+          localReview.isEnabled = isEnabled;
         }
 
         if (localReview.upstreamReviewId) {
@@ -534,7 +577,9 @@ export const updateReviewStatus = async (req, res, next) => {
         await localReview.save();
 
         return res.status(200).json({
-          message: `Review ${status} successfully`,
+          message: hasVisibilityUpdate
+            ? `Review ${isEnabled ? "enabled" : "disabled"} successfully`
+            : `Review ${status} successfully`,
           review: mapLocalReviewForResponse(localReview.toObject()),
         });
       }
@@ -552,7 +597,7 @@ export const updateReviewStatus = async (req, res, next) => {
       if (![200, 204].includes(response.status)) {
         return res
           .status(400)
-          .json({ message: `Failed to update review status` });
+          .json({ message: `Failed to update review` });
       }
     } catch (err) {
       return res.status(err.response?.status || 500).json({
@@ -564,7 +609,9 @@ export const updateReviewStatus = async (req, res, next) => {
     }
 
     return res.status(200).json({
-      message: `Review ${status} successfully`,
+      message: hasVisibilityUpdate
+        ? `Review ${isEnabled ? "enabled" : "disabled"} successfully`
+        : `Review ${status} successfully`,
       review: response.data.review,
     });
   } catch (error) {
@@ -574,10 +621,11 @@ export const updateReviewStatus = async (req, res, next) => {
 
 export const getReviewsByCompany = async (req, res, next) => {
   try {
-    const { companyType = "", status = "" } = req.query;
+    const { companyType = "", status = "", reviewScope = "" } = req.query;
+    const normalizedReviewScope = sanitizeValue(reviewScope).toLowerCase();
     const companyId = await resolveCanonicalCompanyId(req);
     const template = await resolveTemplateFromRequest(req);
-    const workspaceId = sanitizeValue(
+    const resolvedWorkspaceId = sanitizeValue(
       req.workspaceMembership?.workspace || req.query?.workspaceId || template?.workspaceId,
     );
     const searchKey = sanitizeValue(req.query?.searchKey || template?.searchKey).toLowerCase();
@@ -595,7 +643,9 @@ export const getReviewsByCompany = async (req, res, next) => {
           companyId,
           companyType,
           ...(status ? { status } : {}),
-          ...(workspaceId ? { workspaceId } : {}),
+          ...(normalizedReviewScope !== "nomads" && resolvedWorkspaceId
+            ? { workspaceId: resolvedWorkspaceId }
+            : {}),
         },
       });
 
@@ -663,11 +713,11 @@ export const getReviewsByCompany = async (req, res, next) => {
       enrichedRemoteReviews = [];
     }
 
-    if (enrichedRemoteReviews.length > 0) {
-      if (workspaceId) {
+    if (enrichedRemoteReviews.length > 0 && normalizedReviewScope !== "nomads") {
+      if (resolvedWorkspaceId) {
         enrichedRemoteReviews = enrichedRemoteReviews.filter((r) => {
           const rWorkspaceId = sanitizeValue(r.workspaceId);
-          return rWorkspaceId === workspaceId;
+          return rWorkspaceId === resolvedWorkspaceId;
         });
       } else {
         enrichedRemoteReviews = enrichedRemoteReviews.filter((r) => {
@@ -676,10 +726,10 @@ export const getReviewsByCompany = async (req, res, next) => {
       }
     }
 
-    const localReviews = await WebsiteReview.find(
+    const storedLocalReviews = await WebsiteReview.find(
       buildLocalReviewQuery({
         companyId,
-        workspaceId,
+        workspaceId: resolvedWorkspaceId,
         searchKey,
         status,
       }),
@@ -687,6 +737,49 @@ export const getReviewsByCompany = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .lean()
       .exec();
+    const localUpstreamReviewIds = new Set(
+      storedLocalReviews
+        .map((review) => sanitizeValue(review?.upstreamReviewId))
+        .filter(Boolean),
+    );
+
+    if (normalizedReviewScope === "website") {
+      enrichedRemoteReviews = enrichedRemoteReviews.filter(isWebsiteReviewRecord);
+    } else if (normalizedReviewScope === "nomads") {
+      enrichedRemoteReviews = enrichedRemoteReviews.filter(
+        (review) =>
+          !isWebsiteReviewRecord(review) &&
+          !localUpstreamReviewIds.has(sanitizeValue(review?._id)),
+      );
+
+      try {
+        const listingsResponse = await requestReviewApi({
+          method: "get",
+          url: `/api/company/get-listings/${encodeURIComponent(companyId)}`,
+        });
+        const listingTypeById = new Map(
+          parseListingList(listingsResponse)
+            .map((listing) => [
+              sanitizeValue(listing?._id),
+              sanitizeValue(listing?.companyType),
+            ])
+            .filter(([listingId]) => Boolean(listingId)),
+        );
+
+        enrichedRemoteReviews = enrichedRemoteReviews.map((review) => ({
+          ...review,
+          companyType:
+            listingTypeById.get(getReviewCompanyRecordId(review)) ||
+            sanitizeValue(review?.companyType),
+        }));
+      } catch {
+        // Reviews still load if the Nomads listing lookup is temporarily unavailable.
+      }
+    }
+
+    const localReviews = normalizedReviewScope === "nomads"
+      ? []
+      : storedLocalReviews;
 
     return res.status(200).json({
       reviews: mergeReviews(

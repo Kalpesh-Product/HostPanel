@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import {
-  AlertTriangle, BadgeCheck, CheckCircle2, Eye, FileText, Search, Sparkles, Star, Target, X, XCircle,
+  AlertTriangle, BadgeCheck, CheckCircle2, Eye, EyeOff, FileText, Search, Sparkles, Star, Target, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,19 @@ function formatDate(raw) {
 
 function getInitials(value) {
   return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "RV";
+}
+
+function formatNomadsType(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  const labels = {
+    coworking: "Coworking",
+    meetingroom: "Meeting Room",
+    cafe: "Cafe",
+    workation: "Workation",
+    coliving: "Co-living",
+    hostel: "Hostel",
+  };
+  return labels[normalized] || (value ? String(value) : "—");
 }
 
 function StarRating({ count }) {
@@ -54,7 +67,8 @@ export default function CompanyReviews() {
     queryKey: ["companyReviews", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      const res = await axiosPrivate.get(`/api/review?companyId=${companyId}`, {
+      const res = await axiosPrivate.get("/api/review", {
+        params: { companyId, reviewScope: "nomads" },
         headers: { "Cache-Control": "no-cache" },
       });
       const raw = res.data?.reviews ?? res.data?.data?.reviews ?? res.data?.data ?? res.data;
@@ -63,18 +77,22 @@ export default function CompanyReviews() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ reviewId, status }) => {
-      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, { status });
+    mutationFn: async ({ reviewId, updates }) => {
+      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, updates);
       return res.data;
     },
-    onSuccess: (_data, { status }) => {
-      toast.success(status === "approved" ? "Review approved." : "Review rejected.");
-      queryClient.invalidateQueries(["companyReviews"]);
+    onSuccess: (_data, { updates }) => {
+      if (Object.prototype.hasOwnProperty.call(updates, "isEnabled")) {
+        toast.success(updates.isEnabled ? "Nomads review enabled." : "Nomads review disabled.");
+      } else {
+        toast.success(updates.status === "approved" ? "Review approved." : "Review rejected.");
+      }
+      queryClient.invalidateQueries({ queryKey: ["companyReviews"] });
       setConfirmAction(null);
       setSelectedReviewId(null);
     },
-    onError: () => {
-      toast.error("Failed to update review.");
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update review.");
     },
   });
 
@@ -93,12 +111,16 @@ export default function CompanyReviews() {
   }, [rawData]);
 
   const handleStatusChange = (reviewId, newStatus) => {
-    setConfirmAction({ reviewId, status: newStatus });
+    setConfirmAction({ reviewId, updates: { status: newStatus } });
   };
 
-  const confirmStatusChange = () => {
+  const handleVisibilityChange = (reviewId, isEnabled) => {
+    setConfirmAction({ reviewId, updates: { isEnabled } });
+  };
+
+  const confirmReviewChange = () => {
     if (!confirmAction) return;
-    updateMutation.mutate({ reviewId: confirmAction.reviewId, status: confirmAction.status });
+    updateMutation.mutate(confirmAction);
   };
 
   const reviewStats = useMemo(() => {
@@ -118,7 +140,7 @@ export default function CompanyReviews() {
     const query = searchQuery.trim().toLowerCase();
     return reviews.filter((r) => {
       const matchesStage = stageFilter === "all" || (r.status || "pending") === stageFilter;
-      const matchesQuery = !query || [r.name, r.reviewerName, r.reviewSource, r.description, r.review]
+      const matchesQuery = !query || [r.name, r.reviewerName, r.reviewSource, r.companyType, r.description, r.review]
         .filter(Boolean).some((v) => String(v).toLowerCase().includes(query));
       return matchesStage && matchesQuery;
     });
@@ -270,7 +292,7 @@ export default function CompanyReviews() {
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left min-w-[800px]">
+                <table className="w-full text-left min-w-[920px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Reviewer</th>
@@ -278,7 +300,8 @@ export default function CompanyReviews() {
                       <th className="px-5 py-4">Description</th>
                       <th className="px-5 py-4">Source</th>
                       <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Received Date</th>
+                      <th className="px-5 py-4">Website Display</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Product Type</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
@@ -314,7 +337,24 @@ export default function CompanyReviews() {
                             </span>
                           </td>
                           <td className="px-5 py-4">
-                            <p className="text-[12px] font-pmedium text-slate-700">{formatDate(review.createdAt)}</p>
+                            {review.status === "approved" ? (
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wide ${
+                                  review.isEnabled === true
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                                }`}
+                              >
+                                {review.isEnabled === true ? "Enabled" : "Disabled"}
+                              </span>
+                            ) : (
+                              <span className="text-[12px] font-pmedium text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="inline-flex whitespace-nowrap rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium text-blue-700">
+                              {formatNomadsType(review.companyType)}
+                            </span>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
@@ -373,6 +413,10 @@ export default function CompanyReviews() {
                         <p className="text-[12px] font-pmedium text-slate-900">{selectedReview.reviewSource || "—"}</p>
                       </div>
                       <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Product Type</p>
+                        <p className="text-[12px] font-pmedium text-slate-900 whitespace-nowrap">{formatNomadsType(selectedReview.companyType)}</p>
+                      </div>
+                      <div>
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received On</p>
                         <p className="text-[12px] font-pmedium text-slate-900">{formatDate(selectedReview.createdAt)}</p>
                       </div>
@@ -400,6 +444,22 @@ export default function CompanyReviews() {
                         className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
                       ><CheckCircle2 size={14} /> Approve</button>
                     </>
+                  ) : selectedReview.status === "approved" ? (
+                    <>
+                      <button type="button" onClick={() => setSelectedReviewId(null)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-slate-100 transition-colors">Close</button>
+                      <button
+                        type="button"
+                        onClick={() => handleVisibilityChange(selectedReview._id, selectedReview.isEnabled !== true)}
+                        className={`flex-1 py-2.5 rounded-xl font-pmedium text-[12px] shadow-sm transition-all flex items-center justify-center gap-1.5 ${
+                          selectedReview.isEnabled === true
+                            ? "bg-white border border-rose-200 text-rose-600 hover:bg-rose-50"
+                            : "bg-[#2563EB] text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {selectedReview.isEnabled === true ? <EyeOff size={14} /> : <Eye size={14} />}
+                        {selectedReview.isEnabled === true ? "Disable" : "Enable"}
+                      </button>
+                    </>
                   ) : (
                     <>
                       <span className="flex-1 flex items-center justify-center text-[11px] font-pmedium text-slate-500">This review has already been {selectedReview.status}.</span>
@@ -420,25 +480,43 @@ export default function CompanyReviews() {
                   <AlertTriangle size={28} className="text-amber-500" />
                 </div>
                 <h3 className="text-base font-black text-slate-900 mb-2">
-                  {confirmAction.status === "approved" ? "Approve Review?" : "Reject Review?"}
+                  {confirmAction.updates.status === "approved"
+                    ? "Approve Review?"
+                    : confirmAction.updates.status === "rejected"
+                      ? "Reject Review?"
+                      : confirmAction.updates.isEnabled
+                        ? "Enable Nomads Review?"
+                        : "Disable Nomads Review?"}
                 </h3>
                 <p className="text-[13px] font-medium text-slate-500 leading-relaxed mb-6">
-                  {confirmAction.status === "approved"
-                    ? "Once approved, the review will be visible on your nomad listing. This action cannot be undone."
-                    : "Once rejected, the review will never be displayed on your nomad listing. This action cannot be undone."
+                  {confirmAction.updates.status === "approved"
+                    ? "Once approved, you can choose whether to enable this review on your nomad listing. This action cannot be undone."
+                    : confirmAction.updates.status === "rejected"
+                      ? "Once rejected, the review will never be displayed on your nomad listing. This action cannot be undone."
+                      : confirmAction.updates.isEnabled
+                        ? "This approved review will be displayed on your nomad listing."
+                        : "This review will be hidden from your nomad listing, but it will remain approved."
                   }
                 </p>
                 <div className="flex items-center gap-2.5">
                   <button type="button" onClick={() => setConfirmAction(null)}
                     className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-50"
                   >Cancel</button>
-                  <button type="button" onClick={confirmStatusChange}
+                  <button type="button" onClick={confirmReviewChange}
                     className={`flex-1 rounded-xl px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white transition ${
-                      confirmAction.status === "approved"
+                      confirmAction.updates.status === "approved" || confirmAction.updates.isEnabled
                         ? "bg-emerald-600 hover:bg-emerald-700"
                         : "bg-rose-600 hover:bg-rose-700"
                     }`}
-                  >Yes, {confirmAction.status === "approved" ? "Approve" : "Reject"}</button>
+                  >
+                    Yes, {confirmAction.updates.status === "approved"
+                      ? "Approve"
+                      : confirmAction.updates.status === "rejected"
+                        ? "Reject"
+                        : confirmAction.updates.isEnabled
+                          ? "Enable"
+                          : "Disable"}
+                  </button>
                 </div>
               </div>
             </div>

@@ -18,6 +18,9 @@ import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../components/UploadMultipleFilesInput";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import useNomadListingCapacity, {
+  normalizeNomadListingType,
+} from "../../../hooks/useNomadListingCapacity";
 
 // Dummy inclusions
 const inclusionOptions = [
@@ -65,6 +68,8 @@ const EditNomadListing = () => {
   const companyType = navState.website.companyType || "";
   const businessId =
     navState.website?.businessId || sessionStorage.getItem("businessId") || "";
+
+  const { addedTypes } = useNomadListingCapacity(companyId);
 
   const {
     control,
@@ -156,6 +161,11 @@ const EditNomadListing = () => {
 
   // --------------------------------------------------------------------
 
+  // The listing's own type stays selectable; other already-added types are blocked
+  const originalType = normalizeNomadListingType(
+    fetchedListing?.companyType || navState.website?.companyType || companyType,
+  );
+
   const { mutate: saveListing, isPending: isSaving } = useMutation({
     mutationFn: async (fd) => {
       const res = await axiosPriv.patch(
@@ -178,6 +188,14 @@ const EditNomadListing = () => {
   });
 
   const onSubmit = (values, e) => {
+    const normalizedSelected = normalizeNomadListingType(values.companyType);
+    if (normalizedSelected !== originalType && addedTypes.has(normalizedSelected)) {
+      toast.error("This Nomad listing type has already been added.", {
+        position: "bottom-right",
+      });
+      return;
+    }
+
     const formEl = e?.target || formRef.current;
     const fd = new FormData(formEl);
 
@@ -294,14 +312,28 @@ const EditNomadListing = () => {
                   label="Company Type"
                   fullWidth
                 >
-                  {companyTypes.map((type) => (
-                    <MenuItem
-                      key={type}
-                      value={type.toLowerCase().replace(/\s+/g, "")}
-                    >
-                      {type}
-                    </MenuItem>
-                  ))}
+                  {companyTypes.map((type) => {
+                    const normalized = normalizeNomadListingType(type);
+                    const alreadyAdded =
+                      normalized !== originalType && addedTypes.has(normalized);
+                    return (
+                      <MenuItem
+                        key={type}
+                        value={type.toLowerCase().replace(/\s+/g, "")}
+                        disabled={alreadyAdded}
+                        className="font-pmedium"
+                      >
+                        <span className="flex w-full items-center justify-between gap-4 font-pmedium">
+                          <span>{type}</span>
+                          {alreadyAdded && (
+                            <span className="text-[10px] font-pmedium uppercase tracking-wide text-emerald-600">
+                              Already added
+                            </span>
+                          )}
+                        </span>
+                      </MenuItem>
+                    );
+                  })}
                 </TextField>
               )}
             />

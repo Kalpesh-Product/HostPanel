@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, BadgeCheck, CheckCircle2, ExternalLink, Eye, FileText, Search, Sparkles, Star, Target, X, XCircle,
+  AlertTriangle, BadgeCheck, CheckCircle2, ExternalLink, Eye, EyeOff, FileText, Search, Sparkles, Star, Target, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,10 @@ function formatDate(raw) {
 
 function getInitials(value) {
   return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "RV";
+}
+
+function getWebsiteReviewSource() {
+  return "Website Reviews";
 }
 
 function StarRating({ count }) {
@@ -57,6 +61,7 @@ export default function WebsiteBuilderReviews() {
       const params = {};
       if (companyId) params.companyId = companyId;
       if (workspaceId) params.workspaceId = workspaceId;
+      params.reviewScope = "website";
       const res = await axiosPrivate.get("/api/review", { params });
       const raw = res.data?.reviews ?? res.data?.data?.reviews ?? res.data?.data ?? res.data;
       return Array.isArray(raw) ? raw : [];
@@ -77,22 +82,30 @@ export default function WebsiteBuilderReviews() {
   }, [localCache]);
 
   const updateMutation = useMutation({
-    mutationFn: async ({ reviewId, status }) => {
-      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, { status });
+    mutationFn: async ({ reviewId, updates }) => {
+      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, updates);
       return res.data;
     },
-    onSuccess: (_data, { status, reviewId }) => {
-      toast.success(status === "approved" ? "Review approved." : "Review rejected.");
+    onSuccess: (data, { reviewId, updates }) => {
+      if (Object.prototype.hasOwnProperty.call(updates, "isEnabled")) {
+        toast.success(updates.isEnabled ? "Review enabled on the website." : "Review disabled on the website.");
+      } else {
+        toast.success(updates.status === "approved" ? "Review approved." : "Review rejected.");
+      }
       const currentData = queryClient.getQueryData(["websiteReviews", companyId, workspaceId]);
       if (Array.isArray(currentData)) {
         const review = currentData.find((r) => r._id === reviewId);
         if (review) {
-          setLocalCache((prev) => ({ ...prev, [reviewId]: { ...review, status } }));
+          const updatedReview = data?.review ?? data?.data?.review ?? {};
+          setLocalCache((prev) => ({
+            ...prev,
+            [reviewId]: { ...review, ...prev[reviewId], ...updates, ...updatedReview },
+          }));
         }
       }
     },
-    onError: () => {
-      toast.error("Failed to update review.");
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update review.");
     },
   });
 
@@ -105,7 +118,11 @@ export default function WebsiteBuilderReviews() {
       for (const id of cacheIds) {
         const idx = merged.findIndex((r) => r._id === id);
         if (idx >= 0) {
-          merged[idx] = { ...merged[idx], status: cache[id].status };
+          merged[idx] = {
+            ...merged[idx],
+            status: cache[id].status,
+            ...(typeof cache[id].isEnabled === "boolean" ? { isEnabled: cache[id].isEnabled } : {}),
+          };
         } else {
           merged.push(cache[id]);
         }
@@ -124,12 +141,16 @@ export default function WebsiteBuilderReviews() {
   }, [rawData, localCache]);
 
   const handleStatusChange = (reviewId, newStatus) => {
-    setConfirmAction({ reviewId, status: newStatus });
+    setConfirmAction({ reviewId, updates: { status: newStatus } });
   };
 
-  const confirmStatusChange = () => {
+  const handleVisibilityChange = (reviewId, isEnabled) => {
+    setConfirmAction({ reviewId, updates: { isEnabled } });
+  };
+
+  const confirmReviewChange = () => {
     if (!confirmAction) return;
-    updateMutation.mutate({ reviewId: confirmAction.reviewId, status: confirmAction.status });
+    updateMutation.mutate(confirmAction);
     setConfirmAction(null);
     setSelectedReviewId(null);
   };
@@ -151,7 +172,7 @@ export default function WebsiteBuilderReviews() {
     const query = searchQuery.trim().toLowerCase();
     return reviews.filter((r) => {
       const matchesStage = stageFilter === "all" || (r.status || "pending") === stageFilter;
-      const matchesQuery = !query || [r.name, r.reviewSource, r.description]
+      const matchesQuery = !query || [r.name, getWebsiteReviewSource(), r.description]
         .filter(Boolean).some((v) => String(v).toLowerCase().includes(query));
       return matchesStage && matchesQuery;
     });
@@ -288,7 +309,7 @@ export default function WebsiteBuilderReviews() {
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left min-w-[800px]">
+                <table className="w-full text-left min-w-[920px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Reviewer</th>
@@ -296,6 +317,7 @@ export default function WebsiteBuilderReviews() {
                       <th className="px-5 py-4">Description</th>
                       <th className="px-5 py-4">Source</th>
                       <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Website Display</th>
                       <th className="px-5 py-4">Received Date</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
@@ -324,12 +346,27 @@ export default function WebsiteBuilderReviews() {
                             <p className="text-[12px] font-pmedium text-slate-600 truncate">{review.description || "—"}</p>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-pmedium text-slate-700">{review.reviewSource || "—"}</span>
+                            <span className="text-[12px] font-pmedium text-slate-700">{getWebsiteReviewSource()}</span>
                           </td>
                           <td className="px-5 py-4">
                             <span className={statusPillClass(review.status || "pending")}>
                               {review.status || "pending"}
                             </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            {review.status === "approved" ? (
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wide ${
+                                  review.isEnabled === true
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                                }`}
+                              >
+                                {review.isEnabled === true ? "Enabled" : "Disabled"}
+                              </span>
+                            ) : (
+                              <span className="text-[12px] font-pmedium text-slate-400">—</span>
+                            )}
                           </td>
                           <td className="px-5 py-4">
                             <p className="text-[12px] font-pmedium text-slate-700">{formatDate(review.createdAt)}</p>
@@ -366,9 +403,7 @@ export default function WebsiteBuilderReviews() {
                       <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{selectedReview.name || "Anonymous"}</h2>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className={statusPillClass(selectedReview.status || "pending")}>{selectedReview.status || "pending"}</span>
-                        {selectedReview.reviewSource && (
-                          <span className={statusPillClass(selectedReview.reviewSource)}>{selectedReview.reviewSource}</span>
-                        )}
+                        <span className={statusPillClass(getWebsiteReviewSource())}>{getWebsiteReviewSource()}</span>
                       </div>
                     </div>
                   </div>
@@ -388,7 +423,7 @@ export default function WebsiteBuilderReviews() {
                       </div>
                       <div>
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Source</p>
-                        <p className="text-[12px] font-pmedium text-slate-900">{selectedReview.reviewSource || "—"}</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{getWebsiteReviewSource()}</p>
                       </div>
                       <div>
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received On</p>
@@ -426,6 +461,22 @@ export default function WebsiteBuilderReviews() {
                         className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
                       ><CheckCircle2 size={14} /> Approve</button>
                     </>
+                  ) : selectedReview.status === "approved" ? (
+                    <>
+                      <button type="button" onClick={() => setSelectedReviewId(null)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-slate-100 transition-colors">Close</button>
+                      <button
+                        type="button"
+                        onClick={() => handleVisibilityChange(selectedReview._id, selectedReview.isEnabled !== true)}
+                        className={`flex-1 py-2.5 rounded-xl font-pmedium text-[12px] shadow-sm transition-all flex items-center justify-center gap-1.5 ${
+                          selectedReview.isEnabled === true
+                            ? "bg-white border border-rose-200 text-rose-600 hover:bg-rose-50"
+                            : "bg-[#2563EB] text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {selectedReview.isEnabled === true ? <EyeOff size={14} /> : <Eye size={14} />}
+                        {selectedReview.isEnabled === true ? "Disable" : "Enable"}
+                      </button>
+                    </>
                   ) : (
                     <>
                       <span className="flex-1 flex items-center justify-center text-[11px] font-pmedium text-slate-500">This review has already been {selectedReview.status}.</span>
@@ -446,25 +497,43 @@ export default function WebsiteBuilderReviews() {
                   <AlertTriangle size={28} className="text-amber-500" />
                 </div>
                 <h3 className="text-base font-black text-slate-900 mb-2">
-                  {confirmAction.status === "approved" ? "Approve Review?" : "Reject Review?"}
+                  {confirmAction.updates.status === "approved"
+                    ? "Approve Review?"
+                    : confirmAction.updates.status === "rejected"
+                      ? "Reject Review?"
+                      : confirmAction.updates.isEnabled
+                        ? "Enable Review?"
+                        : "Disable Review?"}
                 </h3>
                 <p className="text-[13px] font-medium text-slate-500 leading-relaxed mb-6">
-                  {confirmAction.status === "approved"
-                    ? "Once approved, the review will be visible on your hosted website. This action cannot be undone."
-                    : "Once rejected, the review will never be displayed on your website. This action cannot be undone."
+                  {confirmAction.updates.status === "approved"
+                    ? "Once approved, you can choose whether to enable this review on your hosted website. This action cannot be undone."
+                    : confirmAction.updates.status === "rejected"
+                      ? "Once rejected, the review will never be displayed on your website. This action cannot be undone."
+                      : confirmAction.updates.isEnabled
+                        ? "This approved review will be displayed on your hosted website."
+                        : "This review will be hidden from your hosted website, but it will remain approved."
                   }
                 </p>
                 <div className="flex items-center gap-2.5">
                   <button type="button" onClick={() => setConfirmAction(null)}
                     className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-50"
                   >Cancel</button>
-                  <button type="button" onClick={confirmStatusChange}
+                  <button type="button" onClick={confirmReviewChange}
                     className={`flex-1 rounded-xl px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white transition ${
-                      confirmAction.status === "approved"
+                      confirmAction.updates.status === "approved" || confirmAction.updates.isEnabled
                         ? "bg-emerald-600 hover:bg-emerald-700"
                         : "bg-rose-600 hover:bg-rose-700"
                     }`}
-                  >Yes, {confirmAction.status === "approved" ? "Approve" : "Reject"}</button>
+                  >
+                    Yes, {confirmAction.updates.status === "approved"
+                      ? "Approve"
+                      : confirmAction.updates.status === "rejected"
+                        ? "Reject"
+                        : confirmAction.updates.isEnabled
+                          ? "Enable"
+                          : "Disable"}
+                  </button>
                 </div>
               </div>
             </div>
