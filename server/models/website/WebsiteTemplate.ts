@@ -440,6 +440,14 @@ const templateSchema = new mongoose.Schema(
     isPublished: { type: Boolean, default: false },
     deployedUrl: { type: String, default: null },
     deployedAt: { type: Date, default: null },
+    // Frozen copy of the template served to the live hosted website. Drafts keep
+    // mutating the top-level fields for local preview; the hosted site only sees
+    // this snapshot, refreshed on publish/submit.
+    publishedData: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    publishedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

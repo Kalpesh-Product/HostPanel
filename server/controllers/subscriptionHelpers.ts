@@ -1,6 +1,12 @@
 // @ts-nocheck
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
+import {
+  creditsForPlan,
+  resolveWorkspacePlan,
+  syncSubscriptionPlan,
+} from "../utils/websiteCredits.js";
 
+export { creditsForPlan, resolveWorkspacePlan };
 export const MONTHLY_BASE_CREDITS = 5;
 
 export const getFirstDayOfNextMonthUtc = () => {
@@ -76,17 +82,18 @@ export const findWorkspaceSubscription = async ({
 export const renewMonthlyCreditsIfNeeded = async (subscription: any) => {
   if (!subscription) return subscription;
 
+  // Plan (and its plan-based creditsLimit) is synced from the workspace's
+  // selectedPlan — professional: 10, otherwise 5.
+  subscription = await syncSubscriptionPlan(subscription);
+
   const now = new Date();
   const resetDate = subscription.creditsResetDate ? new Date(subscription.creditsResetDate) : null;
   const resetExpired = !resetDate || Number.isNaN(resetDate.getTime()) || now >= resetDate;
 
   if (resetExpired) {
     subscription.creditsUsed = 0;
-    subscription.creditsLimit = MONTHLY_BASE_CREDITS;
+    subscription.creditsLimit = creditsForPlan(subscription.plan);
     subscription.creditsResetDate = getFirstDayOfNextMonthUtc();
-    await subscription.save();
-  } else if (Number(subscription.creditsLimit || 0) !== MONTHLY_BASE_CREDITS) {
-    subscription.creditsLimit = MONTHLY_BASE_CREDITS;
     await subscription.save();
   }
 

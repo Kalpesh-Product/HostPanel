@@ -1,7 +1,10 @@
 // @ts-nocheck
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
-
-const MONTHLY_BASE_CREDITS = 5;
+import {
+  creditsForPlan,
+  resolveWorkspacePlan,
+  syncSubscriptionPlan,
+} from "../utils/websiteCredits.js";
 
 const getFirstDayOfNextMonthUtc = () => {
   const now = new Date();
@@ -31,15 +34,23 @@ export const checkAndDeductCredit = async (req, res, next) => {
     });
 
     if (!subscription) {
+      const plan = await resolveWorkspacePlan({ workspaceId, companyId });
       subscription = await WorkspaceSubscription.create({
         companyId: companyId || workspaceId,
         workspaceId: workspaceId || companyId,
-        creditsLimit: MONTHLY_BASE_CREDITS,
+        plan,
+        creditsLimit: creditsForPlan(plan),
         creditsUsed: 0,
         addOnCreditsPurchased: 0,
         creditsResetDate: getFirstDayOfNextMonthUtc(),
       });
+    } else {
+      // Keep plan + limit in sync with the workspace's current plan so
+      // upgrades/downgrades take effect without waiting for the monthly reset.
+      subscription = await syncSubscriptionPlan(subscription);
     }
+
+    const monthlyLimit = creditsForPlan(subscription.plan);
 
     const now = new Date();
     const resetDate = subscription.creditsResetDate
@@ -53,14 +64,14 @@ export const checkAndDeductCredit = async (req, res, next) => {
     }
 
     const effectiveLimit =
-      MONTHLY_BASE_CREDITS + Number(subscription.addOnCreditsPurchased || 0);
+      monthlyLimit + Number(subscription.addOnCreditsPurchased || 0);
 
     if (Number(subscription.creditsUsed || 0) >= effectiveLimit) {
       return res.status(403).json({
         error: "no_credits_remaining",
         message: "You have used all credits for this month.",
         creditsUsed: Number(subscription.creditsUsed || 0),
-        creditsLimit: MONTHLY_BASE_CREDITS,
+        creditsLimit: monthlyLimit,
         addOnCreditsPurchased: Number(subscription.addOnCreditsPurchased || 0),
         resetDate: subscription.creditsResetDate,
       });

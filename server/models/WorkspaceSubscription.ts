@@ -11,7 +11,11 @@ const getFirstDayOfNextMonthUtc = () => {
 const websiteCreditsSchema = new mongoose.Schema({
   companyId: { type: String, unique: true, sparse: true },
   workspaceId: { type: String, unique: true, sparse: true },
-  plan: { type: String, enum: ["static-free"], default: "static-free" },
+  plan: {
+    type: String,
+    enum: ["static-free", "professional"],
+    default: "static-free",
+  },
   creditsLimit: { type: Number, default: 5 },
   creditsUsed: { type: Number, default: 0 },
   addOnCreditsPurchased: { type: Number, default: 0 },
@@ -22,30 +26,41 @@ const websiteCreditsSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+// Monthly limit is plan-based: professional gets 10, everything else the base
+// 5. creditsLimit is kept in sync by syncSubscriptionPlan and used as a
+// fallback for legacy rows that predate the plan field.
+const PROFESSIONAL_MONTHLY_CREDITS = 10;
+const getMonthlyLimit = (doc) => {
+  if (doc.plan === "professional") return PROFESSIONAL_MONTHLY_CREDITS;
+  return Number(doc.creditsLimit || 0) > 0
+    ? Number(doc.creditsLimit)
+    : MONTHLY_BASE_CREDITS;
+};
+
 websiteCreditsSchema.virtual("monthlyCreditsLimit").get(function () {
-  return MONTHLY_BASE_CREDITS;
+  return getMonthlyLimit(this);
 });
 
 websiteCreditsSchema.virtual("monthlyCreditsUsed").get(function () {
-  return Math.max(0, Math.min(Number(this.creditsUsed || 0), MONTHLY_BASE_CREDITS));
+  return Math.max(0, Math.min(Number(this.creditsUsed || 0), getMonthlyLimit(this)));
 });
 
 websiteCreditsSchema.virtual("monthlyCreditsRemaining").get(function () {
-  return Math.max(0, MONTHLY_BASE_CREDITS - Number(this.creditsUsed || 0));
+  return Math.max(0, getMonthlyLimit(this) - Number(this.creditsUsed || 0));
 });
 
 websiteCreditsSchema.virtual("addOnCreditsUsed").get(function () {
-  return Math.max(0, Number(this.creditsUsed || 0) - MONTHLY_BASE_CREDITS);
+  return Math.max(0, Number(this.creditsUsed || 0) - getMonthlyLimit(this));
 });
 
 websiteCreditsSchema.virtual("addOnCreditsRemaining").get(function () {
   const purchased = Number(this.addOnCreditsPurchased || 0);
-  const consumed = Math.max(0, Number(this.creditsUsed || 0) - MONTHLY_BASE_CREDITS);
+  const consumed = Math.max(0, Number(this.creditsUsed || 0) - getMonthlyLimit(this));
   return Math.max(0, purchased - consumed);
 });
 
 websiteCreditsSchema.virtual("effectiveCreditsLimit").get(function () {
-  return MONTHLY_BASE_CREDITS + Number(this.addOnCreditsPurchased || 0);
+  return getMonthlyLimit(this) + Number(this.addOnCreditsPurchased || 0);
 });
 
 websiteCreditsSchema.virtual("creditsRemaining").get(function () {
