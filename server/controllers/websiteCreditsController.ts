@@ -91,7 +91,7 @@ export const approveCreditsRequest = async (req, res) => {
       return res.status(404).json({ message: "Workspace subscription not found" });
     }
 
-    // creditsLimit is plan-based (professional: 10, basic: 5) and managed by
+    // creditsLimit is plan-based (professional: 8, basic: 5) and managed by
     // the credit middleware — approving add-on credits must not reset it.
     subscription.addOnCreditsPurchased =
       Number(subscription.addOnCreditsPurchased || 0) + Number(creditRequest.requestedCredits || 0);
