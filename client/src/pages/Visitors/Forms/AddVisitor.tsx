@@ -20,6 +20,8 @@ import {
   isValidPhoneNumber,
   noOnlyWhitespace,
 } from "../../../utils/validators";
+import { isDepartmentAllowedForPlan } from "../../../utils/workspacePlanAccess";
+import useModuleAccessMap from "../../../hooks/useModuleAccessMap";
 
 const AddVisitor = () => {
   const {
@@ -61,6 +63,7 @@ const AddVisitor = () => {
   const visitorType = watch("visitorType");
 
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  const { workspacePlan } = useModuleAccessMap();
   const axios = useAxiosPrivate();
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["employees"],
@@ -109,7 +112,9 @@ const AddVisitor = () => {
       departmentMap.set(department._id, department);
     });
   });
-  const uniqueDepartments = Array.from(departmentMap.values());
+  const uniqueDepartments = Array.from(departmentMap.values()).filter((department) =>
+    isDepartmentAllowedForPlan(workspacePlan, department.name)
+  );
 
   const departmentEmployees = employees.filter((item) =>
     item.departments?.some((dept) => dept._id === selectedDepartment)

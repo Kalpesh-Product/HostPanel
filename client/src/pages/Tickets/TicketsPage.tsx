@@ -23,6 +23,7 @@ import { getOrganizationOverview } from '../../services/organization';
 import { getAssets } from '../../services/assets';
 import { axiosPrivate } from '../../utils/axios';
 import { statusPillClass } from '../../lib/status-pill';
+import { getWorkspacePlan, isDepartmentAllowedForPlan } from '../../utils/workspacePlanAccess';
 
 // import { getWorkspaceMembers } from '@/services/auth';
 // import { getAssets } from '@/services/assets';
@@ -212,6 +213,12 @@ export function TicketsPage() {
   // a new object reference on every call (JSON.parse), which would cause useEffect
   // dependencies to trigger endlessly.
   const [storedUser] = useState(() => getStoredUser());
+  // The stored/auth user object never carries the workspace's plan (the login
+  // payload has no `workspace` field at all — see buildAuthUserPayload on the
+  // server), so this can't be derived from storedUser. It's set once the
+  // organization overview response loads below (data.workspace.selectedPlan),
+  // and defaults to 'basic' until then.
+  const [workspacePlan, setWorkspacePlan] = useState('basic');
   const actingContext = getStoredActingManagerContext(storedUser);
   const rawUserName =
     storedUser?.fullName ||
@@ -637,6 +644,17 @@ export function TicketsPage() {
     }
 
     if (isSuperAdminProfile && normalized === 'super_admin') {
+      return false;
+    }
+
+    // 'Owner'/'Super Admin'/'Admin' are role-routing targets, not real
+    // departments — the plan-based department catalog restriction below
+    // doesn't apply to them.
+    if (isSpecialRoutingDepartment(department)) {
+      return true;
+    }
+
+    if (!isDepartmentAllowedForPlan(workspacePlan, department)) {
       return false;
     }
 
@@ -1287,6 +1305,9 @@ export function TicketsPage() {
         const data = response?.data?.data || response?.data || response;
         const teamMembers = Array.isArray(data?.teamMembers) ? data.teamMembers : [];
         const departments = Array.isArray(data?.departments) ? data.departments : [];
+        if (isMounted) {
+          setWorkspacePlan(getWorkspacePlan({ selectedPlan: data?.workspace?.selectedPlan }));
+        }
 
         // Build canonical members from real team data
         const members = teamMembers

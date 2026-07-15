@@ -16,6 +16,7 @@ import { getOrganizationOverview } from "../../../services/organization";
 import { downloadReportFile } from "../../../utils/report-download";
 import { toast } from "sonner";
 import PageFrame from "../../../components/Pages/PageFrame";
+import { getWorkspacePlan, isDepartmentAllowedForPlan } from "../../../utils/workspacePlanAccess";
 
 // sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
@@ -243,6 +244,10 @@ export default function SalesArchitecturePage() {
   const [resources, setResources] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [organizationDepartments, setOrganizationDepartments] = useState([]);
+  // currentUser (auth context) never carries the workspace's plan — the login
+  // payload has no `workspace` field at all — so this is set from the
+  // organization overview response fetched below (oData.workspace.selectedPlan).
+  const [workspacePlan, setWorkspacePlan] = useState("basic");
 
   const [selectedBuilding, setSelectedBuilding] = useState(defaultBuilding);
   const [tenantListFilter, setTenantListFilter] = useState("All");
@@ -303,6 +308,8 @@ export default function SalesArchitecturePage() {
           console.error("Failed to fetch org overview:", oRes.reason);
         }
         
+        setWorkspacePlan(getWorkspacePlan({ selectedPlan: oData?.workspace?.selectedPlan }));
+
         const apiDepartments = Array.isArray(oData?.departments) ? oData.departments : [];
         const workspaceDepts = Array.isArray(oData?.workspace?.organizationDepartments) ? oData.workspace.organizationDepartments : [];
         
@@ -375,9 +382,11 @@ export default function SalesArchitecturePage() {
   // "Sales & CRM" duplicates the Sales department in this workspace — keep the real 7 only.
   const availableDepartments = useMemo(
     () => organizationDepartments.filter(
-      (d) => d.isActive !== false && !/^sales\s*(&|and)?\s*crm$/i.test(String(d.name || "").trim()),
+      (d) => d.isActive !== false
+        && !/^sales\s*(&|and)?\s*crm$/i.test(String(d.name || "").trim())
+        && isDepartmentAllowedForPlan(workspacePlan, d.name),
     ),
-    [organizationDepartments],
+    [organizationDepartments, workspacePlan],
   );
   const selectedCompany = useMemo(() => tenants.find((t) => String(t.recordId || t.id) === String(selectedCompanyId)) || null, [selectedCompanyId, tenants]);
   const selectedDepartment = useMemo(() => availableDepartments.find((d) => String(d.id || d.name) === String(selectedDepartmentId)) || null, [availableDepartments, selectedDepartmentId]);

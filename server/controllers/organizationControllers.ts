@@ -252,6 +252,7 @@ const buildLinkedWorkspaceOptions = async (workspace) => {
     workspaceName: item.workspaceName || item.businessName || "Workspace",
     location: [item.city, item.state, item.country].filter(Boolean).join(", "),
     isCurrentWorkspace: toId(item._id) === toId(workspace._id),
+    selectedPlan: item.selectedPlan || "basic",
     departments: (deptsByWorkspace.get(toId(item._id)) || []).map((department) => ({
       id: toId(department?._id),
       name: department?.name || "",
