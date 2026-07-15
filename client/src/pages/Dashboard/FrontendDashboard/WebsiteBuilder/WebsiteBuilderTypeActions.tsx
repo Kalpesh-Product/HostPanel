@@ -3,9 +3,9 @@ import { LuHardDriveUpload } from "react-icons/lu";
 import { SiGoogleadsense } from "react-icons/si";
 import { MdOutlineRateReview } from "react-icons/md";
 import { MdOutlineWorkHistory } from "react-icons/md";
-import { Loader2 } from "lucide-react";
 import Card from "../../../../components/Card";
 import PageFrame from "../../../../components/Pages/PageFrame";
+import Skeleton from "../../../../components/ui/Skeleton";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import { useSelector } from "react-redux";
@@ -63,6 +63,33 @@ const isSameCompanyTemplate = ({
   return false;
 };
 
+const WebsiteBuilderActionsSkeleton = () => (
+  <div
+    className="flex flex-col gap-4 p-4"
+    role="status"
+    aria-label="Checking website availability"
+    aria-busy="true"
+  >
+    <PageFrame>
+      <div className="flex flex-col gap-5">
+        <Skeleton className="h-7 w-48" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex min-h-[152px] w-full flex-col items-center justify-center rounded-2xl bg-white p-6 shadow-md"
+            >
+              <Skeleton variant="circle" className="mb-4 h-16 w-16" />
+              <Skeleton className={`h-5 ${index === 0 ? "w-32" : "w-36"}`} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </PageFrame>
+    <span className="sr-only">Checking website availability</span>
+  </div>
+);
+
 const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const axios = useAxiosPrivate();
   const { auth } = useAuth();
@@ -73,6 +100,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const [isCheckingWebsite, setIsCheckingWebsite] = useState(true);
   const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
   const [workspaceBusinessTypes, setWorkspaceBusinessTypes] = useState<string[]>([]);
+  const [isWorkspaceDataLoading, setIsWorkspaceDataLoading] = useState(true);
   // Prevents the checkExistingWebsite effect from re-running (and re-showing the spinner)
   // when workspaceBusinessName resolves asynchronously after the first API call already
   // found/didn't find a website.
@@ -109,6 +137,8 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
       } catch (error) {
         setWorkspaceBusinessName("");
         setWorkspaceBusinessTypes([]);
+      } finally {
+        setIsWorkspaceDataLoading(false);
       }
     };
 
@@ -122,15 +152,24 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
       // workspaceBusinessName resolves asynchronously and re-triggers this effect.
       if (hasCheckedWebsiteRef.current) return;
 
+      const businessName = String(
+        selectedCompany?.companyName ||
+          workspaceBusinessName ||
+          auth?.user?.companyName ||
+          "",
+      ).trim();
+
+      // Keep the landing skeleton visible until the profile lookup has had a
+      // chance to provide the business name used by the website lookup.
+      if (!businessName && isWorkspaceDataLoading) {
+        setIsCheckingWebsite(true);
+        return;
+      }
+
       try {
         setIsCheckingWebsite(true);
-        const businessName = String(
-          selectedCompany?.companyName ||
-            workspaceBusinessName ||
-            auth?.user?.companyName ||
-            "",
-        ).trim();
         if (!businessName) {
+          hasCheckedWebsiteRef.current = true;
           setExistingWebsite(null);
           return;
         }
@@ -217,6 +256,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
     auth?.user?.companyName,
     selectedCompany?.companyName,
     workspaceBusinessName,
+    isWorkspaceDataLoading,
     workspaceId,
     type,
   ]);
@@ -358,6 +398,10 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
     navigate(createOrEditRoute);
   };
 
+  if (isCheckingWebsite) {
+    return <WebsiteBuilderActionsSkeleton />;
+  }
+
   return (
     <div className="p-4 flex flex-col gap-4">
       <PageFrame>
@@ -367,14 +411,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {isCheckingWebsite ? (
-              <div className="flex h-full min-h-[140px] w-full items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Checking Website...
-                </div>
-              </div>
-            ) : existingWebsite ? (
+            {existingWebsite ? (
               <>
                 <div
                   role="button"
