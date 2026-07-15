@@ -429,7 +429,7 @@ const LoginPage = () => {
                       <span
                         onClick={() =>
                           (window.location.href =
-                            "https://nomad.wono.co/host")
+                            "https://host.wono.co/signup")
                         }
                         className="underline hover:text-primary cursor-pointer"
                       >
