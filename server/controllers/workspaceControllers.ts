@@ -387,10 +387,31 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       membersByWorkspace.set(workspaceId, current);
     }
 
+    // Hand-synced with the client's isDepartmentAllowedForPlan in
+    // client/src/utils/workspacePlanAccess.ts — keep both in lockstep.
+    // Basic workspaces have no real departments (Founder/Super Admin only);
+    // Professional is Sales + Technology only; Custom is unrestricted.
+    const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "technology"]);
+    const isDepartmentAllowedForWorkspacePlan = (plan: unknown, name: unknown) => {
+      const normalizedPlan = String(plan || "basic").trim().toLowerCase();
+      if (normalizedPlan === "basic") return false;
+      if (normalizedPlan === "professional") {
+        return PROFESSIONAL_DEPARTMENT_NAMES.has(String(name || "").trim().toLowerCase());
+      }
+      return true;
+    };
+
+    const allowedDepartmentNames = new Set<string>();
+
     const list = ownerWorkspaces.map((item) => {
       const workspaceId = toId(item._id);
       const workspaceMembers = membersByWorkspace.get(workspaceId) || [];
-      const departments = departmentsByWorkspace.get(workspaceId) || [];
+      const departments = (departmentsByWorkspace.get(workspaceId) || []).filter((dept: any) =>
+        isDepartmentAllowedForWorkspacePlan(item.selectedPlan, dept?.name),
+      );
+      departments.forEach((dept: any) => {
+        if (dept?.name) allowedDepartmentNames.add(dept.name);
+      });
       const roleCountsMap = new Map<string, number>();
       const employees = workspaceMembers.map((member: any) => {
         const role = String(member?.role || "member").trim().toLowerCase();
@@ -485,7 +506,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         workspaceCount: list.length,
         workspaceManagement: { enabled: list.length > 1 },
         selectedDepartment: "All departments",
-        departments: ["All departments"],
+        departments: ["All departments", ...Array.from(allowedDepartmentNames).sort()],
         summary,
         workspaces: list,
       },

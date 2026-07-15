@@ -16,6 +16,8 @@ import { getOrganizationOverview } from "../../../services/organization";
 import { downloadReportFile } from "../../../utils/report-download";
 import { toast } from "sonner";
 import PageFrame from "../../../components/Pages/PageFrame";
+import { getWorkspacePlan, isDepartmentAllowedForPlan } from "../../../utils/workspacePlanAccess";
+import { SalesArchitectureSkeleton } from "../../../components/ui/SalesPageSkeletons";
 
 // sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
@@ -212,20 +214,6 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
   );
 }
 
-function CardsSkeleton() {
-  return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 p-2 animate-pulse">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="rounded-[2rem] border border-slate-100 bg-white p-4">
-          <div className="h-4 w-24 bg-slate-100 rounded-xl mb-3" />
-          <div className="h-6 w-16 bg-slate-100 rounded-xl mb-2" />
-          <div className="h-3 w-32 bg-slate-100 rounded-xl" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 const MAIN_TABS = [
   { key: "architecture", label: "Architecture", icon: LayoutGrid },
   { key: "tenants", label: "Tenants", icon: Building2 },
@@ -243,6 +231,10 @@ export default function SalesArchitecturePage() {
   const [resources, setResources] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [organizationDepartments, setOrganizationDepartments] = useState([]);
+  // currentUser (auth context) never carries the workspace's plan — the login
+  // payload has no `workspace` field at all — so this is set from the
+  // organization overview response fetched below (oData.workspace.selectedPlan).
+  const [workspacePlan, setWorkspacePlan] = useState("basic");
 
   const [selectedBuilding, setSelectedBuilding] = useState(defaultBuilding);
   const [tenantListFilter, setTenantListFilter] = useState("All");
@@ -303,6 +295,8 @@ export default function SalesArchitecturePage() {
           console.error("Failed to fetch org overview:", oRes.reason);
         }
         
+        setWorkspacePlan(getWorkspacePlan({ selectedPlan: oData?.workspace?.selectedPlan }));
+
         const apiDepartments = Array.isArray(oData?.departments) ? oData.departments : [];
         const workspaceDepts = Array.isArray(oData?.workspace?.organizationDepartments) ? oData.workspace.organizationDepartments : [];
         
@@ -375,9 +369,11 @@ export default function SalesArchitecturePage() {
   // "Sales & CRM" duplicates the Sales department in this workspace — keep the real 7 only.
   const availableDepartments = useMemo(
     () => organizationDepartments.filter(
-      (d) => d.isActive !== false && !/^sales\s*(&|and)?\s*crm$/i.test(String(d.name || "").trim()),
+      (d) => d.isActive !== false
+        && !/^sales\s*(&|and)?\s*crm$/i.test(String(d.name || "").trim())
+        && isDepartmentAllowedForPlan(workspacePlan, d.name),
     ),
-    [organizationDepartments],
+    [organizationDepartments, workspacePlan],
   );
   const selectedCompany = useMemo(() => tenants.find((t) => String(t.recordId || t.id) === String(selectedCompanyId)) || null, [selectedCompanyId, tenants]);
   const selectedDepartment = useMemo(() => availableDepartments.find((d) => String(d.id || d.name) === String(selectedDepartmentId)) || null, [availableDepartments, selectedDepartmentId]);
@@ -649,7 +645,7 @@ export default function SalesArchitecturePage() {
 
   if (loading) return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
-      <PageFrame><CardsSkeleton /></PageFrame>
+      <PageFrame><SalesArchitectureSkeleton /></PageFrame>
     </div>
   );
 

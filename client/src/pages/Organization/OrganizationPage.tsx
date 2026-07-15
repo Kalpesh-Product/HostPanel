@@ -38,7 +38,7 @@ import {
   toggleSharedModuleInState,
   writeStoredOwnerAccessState,
 } from '../../lib/owner-access';
-import { getWorkspaceCount } from '../../utils/workspacePlanAccess';
+import { getWorkspaceCount, isDepartmentAllowedForPlan } from '../../utils/workspacePlanAccess';
 import { statusPillClass } from '../../lib/status-pill';
 
 // sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
@@ -567,14 +567,10 @@ export function OrganizationPage() {
   ).length;
   const professionalPlanLimitReached =
     isProfessionalPlanWorkspace && activeMemberCount >= professionalPlanMaxUsers;
-  // Professional plan only has built-out modules for Administration, Sales,
-  // and Technology departments — HR/Finance/Maintenance/IT are Custom-only
-  // (see workspaceModuleCatalog.ts PROFESSIONAL_DEFAULT_IDS), so restrict
-  // department assignment in Add User to match.
-  const PROFESSIONAL_ALLOWED_DEPARTMENT_NAMES = new Set(['administration', 'sales', 'technology']);
-  const isDepartmentAllowedForPlan = (departmentName = '') =>
-    !isProfessionalPlanWorkspace ||
-    PROFESSIONAL_ALLOWED_DEPARTMENT_NAMES.has(String(departmentName || '').trim().toLowerCase());
+  // Department availability (Basic: none, Founder/Super Admin only; Professional:
+  // Sales + Technology only; Custom: full catalog) lives in workspacePlanAccess.ts
+  // (isDepartmentAllowedForPlan, imported above) so every department dropdown in
+  // the app agrees on what's selectable for a given plan.
 
   const canAddUserOnCurrentPlan = isBasicPlanWorkspace
     ? isFounderRole && !basicPlanLimitReached
@@ -1222,7 +1218,7 @@ export function OrganizationPage() {
                   >
                     <option value="all">All</option>
                     <option disabled className="text-slate-300">── DEPARTMENTS ──</option>
-                    {departments.map((department) => (
+                    {departments.filter((department) => isDepartmentAllowedForPlan(workspacePlan, department.name)).map((department) => (
                       <option key={department.id} value={`dept:${department.id}`}>
                         {normalizeDepartmentLabel(department.name)}
                       </option>
@@ -2268,22 +2264,19 @@ export function OrganizationPage() {
                     </p>
                     {isProfessionalPlanWorkspace && (
                       <p className="text-[11px] text-amber-600 font-medium -mt-1">
-                        Professional plan only allows Administration, Sales, and Technology departments — upgrade to Custom for the rest.
+                        Professional plan only allows Sales and Technology departments — upgrade to Custom for the rest.
                       </p>
                     )}
                     <div className="flex flex-wrap gap-1.5">
-                    {departments.map((dept) => {
+                    {departments.filter((dept) => isDepartmentAllowedForPlan(workspacePlan, dept.name)).map((dept) => {
                       const isSelected = dept.id ? teamMemberFormData.departments.includes(dept.id) : false;
-                      const isAllowed = isDepartmentAllowedForPlan(dept.name);
                       return (
-                        <button key={dept.id} disabled={!isAllowed} title={!isAllowed ? 'Not available on Professional plan.' : undefined} onClick={() => {
-                            if (!isAllowed) return;
+                        <button key={dept.id} onClick={() => {
                             if (teamMemberFormData.role === 'manager') { setTeamMemberFormData({ ...teamMemberFormData, departments: dept.id ? [dept.id] : [] }); }
                             else { setTeamMemberFormData({ ...teamMemberFormData, departments: isSelected ? teamMemberFormData.departments.filter((departmentId) => departmentId !== dept.id) : dept.id ? [...teamMemberFormData.departments, dept.id] : teamMemberFormData.departments }); }
                           }}
-                          className={`px-3 py-2 rounded-[10px] text-[12px] font-semibold border transition-all ${!isAllowed ? 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed' : isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB] hover:text-[#2563EB]'}`}
+                          className={`px-3 py-2 rounded-[10px] text-[12px] font-semibold border transition-all ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB] hover:text-[#2563EB]'}`}
                         >
-                          {!isAllowed ? <Lock size={10} className="inline mr-1" /> : null}
                           {dept.name}
                         </button>
                       );

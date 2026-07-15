@@ -464,7 +464,7 @@ export default function WorkspaceManagementPage() {
 
   useEffect(() => {
     if (isWorkspaceManagementLocked) {
-      toast.error("Upgrade plan to unlock this");
+      toast.error("Add one More Units from Unit Settings to access Unit Management.");
       navigate("/company-settings/workspace-settings", { replace: true });
       return;
     }

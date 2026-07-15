@@ -20,6 +20,7 @@ import {
 import type { QuickLinkItem } from "./DashboardShared";
 import { statusBadgeColor, humanRelTime } from "./dashboardUtils";
 import dayjs from "dayjs";
+import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
 interface BasicDashboardProps {
   onUpgradeClick: () => void;
@@ -39,7 +40,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
 
   // ── Visitors (same endpoint as the Visitor Management terminal) ──────────────
-  const { data: visitorsRaw = [] } = useQuery({
+  const { data: visitorsRaw = [], isLoading: visitorsLoading } = useQuery({
     queryKey: ["dashboard-visitors-basic"],
     queryFn: async () => {
       const res = await axiosPrivate.get("/api/v1/visitors", { params: { limit: 100 } });
@@ -50,7 +51,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   });
 
   // ── Website leads (same endpoint as CompanyLeads) ──────────────────────────
-  const { data: leadsRaw = [] } = useQuery({
+  const { data: leadsRaw = [], isLoading: leadsLoading } = useQuery({
     queryKey: ["dashboard-leads-basic", companyId, workspaceId],
     enabled: !!(companyId || workspaceId),
     queryFn: async () => {
@@ -63,7 +64,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   });
 
   // ── Org overview ───────────────────────────────────────────────────────────
-  const { data: orgOverview } = useQuery({
+  const { data: orgOverview, isLoading: orgLoading } = useQuery({
     queryKey: ["dashboard-org-basic"],
     queryFn: async () => {
       const res = await axiosPrivate.get("/api/organization/overview");
@@ -174,6 +175,10 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
     { icon: Users, label: "Organization", description: "Manage team & departments", route: "/company-settings/organization-management", color: "#0891b2" },
     { icon: LayoutGrid, label: "Access Grants", description: "Control role permissions", route: "/company-settings/access-grants", color: "#f59e0b" },
   ];
+
+  if (visitorsLoading || leadsLoading || orgLoading) {
+    return <PlanDashboardSkeleton plan="basic" />;
+  }
 
   return (
     <div className="flex flex-col gap-5">

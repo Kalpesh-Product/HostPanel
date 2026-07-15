@@ -32,6 +32,7 @@ import {
   updateOrganizationMemberRole,
 } from '../../services/organization';
 import { statusPillClass } from '../../lib/status-pill';
+import { getWorkspacePlan, isDepartmentAllowedForPlan } from '../../utils/workspacePlanAccess';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ interface LinkedWorkspace {
   workspaceName?: string;
   location?: string;
   isCurrentWorkspace?: boolean;
+  selectedPlan?: string;
   departments?: Array<{ id: string; name: string }>;
   [key: string]: unknown;
 }
@@ -104,6 +106,7 @@ interface OrganizationDepartment {
 interface WorkspaceData {
   enabledModuleIds?: string[];
   workspaceName?: string;
+  selectedPlan?: string;
   moduleMap?: {
     sections?: unknown[];
     [key: string]: unknown;
@@ -592,9 +595,11 @@ export default function AccessGrantsPage() {
     () => TRANSFER_ROLE_OPTIONS.find((option) => option.value === workspaceTransferForm.role) || TRANSFER_ROLE_OPTIONS[0],
     [workspaceTransferForm.role],
   );
-  const selectedTransferDepartmentOptions = Array.isArray(selectedTransferWorkspace?.departments)
-    ? selectedTransferWorkspace.departments
-    : [];
+  const workspacePlan = getWorkspacePlan({ selectedPlan: workspace?.selectedPlan });
+  const selectedTransferWorkspacePlan = getWorkspacePlan({ selectedPlan: selectedTransferWorkspace?.selectedPlan });
+  const selectedTransferDepartmentOptions = (
+    Array.isArray(selectedTransferWorkspace?.departments) ? selectedTransferWorkspace.departments : []
+  ).filter((department) => isDepartmentAllowedForPlan(selectedTransferWorkspacePlan, department?.name));
   const currentWorkspaceDepartmentOptions = useMemo(
     () =>
       Array.isArray(workspace?.organizationDepartments)
@@ -605,8 +610,9 @@ export default function AccessGrantsPage() {
               name: String(department?.name || '').trim(),
             }))
             .filter((department) => department.id && department.name)
+            .filter((department) => isDepartmentAllowedForPlan(workspacePlan, department.name))
         : [],
-    [workspace],
+    [workspace, workspacePlan],
   );
   const isAdminTransferRole = workspaceTransferForm.role === 'admin';
   const isSuperAdminTransferRole = workspaceTransferForm.role === 'super_admin';

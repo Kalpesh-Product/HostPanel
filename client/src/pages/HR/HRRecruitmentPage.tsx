@@ -150,7 +150,7 @@ interface NewJobForm {
 
 /* ───────────────────────────── Constants ───────────────────────────── */
 
-const DEPARTMENTS = ["HR", "Sales & CRM", "Finance", "Administration", "Tech", "IT", "Maintenance"];
+const DEPARTMENTS = ["HR", "Sales", "Finance", "Administration", "Tech", "IT", "Maintenance"];
 
 const STATUS_STYLE: Record<string, string> = {
   Applied: "bg-slate-100 text-slate-700 border-slate-200",

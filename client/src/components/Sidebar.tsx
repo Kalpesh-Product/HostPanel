@@ -585,9 +585,27 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   });
   const workspaceSetup = readWorkspaceSetup();
 
-  useEffect(() => {
-    let active = true;
+const authUserId = String(
+  (auth.user as { id?: string; _id?: string } | null)?.id ||
+  (auth.user as { id?: string; _id?: string } | null)?._id ||
+  ""
+);
+
+const authUserRole = String(
+  (auth.user as {
+    role?: string;
+    workspaceMembership?: { role?: string };
+  } | null)?.workspaceMembership?.role ||
+  (auth.user as { role?: string } | null)?.role ||
+  ""
+);
+
+useEffect(() => {
+  let active = true;
+
+  if (!isSidebarHydrated) {
     setIsSidebarHydrated(false);
+  }
 
     const loadSidebarData = async () => {
       try {
@@ -672,16 +690,16 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     const refresh = () => {
       void loadSidebarData();
     };
-    const intervalId = window.setInterval(refresh, 5000);
+    // const intervalId = window.setInterval(refresh, 5000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
-      window.clearInterval(intervalId);
+      // window.clearInterval(intervalId);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [axiosPrivate, auth.user]);
+}, [axiosPrivate, authUserId, authUserRole]);
 
   useEffect(() => {
     setOpenSections((current) => ({

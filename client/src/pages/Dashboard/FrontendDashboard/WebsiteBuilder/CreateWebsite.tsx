@@ -4,7 +4,6 @@ import { useForm, Controller, useFieldArray } from "react-hook-form";
 import {
   TextField,
   MenuItem,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -33,6 +32,7 @@ import RoomsSection from "./RoomsSection";
 import PackagesSection from "./PackagesSection";
 import DormsSection from "./DormsSection";
 import MenuSection from "./MenuSection";
+import Skeleton from "../../../../components/ui/Skeleton";
 
 const defaultProduct = {
   type: "",
@@ -46,6 +46,79 @@ const defaultTestimonial = {
   jobPosition: "",
   testimony: "",
   rating: 5,
+};
+
+const WebsiteBuilderEditorSkeleton = () => {
+  const fieldWidths = ["w-full", "w-5/6", "w-full", "w-3/4"];
+
+  return (
+    <div
+      className="min-w-0 overflow-x-hidden pb-2"
+      role="status"
+      aria-label="Loading website builder"
+      aria-busy="true"
+    >
+      <div className="flex min-w-0 flex-col gap-4 p-4">
+        <PageFrame>
+          <div className="flex min-w-0 flex-col gap-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <Skeleton className="h-7 w-44" />
+              <div className="flex flex-col items-end gap-2">
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+
+            <div className="min-w-0 overflow-hidden">
+              <div className="border-b-default border-borderGray py-4">
+                <Skeleton className="h-5 w-36" />
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm sm:grid-cols-4 lg:grid-cols-7">
+                {Array.from({ length: 7 }).map((_, index) => (
+                  <Skeleton key={index} className="h-9 w-full rounded-xl" />
+                ))}
+              </div>
+            </div>
+
+            <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, sectionIndex) => (
+                <div key={sectionIndex} className="min-w-0">
+                  <div className="border-b-default border-borderGray py-4">
+                    <Skeleton
+                      className={`h-5 ${sectionIndex % 2 === 0 ? "w-36" : "w-44"}`}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 p-4">
+                    {fieldWidths
+                      .slice(0, sectionIndex < 2 ? 4 : 3)
+                      .map((width, fieldIndex) => (
+                        <Skeleton
+                          key={fieldIndex}
+                          className={`h-10 ${width} rounded-lg`}
+                        />
+                      ))}
+                    {sectionIndex === 0 ? (
+                      <Skeleton className="h-24 w-full rounded-xl" />
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-center">
+              <Skeleton className="h-6 w-52 rounded-full" />
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-10 w-28 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </PageFrame>
+      </div>
+      <span className="sr-only">Loading website builder</span>
+    </div>
+  );
 };
 
 const DEFAULT_PAGE_NAV_ITEMS = [
@@ -2608,11 +2681,7 @@ const CreateWebsite = () => {
   );
 
   if (isCheckingExistingWebsite) {
-    return (
-      <div className="p-4 flex items-center justify-center">
-        <CircularProgress />
-      </div>
-    );
+    return <WebsiteBuilderEditorSkeleton />;
   }
 
   return (
@@ -5405,4 +5474,3 @@ const CreateWebsite = () => {
 };
 
 export default CreateWebsite;
-

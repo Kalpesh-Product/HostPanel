@@ -82,3 +82,45 @@ export const isModuleLockedForPlan = (plan: PlanType, moduleId: string): boolean
   if (plan !== "basic") return false;
   return BASIC_LOCKED_MODULE_IDS.includes(moduleId as (typeof BASIC_LOCKED_MODULE_IDS)[number]);
 };
+
+// Reads a workspace plan off any shape the app stores the logged-in user/workspace
+// in (auth context user, storedUser from localStorage, organization overview payload).
+export const getWorkspacePlan = (user: unknown): PlanType => {
+  const raw = String(
+    (user as { workspace?: { selectedPlan?: string }; selectedPlan?: string } | null | undefined)
+      ?.workspace?.selectedPlan ||
+      (user as { selectedPlan?: string } | null | undefined)?.selectedPlan ||
+      "basic",
+  )
+    .trim()
+    .toLowerCase();
+  return raw === "professional" || raw === "custom" ? (raw as PlanType) : "basic";
+};
+
+// Real department catalog keys/names (case-insensitive) allowed per plan on the
+// department-selection dropdowns scattered across Visitor Management, Tickets,
+// Organization Management, Access Grants, Unit Management, Sales Architecture,
+// and Profile Details. Basic plan has no real departments at all — those
+// workspaces only ever have a Founder and (optionally) one Super Admin, see
+// BASIC_PLAN_PSEUDO_DEPARTMENTS below. Custom plan is unrestricted (full catalog).
+const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "technology"]);
+
+export const getPlanAllowedDepartmentNames = (plan: PlanType): Set<string> | null => {
+  if (plan === "basic") return new Set();
+  if (plan === "professional") return PROFESSIONAL_DEPARTMENT_NAMES;
+  return null; // custom / unrestricted
+};
+
+export const isDepartmentAllowedForPlan = (plan: PlanType, departmentName: unknown = ""): boolean => {
+  const allowed = getPlanAllowedDepartmentNames(plan);
+  if (allowed === null) return true;
+  return allowed.has(String(departmentName || "").trim().toLowerCase());
+};
+
+// Not real departments — used only where a UI needs to offer "which department"
+// on a Basic-plan workspace, whose only members are the Founder and (up to) one
+// Super Admin.
+export const BASIC_PLAN_PSEUDO_DEPARTMENTS = [
+  { id: "founder", name: "Founder" },
+  { id: "super_admin", name: "Super Admin" },
+] as const;

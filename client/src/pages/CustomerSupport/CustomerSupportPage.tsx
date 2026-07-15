@@ -7,6 +7,7 @@ import ThreeDotMenu from "../../components/ThreeDotMenu";
 import { statusPillClass } from "../../lib/status-pill";
 import { createReport } from "../../services/reports";
 import { downloadReportFile } from "../../utils/report-download";
+import { CustomerSupportSkeleton } from "../../components/ui/Skeleton";
 
 type TicketStatus =
   | "Open"
@@ -82,7 +83,7 @@ export default function CustomerSupportPage() {
     raised: [],
     history: [],
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -281,6 +282,16 @@ export default function CustomerSupportPage() {
     finally { setIsExportingReport(""); }
   };
 
+  if (isLoading) {
+    return (
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+        <PageFrame>
+          <CustomerSupportSkeleton />
+        </PageFrame>
+      </div>
+    );
+  }
+
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -423,10 +434,7 @@ export default function CustomerSupportPage() {
                 </div>
               ) : null}
             </div>
-            {isLoading ? (
-              <div className="p-4 text-sm font-bold text-slate-500">Loading tickets...</div>
-            ) : (
-              <div className="overflow-x-auto flex-1">
+            <div className="overflow-x-auto flex-1">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
@@ -486,7 +494,6 @@ export default function CustomerSupportPage() {
                   </tbody>
                 </table>
               </div>
-            )}
           </div>
         </div>
       </PageFrame>
