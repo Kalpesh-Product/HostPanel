@@ -1497,12 +1497,12 @@ useEffect(() => {
         </div>
       </div>
 
-      <div className="p-4 border-t border-gray-200 hover:bg-gray-200 cursor-pointer transition-colors mt-auto">
+      {/* <div className="p-4 border-t border-gray-200 hover:bg-gray-200 cursor-pointer transition-colors mt-auto">
         <div className="flex items-center gap-3 text-gray-700">
           <Handshake size={16} className="text-gray-500" />
           {!collapsed && <span className="text-xs font-medium">Become a Contributor</span>}
         </div>
-      </div>
+      </div> */}
 
       {isUpgradeModalOpen ? createPortal(
         <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
