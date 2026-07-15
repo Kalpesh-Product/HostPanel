@@ -672,12 +672,12 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     const refresh = () => {
       void loadSidebarData();
     };
-    const intervalId = window.setInterval(refresh, 5000);
+    // const intervalId = window.setInterval(refresh, 5000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
-      window.clearInterval(intervalId);
+      // window.clearInterval(intervalId);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
