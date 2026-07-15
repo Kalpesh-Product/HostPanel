@@ -28,6 +28,7 @@ import {
   Download, Printer, Lock, Home
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
+import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
 
 function formatTimeLabel(value) {
@@ -1075,6 +1076,7 @@ export default function VisitorsManagementPage() {
   const [availabilityStatus, setAvailabilityStatus] = useState('idle');
   const [extendAvailability, setExtendAvailability] = useState('idle');
   const [isVisitorOverviewLoading, setIsVisitorOverviewLoading] = useState(true);
+  const [hasLoadedVisitorOverview, setHasLoadedVisitorOverview] = useState(false);
   const [visitorOverviewError, setVisitorOverviewError] = useState('');
   const [isSubmittingVisitor, setIsSubmittingVisitor] = useState(false);
   const [bookingConfirmation, setBookingConfirmation] = useState(null);
@@ -1242,6 +1244,7 @@ export default function VisitorsManagementPage() {
       } finally {
         if (!isCancelled) {
           setIsVisitorOverviewLoading(false);
+          setHasLoadedVisitorOverview(true);
         }
       }
     }
@@ -3444,6 +3447,14 @@ export default function VisitorsManagementPage() {
     if (normalized === 'cancelled' || normalized === 'canceled') return 'bg-red-50 text-red-600 border-red-200';
     return 'bg-blue-50 text-blue-600 border-blue-200';
   };
+
+  if (isVisitorOverviewLoading && !hasLoadedVisitorOverview) {
+    return (
+      <PageFrame>
+        <VisitorManagementSkeleton />
+      </PageFrame>
+    );
+  }
 
   return (
     <>
