@@ -30,6 +30,7 @@ import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
+import { SalesTenantCompaniesSkeleton } from '../../../components/ui/SalesPageSkeletons';
 
 const tenantLocationOptions = [
   { floor: '501', wing: 'A', locationCode: '501A', label: '501 A' },
@@ -2792,11 +2793,8 @@ export default function TenantCompaniesPage() {
   };
 
   if (isLoading) return (
-    <div className="flex items-center justify-center min-h-screen bg-[#F8FAFC]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
-        <p className="text-sm font-pmedium text-slate-500 uppercase tracking-widest">Loading Tenant Companies...</p>
-      </div>
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame><SalesTenantCompaniesSkeleton /></PageFrame>
     </div>
   );
 

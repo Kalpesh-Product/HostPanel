@@ -30,18 +30,95 @@ import { statusPillClass } from '../../lib/status-pill';
 
 const TICKETS_PAGE_SIZE = 50;
 
-// Self-contained skeleton matching MeetingRoomsPage skeleton style
 function TicketsSkeleton() {
   return (
-    <div className="space-y-4 w-full animate-pulse">
-      <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-      <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-      <div className="grid grid-cols-4 gap-4 mt-8">
-        {Array.from({ length: 4 }).map((_, idx) => (
-          <div key={idx} className="h-24 bg-slate-200 rounded-2xl"></div>
+    <div className="animate-pulse flex w-full flex-col gap-4" aria-busy="true" aria-label="Loading tickets">
+      <div className="mb-3 space-y-2">
+        <div className="h-6 w-32 rounded-md bg-slate-200" />
+        <div className="h-3 w-full max-w-2xl rounded-md bg-slate-100" />
+      </div>
+
+      <div className="mb-3 flex gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="h-8 min-w-24 flex-1 rounded-xl bg-slate-200" />
         ))}
       </div>
-      <div className="h-64 bg-slate-200 rounded-3xl mt-8"></div>
+
+      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="flex items-center justify-between rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="space-y-3">
+              <div className="h-3 w-20 rounded-md bg-slate-200" />
+              <div className="h-5 w-10 rounded-md bg-slate-200" />
+            </div>
+            <div className="h-8 w-8 rounded-2xl bg-slate-100" />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex min-h-[500px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white/80 shadow-sm">
+        <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:p-4 lg:p-5 xl:flex-row xl:items-center">
+          <div className="flex gap-1.5 overflow-hidden">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-8 w-16 flex-shrink-0 rounded-lg bg-slate-200" />
+            ))}
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-3 xl:w-auto sm:flex-nowrap">
+            <div className="h-10 min-w-[180px] flex-1 rounded-lg bg-slate-200 xl:w-56" />
+            <div className="h-10 w-28 rounded-lg bg-slate-200" />
+            <div className="h-10 w-32 rounded-2xl bg-slate-200" />
+          </div>
+        </div>
+
+        <div className="hidden min-w-[900px] lg:block">
+          <div className="grid grid-cols-6 gap-4 border-b border-slate-100/60 bg-slate-50/50 px-5 py-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-3 rounded-md bg-slate-200" />
+            ))}
+          </div>
+          <div className="divide-y divide-slate-100/60">
+            {Array.from({ length: 5 }).map((_, rowIndex) => (
+              <div key={rowIndex} className="grid grid-cols-6 items-start gap-4 px-5 py-5">
+                <div className="space-y-2">
+                  <div className="h-3 w-16 rounded-md bg-slate-200" />
+                  <div className="h-4 rounded-md bg-slate-100" />
+                  <div className="h-3 w-4/5 rounded-md bg-slate-100" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 rounded-md bg-slate-100" />
+                  <div className="h-4 w-4/5 rounded-md bg-slate-100" />
+                </div>
+                <div className="h-5 w-16 rounded-full bg-slate-200" />
+                <div className="h-5 w-20 rounded-full bg-slate-200" />
+                <div className="h-4 rounded-md bg-slate-100" />
+                <div className="mx-auto h-7 w-7 rounded-lg bg-slate-200" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 bg-slate-50/30 p-3 lg:hidden">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="space-y-3 rounded-[20px] border border-slate-200/60 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-16 rounded-md bg-slate-200" />
+                  <div className="h-4 w-4/5 rounded-md bg-slate-100" />
+                  <div className="h-3 w-full rounded-md bg-slate-100" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-5 w-16 rounded-full bg-slate-200" />
+                  <div className="h-5 w-14 rounded-full bg-slate-200" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-100 p-3">
+                <div className="h-4 rounded-md bg-slate-100" />
+                <div className="h-4 rounded-md bg-slate-100" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
