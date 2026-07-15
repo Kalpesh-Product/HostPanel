@@ -4,7 +4,7 @@ import {
   FileDown, FileSpreadsheet, LayoutGrid, Map as MapIcon, Monitor, PieChart,
   Presentation, Search, Users, X, Building, CreditCard,
   CalendarClock, Clock, AlertCircle, Briefcase, Wrench, Eye, XCircle,
-  DoorOpen, MoveRight, RotateCcw, Filter, Lock
+  DoorOpen, MoveRight, RotateCcw, Filter, Lock, Loader2
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
@@ -28,11 +28,14 @@ const getStoredUser = () => {
   } catch { return null; }
 };
 
-const floors = ["501", "601", "701"];
-const wings = ["A", "B"];
-const defaultBuilding = "Sunteck Kanaka";
+const floors = [];
+const wings = [];
+const defaultBuilding = "";
 const deskCats = new Set(["open_desk", "cabin_desk"]);
 const bookingOnlyCats = new Set(["meeting_room", "conference_room", "virtual_office"]);
+const isDepartmentAssignableResource = (resource = {}) =>
+  deskCats.has(String(resource.resourceCategory || "").trim().toLowerCase())
+  && String(resource.inventoryMode || "area").trim().toLowerCase() !== "area";
 
 const money = (v = 0) => `Rs ${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(v || 0))}`;
 const locStr = (r = {}) => [r.floor, r.wing].filter(Boolean).join(" ").trim();
@@ -247,7 +250,6 @@ export default function SalesArchitecturePage() {
   const [selectedFloor, setSelectedFloor] = useState("All");
   const [selectedWing, setSelectedWing] = useState("All");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [primaryId, setPrimaryId] = useState("");
@@ -256,7 +258,6 @@ export default function SalesArchitecturePage() {
   const [viewMode, setViewMode] = useState("map");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("architecture");
-  const [assignMode, setAssignMode] = useState("tenant");
   const [viewTenantId, setViewTenantId] = useState("");
   const [spaceFilter, setSpaceFilter] = useState("all"); // all | available | tenant | department | maintenance
   const [isDeptAssignModalOpen, setIsDeptAssignModalOpen] = useState(false);
@@ -375,8 +376,6 @@ export default function SalesArchitecturePage() {
     ),
     [organizationDepartments, workspacePlan],
   );
-  const selectedCompany = useMemo(() => tenants.find((t) => String(t.recordId || t.id) === String(selectedCompanyId)) || null, [selectedCompanyId, tenants]);
-  const selectedDepartment = useMemo(() => availableDepartments.find((d) => String(d.id || d.name) === String(selectedDepartmentId)) || null, [availableDepartments, selectedDepartmentId]);
   const currentUserName = useMemo(() => currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Sales Team", [currentUser]);
 
   useEffect(() => {
@@ -424,6 +423,9 @@ export default function SalesArchitecturePage() {
   const assignableResources = useMemo(() => selectedResources.filter((r) => deskCats.has(r.resourceCategory)), [selectedResources]);
   const selectedSeatCount = useMemo(() => assignableResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0), [assignableResources]);
   const assignableIds = useMemo(() => assignableResources.map((r) => String(r.recordId || r.id)).filter(Boolean), [assignableResources]);
+  const departmentAssignableResources = useMemo(() => selectedResources.filter(isDepartmentAssignableResource), [selectedResources]);
+  const departmentSelectedSeatCount = useMemo(() => departmentAssignableResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0), [departmentAssignableResources]);
+  const departmentAssignableIds = useMemo(() => departmentAssignableResources.map((r) => String(r.recordId || r.id)).filter(Boolean), [departmentAssignableResources]);
 
   const floorStats = useMemo(() => {
     const s = filtered;
@@ -505,7 +507,7 @@ export default function SalesArchitecturePage() {
     return Object.values(map);
   }, [resources]);
 
-  const unassignedDesks = useMemo(() => desks.filter((r) => !r.assignmentLabel && r.status === "Active"), [desks]);
+  const unassignedDesks = useMemo(() => desks.filter((r) => isDepartmentAssignableResource(r) && !r.assignmentLabel && r.status === "Active"), [desks]);
 
   const packageLockedIds = useMemo(() => {
     const locked = new Set();
@@ -532,7 +534,7 @@ export default function SalesArchitecturePage() {
   }, [tenantsWithPackages, resources]);
 
   const canOpenAssign = assignableIds.length > 0 && !saving;
-  const canSave = canOpenAssign && (assignMode === "department" ? Boolean(String(selectedDepartmentId || "").trim()) : Boolean(selectedCompanyId));
+  const canSave = canOpenAssign && Boolean(selectedCompanyId);
 
   const handleExport = async (fmt = "PDF") => {
     const f = String(fmt).toLowerCase() === "excel" ? "Excel" : "PDF";
@@ -575,14 +577,17 @@ export default function SalesArchitecturePage() {
     });
   };
 
-  const saveAssignment = async () => {
-    if (!canSave) return;
+  const saveAssignment = async ({ assignmentType = "tenant", tenantCompanyId = selectedCompanyId, departmentId = "" } = {}) => {
+    const isDepartmentAssignment = assignmentType === "department";
+    const resourcesToAssign = isDepartmentAssignment ? departmentAssignableResources : assignableResources;
+    const ids = resourcesToAssign.map((r) => String(r.recordId || r.id)).filter(Boolean);
+    const company = tenants.find((t) => String(t.recordId || t.id) === String(tenantCompanyId)) || null;
+    const department = availableDepartments.find((d) => String(d.id || d.name) === String(departmentId)) || null;
+    if (!ids.length || (isDepartmentAssignment ? !department : !company)) return;
     setSaving(true); setError("");
-    const ids = assignableIds;
-    const resource = assignableResources.find((r) => String(r.recordId || r.id) === ids[0]);
-    const payload = assignMode === "tenant"
-      ? { assignmentType: "tenant", tenantCompanyId: selectedCompany?.recordId || selectedCompany?.id || "", tenantCompanyName: selectedCompany?.companyName || selectedCompany?.name || "" }
-      : { assignmentType: "department", departmentId: String(selectedDepartment?.id || selectedDepartment?.name || selectedDepartmentId || "").trim(), departmentName: String(selectedDepartment?.name || selectedDepartmentId || "").trim() };
+    const payload = isDepartmentAssignment
+      ? { assignmentType: "department", departmentId: String(department.id || department.name || departmentId).trim(), departmentName: String(department.name || departmentId).trim() }
+      : { assignmentType: "tenant", tenantCompanyId: company.recordId || company.id || "", tenantCompanyName: company.companyName || company.name || "" };
     try {
       const updated = [];
       for (const rid of ids) {
@@ -594,7 +599,9 @@ export default function SalesArchitecturePage() {
       if (updated.length) {
         setResources((cur) => cur.map((r) => updated.find((x) => String(x.recordId) === String(r.recordId)) || r));
       }
-      clearSelection(); setIsAssignModalOpen(false);
+      clearSelection();
+      if (isDepartmentAssignment) setIsDeptAssignModalOpen(false);
+      else setIsAssignModalOpen(false);
       toast.success(`${updated.length} space(s) assigned successfully.`);
     } catch (e) { setError(e.message || "Assignment failed."); }
     finally { setSaving(false); }
@@ -755,7 +762,7 @@ export default function SalesArchitecturePage() {
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             {assignableIds.length > 0 && (
-              <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); setIsAssignModalOpen(true); }}
+              <button onClick={() => { setSelectedCompanyId(""); setIsAssignModalOpen(true); }}
                 className="px-3 py-2.5 bg-[#2563EB] text-white rounded-lg font-pmedium text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
               ><ArrowRight size={14} /> Assign</button>
             )}
@@ -922,7 +929,7 @@ export default function SalesArchitecturePage() {
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   value={tenantListSearch} onChange={(e) => setTenantListSearch(e.target.value)} />
               </div>
-              <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
+              <button onClick={() => { setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
                 className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
               ><ArrowRight size={13} strokeWidth={3} /> ASSIGN SPACE</button>
             </div>
@@ -1556,7 +1563,7 @@ export default function SalesArchitecturePage() {
                   >Cancel</button>
                   <button onClick={saveAssignment} disabled={!canSave}
                     className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
-                  >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
+                  >{saving ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
                 </div>
               </div>
             </div>
@@ -1624,14 +1631,14 @@ export default function SalesArchitecturePage() {
                 <div className="space-y-3">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     Available Spaces
-                    <span className="text-emerald-600 ml-1">({desks.filter((r) => !r.assignmentLabel && r.status === "Active" &&
+                    <span className="text-emerald-600 ml-1">({desks.filter((r) => isDepartmentAssignableResource(r) && !r.assignmentLabel && r.status === "Active" &&
                       (selectedFloor === "All" || r.floor === selectedFloor) &&
                       (selectedWing === "All" || r.wing === selectedWing)
                     ).reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} seats)</span>
                   </p>
                   <div className="max-h-[35vh] overflow-y-auto pr-1 pb-1">
                     {(() => {
-                      const availDesks = desks.filter((r) => !r.assignmentLabel && r.status === "Active" &&
+                      const availDesks = desks.filter((r) => isDepartmentAssignableResource(r) && !r.assignmentLabel && r.status === "Active" &&
                         (selectedFloor === "All" || r.floor === selectedFloor) &&
                         (selectedWing === "All" || r.wing === selectedWing)
                       );
@@ -1687,11 +1694,11 @@ export default function SalesArchitecturePage() {
                 </div>
 
                 {/* Selected summary */}
-                {assignableIds.length > 0 && (
+                {departmentAssignableIds.length > 0 && (
                   <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 mb-1.5">Selected ({selectedSeatCount} seats)</p>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 mb-1.5">Selected ({departmentSelectedSeatCount} seats)</p>
                     <div className="flex flex-wrap gap-1">
-                      {assignableResources.map((r) => (
+                      {departmentAssignableResources.map((r) => (
                         <span key={r.recordId} className="bg-white border border-blue-200 text-blue-700 px-2 py-0.5 rounded text-[10px] font-pmedium">{r.name || r.resourceCode}</span>
                       ))}
                     </div>
@@ -1703,17 +1710,13 @@ export default function SalesArchitecturePage() {
                     className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px]"
                   >Cancel</button>
                   <button onClick={() => {
-                    if (!deptAssignSelectedId || assignableIds.length === 0) return;
+                    if (!deptAssignSelectedId || departmentAssignableIds.length === 0) return;
                     const dept = availableDepartments.find((d) => (d.id || d.name) === deptAssignSelectedId);
                     if (!dept) return;
-                    setAssignMode("department");
-                    setSelectedDepartmentId(deptAssignSelectedId);
-                    setSelectedCompanyId("");
-                    saveAssignment();
-                    setIsDeptAssignModalOpen(false);
-                  }} disabled={!deptAssignSelectedId || assignableIds.length === 0 || saving}
+                    saveAssignment({ assignmentType: "department", departmentId: deptAssignSelectedId });
+                  }} disabled={!deptAssignSelectedId || departmentAssignableIds.length === 0 || saving}
                     className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
-                  >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Assign to Department</>}</button>
+                  >{saving ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : <><CheckCircle2 size={14} /> Assign to Department</>}</button>
                 </div>
               </div>
             </div>

@@ -535,7 +535,7 @@ export const login = async (req, res, next) => {
     if (tenantEmp) {
       const tenantCompany = await TenantCompany.findById(tenantEmp.tenantCompanyId).lean().exec();
       if (tenantCompany) {
-        tenantRole = tenantEmp.tenantRole || (tenantEmp.role === "Manager" ? "tenant-manager" : "tenant-employee");
+        tenantRole = tenantEmp.role === "Manager" ? "tenant-manager" : "tenant-employee";
         tenantCompanyId = String(tenantCompany._id);
         tenantCompanyName = tenantCompany.companyName || "";
         tenantWorkspaceId = String(tenantCompany.workspaceId || "");
@@ -543,7 +543,7 @@ export const login = async (req, res, next) => {
         // Fire-and-forget: don't block login response for a lastLoginAt update
         void TenantEmployee.updateOne(
           { _id: tenantEmp._id },
-          { $set: { lastLoginAt: new Date() } }
+          { $set: { lastLoginAt: new Date(), tenantRole } }
         ).exec().catch(() => {});
       }
     }
@@ -1663,7 +1663,7 @@ export const getTenantProfile = async (req, res, next) => {
         phone: emp.phone || "",
         designation: emp.designation || "",
         role: roleLabel,
-        tenantRole: emp.tenantRole || "",
+        tenantRole: emp.role === "Manager" ? "tenant-manager" : "tenant-employee",
         lastLoginAt: emp.lastLoginAt || null,
         registeredAt: emp.registeredAt || null,
         inviteAcceptedAt: emp.inviteAcceptedAt || null,

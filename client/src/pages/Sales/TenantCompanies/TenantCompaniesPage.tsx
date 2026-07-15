@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle, Mail, Phone, Clock,
   CreditCard, X, ArrowRight, Save, RefreshCw, Briefcase,
   FileText, FileDown, FileSpreadsheet, UserPlus, Download, UploadCloud,
-  Users, History, MapPin, Building2
+  Users, History, MapPin, Building2, Loader2
 } from 'lucide-react';
 import {
   addTenantCompanyEmployee,
@@ -1218,7 +1218,7 @@ export default function TenantCompaniesPage() {
     notes: '',
   };
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
-  const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '', role: 'Employee' });
+  const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -1240,6 +1240,9 @@ export default function TenantCompaniesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [employeeEditForm, setEmployeeEditForm] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
+  const selectedTenantHasManager = Boolean(selectedTenant?.managerEmployeeId)
+    || normalizeTenantEmployees(selectedTenant?.employees, selectedTenant?.managerEmployeeId)
+      .some((employee) => employee.role === 'Manager');
 
   const [tenants, setTenants] = useState([]);
   const [countries, setCountries] = useState([]);
@@ -1377,7 +1380,7 @@ export default function TenantCompaniesPage() {
   const customPackageFloor = String(companyForm.packageDetails?.selectionFloor || '').trim();
   const customPackageWing = String(companyForm.packageDetails?.selectionWing || '').trim().toUpperCase();
   const customPackageBlockMix = String(companyForm.packageDetails?.selectionBlockMix || 'all').trim().toLowerCase();
-  const hasCustomPackageScopeSelection = Boolean(customPackageFloor && customPackageWing);
+  const hasCustomPackageScopeSelection = Boolean(customPackageFloor);
   const customPackageDeskResources = useMemo(
     () => resources.filter((resource) =>
       isTenantDeskResource(resource)
@@ -2150,9 +2153,15 @@ export default function TenantCompaniesPage() {
     event.preventDefault();
     if (!selectedTenant || isSaving) return;
 
+    const formPayload = Object.fromEntries(Object.entries(employeeForm).map(([key, value]) => [key, String(value || '').trim()]));
+    if (Object.values(formPayload).some((value) => !value)) {
+      toast.error('All employee fields are required.');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const response = await addTenantCompanyEmployee(selectedTenant.recordId || selectedTenant.id, employeeForm);
+      const response = await addTenantCompanyEmployee(selectedTenant.recordId || selectedTenant.id, formPayload);
       const payload = response?.data || {};
       if (Array.isArray(payload.tenants)) {
         setTenants(payload.tenants);
@@ -2165,9 +2174,9 @@ export default function TenantCompaniesPage() {
       toast.success('Employee added successfully.');
       setEmployeeModalOpen(false);
       setActiveModal('view');
-      setEmployeeForm({ name: '', email: '', phone: '', designation: '' });
+      setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: '' });
     } catch (error) {
-      toast.error(error.message || 'Unable to add employee.');
+      toast.error(error?.response?.data?.message || error.message || 'Unable to add employee.');
     } finally {
       setIsSaving(false);
     }
@@ -3994,7 +4003,7 @@ export default function TenantCompaniesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Wing</label>
+                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Wing (Optional)</label>
                               <select
                                 className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-pmedium text-indigo-900 outline-none"
                                 value={customPackageWing}
@@ -4142,8 +4151,8 @@ export default function TenantCompaniesPage() {
                           ) : (
                             <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-6 text-center">
                               <LayoutGrid size={28} className="mx-auto mb-2 text-indigo-300" />
-                              <p className="text-sm font-pmedium text-indigo-600">Select floor and wing to load area blocks</p>
-                              <p className="mt-1 text-xs font-pmedium text-indigo-400">The open desk and cabin desk cards will appear after both scope fields are set.</p>
+                              <p className="text-sm font-pmedium text-indigo-600">Select a floor to load area blocks</p>
+                              <p className="mt-1 text-xs font-pmedium text-indigo-400">Choose a wing only when you want to narrow the floor results.</p>
                             </div>
                           )}
                         </div>
@@ -4206,8 +4215,8 @@ export default function TenantCompaniesPage() {
 
                   <div className="order-11 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
                     <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-50 transition-all shadow-sm">CANCEL</button>
-                    <button type="submit" disabled={isSaving} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
-                      SUBMIT &amp; SEND TO FINANCE <Save size={14} />
+                    <button type="submit" disabled={isSaving} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+                      {isSaving ? <><Loader2 size={14} className="animate-spin" /> SAVING...</> : <>SUBMIT &amp; SEND TO FINANCE <Save size={14} /></>}
                     </button>
                   </div>
                 </form>
@@ -4684,42 +4693,45 @@ export default function TenantCompaniesPage() {
                   <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-white/70">
                     <div className="flex items-center justify-between p-4 border-b border-slate-100">
                       <h3 className="text-sm font-black text-slate-900">Add Employee</h3>
-                      <button onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><X size={14}/></button>
+                      <button onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: '' }); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><X size={14}/></button>
                     </div>
                     <form onSubmit={handleAddEmployee} className="p-4 space-y-4">
                       <div>
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name *</label>
                         <input type="text" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} required
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Employee name" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email *</label>
                         <input type="email" value={employeeForm.email} onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })} required
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="employee@company.com" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone</label>
-                        <input type="text" value={employeeForm.phone} onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone *</label>
+                        <input type="tel" value={employeeForm.phone} onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })} required
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Phone number" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
-                        <input type="text" value={employeeForm.designation} onChange={(e) => setEmployeeForm({ ...employeeForm, designation: e.target.value })}
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation *</label>
+                        <input type="text" value={employeeForm.designation} onChange={(e) => setEmployeeForm({ ...employeeForm, designation: e.target.value })} required
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Designation" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tenant Role</label>
-                        <select value={employeeForm.role} onChange={(e) => setEmployeeForm({ ...employeeForm, role: e.target.value })}
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role *</label>
+                        <select value={employeeForm.role} onChange={(e) => setEmployeeForm({ ...employeeForm, role: e.target.value })} required
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-pmedium text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                          <option value="" disabled>Select role</option>
+                          <option value="Manager" disabled={selectedTenantHasManager}>Manager{selectedTenantHasManager ? ' (Already assigned)' : ''}</option>
                           <option value="Employee">Employee</option>
-                          <option value="Manager">Manager</option>
                         </select>
+                        {selectedTenantHasManager && <p className="mt-1.5 text-[10px] font-pmedium text-slate-500">Use Change Manager from the tenant detail page to assign a different manager.</p>}
                       </div>
                       <div className="flex justify-end gap-2 pt-2">
-                        <button type="button" onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '' }); }}
+                        <button type="button" onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: '' }); }}
                           className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-pmedium text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
                         <button type="submit" disabled={isSaving}
-                          className="rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          {isSaving && <Loader2 size={14} className="animate-spin" />}
                           {isSaving ? 'Adding...' : 'Add Employee'}
                         </button>
                       </div>
@@ -4791,7 +4803,9 @@ export default function TenantCompaniesPage() {
                           <option value="Manager">Manager</option>
                         </select>
                       </div>
-                      <button type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-pmedium text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
+                      <button type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-pmedium text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {isSaving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Employee</>}
+                      </button>
                     </form>
                   </div>
                 </div>

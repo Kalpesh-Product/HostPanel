@@ -368,6 +368,12 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
 
     const assignmentType = input.assignmentType || "tenant";
 
+    if (assignmentType === "department" && String(resource!.inventoryMode || "area").trim().toLowerCase() === "area") {
+        const error: any = new Error("Area blocks can only be assigned to tenant companies.");
+        error.statusCode = 400;
+        throw error;
+    }
+
     if (assignmentType === "tenant") {
         if (!input.tenantCompanyId) {
             const error: any = new Error("Tenant company is required for tenant assignment.");

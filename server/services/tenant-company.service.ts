@@ -82,6 +82,42 @@ function normalizeTenantCompanyEmployeeRole(value = "") {
   return normalizeText(value) === "Manager" ? "Manager" : "Employee";
 }
 
+function getTenantRoleKey(role = "Employee") {
+  return normalizeTenantCompanyEmployeeRole(role) === "Manager" ? "tenant-manager" : "tenant-employee";
+}
+
+function validateRequiredTenantEmployeeInput(input = {}) {
+  const requiredFields = [
+    ["name", "Name"],
+    ["email", "Email"],
+    ["phone", "Phone"],
+    ["designation", "Designation"],
+    ["role", "Role"],
+  ];
+  const missingFields = requiredFields
+    .filter(([key]) => !normalizeText(input[key]))
+    .map(([, label]) => label);
+
+  if (missingFields.length > 0) {
+    const err = new Error(`${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const email = normalizeText(input.email).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const err = new Error("Enter a valid employee email address.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!["Employee", "Manager"].includes(normalizeText(input.role))) {
+    const err = new Error("Select a valid employee role.");
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
 function findEmployeeIndex(employees = [], employeeId = "") {
   const lookup = normalizeText(employeeId).toLowerCase();
   if (!lookup) return -1;
@@ -273,7 +309,7 @@ async function resolveTenantEmployeeForCurrentUser(userId) {
   }
 
   const workspaceId = toId(employee.workspaceId);
-  const tenantRole = normalizeText(employee.tenantRole || "tenant-employee").toLowerCase();
+  const tenantRole = getTenantRoleKey(employee.role).toLowerCase();
   const canManage = ["tenant-admin", "admin", "manager"].some((r) => tenantRole.includes(r));
 
   return { user, employee, workspaceId, tenantCompanyId: toId(employee.tenantCompanyId), tenantRole, canManage };
@@ -856,6 +892,8 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
   const company = await TenantCompany.findById(tenantCompanyId);
   ensureTenantCompanyExists(company, access.workspaceId);
 
+  validateRequiredTenantEmployeeInput(input);
+
   const name = normalizeText(input.name);
   const email = normalizeText(input.email || "").toLowerCase();
   const phone = normalizeText(input.phone || "");
@@ -866,6 +904,19 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
   const existingEmployee = email
     ? await TenantEmployee.findOne({ tenantCompanyId: company._id, email }).lean().exec()
     : null;
+
+  if (role === "Manager") {
+    const existingManager = await TenantEmployee.findOne({
+      tenantCompanyId: company._id,
+      role: "Manager",
+      ...(existingEmployee?.id ? { id: { $ne: existingEmployee.id } } : {}),
+    }).lean().exec();
+    if (existingManager) {
+      const err = new Error("This tenant company already has a manager. Use Change Manager to assign someone else.");
+      err.statusCode = 409;
+      throw err;
+    }
+  }
 
   const employeeId = existingEmployee ? existingEmployee.id : `TE-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const employeeData = {
@@ -884,7 +935,7 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     inviteAcceptedAt: null,
     registeredAt: null,
     lastLoginAt: null,
-    tenantRole: role === "Manager" ? "tenant-manager" : "tenant-employee",
+    tenantRole: getTenantRoleKey(role),
     tenantCompanyName: company.companyName,
     userId: null,
     inviteId: null,
@@ -957,7 +1008,20 @@ export async function updateTenantCompanyEmployeeForCurrentUser(userId, tenantCo
   if (input.designation !== undefined) employee.designation = normalizeText(input.designation);
   if (input.role !== undefined) {
     const newRole = normalizeTenantCompanyEmployeeRole(input.role);
+    if (newRole === "Manager" && employee.role !== "Manager") {
+      const existingManager = await TenantEmployee.findOne({
+        tenantCompanyId: company._id,
+        role: "Manager",
+        id: { $ne: employee.id },
+      }).lean().exec();
+      if (existingManager) {
+        const err = new Error("This tenant company already has a manager. Use Change Manager to assign someone else.");
+        err.statusCode = 409;
+        throw err;
+      }
+    }
     employee.role = newRole;
+    employee.tenantRole = getTenantRoleKey(newRole);
     if (newRole === "Manager") {
       company.managerEmployeeId = employee.id;
       await company.save();
@@ -997,6 +1061,7 @@ export async function updateTenantCompanyEmployeeStatusForCurrentUser(userId, te
   if (input.status === "Inactive" && company.managerEmployeeId === employee.id) {
     company.managerEmployeeId = null;
     employee.role = "Employee";
+    employee.tenantRole = getTenantRoleKey("Employee");
     await company.save();
   }
   await employee.save();
@@ -1066,10 +1131,11 @@ export async function assignTenantCompanyManagerForCurrentUser(userId, tenantCom
 
   await TenantEmployee.updateMany(
     { tenantCompanyId: company._id, id: { $ne: input.employeeId } },
-    { $set: { role: "Employee" } }
+    { $set: { role: "Employee", tenantRole: getTenantRoleKey("Employee") } }
   );
 
   targetEmployee.role = "Manager";
+  targetEmployee.tenantRole = getTenantRoleKey("Manager");
   await targetEmployee.save();
 
   company.managerEmployeeId = targetEmployee.id;
