@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2, CheckCircle2, ChevronDown, CreditCard, Download, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ChevronDown, CreditCard, Download, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
@@ -270,7 +270,7 @@ function buildTenantPackageSummary(resources = [], durationMonths = TENANT_PACKA
 }
 
 function normalizeResource(resource = {}) {
-  const floor = String(resource.floor || '501').trim() || '501';
+  const floor = String(resource.floor || '').trim() || '';
   const wing = String(resource.wing || '').trim().toUpperCase();
   const locationArea = [floor, wing].filter(Boolean).join(' ').trim();
   return {
@@ -571,6 +571,7 @@ function formatAutoPriceValue(value) {
 
 export default function PricingPackagesPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
   const [activeTab, setActiveTab] = useState('resource');
   const [searchQuery, setSearchQuery] = useState('');
@@ -666,7 +667,7 @@ export default function PricingPackagesPage() {
   }, [resources]);
   const availableResourceFloors = useMemo(() => {
     const floors = Array.from(new Set(resources.map((item) => String(item.floor || '').trim()).filter(Boolean)));
-    return floors.length > 0 ? floors : ['501', '601', '701'];
+    return floors.length > 0 ? floors : [];
   }, [resources]);
   const availableResourceWings = useMemo(() => {
     const wings = Array.from(new Set(resources.map((item) => String(item.wing || '').trim().toUpperCase()).filter(Boolean)));
@@ -725,7 +726,7 @@ export default function PricingPackagesPage() {
 
   const tenantFloorOptions = useMemo(() => {
     const floors = Array.from(new Set(tenantAreaResources.map((resource) => resource.floor).filter(Boolean)));
-    return floors.length > 0 ? floors.sort((left, right) => left.localeCompare(right, undefined, { numeric: true })) : ['501', '601', '701'];
+    return floors.length > 0 ? floors.sort((left, right) => left.localeCompare(right, undefined, { numeric: true })) : [];
   }, [tenantAreaResources]);
 
   const tenantWingOptions = useMemo(() => {
@@ -735,7 +736,7 @@ export default function PricingPackagesPage() {
         .map((resource) => String(resource.wing || '').trim().toUpperCase())
         .filter(Boolean),
     ));
-    return wings.length > 0 ? wings.sort() : ['A', 'B'];
+    return wings.length > 0 ? wings.sort() : [];
   }, [packageForm.floor, tenantAreaResources]);
 
   const tenantPackageScopeResources = useMemo(() => {
@@ -960,7 +961,7 @@ export default function PricingPackagesPage() {
         resourceCategory,
         inventoryMode: resourceCategory === 'virtual_office' ? 'single' : inventoryMode,
         location,
-        floor: floorValue || '501',
+        floor: floorValue,
         wing,
         capacity: resourceCategory === 'virtual_office' ? 1 : capacityValue,
         pricePerHour: rawPricePerHour,
@@ -1152,7 +1153,7 @@ export default function PricingPackagesPage() {
     const nextTenantScope = category === 'Tenant'
       ? getTenantPackageScope(item?.locationMappings || item?.packageDetails?.locationMappings) || (() => {
         const firstScopeResource = tenantAreaResources[0] || null;
-        return firstScopeResource ? { floor: firstScopeResource.floor, wing: firstScopeResource.wing } : { floor: tenantFloorOptions[0] || '501', wing: tenantWingOptions[0] || 'A' };
+        return firstScopeResource ? { floor: firstScopeResource.floor, wing: firstScopeResource.wing } : { floor: tenantFloorOptions[0] || '', wing: tenantWingOptions[0] || 'A' };
       })()
       : { floor: '', wing: '' };
     const nextTenantScopeResources = category === 'Tenant'
@@ -1191,6 +1192,8 @@ export default function PricingPackagesPage() {
 
   const handleSave = async (event) => {
     event.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
 
     try {
       if ((modalKind === 'package' && modalMode === 'view') || (modalKind === 'resource' && modalMode === 'view')) {
@@ -1208,7 +1211,7 @@ export default function PricingPackagesPage() {
             resourceCategory: category,
             inventoryMode,
             location: addResourceForm.location.trim() || addResourceForm.name.trim(),
-            floor: addResourceForm.floor.trim() || '501',
+            floor: addResourceForm.floor.trim() || '',
             wing: addResourceForm.wing.trim(),
             capacity: Number(addResourceForm.capacity || 1),
             pricePerHour: Number(addResourceForm.pricePerHour || 0),
@@ -1233,7 +1236,7 @@ export default function PricingPackagesPage() {
             resourceCategory: editCategory,
             inventoryMode: editInventoryMode,
             location: resourceForm.location.trim() || resourceForm.name.trim(),
-            floor: resourceForm.floor.trim() || '501',
+            floor: resourceForm.floor.trim() || '',
             wing: resourceForm.wing.trim(),
             capacity: Number(resourceForm.capacity || 1),
             description: resourceForm.description.trim(),
@@ -1277,10 +1280,10 @@ export default function PricingPackagesPage() {
           ? Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || TENANT_PACKAGE_MIN_DURATION_MONTHS))
           : Number(packageForm.durationMonths || 1);
         if (isTenantPackage && tenantPackageScopeResources.length === 0) {
-          throw new Error('Select a floor and wing that contains open desk or cabin desk area blocks.');
+          throw new Error('Select a floor that contains open desk or cabin desk area blocks.');
         }
-        if (isTenantPackage && (!packageForm.floor || !packageForm.wing)) {
-          throw new Error('Choose both a floor and a wing for the tenant package.');
+        if (isTenantPackage && !packageForm.floor) {
+          throw new Error('Choose a floor for the tenant package.');
         }
         if (isTenantPackage && tenantPackageSelectedResources.length === 0) {
           throw new Error('Select at least one open desk or cabin desk block for the package.');
@@ -1326,6 +1329,8 @@ export default function PricingPackagesPage() {
       }
     } catch (error) {
       toast.error(error.message || 'Unable to save pricing configuration.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -2735,12 +2740,7 @@ export default function PricingPackagesPage() {
                                 value={packageForm.floor}
                                 onChange={(e) => {
                                   const nextFloor = e.target.value;
-                                  const nextWingOptions = Array.from(new Set(
-                                    getTenantScopeResources(tenantAreaResources, nextFloor, '')
-                                      .map((resource) => String(resource.wing || '').trim().toUpperCase())
-                                      .filter(Boolean),
-                                  ));
-                                  updateTenantScopeSelection(nextFloor, nextWingOptions[0] || '');
+                                  updateTenantScopeSelection(nextFloor, '');
                                 }}
                               >
                                 <option value="">Select floor</option>
@@ -2748,9 +2748,8 @@ export default function PricingPackagesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-pmedium text-slate-400">Wing *</label>
+                              <label className="text-[11px] font-pmedium text-slate-400">Wing (Optional)</label>
                               <select
-                                required
                                 disabled={isTenantPackageRateEdit}
                                 className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={packageForm.wing}
@@ -3062,11 +3061,21 @@ export default function PricingPackagesPage() {
 
                 <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-[11px] font-pmedium text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className={`flex-1 rounded-xl border py-2.5 text-[11px] font-pmedium transition-all ${
+                        isViewingPackage || isViewingResource
+                          ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
+                          : 'border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50'
+                      }`}
+                    >
+                      {isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}
+                    </button>
                     {!isViewingPackage && !isViewingResource ? (
-                      <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-                        <Save size={14} />
-                        {modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
+                      <button type="submit" disabled={isSaving} className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        {isSaving ? 'SAVING...' : modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
                       </button>
                     ) : null}
                   </div>

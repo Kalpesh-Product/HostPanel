@@ -4,7 +4,7 @@ import {
   ArrowLeft, Users, History, CalendarDays, CreditCard, Plus, X, Save,
   Mail, Phone, MapPin, CheckCircle2, AlertTriangle, Clock, Eye,
   ChevronDown, UserCog, ToggleLeft, ToggleRight, Building2, FileText, DollarSign,
-  LayoutGrid,
+  LayoutGrid, Loader2,
   IndianRupee
 } from 'lucide-react';
 import { getTenantCompany, addTenantCompanyEmployee, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
@@ -144,7 +144,7 @@ export default function TenantCompanyDetailPage() {
   const [addModal, setAddModal] = useState(false);
   const [viewEmp, setViewEmp] = useState(null);
   const [editEmp, setEditEmp] = useState(null);
-  const [addF, setAddF] = useState({ name: '', email: '', phone: '', designation: '', role: 'Employee' });
+  const [addF, setAddF] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
   const [editF, setEditF] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
 
   // Other modals
@@ -232,7 +232,28 @@ export default function TenantCompanyDetailPage() {
   // ---------- Handlers ----------
   const refresh = () => id && getTenantCompany(id).then(r => setTenant(r?.data?.tenant || r?.data || r)).catch(() => { });
 
-  const hAdd = async e => { e.preventDefault(); if (!tenant || isSaving) return; setIsSaving(true); try { const r = await addTenantCompanyEmployee(tenant.recordId || tenant.id, addF); const p = r?.data || {}; if (p.tenant) setTenant(prev => ({ ...prev, ...p.tenant })); toast.success('Employee added.'); setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
+  const hAdd = async e => {
+    e.preventDefault();
+    if (!tenant || isSaving) return;
+    const payload = Object.fromEntries(Object.entries(addF).map(([key, value]) => [key, String(value || '').trim()]));
+    if (Object.values(payload).some(value => !value)) {
+      toast.error('All employee fields are required.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const r = await addTenantCompanyEmployee(tenant.recordId || tenant.id, payload);
+      const p = r?.data || {};
+      if (p.tenant) setTenant(prev => ({ ...prev, ...p.tenant }));
+      toast.success('Employee added.');
+      setAddModal(false);
+      setAddF({ name: '', email: '', phone: '', designation: '', role: '' });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed');
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const hEdit = async e => { e.preventDefault(); if (!tenant || !editEmp || isSaving) return; setIsSaving(true); try { await updateTenantCompanyEmployee(tenant.recordId || tenant.id, editEmp.id || '', editF); toast.success('Updated.'); setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hToggle = async emp => { if (!tenant || isSaving) return; setIsSaving(true); try { const ns = emp.status === 'Inactive' ? 'Active' : 'Inactive'; await updateTenantCompanyEmployeeStatus(tenant.recordId || tenant.id, emp.id, { status: ns }); toast.success(ns === 'Active' ? 'Activated.' : 'Deactivated.'); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hDel = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await deleteTenantCompanyEmployee(tenant.recordId || tenant.id, eid); toast.success('Removed.'); setViewEmp(null); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
@@ -836,7 +857,7 @@ export default function TenantCompanyDetailPage() {
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900">Add Employee</h3>
-              <button onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); }}
+              <button onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '' }); }}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <form onSubmit={hAdd} className="p-5 space-y-4 overflow-y-auto">
@@ -851,20 +872,30 @@ export default function TenantCompanyDetailPage() {
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="employee@company.com" />
               </div>
               <div>
-                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone</label>
-                <input type="text" value={addF.phone} onChange={e => setAddF({ ...addF, phone: e.target.value })}
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone *</label>
+                <input type="tel" value={addF.phone} onChange={e => setAddF({ ...addF, phone: e.target.value })} required
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Phone number" />
               </div>
               <div>
-                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation</label>
-                <input type="text" value={addF.designation} onChange={e => setAddF({ ...addF, designation: e.target.value })}
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation *</label>
+                <input type="text" value={addF.designation} onChange={e => setAddF({ ...addF, designation: e.target.value })} required
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Designation" />
               </div>
+              <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Role *</label>
+                <select value={addF.role} onChange={e => setAddF({ ...addF, role: e.target.value })} required
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm">
+                  <option value="" disabled>Select role</option>
+                  <option value="Manager" disabled={Boolean(mgrEmp)}>Manager{mgrEmp ? ' (Already assigned)' : ''}</option>
+                  <option value="Employee">Employee</option>
+                </select>
+                {mgrEmp && <p className="mt-1.5 text-[10px] font-pmedium text-slate-500">Use Change Manager to assign a different manager.</p>}
+              </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); }}
+                <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
                 <button type="submit" disabled={isSaving}
-                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all">{isSaving ? 'Adding...' : 'Add Employee'}</button>
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving && <Loader2 size={13} className="animate-spin" />}{isSaving ? 'Adding...' : 'Add Employee'}</button>
               </div>
             </form>
           </div>
@@ -941,7 +972,7 @@ export default function TenantCompanyDetailPage() {
                 <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
                 <button type="submit" disabled={isSaving}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all"><Save size={13} /> Save Employee</button>
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving ? <><Loader2 size={13} className="animate-spin" /> Saving...</> : <><Save size={13} /> Save Employee</>}</button>
               </div>
             </form>
           </div>
