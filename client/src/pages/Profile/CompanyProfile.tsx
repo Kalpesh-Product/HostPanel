@@ -22,13 +22,17 @@ const CompanyProfile = () => {
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
 
-  const { data: userDetails } = useQuery({
-    queryKey: ["profileMeCompany"],
-    queryFn: async () => {
-      const res = await axios.get("/api/profile/me");
-      return res.data;
-    },
-  });
+const { data: userDetails } = useQuery({
+  queryKey: ["profileMeCompany"],
+  queryFn: async () => {
+    const res = await axios.get("/api/profile/me");
+    return res.data;
+  },
+  staleTime: 5 * 60 * 1000,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  refetchOnMount: false,
+});
 
   useEffect(() => {
     const payload = userDetails?.data;
