@@ -17,6 +17,7 @@ import { downloadReportFile } from "../../../utils/report-download";
 import { toast } from "sonner";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { getWorkspacePlan, isDepartmentAllowedForPlan } from "../../../utils/workspacePlanAccess";
+import { SalesArchitectureSkeleton } from "../../../components/ui/SalesPageSkeletons";
 
 // sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
@@ -210,20 +211,6 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
         )}
       </div>
     </button>
-  );
-}
-
-function CardsSkeleton() {
-  return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 p-2 animate-pulse">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="rounded-[2rem] border border-slate-100 bg-white p-4">
-          <div className="h-4 w-24 bg-slate-100 rounded-xl mb-3" />
-          <div className="h-6 w-16 bg-slate-100 rounded-xl mb-2" />
-          <div className="h-3 w-32 bg-slate-100 rounded-xl" />
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -658,7 +645,7 @@ export default function SalesArchitecturePage() {
 
   if (loading) return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
-      <PageFrame><CardsSkeleton /></PageFrame>
+      <PageFrame><SalesArchitectureSkeleton /></PageFrame>
     </div>
   );
 

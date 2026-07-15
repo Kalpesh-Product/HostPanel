@@ -4,7 +4,6 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { CircularProgress } from "@mui/material";
 import PageFrame from "../../../components/Pages/PageFrame";
 import useAuth from "../../../hooks/useAuth";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
@@ -13,6 +12,7 @@ import { getGreeting } from "./dashboard/dashboardUtils";
 import BasicDashboard from "./dashboard/BasicDashboard";
 import ProfessionalDashboard from "./dashboard/ProfessionalDashboard";
 import CustomDashboard from "./dashboard/CustomDashboard";
+import PlanDashboardSkeleton from "./dashboard/PlanDashboardSkeleton";
 import { UpgradePlanModal } from "./ModuleCardsLanding";
 import { CheckCircle2, CalendarCheck, AlertCircle } from "lucide-react";
 
@@ -46,16 +46,7 @@ const CompanySettingsDashboard = () => {
   const canUpgrade = access.plan !== "custom";
 
   if (access.isLoading) {
-    return (
-      <div className="p-4 flex flex-col gap-5">
-        <PageFrame>
-          <div className="flex items-center gap-3">
-            <CircularProgress size={20} />
-            <p className="text-content text-gray-500">Loading your dashboard…</p>
-          </div>
-        </PageFrame>
-      </div>
-    );
+    return <PlanDashboardSkeleton plan={access.plan === "professional" ? "professional" : "basic"} includeHeader />;
   }
 
   return (

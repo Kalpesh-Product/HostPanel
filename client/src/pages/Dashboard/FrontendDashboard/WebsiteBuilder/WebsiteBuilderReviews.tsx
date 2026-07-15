@@ -10,6 +10,7 @@ import PageFrame from "../../../../components/Pages/PageFrame";
 import useAuth from "../../../../hooks/useAuth";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import { statusPillClass } from '../../../../lib/status-pill';
+import { WebsiteReviewsSkeleton } from '../../../../components/ui/Skeleton';
 
 const STATUSES = ["pending", "approved", "rejected"];
 const REVIEW_CACHE_KEY = "wbr_review_cache";
@@ -195,21 +196,10 @@ export default function WebsiteBuilderReviews() {
 
   if (isPending) {
     return (
-      <div className="p-2 lg:p-2.5 animate-pulse">
-        <div className="h-6 w-48 bg-slate-100 rounded-xl mb-4" />
-        <div className="h-4 w-72 bg-slate-100 rounded-xl mb-6" />
-        <div className="rounded-[2rem] border border-slate-100 bg-white overflow-hidden">
-          <div className="px-3.5 py-3 border-b border-slate-100">
-            <div className="h-3 w-full bg-slate-100 rounded-lg" />
-          </div>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex gap-4 px-3.5 py-3 border-b border-slate-50">
-              {Array.from({ length: 6 }).map((_, j) => (
-                <div key={j} className="h-3 flex-1 bg-slate-100 rounded-lg" />
-              ))}
-            </div>
-          ))}
-        </div>
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+        <PageFrame>
+          <WebsiteReviewsSkeleton />
+        </PageFrame>
       </div>
     );
   }

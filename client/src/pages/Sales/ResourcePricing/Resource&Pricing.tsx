@@ -8,6 +8,7 @@ import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
+import { ResourcePricingSkeleton } from '../../../components/ui/SalesPageSkeletons';
 
 const resourceStatusOptions = ['Active', 'Under Maintenance', 'Disabled'];
 const packageStatusOptions = ['Active', 'Disabled'];
@@ -1482,11 +1483,8 @@ export default function PricingPackagesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-[#F8FAFC]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2563EB] border-t-transparent" />
-          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Loading pricing data...</p>
-        </div>
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+        <PageFrame><ResourcePricingSkeleton /></PageFrame>
       </div>
     );
   }

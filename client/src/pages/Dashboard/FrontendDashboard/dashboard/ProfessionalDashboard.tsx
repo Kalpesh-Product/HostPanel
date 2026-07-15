@@ -29,6 +29,7 @@ import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
 import { getTickets } from "../../../../services/tickets";
 import dayjs from "dayjs";
+import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
 interface ProfessionalDashboardProps {
   onUpgradeClick?: () => void;
@@ -38,7 +39,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
 
-  const { data: tenantsRaw = [] } = useQuery({
+  const { data: tenantsRaw = [], isLoading: tenantsLoading } = useQuery({
     queryKey: ["dashboard-tenants"],
     queryFn: async () => {
       const res = await getTenantCompanies();
@@ -48,7 +49,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: bookingsRaw = [] } = useQuery({
+  const { data: bookingsRaw = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ["dashboard-bookings"],
     queryFn: async () => {
       const d = await getMeetingRoomBookings();
@@ -57,7 +58,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: ticketsRaw = [] } = useQuery({
+  const { data: ticketsRaw = [], isLoading: ticketsLoading } = useQuery({
     queryKey: ["dashboard-tickets"],
     queryFn: async () => {
       const d = await getTickets({ limit: 100 });
@@ -66,7 +67,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: visitorsRaw = [] } = useQuery({
+  const { data: visitorsRaw = [], isLoading: visitorsLoading } = useQuery({
     queryKey: ["dashboard-visitors-full"],
     queryFn: async () => {
       const res = await axiosPrivate.get("/api/visitors/fetch-visitors");
@@ -232,6 +233,10 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/company-settings/organization-management", color: "#0891b2" },
     { icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/calendar", color: "#059669" },
   ];
+
+  if (tenantsLoading || bookingsLoading || ticketsLoading || visitorsLoading) {
+    return <PlanDashboardSkeleton plan="professional" />;
+  }
 
   return (
     <div className="flex flex-col gap-5">
