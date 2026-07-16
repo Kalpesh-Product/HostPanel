@@ -37,15 +37,20 @@ export const getMyCalendar = async (
 
         const bookings = await MeetingRoomBooking.find({
             workspaceId,
+            bookingType: "Internal",
             status: { $ne: "cancelled" },
             $or: [
                 { ownerId: req.user },
-                { bookedByUserId: req.user },
                 { "invites.invitedUserId": req.user },
             ],
         }).sort({ start: 1 }).lean().exec();
 
-        const events = bookings.map((booking: any) => {
+        const events = bookings.filter((booking: any) => {
+            const currentInvite = (booking.invites || []).find(
+                (invite: any) => String(invite.invitedUserId || "") === String(req.user),
+            );
+            return !currentInvite || !["rejected", "cancelled"].includes(String(currentInvite.status || "").toLowerCase());
+        }).map((booking: any) => {
             const start = dateParts(booking.start);
             const end = dateParts(booking.end);
             const currentInvite = (booking.invites || []).find(
@@ -68,6 +73,7 @@ export const getMyCalendar = async (
                 details: {
                     roomName: booking.roomName,
                     bookedByName: booking.bookedByName,
+                    bookedForName: booking.bookedForName,
                     department: booking.department,
                     currentInviteStatus: currentInvite?.status,
                     invites: booking.invites || [],

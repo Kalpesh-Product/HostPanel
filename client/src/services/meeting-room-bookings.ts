@@ -35,6 +35,24 @@ export const getMyBookings = async () => {
 };
 
 export const createMeetingRoomBooking = async (payload: Record<string, any>) => {
+  const paymentProof = payload?.paymentProof;
+  if (paymentProof instanceof File) {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      if (value instanceof File) {
+        formData.append(key, value);
+      } else if (Array.isArray(value)) {
+        value.forEach((item) => formData.append(key, String(item)));
+      } else if (typeof value === 'object') {
+        formData.append(key, JSON.stringify(value));
+      } else {
+        formData.append(key, String(value));
+      }
+    });
+    const response = await axiosPrivate.post(`${BASE}/bookings`, formData);
+    return unwrap(response);
+  }
   const response = await axiosPrivate.post(`${BASE}/bookings`, payload);
   return unwrap(response);
 };
