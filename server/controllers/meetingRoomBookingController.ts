@@ -8,6 +8,7 @@ import TenantEmployee from "../models/TenantEmployee.js";
 import { TenantCompany } from "../models/TenantCompany.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import { Client } from "../models/Client.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 interface AuthenticatedRequest extends Request {
     user?: string;
@@ -19,6 +20,8 @@ const getValidObjectId = (id: any): string | null =>
 
 const workspaceIdFor = (req: AuthenticatedRequest) => req.workspaceMembership?.workspace || "";
 const ACTIVE_BOOKING_STATUSES = { $nin: ["cancelled", "completed"] };
+const BOOKING_DAY_START_MINUTES = 9 * 60;
+const BOOKING_DAY_END_MINUTES = 22 * 60;
 // const MEETING_ROOM_RESOURCE_FILTER = {
 //     $or: [
 //         { resourceCategory: { $in: ["meeting_room", "conference_room", "desk", "cabin", "virtual_office"] } },
@@ -97,6 +100,22 @@ const parseDateRange = (start: any, end: any) => {
     const parsedStart = parseMeetingRoomDateTime(start);
     const parsedEnd = parseMeetingRoomDateTime(end);
     if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime()) || parsedEnd <= parsedStart) return null;
+    const startParts = dateTimeParts(parsedStart);
+    const endParts = dateTimeParts(parsedEnd);
+    const toMinutes = (time: string) => {
+        const [hours, minutes] = time.split(":").map(Number);
+        return hours * 60 + minutes;
+    };
+    const startMinutes = toMinutes(startParts.time);
+    const endMinutes = toMinutes(endParts.time);
+    if (
+        startParts.date !== endParts.date ||
+        startMinutes < BOOKING_DAY_START_MINUTES ||
+        endMinutes > BOOKING_DAY_END_MINUTES ||
+        startMinutes % 5 !== 0 ||
+        endMinutes % 5 !== 0 ||
+        endMinutes - startMinutes < 30
+    ) return null;
     return { start: parsedStart, end: parsedEnd };
 };
 
@@ -359,6 +378,12 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         ).lean().exec();
         if (!room) return res.status(404).json({ message: "Meeting room not found or inactive" });
         const roomId = String(room._id);
+        const bookingType = String(req.body.bookingType || "Internal").toLowerCase();
+        const resourceKind = `${String(room.resourceCategory || "")} ${String(room.type || "")}`.toLowerCase();
+        const isMeetingOrConferenceRoom = resourceKind.includes("meeting") || resourceKind.includes("conference");
+        if (bookingType !== "external" && !isMeetingOrConferenceRoom) {
+            return res.status(400).json({ message: "Internal and tenant bookings can use Meeting Room or Conference Room resources only." });
+        }
 
         // ── External booking branch ───────────────────────────────────────────
         if (req.body.bookingType === "External") {
@@ -374,6 +399,26 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 paymentStatus = "Pending",
                 transactionId = "",
             } = req.body;
+
+            const normalizedPaymentMode = String(paymentMode || "").trim();
+            const isOnlinePayment = normalizedPaymentMode !== "" && normalizedPaymentMode.toLowerCase() !== "cash";
+            if (isOnlinePayment && !String(transactionId || "").trim()) {
+                return res.status(400).json({ message: "Transaction / UTR number is required for GPay payments." });
+            }
+            if (isOnlinePayment && !req.file) {
+                return res.status(400).json({ message: "Payment screenshot is required for GPay payments." });
+            }
+
+            let paymentProofUrl = "";
+            if (req.file) {
+                const safeFileName = String(req.file.originalname || "payment-proof")
+                    .replace(/[^a-zA-Z0-9._-]+/g, "-");
+                const uploadResult = await uploadFileToS3(
+                    `meeting-room-payments/${workspaceId}/${Date.now()}-${safeFileName}`,
+                    req.file,
+                );
+                paymentProofUrl = uploadResult.url || "";
+            }
 
             // 1. Validate externalClientId if provided
             if (externalClientId) {
@@ -421,9 +466,10 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 totalAmount: Number(totalAmount) || 0,
                 discountType,
                 discountValue: Number(discountValue) || 0,
-                paymentMode: paymentMode || "",
-                paymentStatus,
-                transactionId,
+                paymentMode: normalizedPaymentMode,
+                paymentStatus: normalizedPaymentMode ? "Paid" : paymentStatus,
+                transactionId: String(transactionId || "").trim(),
+                paymentProofUrl,
                 status: "confirmed",
             });
 

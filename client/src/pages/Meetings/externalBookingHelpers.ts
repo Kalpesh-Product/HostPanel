@@ -12,6 +12,8 @@
 
 export const BOOKING_SLOT_STEP_MINUTES = 5;
 export const BOOKING_MIN_DURATION_MINUTES = 30;
+export const BOOKING_DAY_START_MINUTES = 9 * 60;
+export const BOOKING_DAY_END_MINUTES = 22 * 60;
 
 // ---------------------------------------------------------------------------
 // Time utilities (replicated exactly from MeetingRoomsPage.tsx)
@@ -101,7 +103,7 @@ export function hasSlotConflict(
 /**
  * Computes all free time windows for `resourceName` on `date` that can fit
  * `desiredDurationMinutes`, stepping through the day in
- * BOOKING_SLOT_STEP_MINUTES (5-minute) increments from 00:00 to 23:55.
+ * BOOKING_SLOT_STEP_MINUTES (5-minute) increments from 09:00 to 22:00.
  *
  * Cancelled bookings are excluded from conflict consideration.
  */
@@ -124,8 +126,8 @@ export function computeAvailableSlots(
         (timeToMinutes(a.startTime) ?? 0) - (timeToMinutes(b.startTime) ?? 0),
     );
 
-  const DAY_START = 0;            // 00:00
-  const DAY_END = 23 * 60 + 55;  // 23:55
+  const DAY_START = BOOKING_DAY_START_MINUTES;
+  const DAY_END = BOOKING_DAY_END_MINUTES;
 
   // Build free windows between booked intervals
   const freeWindows: Array<{ start: number; end: number }> = [];

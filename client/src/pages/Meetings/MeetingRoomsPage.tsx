@@ -179,6 +179,10 @@ const MEETING_ROOM_EXTENSION_RATES = {
 
 const BOOKING_SLOT_STEP_MINUTES = 5;
 const BOOKING_MIN_DURATION_MINUTES = 30;
+const BOOKING_DAY_START = '09:00';
+const BOOKING_DAY_END = '22:00';
+const BOOKING_DAY_START_MINUTES = 9 * 60;
+const BOOKING_DAY_END_MINUTES = 22 * 60;
 function normalizeBookingFloor(value: string | number = '') {
   const normalized = String(value || '').trim();
   if (!normalized) return '';
@@ -501,6 +505,10 @@ function getBookingTimeValidation(dateValue: any, startTimeValue: any, endTimeVa
     return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
   }
 
+  if (startMinutes < BOOKING_DAY_START_MINUTES || startMinutes >= BOOKING_DAY_END_MINUTES) {
+    return { valid: false, reason: 'Bookings are available from 9:00 AM to 10:00 PM only.' };
+  }
+
   if (endTimeValue) {
     const endMinutes = timeToMinutes(endTimeValue);
     if (endMinutes === null) {
@@ -513,6 +521,10 @@ function getBookingTimeValidation(dateValue: any, startTimeValue: any, endTimeVa
 
     if (endMinutes <= startMinutes) {
       return { valid: false, reason: 'End time must be after start time.' };
+    }
+
+    if (endMinutes > BOOKING_DAY_END_MINUTES) {
+      return { valid: false, reason: 'Bookings must end by 10:00 PM.' };
     }
 
     if (endMinutes - startMinutes < BOOKING_MIN_DURATION_MINUTES) {
@@ -1056,6 +1068,7 @@ function ExternalBookingDialog({
     paymentMode: '',
     paymentStatus: 'Pending',
     transactionId: '',
+    paymentProofFile: null as File | null,
     discountType: 'flat' as 'flat' | 'percent',
     discountValue: '',
   });
@@ -1071,6 +1084,7 @@ function ExternalBookingDialog({
   // Filtered resource list for the resource selector
   const filteredResources = useMemo(() => {
     return roomCatalog.filter((r) => {
+      if (!isActiveRoom(r)) return false;
       if (typeFilter && r.type !== typeFilter) return false;
       if (floorFilter && r.floor !== floorFilter) return false;
       if (wingFilter && r.wing !== wingFilter) return false;
@@ -1169,6 +1183,7 @@ function ExternalBookingDialog({
       paymentMode: '',
       paymentStatus: 'Pending',
       transactionId: '',
+      paymentProofFile: null,
       discountType: 'flat',
       discountValue: '',
     });
@@ -1189,6 +1204,8 @@ function ExternalBookingDialog({
     if (!bookingForm.endTime) errors.endTime = 'End time is required.';
     if (!bookingForm.purpose.trim()) errors.purpose = 'Purpose is required.';
     if (!bookingForm.paymentMode) errors.paymentMode = 'Please select a payment mode.';
+    if (bookingForm.paymentMode !== 'Cash' && !bookingForm.transactionId.trim()) errors.transactionId = 'Transaction / UTR number is required.';
+    if (bookingForm.paymentMode !== 'Cash' && !bookingForm.paymentProofFile) errors.paymentProofFile = 'Upload the GPay payment screenshot.';
 
     // Time validation
     const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime);
@@ -1238,8 +1255,9 @@ function ExternalBookingDialog({
         discountType: bookingForm.discountType,
         discountValue: Number(bookingForm.discountValue) || 0,
         paymentMode: bookingForm.paymentMode,
-        paymentStatus: bookingForm.paymentStatus,
+        paymentStatus: 'Paid',
         transactionId: bookingForm.transactionId || '',
+        paymentProof: bookingForm.paymentProofFile,
       } as any);
 
       await onSuccess();
@@ -1544,12 +1562,12 @@ function ExternalBookingDialog({
                             const np = Object.fromEntries(nowParts.map((x) => [x.type, x.value]));
                             const nowMinutes = Number(np.hour) * 60 + Number(np.minute);
                             const minStart = Math.ceil((nowMinutes + 1) / 5) * 5;
-                            return buildTimeOptions('00:00', '23:55', 5).filter((t) => {
+                            return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES), 5).filter((t) => {
                               const tm = timeToMinutes(t);
                               return tm !== null && tm >= minStart;
                             });
                           }
-                          return buildTimeOptions('00:00', '23:55', 5);
+                          return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES), 5);
                         })().map((t) => (
                           <option key={t} value={t}>{formatTime12h(t)}</option>
                         ))}
@@ -1575,7 +1593,7 @@ function ExternalBookingDialog({
                           bookingForm.startTime
                             ? minutesToTimeString((timeToMinutes(bookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES)
                             : '00:30',
-                          '23:55',
+                          BOOKING_DAY_END,
                           5
                         ).map((t) => (
                           <option key={t} value={t}>{formatTime12h(t)}</option>
@@ -1615,14 +1633,14 @@ function ExternalBookingDialog({
                             const toTime = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
                             const sorted = [...dayBookings].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
                             const windows: { start: string; end: string }[] = [];
-                            let cursor = 0;
+                            let cursor = BOOKING_DAY_START_MINUTES;
                             sorted.forEach((b) => {
                               const bs = toMin(b.startTime);
                               const be = toMin(b.endTime);
                               if (bs > cursor) windows.push({ start: toTime(cursor), end: toTime(bs) });
                               cursor = Math.max(cursor, be);
                             });
-                            if (cursor < 23 * 60 + 55) windows.push({ start: toTime(cursor), end: '23:55' });
+                            if (cursor < BOOKING_DAY_END_MINUTES) windows.push({ start: toTime(cursor), end: BOOKING_DAY_END });
                             return windows.filter((w) => toMin(w.end) - toMin(w.start) >= BOOKING_MIN_DURATION_MINUTES);
                           })();
 
@@ -1745,7 +1763,13 @@ function ExternalBookingDialog({
                           <button
                             key={mode}
                             type="button"
-                            onClick={() => setBookingForm((f) => ({ ...f, paymentMode: mode }))}
+                            onClick={() => setBookingForm((f) => ({
+                              ...f,
+                              paymentMode: mode,
+                              paymentStatus: 'Paid',
+                              transactionId: mode === 'Cash' ? '' : f.transactionId,
+                              paymentProofFile: mode === 'Cash' ? null : f.paymentProofFile,
+                            }))}
                             className={`flex-1 py-2 rounded-xl text-[11px] font-pmedium uppercase tracking-widest transition-all
                               ${bookingForm.paymentMode === mode
                                 ? 'bg-[#2563EB] text-white shadow-sm'
@@ -1761,37 +1785,21 @@ function ExternalBookingDialog({
                       )}
                     </div>
 
-                    {/* ── Row 7: Payment Status toggle (left) + Transaction ID (right) ── */}
-                    {/* Left col: Pending / Paid toggle */}
+                    {/* ── Row 7: Payment status + online payment evidence ── */}
                     <div>
                       <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
                         Payment Status
                       </label>
-                      <div className="flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
-                        {(['Pending', 'Paid'] as const).map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            onClick={() => setBookingForm((f) => ({ ...f, paymentStatus: status }))}
-                            className={`flex-1 py-2 rounded-xl text-[11px] font-pmedium uppercase tracking-widest transition-all
-                              ${bookingForm.paymentStatus === status
-                                ? 'bg-[#2563EB] text-white shadow-sm'
-                                : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}
-                            `}
-                          >
-                            {status}
-                          </button>
-                        ))}
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-emerald-700">
+                        {bookingForm.paymentMode === 'Cash' ? 'Paid · Cash' : bookingForm.paymentMode ? `Paid · ${bookingForm.paymentMode}` : 'Select payment mode'}
                       </div>
                     </div>
 
-                    {/* Right col: Transaction ID — only shown when status is Paid */}
                     <div>
-                      {bookingForm.paymentStatus === 'Paid' ? (
+                      {bookingForm.paymentMode !== 'Cash' && bookingForm.paymentMode ? (
                         <>
                           <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
-                            Transaction ID{' '}
-                            <span className="font-normal normal-case tracking-normal text-slate-400">(optional)</span>
+                            Transaction / UTR Number <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -1803,12 +1811,28 @@ function ExternalBookingDialog({
                             placeholder="e.g. UPI ref / cheque no."
                             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
                           />
+                          {bookingErrors.transactionId && <p className="mt-1 text-[11px] font-pmedium text-red-500">{bookingErrors.transactionId}</p>}
                         </>
                       ) : (
                         /* Empty placeholder to preserve grid layout */
                         <div />
                       )}
                     </div>
+
+                    {bookingForm.paymentMode !== 'Cash' && bookingForm.paymentMode && (
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
+                          Payment Screenshot <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={(event) => setBookingForm((form) => ({ ...form, paymentProofFile: event.target.files?.[0] || null }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-pmedium text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-[10px] file:font-pmedium file:uppercase file:text-blue-700"
+                        />
+                        {bookingErrors.paymentProofFile && <p className="mt-1 text-[11px] font-pmedium text-red-500">{bookingErrors.paymentProofFile}</p>}
+                      </div>
+                    )}
 
                     {/* ── Row 7.5: Discount (full-width, col-span-2, optional) ─────── */}
                     <div className="sm:col-span-2 flex flex-col gap-1">
@@ -2226,6 +2250,13 @@ export function MeetingRoomsPage() {
     );
   }, [currentUserId]);
 
+  const isPersonalCalendarBooking = useCallback((booking: any) => {
+    if (!booking || normalize(booking.bookingType) !== 'internal') return false;
+    const inviteStatus = normalize(booking.currentInviteStatus);
+    const isVisibleInvite = inviteStatus === 'pending' || inviteStatus === 'accepted';
+    return isMyBooking(booking) || isVisibleInvite;
+  }, [isMyBooking]);
+
   const getCurrentUserInvite = useCallback((booking: any) => {
     return (booking?.invites || []).find((invite: any) => invite.invitedUserId === String(currentUserId)) || null;
   }, [currentUserId]);
@@ -2362,8 +2393,8 @@ export function MeetingRoomsPage() {
       return [];
     }
 
-    const startOfDay = 9 * 60;
-    const endOfDay = 18 * 60;
+    const startOfDay = BOOKING_DAY_START_MINUTES;
+    const endOfDay = BOOKING_DAY_END_MINUTES;
     const toMinutes = (time: any) => {
       const [hours, minutes] = (time || '00:00').split(':').map(Number);
       return hours * 60 + minutes;
@@ -2642,7 +2673,7 @@ export function MeetingRoomsPage() {
   const [externalBookingForm, setExternalBookingForm] = useState({
     name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '',
     startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash',
-    transactionId: '', discountType: 'amount', discountValue: '', notes: '',
+    transactionId: '', paymentProofFile: null as File | null, discountType: 'amount', discountValue: '', notes: '',
   });
   const [isSavingExternalBooking, setIsSavingExternalBooking] = useState(false);
   // Live client search state
@@ -2672,6 +2703,10 @@ export function MeetingRoomsPage() {
     () => roomCatalog.some((room) => isActiveRoom(room) && isMeetingCalendarRoom(room)),
     [roomCatalog],
   );
+  const hasAnyActiveBookingResource = useMemo(
+    () => roomCatalog.some((room) => isActiveRoom(room)),
+    [roomCatalog],
+  );
 
   const goToResourcePricing = () => {
     setShowBookingDialog(false);
@@ -2685,7 +2720,10 @@ export function MeetingRoomsPage() {
   };
 
   const openBookingDialog = (dialog: 'room' | 'internal' | 'external' | 'tenant') => {
-    if (!hasBookableMeetingResources) {
+    const hasRequiredResource = dialog === 'external'
+      ? hasAnyActiveBookingResource
+      : hasBookableMeetingResources;
+    if (!hasRequiredResource) {
       setShowBookingDialog(true);
       return;
     }
@@ -2755,8 +2793,8 @@ export function MeetingRoomsPage() {
   const handleNextMonth = () => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   const selectedCalendarBookings = useMemo(() => {
-    return allBookings.filter(b => b.roomName === calendarRoomFilter && b.date === selectedCalendarDateKey && b.status !== 'cancelled' && normalize(b.bookingType) !== 'tenant');
-  }, [allBookings, calendarRoomFilter, selectedCalendarDateKey]);
+    return allBookings.filter(b => b.roomName === calendarRoomFilter && b.date === selectedCalendarDateKey && b.status !== 'cancelled' && isPersonalCalendarBooking(b));
+  }, [allBookings, calendarRoomFilter, selectedCalendarDateKey, isPersonalCalendarBooking]);
 
   const selectedCalendarDateLabel = useMemo(() => {
     if (!selectedCalendarDateKey) return '';
@@ -2765,16 +2803,17 @@ export function MeetingRoomsPage() {
     return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   }, [selectedCalendarDateKey]);
 
-  const selectedCalendarHasExternalBookings = useMemo(() => {
-    return selectedCalendarBookings.some(b => normalize(b.bookingType) === 'external');
-  }, [selectedCalendarBookings]);
-
-  const canSeeCalendarBookingDetails = isOwnerProfile || isSuperAdminProfile || isAdministrationManagerProfile;
-
   // --------- FORMATTING HELPERS ---------
   const formatCurrency = (amount?: number | null) => {
     const value = Number(amount || 0);
     return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  };
+
+  const getExternalPaymentLabel = (booking: any) => {
+    const status = String(booking?.paymentStatus || 'Pending');
+    if (status.toLowerCase() !== 'paid') return status;
+    const mode = String(booking?.paymentMode || '').trim();
+    return mode ? `Paid · ${mode}` : 'Paid';
   };
 
   const formatTimeSlot = (startTime?: string, endTime?: string) => {
@@ -3061,6 +3100,7 @@ export function MeetingRoomsPage() {
   const bookingRoomsAtSelectedLocation = useMemo(() => {
     return roomCatalog.filter(r =>
       isActiveRoom(r) &&
+      isMeetingCalendarRoom(r) &&
       (!selectedBookingLocation || r.location === selectedBookingLocation) &&
       (!selectedBookingRoomType || r.type === selectedBookingRoomType) &&
       (!selectedBookingFloor || r.floor === selectedBookingFloor) &&
@@ -3071,6 +3111,7 @@ export function MeetingRoomsPage() {
   const selectedFloorRoomTypeCount = useMemo(() => {
     return roomCatalog.filter(r =>
       isActiveRoom(r) &&
+      isMeetingCalendarRoom(r) &&
       (!selectedBookingLocation || r.location === selectedBookingLocation) &&
       (!selectedBookingRoomType || r.type === selectedBookingRoomType) &&
       (!selectedBookingFloor || r.floor === selectedBookingFloor) &&
@@ -3087,66 +3128,66 @@ export function MeetingRoomsPage() {
   // --------- TIME OPTIONS ---------
   const createStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
-    if (!now || !newBooking.date) return buildTimeOptions('09:00', '22:00');
+    if (!now || !newBooking.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     const parts = getMeetingTimeZoneDateParts(newBooking.date);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
       const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
-      return buildTimeOptions(minTime, '22:00');
+      return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
-    return buildTimeOptions('09:00', '22:00');
+    return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
   }, [newBooking.date]);
 
   const createEndTimeOptions = useMemo(() => {
-    if (!newBooking.startTime) return buildTimeOptions('09:30', '23:55');
+    if (!newBooking.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(newBooking.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
-    return buildTimeOptions(minEnd, '23:55');
+    return buildTimeOptions(minEnd, BOOKING_DAY_END);
   }, [newBooking.startTime]);
 
   const tenantStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
-    if (!now || !tenantBookingForm.date) return buildTimeOptions('09:00', '22:00');
+    if (!now || !tenantBookingForm.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     const parts = getMeetingTimeZoneDateParts(tenantBookingForm.date);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
       const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
-      return buildTimeOptions(minTime, '22:00');
+      return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
-    return buildTimeOptions('09:00', '22:00');
+    return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
   }, [tenantBookingForm.date]);
 
   const tenantEndTimeOptions = useMemo(() => {
-    if (!tenantBookingForm.startTime) return buildTimeOptions('09:30', '23:55');
+    if (!tenantBookingForm.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(tenantBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
-    return buildTimeOptions(minEnd, '23:55');
+    return buildTimeOptions(minEnd, BOOKING_DAY_END);
   }, [tenantBookingForm.startTime]);
 
   const internalStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
-    if (!now || !internalBookingForm.date) return buildTimeOptions('08:00', '22:00');
+    if (!now || !internalBookingForm.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     const parts = getMeetingTimeZoneDateParts(internalBookingForm.date);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
       const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
-      return buildTimeOptions(minTime, '22:00');
+      return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
-    return buildTimeOptions('08:00', '22:00');
+    return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
   }, [internalBookingForm.date]);
 
   const externalStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
-    if (!now || !externalBookingForm.date) return buildTimeOptions('08:00', '22:00');
+    if (!now || !externalBookingForm.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     const parts = getMeetingTimeZoneDateParts(externalBookingForm.date);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
       const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
-      return buildTimeOptions(minTime, '22:00');
+      return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
-    return buildTimeOptions('08:00', '22:00');
+    return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
   }, [externalBookingForm.date]);
 
   // --------- INVITE MEMBER HELPERS ---------
@@ -3272,21 +3313,21 @@ export function MeetingRoomsPage() {
   // --------- RESCHEDULE TIME OPTIONS ---------
   const rescheduleStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
-    if (!now || !rescheduleData.date) return buildTimeOptions('09:00', '22:00');
+    if (!now || !rescheduleData.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     const parts = getMeetingTimeZoneDateParts(rescheduleData.date);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
       const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
-      return buildTimeOptions(minTime, '22:00');
+      return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
-    return buildTimeOptions('09:00', '22:00');
+    return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
   }, [rescheduleData.date]);
 
   const rescheduleEndTimeOptions = useMemo(() => {
-    if (!rescheduleData.startTime) return buildTimeOptions('09:30', '23:55');
+    if (!rescheduleData.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(rescheduleData.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
-    return buildTimeOptions(minEnd, '23:55');
+    return buildTimeOptions(minEnd, BOOKING_DAY_END);
   }, [rescheduleData.startTime]);
 
   // --------- ALL NORMALIZED ROOMS (flat list for booking dialogs) ---------
@@ -3591,6 +3632,10 @@ export function MeetingRoomsPage() {
     if (!externalBookingForm.date) return setErrorMessage('Date is required.');
     if (!externalBookingForm.startTime) return setErrorMessage('Start time is required.');
     if (!externalBookingForm.endTime) return setErrorMessage('End time is required.');
+    const externalTimeValidation = getBookingTimeValidation(externalBookingForm.date, externalBookingForm.startTime, externalBookingForm.endTime);
+    if (!externalTimeValidation.valid) return setErrorMessage(externalTimeValidation.reason);
+    if (externalBookingForm.paymentMode !== 'Cash' && !externalBookingForm.transactionId.trim()) return setErrorMessage('Transaction / UTR number is required for GPay payments.');
+    if (externalBookingForm.paymentMode !== 'Cash' && !externalBookingForm.paymentProofFile) return setErrorMessage('Upload the GPay payment screenshot.');
     setIsSavingExternalBooking(true);
     setErrorMessage('');
     try {
@@ -3608,7 +3653,9 @@ export function MeetingRoomsPage() {
         attendees: externalBookingForm.attendees,
         purpose: externalBookingForm.purpose || 'External Booking',
         paymentMode: externalBookingForm.paymentMode,
+        paymentStatus: 'Paid',
         transactionId: externalBookingForm.transactionId,
+        paymentProof: externalBookingForm.paymentProofFile,
         bookingNotes: externalBookingForm.notes,
         totalAmount: externalWalkInPricing?.total || 0,
         amountDue: externalWalkInPricing?.total || 0,
@@ -3631,7 +3678,7 @@ export function MeetingRoomsPage() {
       }
 
       setShowExternalBookingDialog(false);
-      setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash', transactionId: '', discountType: 'amount', discountValue: '', notes: '' });
+      setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash', transactionId: '', paymentProofFile: null, discountType: 'amount', discountValue: '', notes: '' });
       setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null);
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create external booking.');
@@ -4096,7 +4143,7 @@ export function MeetingRoomsPage() {
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                           : 'bg-amber-50 text-amber-700 border-amber-200'
                                       }`}>
-                                        {paymentStatus || 'Pending'}
+                                        {getExternalPaymentLabel(b)}
                                       </span>
                                     </td>
                                     <td className="px-5 py-4 text-center">
@@ -4164,7 +4211,7 @@ export function MeetingRoomsPage() {
                                   <div>
                                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Payment</span>
                                     <span className={`px-2 py-0.5 rounded text-[9px] font-pmedium uppercase border ${paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                      {paymentStatus || 'Pending'}
+                                      {getExternalPaymentLabel(b)}
                                     </span>
                                   </div>
                                 </div>
@@ -4518,7 +4565,7 @@ export function MeetingRoomsPage() {
                     {[...Array(daysInMonth)].map((_, i) => {
                       const day = i + 1;
                       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                      const dayBookings = allBookings.filter((booking) => booking.roomName === calendarRoomFilter && booking.date === dateStr && booking.status !== 'cancelled' && normalize(booking.bookingType) !== 'tenant');
+                      const dayBookings = allBookings.filter((booking) => booking.roomName === calendarRoomFilter && booking.date === dateStr && booking.status !== 'cancelled' && isPersonalCalendarBooking(booking));
                       const isSelected = selectedCalendarDateKey === dateStr;
                       const dayStyle = dayBookings.length === 0
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -4556,7 +4603,7 @@ export function MeetingRoomsPage() {
 
                     <div className="mt-4 space-y-3 max-h-56 overflow-y-auto pr-1">
                       {selectedCalendarBookings.length > 0 ? (
-                        canSeeCalendarBookingDetails && !selectedCalendarHasExternalBookings ? (
+                        (
                           selectedCalendarBookings.map((booking) => (
                             <div key={`${booking.recordId || booking.id}-${booking.startTime}-${booking.endTime}`} className="rounded-2xl bg-white border border-slate-200 p-3 shadow-sm">
                               <div className="flex items-start justify-between gap-2">
@@ -4592,16 +4639,6 @@ export function MeetingRoomsPage() {
                               </div>
                             </div>
                           ))
-                        ) : (
-                          <div className="rounded-2xl bg-white border border-slate-200 p-5 text-center">
-                            <p className="text-[12px] font-pmedium text-slate-900">Booked on this date</p>
-                            <p className="mt-1 text-[28px] font-pmedium text-primary leading-none">{selectedCalendarBookings.length}</p>
-                            <p className="mt-2 text-[10px] font-pmedium text-slate-500">
-                              {selectedCalendarHasExternalBookings
-                                ? 'External booking details are hidden for Internal company employees.'
-                                : 'Booking details are visible to the administration manager only.'}
-                            </p>
-                          </div>
                         )
                       ) : (
                         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center">
@@ -5253,7 +5290,7 @@ export function MeetingRoomsPage() {
                     </div>
 
                     {/* ── External-specific fields (Task 20) ── */}
-                    {!isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' && (
+                    {normalize(viewingBooking.bookingType) === 'external' && (
                       <div>
                         <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
                           <Users size={14} /> Client & Payment
@@ -5277,7 +5314,7 @@ export function MeetingRoomsPage() {
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                   : 'bg-amber-50 text-amber-700 border-amber-200'
                               }`}>
-                                {(viewingBooking as any).paymentStatus}
+                                {getExternalPaymentLabel(viewingBooking)}
                               </span>
                             </div>
                           )}
@@ -5285,6 +5322,19 @@ export function MeetingRoomsPage() {
                             <div>
                               <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Transaction ID</p>
                               <p className="text-[12px] font-pmedium text-slate-900 font-mono">{(viewingBooking as any).transactionId}</p>
+                            </div>
+                          )}
+                          {(viewingBooking as any).paymentProofUrl && (
+                            <div>
+                              <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Payment Screenshot</p>
+                              <a
+                                href={(viewingBooking as any).paymentProofUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium text-blue-700 transition-colors hover:bg-blue-100"
+                              >
+                                <Eye size={11} /> View Screenshot
+                              </a>
                             </div>
                           )}
                           {(Number(viewingBooking.baseAmount || 0) > 0 || Number(viewingBooking.totalAmount || 0) > 0) && (
@@ -6120,7 +6170,7 @@ export function MeetingRoomsPage() {
                       <div className="relative">
                         <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.endTime} onChange={e => setExternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
                           <option value="">Select time</option>
-                          {buildTimeOptions(externalBookingForm.startTime ? minutesToTimeString((timeToMinutes(externalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                          {buildTimeOptions(externalBookingForm.startTime ? minutesToTimeString((timeToMinutes(externalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                       </div>
@@ -6199,18 +6249,32 @@ export function MeetingRoomsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {['Cash', 'GPay (UPI)'].map(mode => (
-                      <button key={mode} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, paymentMode: mode, transactionId: mode === 'Cash' ? '' : f.transactionId }))}
+                      <button key={mode} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, paymentMode: mode, transactionId: mode === 'Cash' ? '' : f.transactionId, paymentProofFile: mode === 'Cash' ? null : f.paymentProofFile }))}
                         className={`py-3.5 rounded-2xl border text-[11px] font-pmedium uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === mode ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB]/50'}`}>
                         {mode}
                       </button>
                     ))}
                   </div>
                   {externalBookingForm.paymentMode !== 'Cash' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Transaction / UTR Number</label>
-                      <input type="text" placeholder="Enter GPay reference" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Transaction / UTR Number *</label>
+                        <input type="text" placeholder="Enter GPay reference" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Screenshot *</label>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={e => setExternalBookingForm(f => ({ ...f, paymentProofFile: e.target.files?.[0] || null }))}
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-pmedium text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[10px] file:font-pmedium file:uppercase file:text-blue-700"
+                        />
+                      </div>
                     </div>
                   )}
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-emerald-700">
+                    {externalBookingForm.paymentMode === 'Cash' ? 'Payment Status · Paid as Cash' : 'Payment Status · Paid via GPay'}
+                  </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
                     <textarea rows={2} placeholder="Any internal notes..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={externalBookingForm.notes} onChange={e => setExternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
@@ -6219,7 +6283,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-pmedium text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime || (externalBookingForm.paymentMode !== 'Cash' && (!externalBookingForm.transactionId.trim() || !externalBookingForm.paymentProofFile))} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-pmedium text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingExternalBooking ? 'Confirming...' : 'Collect Payment & Confirm'}
                 </button>
               </div>
@@ -6413,7 +6477,7 @@ export function MeetingRoomsPage() {
                       <div className="relative">
                         <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.endTime} onChange={e => setInternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
                           <option value="">Select time</option>
-                          {buildTimeOptions(internalBookingForm.startTime ? minutesToTimeString((timeToMinutes(internalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                          {buildTimeOptions(internalBookingForm.startTime ? minutesToTimeString((timeToMinutes(internalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                       </div>

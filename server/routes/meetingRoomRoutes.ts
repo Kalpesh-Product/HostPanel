@@ -1,4 +1,5 @@
 import express from "express";
+import upload from "../config/multerConfig.js";
 import {
     createMeetingRoom,
     getMeetingRooms,
@@ -40,7 +41,7 @@ router.get("/clients", getExternalClients);             // Get external clients 
 router.post("/clients", createExternalClient);          // Create external client (or return existing)
 
 // Booking Management — all /bookings/* routes before /:id wildcard
-router.post("/bookings", createBooking);                    // Create booking
+router.post("/bookings", upload.single("paymentProof"), createBooking); // Create booking
 router.get("/bookings/workspace/:workspaceId", getBookings); // All bookings in workspace
 router.get("/bookings/my", getMyBookings);                  // Current user's bookings
 router.get("/bookings/tenant-company/:tenantCompanyId", getBookingsByTenantCompany); // Bookings by tenant company

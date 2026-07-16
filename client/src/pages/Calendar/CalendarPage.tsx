@@ -30,6 +30,7 @@ interface EventInvite {
 interface EventDetails {
   roomName?: string;
   bookedByName?: string;
+  bookedForName?: string;
   department?: string;
   currentInviteStatus?: string;
   invites?: EventInvite[];
@@ -204,6 +205,7 @@ function getEventFieldGroups(event: CalendarEvent): EventFieldGroup[] {
       return [
         { label: 'Room', value: details.roomName || event.location },
         { label: 'Booked By', value: details.bookedByName },
+        ...(details.bookedForName ? [{ label: 'Host', value: details.bookedForName }] : []),
         { label: 'Department', value: details.department },
         { label: 'Invite Status', value: details.currentInviteStatus ? formatInviteStatusLabel(details.currentInviteStatus) : 'Pending' },
         { label: 'Invites', value: Array.isArray(details.invites) ? details.invites : [], renderInviteList: true },

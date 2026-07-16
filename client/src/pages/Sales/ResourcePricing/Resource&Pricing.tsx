@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2, CheckCircle2, ChevronDown, CreditCard, Download, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ChevronDown, Clock, Download, Edit2, Eye, FileDown, FileSpreadsheet, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
@@ -557,6 +557,15 @@ function statusBadge(status) {
   return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><XCircle size={12} /> Disabled</span>;
 }
 
+function FormSectionHeader({ icon: Icon, label }) {
+  return (
+    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Icon size={16} /></span>
+      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">{label}</span>
+    </h4>
+  );
+}
+
 const RESOURCE_FULL_DAY_HOURS = 24;
 
 function formatAutoPriceValue(value) {
@@ -659,6 +668,28 @@ export default function PricingPackagesPage() {
 
   const membershipPackages = useMemo(() => packages.filter((entry) => entry.category === 'Membership'), [packages]);
   const tenantPackages = useMemo(() => packages.filter((entry) => entry.category === 'Tenant'), [packages]);
+
+  // Summary cards change per tab (same pattern as the Meeting Rooms page)
+  const summaryCards = useMemo(() => {
+    const baseCardClass = 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md';
+
+    if (activeTab === 'tenant') {
+      return [
+        { key: 'pkg-total', icon: Building2, label: 'Tenant Packages', value: tenantPackages.length, cardClass: baseCardClass, iconClass: 'bg-blue-50 text-blue-600' },
+        { key: 'pkg-active', icon: CheckCircle2, label: 'Active Packages', value: tenantPackages.filter((item) => (item.status || 'Active') === 'Active').length, cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'pkg-assigned', icon: Users, label: 'Assigned To Tenants', value: tenantPackages.filter((item) => item.assignedTenantCompanyId).length, cardClass: `${baseCardClass} border-l-4 border-l-indigo-500`, iconClass: 'bg-indigo-50 text-indigo-600' },
+        { key: 'pkg-recommended', icon: Tag, label: 'Recommended', value: tenantPackages.filter((item) => item.isRecommended).length, cardClass: `${baseCardClass} border-l-4 border-l-amber-500`, iconClass: 'bg-amber-50 text-amber-600' },
+      ];
+    }
+
+    // resource tab (default)
+    return [
+      { key: 'res-total', icon: Monitor, label: 'Total Resources', value: resources.length, cardClass: baseCardClass, iconClass: 'bg-blue-50 text-blue-600' },
+      { key: 'res-active', icon: CheckCircle2, label: 'Active', value: resources.filter((item) => item.status === 'Active').length, cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: 'bg-emerald-50 text-emerald-600' },
+      { key: 'res-maintenance', icon: AlertTriangle, label: 'Under Maintenance', value: resources.filter((item) => item.status === 'Under Maintenance').length, cardClass: `${baseCardClass} border-l-4 border-l-amber-500`, iconClass: 'bg-amber-50 text-amber-600' },
+      { key: 'res-disabled', icon: XCircle, label: 'Disabled', value: resources.filter((item) => item.status === 'Disabled').length, cardClass: `${baseCardClass} border-l-4 border-l-red-500`, iconClass: 'bg-red-50 text-red-600' },
+    ];
+  }, [activeTab, resources, tenantPackages]);
   const activePackages = activeTab === 'membership' ? membershipPackages : tenantPackages;
   const isViewingPackage = modalKind === 'package' && modalMode === 'view';
   const isViewingResource = modalKind === 'resource' && modalMode === 'view';
@@ -1509,7 +1540,7 @@ export default function PricingPackagesPage() {
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
               Resource &amp; Pricing
             </h2>
-            <p className="text-xs font-pmedium text-slate-500 mt-1">Manage resources, pricing, credits, and membership packages.</p>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">Manage resources, pricing, credits, and tenant packages.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             
@@ -1550,7 +1581,8 @@ export default function PricingPackagesPage() {
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {[
             { key: 'resource', label: 'Resources' },
-            { key: 'membership', label: 'Memberships' },
+            // Memberships tab disabled — feature not implemented yet.
+            // { key: 'membership', label: 'Memberships' },
             { key: 'tenant', label: 'Tenant Packages' },
           ].map((tab) => (
             <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
@@ -1559,36 +1591,23 @@ export default function PricingPackagesPage() {
           ))}
         </div>
 
-        {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
+        {/* 3. SUMMARY CARDS (4-card grid, changes per tab — matches Meeting Rooms page) */}
         <div className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Resources Priced</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{resources.length}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Monitor size={16} /></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-indigo-600 uppercase tracking-widest mb-1">Membership Packages</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{membershipPackages.length}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600 shrink-0"><CreditCard size={16} /></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Tenant Packages</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{tenantPackages.length}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Building2 size={16} /></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Recommended</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Tag size={16} /></div>
-          </div>
+          {summaryCards.map((card) => {
+            const Icon = card.icon;
+            const labelToneClass = card.cardClass.includes('border-l')
+              ? (card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400')
+              : 'text-slate-400';
+            return (
+              <div key={card.key} className={card.cardClass}>
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
+                </div>
+                <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
@@ -1628,8 +1647,10 @@ export default function PricingPackagesPage() {
                   <Plus size={13} strokeWidth={3} /> ADD RESOURCE
                 </button>
               ) : (
-                <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
-                  <Plus size={13} strokeWidth={3} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
+                // Memberships disabled — this button always creates Tenant packages now.
+                // <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')}>ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}</button>
+                <button onClick={() => openPackageModal('Tenant')} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
+                  <Plus size={13} strokeWidth={3} /> ADD PACKAGE
                 </button>
               )}
             </div>
@@ -1994,38 +2015,40 @@ export default function PricingPackagesPage() {
         ) : null}
 
         {isModalOpen ? (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
-              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3 shrink-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
-                    {modalKind === 'resource' ? (modalMode === 'add' ? <Plus size={18} /> : isViewingResource ? <Eye size={18} /> : <Monitor size={18} />) : isViewingPackage ? <Eye size={18} /> : <Plus size={18} />}
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">
-                      {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
-                    </h2>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1 truncate">
-                      {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
-                    </p>
-                  </div>
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeModal}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={`bg-white/95 backdrop-blur-xl w-full h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'sm:max-w-5xl' : 'sm:max-w-2xl'}`}
+            >
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+
+              {/* Header */}
+              <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-xl font-pmedium text-primary tracking-tight truncate">
+                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
+                  </h2>
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-2 truncate">
+                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isViewingPackage ? (
                     <>
-                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 hover:bg-red-50 transition-colors" title="Download PDF"><FileDown size={14} /></button>
-                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Download Excel"><FileSpreadsheet size={14} /></button>
+                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-10 h-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 hover:bg-red-50 transition-colors" title="Download PDF"><FileDown size={16} /></button>
+                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-10 h-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Download Excel"><FileSpreadsheet size={16} /></button>
                     </>
                   ) : null}
-                  <button type="button" onClick={closeModal} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors"><X size={16} /></button>
+                  <button type="button" onClick={closeModal} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
                 </div>
               </div>
 
-              <form onSubmit={handleSave} className="flex-1 overflow-y-auto bg-white p-3 sm:p-4">
+              <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
+                <div className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
                 {modalKind === 'resource' && modalMode === 'add' ? (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
 
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 shadow-sm">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Resource snapshot</p>
@@ -2053,22 +2076,25 @@ export default function PricingPackagesPage() {
                       </div>
                     </div>
 
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <FormSectionHeader icon={Monitor} label="Resource Details" />
+
                     <div className="space-y-1">
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
-                      <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resource Name *</label>
+                      <input required type="text" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
                     <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-1.5">
-                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                            <input required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
                             <button type="button" onClick={() => { setLocationMode('select'); setAddResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location || ''} onChange={(e) => {
+                            <select required className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.location || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setAddResourceForm((prev) => ({ ...prev, location: '' })); return; }
                               setAddResourceForm((prev) => ({ ...prev, location: nextValue }));
@@ -2083,8 +2109,8 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
-                        <select required className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.resourceCategory} onChange={(e) => {
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category *</label>
+                        <select required className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.resourceCategory} onChange={(e) => {
                           const nextCategory = e.target.value;
                           const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
                           setAddResourceForm((prev) => ({
@@ -2102,9 +2128,9 @@ export default function PricingPackagesPage() {
 
                       {addResourceForm.resourceCategory === 'open_desk' ? (
                         <div className="space-y-1">
-                          <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Inventory *</label>
                           <div className="relative">
-                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.inventoryMode} onChange={(e) => {
+                            <select required className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.inventoryMode} onChange={(e) => {
                               const nextInventoryMode = e.target.value;
                               setAddResourceForm((prev) => ({
                                 ...prev,
@@ -2121,15 +2147,15 @@ export default function PricingPackagesPage() {
                       ) : null}
 
                       <div className="space-y-1">
-                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-1.5">
-                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                            <input required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
                             <button type="button" onClick={() => { setFloorMode('select'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor || ''} onChange={(e) => {
+                            <select required className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.floor || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); return; }
                               setAddResourceForm((prev) => ({ ...prev, floor: nextValue }));
@@ -2144,15 +2170,15 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-1.5">
-                            <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                            <input className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
                             <button type="button" onClick={() => { setWingMode('select'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
                           </div>
                         ) : (
                           <div className="relative">
-                            <select className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing || ''} onChange={(e) => {
+                            <select className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.wing || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); return; }
                               setAddResourceForm((prev) => ({ ...prev, wing: nextValue }));
@@ -2168,7 +2194,7 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                         {isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
                       {(() => {
@@ -2178,7 +2204,7 @@ export default function PricingPackagesPage() {
                         return isDeskCategory(addResourceForm.resourceCategory) && capacityOptions.length > 0 ? (
                           <div className="space-y-1.5">
                             <div className="relative">
-                              <select required disabled={isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                              <select required disabled={isSingleDeskInventory} className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
                                 {capacityOptions.map((option) => (
                                   <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
                                 ))}
@@ -2190,22 +2216,23 @@ export default function PricingPackagesPage() {
                             ) : null}
                           </div>
                         ) : (
-                          <input required type="number" min="1" placeholder="Enter capacity" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                          <input required type="number" min="1" placeholder="Enter capacity" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
                         );
                       })()}
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
-                      <textarea rows={2} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-pmedium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
+                      <textarea rows={2} className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                    </div>
                     </div>
 
-                    <div className="border-t border-slate-100 pt-3">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600 mb-2">Pricing & Credits (set by Sales)</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <FormSectionHeader icon={Tag} label="Pricing & Credits (set by Sales)" />
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-800">Price Per Hour (&#8377;)</label>
-                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour (&#8377;)</label>
+                          <input type="number" min="0" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
                             const hourly = Number(nextHour);
@@ -2214,8 +2241,8 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-800">Price Per Day (&#8377;)</label>
-                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day (&#8377;)</label>
+                          <input type="number" min="0" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
                             const daily = Number(nextDay);
@@ -2224,17 +2251,20 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-800">Credits</label>
-                          <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits</label>
+                          <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Status</label>
-                      <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
-                        {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-                      </select>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
+                        <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                          {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 ) : modalKind === 'resource' ? (
@@ -2259,22 +2289,25 @@ export default function PricingPackagesPage() {
                       </div>
                     </div>
 
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <FormSectionHeader icon={Monitor} label="Resource Details" />
+
                     <div className="space-y-1">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
-                      <input required disabled={isViewingResource} type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resource Name *</label>
+                      <input required disabled={isViewingResource} type="text" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
                     <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-2">
-                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                            <input required disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
                             {!isViewingResource && <button type="button" onClick={() => { setLocationMode('select'); setResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location || ''} onChange={(e) => {
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setResourceForm((prev) => ({ ...prev, location: '' })); return; }
                               setResourceForm((prev) => ({ ...prev, location: nextValue }));
@@ -2289,8 +2322,8 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
-                        <select required disabled={isViewingResource} className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category *</label>
+                        <select required disabled={isViewingResource} className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
                           const nextCategory = e.target.value;
                           const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
                           setResourceForm((prev) => ({
@@ -2308,9 +2341,9 @@ export default function PricingPackagesPage() {
 
                       {resourceForm.resourceCategory === 'open_desk' ? (
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Inventory *</label>
                           <div className="relative">
-                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
                               const nextInventoryMode = e.target.value;
                               setResourceForm((prev) => ({
                                 ...prev,
@@ -2327,15 +2360,15 @@ export default function PricingPackagesPage() {
                       ) : null}
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-2">
-                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                            <input required disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
                             {!isViewingResource && <button type="button" onClick={() => { setFloorMode('select'); setResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
-                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor || ''} onChange={(e) => {
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setResourceForm((prev) => ({ ...prev, floor: '' })); return; }
                               setResourceForm((prev) => ({ ...prev, floor: nextValue }));
@@ -2350,15 +2383,15 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-2">
-                            <input disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                            <input disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
                             {!isViewingResource && <button type="button" onClick={() => { setWingMode('select'); setResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>}
                           </div>
                         ) : (
                           <div className="relative">
-                            <select disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-pmedium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing || ''} onChange={(e) => {
+                            <select disabled={isViewingResource} className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing || ''} onChange={(e) => {
                               const nextValue = e.target.value;
                               if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setResourceForm((prev) => ({ ...prev, wing: '' })); return; }
                               setResourceForm((prev) => ({ ...prev, wing: nextValue }));
@@ -2374,7 +2407,7 @@ export default function PricingPackagesPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                         {isDeskCategory(resourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
                       {(() => {
@@ -2384,7 +2417,7 @@ export default function PricingPackagesPage() {
                         return isDeskCategory(resourceForm.resourceCategory) && capacityOptions.length > 0 ? (
                           <div className="space-y-2">
                             <div className="relative">
-                              <select required disabled={isViewingResource || isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-pmedium text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                              <select required disabled={isViewingResource || isSingleDeskInventory} className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
                                 {capacityOptions.map((option) => (
                                   <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
                                 ))}
@@ -2396,22 +2429,23 @@ export default function PricingPackagesPage() {
                             ) : null}
                           </div>
                         ) : (
-                          <input required disabled={isViewingResource} type="number" min="1" placeholder="Enter capacity" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-pmedium text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                          <input required disabled={isViewingResource} type="number" min="1" placeholder="Enter capacity" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
                         );
                       })()}
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
-                      <textarea disabled={isViewingResource} rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
+                      <textarea disabled={isViewingResource} rows={3} className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                    </div>
                     </div>
 
-                    <div className="border-t border-slate-100 pt-4">
-                      <p className="text-[11px] font-pmedium uppercase tracking-widest text-amber-600 mb-3">Pricing & Credits (set by Sales)</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <FormSectionHeader icon={Tag} label="Pricing & Credits (set by Sales)" />
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[11px] font-pmedium text-slate-800">Price Per Hour (&#8377;)</label>
-                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour (&#8377;)</label>
+                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
                             const hourly = Number(nextHour);
@@ -2420,8 +2454,8 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[11px] font-pmedium text-slate-800">Price Per Day (&#8377;)</label>
-                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day (&#8377;)</label>
+                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
                             const daily = Number(nextDay);
@@ -2430,17 +2464,20 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[11px] font-pmedium text-slate-800">Credits</label>
-                          <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits</label>
+                          <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Status</label>
-                      <select disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
-                        {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-                      </select>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
+                        <select disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                          {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                        </select>
+                      </div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -2461,7 +2498,7 @@ export default function PricingPackagesPage() {
                     <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Package Details</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Package Details</p>
                           <h3 className="mt-1 text-lg font-pmedium text-slate-900">{selectedPackage.name || '--'}</h3>
                           <p className="mt-0.5 text-[12px] font-pmedium text-slate-600">{viewPackageCategory} Package</p>
                           {selectedPackage.assignedTenantCompanyName ? (
@@ -2521,7 +2558,7 @@ export default function PricingPackagesPage() {
 
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Scope</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Scope</p>
                             <dl className="mt-3 space-y-3">
                               {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor) ? (
                                 <div>
@@ -2551,7 +2588,7 @@ export default function PricingPackagesPage() {
                           </div>
 
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Allocation</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Allocation</p>
                             <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                               {hasMeaningfulValue(viewPackageOpenDesks) ? (
                                 <div>
@@ -2595,7 +2632,7 @@ export default function PricingPackagesPage() {
 
                         {viewPackageLocationMappings.length > 0 ? (
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Included Blocks</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Included Blocks</p>
                             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {viewPackageLocationMappings.map((mapping) => (
                                 <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
@@ -2616,14 +2653,14 @@ export default function PricingPackagesPage() {
 
                         {hasMeaningfulValue(selectedPackage.description) ? (
                           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description</p>
                             <p className="mt-1 text-[12px] leading-relaxed text-slate-700">{selectedPackage.description}</p>
                           </div>
                         ) : null}
 
                         {viewPackageFeatures.length > 0 ? (
                           <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Feature Bullets</p>
                             <ul className="mt-2 space-y-1.5">
                               {viewPackageFeatures.map((feature) => (
                                 <li key={feature} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-pmedium text-slate-700">
@@ -2645,7 +2682,7 @@ export default function PricingPackagesPage() {
                           ) : null}
                           {hasMeaningfulValue(viewPackagePrice) ? (
                             <div className="rounded-xl border border-slate-200 bg-white p-3">
-                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Price</p>
+                              <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price</p>
                               <p className="mt-1 text-base font-pmedium text-slate-900">{formatCurrency(viewPackagePrice)}</p>
                             </div>
                           ) : null}
@@ -2658,7 +2695,7 @@ export default function PricingPackagesPage() {
                         </div>
 
                         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Summary</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Summary</p>
                           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {hasMeaningfulValue(viewPackageTotalSeats) ? (
                               <div>
@@ -2689,14 +2726,14 @@ export default function PricingPackagesPage() {
 
                         {hasMeaningfulValue(selectedPackage.description) ? (
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description</p>
                             <p className="mt-2 text-sm leading-relaxed text-slate-700">{selectedPackage.description}</p>
                           </div>
                         ) : null}
 
                         {viewPackageFeatures.length > 0 ? (
                           <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Feature Bullets</p>
                             <ul className="mt-3 space-y-2">
                               {viewPackageFeatures.map((feature) => (
                                 <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-pmedium text-slate-700">
@@ -2711,32 +2748,32 @@ export default function PricingPackagesPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[13px] font-pmedium text-slate-400">Package Name *</label>
-                      <input
-                        required
-                        type="text"
-                        disabled={isTenantPackageRateEdit}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                        value={packageForm.name}
-                        onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))}
-                      />
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <FormSectionHeader icon={Tag} label="Package Details" />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Package Name *</label>
+                        <input
+                          required
+                          type="text"
+                          disabled={isTenantPackageRateEdit}
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                          value={packageForm.name}
+                          onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))}
+                        />
+                      </div>
                     </div>
 
                     {packageForm.category === 'Tenant' ? (
                       <div className="space-y-4">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
-                          <div className="mb-3 flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white"><Building2 size={14} /></div>
-                            <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-700">Location Scope</p>
-                          </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                          <FormSectionHeader icon={Building2} label="Location Scope" />
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div className="space-y-1">
-                              <label className="text-[11px] font-pmedium text-slate-400">Floor *</label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor *</label>
                               <select
                                 required
                                 disabled={isTenantPackageRateEdit}
-                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                 value={packageForm.floor}
                                 onChange={(e) => {
                                   const nextFloor = e.target.value;
@@ -2748,10 +2785,10 @@ export default function PricingPackagesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-pmedium text-slate-400">Wing (Optional)</label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing (Optional)</label>
                               <select
                                 disabled={isTenantPackageRateEdit}
-                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                 value={packageForm.wing}
                                 onChange={(e) => updateTenantScopeSelection(packageForm.floor, e.target.value.toUpperCase())}
                               >
@@ -2760,10 +2797,10 @@ export default function PricingPackagesPage() {
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-pmedium text-slate-400">Block Mix</label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Block Mix</label>
                               <select
                                 disabled={isTenantPackageRateEdit}
-                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                 value={tenantSelectionPreset}
                                 onChange={(e) => handleTenantSelectionPresetChange(e.target.value)}
                               >
@@ -2860,32 +2897,30 @@ export default function PricingPackagesPage() {
                           </div>
                         )}
 
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-                          <div className="mb-3 flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white">
-                              <Tag size={14} />
-                            </div>
-                            <p className="text-[11px] font-pmedium uppercase tracking-widest text-amber-800">Tenant Package Rates</p>
-                          </div>
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-4">
+                          <h4 className="flex items-center gap-2.5 border-b border-amber-200/80 pb-2">
+                            <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0"><Tag size={16} /></span>
+                            <span className="text-[12px] font-pmedium text-amber-800 uppercase tracking-[0.16em]">Tenant Package Rates</span>
+                          </h4>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1">
-                              <label className="text-[11px] font-pmedium text-amber-800">Open Desk Rate / Day *</label>
+                              <label className="text-[10px] font-pmedium text-amber-700 uppercase tracking-widest">Open Desk Rate / Day *</label>
                               <input
                                 required
                                 type="number"
                                 min="0"
-                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                                 value={packageForm.ratePerOpenDesk}
                                 onChange={(e) => setPackageForm((current) => ({ ...current, ratePerOpenDesk: e.target.value }))}
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-pmedium text-amber-800">Cabin Desk Rate / Day *</label>
+                              <label className="text-[10px] font-pmedium text-amber-700 uppercase tracking-widest">Cabin Desk Rate / Day *</label>
                               <input
                                 required
                                 type="number"
                                 min="0"
-                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                                 value={packageForm.ratePerCabinDesk}
                                 onChange={(e) => setPackageForm((current) => ({ ...current, ratePerCabinDesk: e.target.value }))}
                               />
@@ -2941,26 +2976,26 @@ export default function PricingPackagesPage() {
                     ) : (
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1">
-                          <label className="text-[13px] font-pmedium text-slate-400">Credits Included *</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits Included *</label>
                           <input
                             required
                             type="number"
                             min="0"
                             disabled={isTenantPackageRateEdit}
-                            className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                            className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                             value={packageForm.creditsIncluded}
                             onChange={(e) => setPackageForm((current) => ({ ...current, creditsIncluded: e.target.value }))}
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[13px] font-pmedium text-slate-400">Price (₹) *</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price (₹) *</label>
                           <input
                             required
                             type="number"
                             min="0"
                             disabled={isTenantPackageRateEdit}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                             value={packageForm.price}
                             onChange={(e) => setPackageForm((current) => ({ ...current, price: e.target.value }))}
                           />
@@ -2970,21 +3005,24 @@ export default function PricingPackagesPage() {
 
                     )}
 
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <FormSectionHeader icon={Clock} label="Billing & Duration" />
+
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-[13px] font-pmedium text-slate-400">Duration (months)</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Duration (months)</label>
                         <input
                           required
                           type="number"
                           min={packageForm.category === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1}
                           disabled={isTenantPackageRateEdit}
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                           value={packageForm.durationMonths}
                           onChange={(e) => setPackageForm((current) => ({ ...current, durationMonths: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[13px] font-regular text-slate-400">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                           {packageForm.category === 'Tenant' ? 'Seats Included (auto-calculated)' : 'Seats Included (optional)'}
                         </label>
                         <input
@@ -2992,9 +3030,9 @@ export default function PricingPackagesPage() {
                           min="0"
                           readOnly={packageForm.category === 'Tenant'}
                           disabled={isTenantPackageRateEdit}
-                          className={`w-full px-3 py-2.5 border rounded-xl text-[12px] font-pmedium outline-none transition-all ${packageForm.category === 'Tenant'
+                          className={`w-full px-3 py-2 border rounded-lg text-[12px] font-pmedium outline-none transition-all ${packageForm.category === 'Tenant'
                             ? 'cursor-not-allowed border-dashed border-emerald-200 bg-emerald-50 text-emerald-900'
-                            : 'bg-slate-50 border-slate-200 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10'
+                            : 'bg-white border-slate-200/60 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]'
                             }`}
                           value={packageForm.category === 'Tenant' ? computedTotalSeats : packageForm.seatsIncluded}
                           onChange={(e) => setPackageForm((current) => ({ ...current, seatsIncluded: e.target.value }))}
@@ -3002,50 +3040,61 @@ export default function PricingPackagesPage() {
                       </div>
                     </div>
 
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <FormSectionHeader icon={FileText} label="Description & Features" />
+
                     <div className="space-y-1">
-                      <label className="text-[13px] font-pmedium text-slate-400">Description</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description</label>
                       <textarea
                         rows={3}
                         disabled={isTenantPackageRateEdit}
-                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                         value={packageForm.description}
                         onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))}
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[13px] font-pmedium text-slate-400">Feature Bullets</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Feature Bullets</label>
                       <textarea
                         rows={4}
                         placeholder="One feature per line"
                         disabled={isTenantPackageRateEdit}
-                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                         value={packageForm.featuresText}
                         onChange={(e) => setPackageForm((current) => ({ ...current, featuresText: e.target.value }))}
                       />
                     </div>
 
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <FormSectionHeader icon={CheckCircle2} label="Status & Visibility" />
+
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-[13px] font-pmedium text-slate-400">Status</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
                         <select
                           disabled={isTenantPackageRateEdit}
-                          className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           value={packageForm.status}
                           onChange={(e) => setPackageForm((current) => ({ ...current, status: e.target.value }))}
                         >
                           {packageStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                         </select>
                       </div>
-                      <label className="h-10 mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                      <label className="mt-6 flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200/60 bg-white px-3 py-2">
                         <input
                           type="checkbox"
                           disabled={isTenantPackageRateEdit}
                           checked={packageForm.isRecommended}
                           onChange={(e) => setPackageForm((current) => ({ ...current, isRecommended: e.target.checked }))}
                         />
-                        <span className="text-[13px] font-pmedium text-slate-600">Mark as recommended</span>
+                        <span className="text-[12px] font-pmedium text-slate-600">Mark as recommended</span>
                       </label>
+                    </div>
                     </div>
 
                     {packageForm.category === 'Tenant' ? (
@@ -3059,26 +3108,26 @@ export default function PricingPackagesPage() {
                   </div>
                 )}
 
-                <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={closeModal}
-                      className={`flex-1 rounded-xl border py-2.5 text-[11px] font-pmedium transition-all ${
-                        isViewingPackage || isViewingResource
-                          ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
-                          : 'border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50'
-                      }`}
-                    >
-                      {isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}
+                </div>
+
+                <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className={`flex-1 px-6 py-2.5 rounded-xl font-pmedium text-[10px] uppercase tracking-wider transition-all ${
+                      isViewingPackage || isViewingResource
+                        ? 'bg-[#2563EB] text-white shadow-sm hover:bg-blue-700'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {isViewingPackage || isViewingResource ? 'Close Details' : 'Cancel'}
+                  </button>
+                  {!isViewingPackage && !isViewingResource ? (
+                    <button type="submit" disabled={isSaving} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
+                      {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                      {isSaving ? 'Saving...' : modalKind === 'resource' && modalMode === 'add' ? 'Create Resource' : isTenantPackageRateEdit ? 'Save Desk Prices' : 'Save Configuration'}
                     </button>
-                    {!isViewingPackage && !isViewingResource ? (
-                      <button type="submit" disabled={isSaving} className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-pmedium text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
-                        {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                        {isSaving ? 'SAVING...' : modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
-                      </button>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
               </form>
             </div>

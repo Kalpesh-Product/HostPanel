@@ -746,6 +746,10 @@ const PageDemo = () => {
     () => parseCareersFormFields(draft?.careersFormFields),
     [draft?.careersFormFields],
   );
+  const careersApplyDialCode = useMemo(() => {
+    const phonecode = applyCountryList.find((c) => c.isoCode === careersApplyForm.country)?.phonecode || "";
+    return phonecode ? `+${String(phonecode).replace(/^\+/, "")}` : "";
+  }, [applyCountryList, careersApplyForm.country]);
 
   useEffect(() => {
     const loadDraft = () => {
@@ -3103,7 +3107,10 @@ const PageDemo = () => {
                             payload.append("fullName", careersApplyForm.fullName);
                             payload.append("email", careersApplyForm.email);
                             payload.append("dateOfBirth", careersApplyForm.dateOfBirth);
-                            payload.append("phone", careersApplyForm.phone);
+                            payload.append(
+                              "phone",
+                              [careersApplyDialCode, careersApplyForm.phone.trim()].filter(Boolean).join(" "),
+                            );
                             payload.append("country", careersApplyForm.country);
                             payload.append("state", careersApplyForm.state);
                             payload.append("city", careersApplyForm.city);
@@ -3142,19 +3149,13 @@ const PageDemo = () => {
                           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
                         />
                         <input
-                          type="date"
+                          type="text"
                           required
-                          placeholder="Date of Birth *"
+                          placeholder="Date of Birth (DOB) *"
                           value={careersApplyForm.dateOfBirth}
+                          onFocus={(e) => { e.target.type = "date"; }}
+                          onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
                           onChange={(e) => setCareersApplyForm((p) => ({ ...p, dateOfBirth: e.target.value }))}
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
-                        />
-                        <input
-                          type="tel"
-                          required
-                          placeholder="Mobile Number *"
-                          value={careersApplyForm.phone}
-                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, phone: e.target.value }))}
                           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
                         />
                         {/* Country */}
@@ -3195,6 +3196,20 @@ const PageDemo = () => {
                             <option key={c.name} value={c.name}>{c.name}</option>
                           ))}
                         </select>
+                        {/* Mobile number: dial code follows the selected country. */}
+                        <div className="flex w-full items-stretch overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-[#111827]">
+                          <span className={`flex shrink-0 items-center border-r border-slate-300 bg-slate-50 px-3 text-[13px] font-medium ${careersApplyDialCode ? "text-[#111827]" : "text-[#9ca3af]"}`}>
+                            {careersApplyDialCode || "+ --"}
+                          </span>
+                          <input
+                            type="tel"
+                            required
+                            placeholder={careersApplyDialCode ? "Mobile Number *" : "Select country for code *"}
+                            value={careersApplyForm.phone}
+                            onChange={(e) => setCareersApplyForm((p) => ({ ...p, phone: e.target.value.replace(/[^\d\s-]/g, "") }))}
+                            className="w-full px-3 py-2 text-[13px] outline-none"
+                          />
+                        </div>
                         <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-[13px]">
                           <label className="flex cursor-pointer items-center justify-between gap-3">
                             <span className="font-medium text-[#111827]">

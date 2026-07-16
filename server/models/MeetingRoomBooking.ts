@@ -44,6 +44,7 @@ export interface IMeetingRoomBooking extends Document {
     totalAmount: number;
 
     paymentStatus: string;
+    paymentMode?: string;
     transactionId?: string;
     paymentProofUrl?: string;
 
@@ -170,6 +171,7 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
         totalAmount: { type: Number, default: 0, min: 0 },
 
         paymentStatus: { type: String, default: "Pending" },
+        paymentMode: { type: String, trim: true, default: "" },
         transactionId: String,
         paymentProofUrl: String,
 
