@@ -25,7 +25,10 @@ const verifyJwt = (req, res, next) => {
   const token = authorization.split(" ")[1];
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (err, decoded) => {
     if (err) {
-      return res.sendStatus(403);
+      return res.status(403).json({
+        code: err?.name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "TOKEN_INVALID",
+        message: err?.name === "TokenExpiredError" ? "Access token expired." : "Invalid access token.",
+      });
     }
     try {
       req.isImpersonated = Boolean(decoded?.impersonation);

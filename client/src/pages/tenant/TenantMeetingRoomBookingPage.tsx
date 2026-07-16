@@ -562,8 +562,8 @@ export default function TenantMeetingRoomBookingPage() {
     try {
       await createMeetingRoomBooking({
         roomId: selectedRoom.recordId,
-        start: `${bookingForm.date}T${bookingForm.startTime}:00`,
-        end: `${bookingForm.date}T${bookingForm.endTime}:00`,
+        start: `${bookingForm.date}T${bookingForm.startTime}:00+05:30`,
+        end: `${bookingForm.date}T${bookingForm.endTime}:00+05:30`,
         purpose: bookingForm.purpose.trim(),
         attendees: Number(bookingForm.attendees || 1),
         inviteeUserIds: selectedInviteeIds,

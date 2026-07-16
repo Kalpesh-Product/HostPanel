@@ -1276,6 +1276,7 @@ const CreateWebsite = () => {
                         : null;
                     return ({
                       ...defaultProduct,
+                      _id: persisted?._id ? String(persisted._id) : undefined,
                       type: String(item?.type || "").trim(),
                       name: String(item?.name || "").trim(),
                       subtitle: String(item?.subtitle || "").trim(),
@@ -1288,6 +1289,7 @@ const CreateWebsite = () => {
                 : Array.isArray(found?.products) && found.products.length
                   ? found.products.map((item: any) => ({
                       ...defaultProduct,
+                      _id: item?._id ? String(item._id) : undefined,
                       type: String(item?.type || "").trim(),
                       name: String(item?.name || "").trim(),
                       subtitle: String(item?.subtitle || "").trim(),
@@ -1795,22 +1797,39 @@ const CreateWebsite = () => {
       }
     };
 
-    // Replace structured arrays with JSON
-    const productsMeta = (values.products || [])
-      .map((p) => ({
+    // Replace structured arrays with JSON. Keep a single filtered list so the
+    // JSON payload and the productImages_<i> file fields share the same index.
+    const productsForSubmit = (values.products || []).filter(
+      (p) =>
+        (Array.isArray(p?.files) && p.files.length > 0) ||
+        [p.type, p.name, p.subtitle, p.cost, p.description].some((value) =>
+          String(value || "").trim(),
+        ),
+    );
+    const productsMeta = productsForSubmit.map((p) => {
+      const persistedImages = (p.files || []).filter(
+        (item: any) => item && !(item instanceof File),
+      );
+      const imageIds = persistedImages
+        .map((item: any) => item?.id || item?._id)
+        .filter(Boolean);
+      return {
+        // _id lets the server match the existing product so its uploaded
+        // images survive the edit instead of being recreated empty.
+        ...(p._id ? { _id: p._id } : {}),
         type: p.type,
         name: p.name,
         subtitle: p.subtitle,
         cost: p.cost,
         description: p.description,
-        __hasFiles: Array.isArray(p?.files) && p.files.length > 0,
-      }))
-      .filter((p) =>
-        p.__hasFiles ||
-        [p.type, p.name, p.subtitle, p.cost, p.description]
-          .some((value) => String(value || "").trim()),
-      )
-      .map(({ __hasFiles, ...rest }) => rest);
+        // imageIds tells the server which persisted images the user kept.
+        // Only send it when every kept image resolved to an id — otherwise
+        // the server would treat the unresolved ones as removals.
+        ...(p._id && imageIds.length === persistedImages.length
+          ? { imageIds }
+          : {}),
+      };
+    });
     const testimonialsMeta = (values.testimonials || []).map((t) => ({
       name: t.name,
       jobPosition: t.jobPosition,
@@ -1871,7 +1890,7 @@ const CreateWebsite = () => {
         if (file instanceof File) fd.append(`dormImages_${i}`, file);
       });
     });
-    (values.products || []).forEach((p, i) => {
+    productsForSubmit.forEach((p, i) => {
       (p.files || []).forEach((file) => {
         if (file instanceof File) fd.append(`productImages_${i}`, file);
       });

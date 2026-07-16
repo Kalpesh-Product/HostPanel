@@ -24,9 +24,19 @@ export interface DashboardAccessResult {
 export default function useDashboardAccess(): DashboardAccessResult {
   const axiosPrivate = useAxiosPrivate();
   const { auth } = useAuth();
+  const user = auth?.user as any;
+  const cacheScope = String(
+    user?.workspaceMembership?.workspace ||
+      user?.primaryWorkspace ||
+      user?.workspaceId ||
+      user?._id ||
+      user?.id ||
+      user?.email ||
+      "anonymous",
+  );
 
   const { data, isLoading } = useQuery({
-    queryKey: ["workspace-module-access-map"],
+    queryKey: ["workspace-module-access-map", cacheScope],
     queryFn: async () => {
       const res = await axiosPrivate.get("/api/workspaces/module-access-map");
       return res?.data?.data ?? res?.data ?? {};

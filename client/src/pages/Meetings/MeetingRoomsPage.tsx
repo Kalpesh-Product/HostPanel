@@ -1,9 +1,9 @@
 ﻿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
   Eye, Plus, X, CheckCircle2, AlertCircle, CalendarClock, XCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Building2,
-  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe
+  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe, Tag, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '../../components/Pages/PageFrame';
@@ -1217,8 +1217,8 @@ function ExternalBookingDialog({
       if (!room) throw new Error('Selected resource not found. Please reselect.');
 
       const roomId = String(room._id ?? room.id ?? '');
-      const start = `${bookingForm.date}T${bookingForm.startTime}:00`;
-      const end = `${bookingForm.date}T${bookingForm.endTime}:00`;
+      const start = `${bookingForm.date}T${bookingForm.startTime}:00+05:30`;
+      const end = `${bookingForm.date}T${bookingForm.endTime}:00+05:30`;
 
       await createMeetingRoomBooking({
         bookingType: 'External',
@@ -1953,6 +1953,7 @@ export function MeetingRoomsPage() {
   const storedUser = getStoredUser();
   const actingContext = getStoredActingManagerContext(storedUser);
   const location = useLocation();
+  const navigate = useNavigate();
   // FRONTEND PREVIEW: Default to 'owner' role when no user is stored in localStorage.
   // TODO: Remove this fallback when auth is wired up.
   const membershipRole = (storedUser?.workspaceMembership?.role || storedUser?.role || 'owner').toLowerCase();
@@ -2667,6 +2668,38 @@ export function MeetingRoomsPage() {
 
   // --------- ROOM CATALOG (normalized list) ---------
   const roomCatalog = useMemo(() => roomDetails.map((room: any) => normalizeRoomEntry(room)), [roomDetails]);
+  const hasBookableMeetingResources = useMemo(
+    () => roomCatalog.some((room) => isActiveRoom(room) && isMeetingCalendarRoom(room)),
+    [roomCatalog],
+  );
+
+  const goToResourcePricing = () => {
+    setShowBookingDialog(false);
+    setShowInternalBookingDialog(false);
+    setShowExternalBookingDialog(false);
+    setShowNewExternalBookingDialog(false);
+    setShowTenantBookingDialog(false);
+    navigate('/sales-crm/resource-pricing', {
+      state: { from: '/meeting-rooms', intent: 'add-meeting-resource' },
+    });
+  };
+
+  const openBookingDialog = (dialog: 'room' | 'internal' | 'external' | 'tenant') => {
+    if (!hasBookableMeetingResources) {
+      setShowBookingDialog(true);
+      return;
+    }
+    if (dialog === 'room') {
+      setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' }));
+      setShowBookingDialog(true);
+    } else if (dialog === 'internal') {
+      setShowInternalBookingDialog(true);
+    } else if (dialog === 'external') {
+      setShowNewExternalBookingDialog(true);
+    } else {
+      setShowTenantBookingDialog(true);
+    }
+  };
 
   // --------- EXTERNAL (WALK-IN) PRICING ---------
   const externalWalkInPricing = useMemo(() => {
@@ -2748,7 +2781,7 @@ export function MeetingRoomsPage() {
     const fmt = (t?: string) => formatTime12h(t || '');
     if (!startTime && !endTime) return '';
     if (!endTime) return fmt(startTime);
-    return `${fmt(startTime)} --- ${fmt(endTime)}`;
+    return `${fmt(startTime)} to ${fmt(endTime)}`;
   };
 
   const formatTimeOptionLabel = (timeValue: string) => formatTime12h(timeValue);
@@ -2770,7 +2803,7 @@ export function MeetingRoomsPage() {
 
   const buildBookingDateTime = (date?: string, time?: string) => {
     if (!date || !time) return '';
-    return `${date}T${time}:00`;
+    return `${date}T${time}:00+05:30`;
   };
 
   const selectedRoom = (roomName?: string) => {
@@ -2797,7 +2830,7 @@ export function MeetingRoomsPage() {
     if (room.wing) parts.push(`Wing ${room.wing}`);
     if (room.capacity) parts.push(`${room.capacity} seats`);
     if (!isActiveRoom(room)) parts.push('(Unavailable)');
-    return parts.join(' --- ');
+    return parts.join(' - ');
   };
 
   // --------- MANAGE OWN BOOKING PERMISSIONS ---------
@@ -2821,8 +2854,8 @@ export function MeetingRoomsPage() {
   const getInviteMeetingLabel = (booking: any) => {
     if (!booking?.isInvitedMeeting) return '';
     const status = booking.currentInviteStatus;
-    if (status === 'accepted') return 'Invited --- Accepted';
-    if (status === 'rejected') return 'Invited --- Rejected';
+    if (status === 'accepted') return 'Invited - Accepted';
+    if (status === 'rejected') return 'Invited - Rejected';
     return 'Invited';
   };
 
@@ -3774,6 +3807,27 @@ export function MeetingRoomsPage() {
               </div>
             ) : null}
 
+            {!hasBookableMeetingResources && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white text-amber-700 shadow-sm">
+                    <AlertTriangle size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-pmedium text-amber-950">Add a meeting or conference room before accepting bookings.</p>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Sales Department → Resource & Pricing</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={goToResourcePricing}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-amber-800 shadow-sm ring-1 ring-amber-200 transition-all hover:bg-amber-100"
+                >
+                  <Tag size={13} /> Add Resources <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+
             {/* 2. MAIN TABS */}
             <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {[
@@ -3883,22 +3937,22 @@ export function MeetingRoomsPage() {
 
                   <div className="flex items-center shrink-0">
                     {mainBookingTab === 'my_bookings' && (
-                      <button onClick={() => { setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' })); setShowBookingDialog(true); }} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
+                      <button onClick={() => openBookingDialog('room')} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
                         <Plus size={14} strokeWidth={3} /> BOOK A ROOM
                       </button>
                     )}
                     {mainBookingTab === 'internal_booking' && (
-                      <button onClick={() => setShowInternalBookingDialog(true)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
+                      <button onClick={() => openBookingDialog('internal')} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
                         <UserPlus size={14} strokeWidth={3} /> BOOK FOR MEMBER
                       </button>
                     )}
                     {mainBookingTab === 'external_booking' && (
-                      <button onClick={() => setShowNewExternalBookingDialog(true)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
+                      <button onClick={() => openBookingDialog('external')} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
                         <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
                       </button>
                     )}
                     {mainBookingTab === 'tenant_bookings' && (
-                      <button onClick={() => setShowTenantBookingDialog(true)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
+                      <button onClick={() => openBookingDialog('tenant')} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
                         <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
                       </button>
                     )}
@@ -4640,6 +4694,32 @@ export function MeetingRoomsPage() {
                 </button>
               </div>
 
+              {!hasBookableMeetingResources ? (
+                <div className="flex flex-1 flex-col items-center justify-center bg-slate-50/50 px-5 py-10 text-center sm:px-8">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-[#2563EB] shadow-sm">
+                    <Building2 size={24} />
+                  </div>
+                  <p className="mt-5 text-base font-pmedium text-slate-950">No meeting resources are available yet</p>
+                  <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                    Add an active Meeting Room or Conference Room before creating a booking. You can manage these resources under Sales Department → Resource & Pricing.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={goToResourcePricing}
+                    className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]"
+                  >
+                    <Tag size={14} /> Add Meeting Resources <ArrowRight size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBookingDialog(false)}
+                    className="mt-3 text-[10px] font-pmedium uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-700"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+              <>
               <div className="px-3 py-5 sm:px-4 sm:py-6 md:px-5 md:py-8 space-y-5 overflow-y-auto flex-1 bg-slate-50/30">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
                   <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 pb-2">
@@ -5042,6 +5122,8 @@ export function MeetingRoomsPage() {
                   {isSavingBooking ? 'Saving...' : 'Confirm Booking'}
                 </button>
               </div>
+              </>
+              )}
             </motion.div>
           </div>
         )}
@@ -6000,7 +6082,7 @@ export function MeetingRoomsPage() {
                           <div className="relative">
                             <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.roomName} onChange={e => setExternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
                               <option value="">-- Choose a Room --</option>
-                              {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
+                              {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? `  Floor ${room.floor}` : ''}{room.wing ? `  Wing ${room.wing}` : ''}{room.capacity ? `  ${room.capacity} seats` : ''}</option>)}
                               {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
                             </select>
                             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
@@ -6293,7 +6375,7 @@ export function MeetingRoomsPage() {
                             <div className="relative">
                               <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.roomName} onChange={e => setInternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
                                 <option value="">-- Choose a Room --</option>
-                                {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
+                                {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? `  Floor ${room.floor}` : ''}{room.wing ? `  Wing ${room.wing}` : ''}{room.capacity ? `  ${room.capacity} seats` : ''}</option>)}
                                 {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
                               </select>
                               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
@@ -6647,7 +6729,7 @@ export function MeetingRoomsPage() {
                               <div className="relative">
                                 <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))}>
                                   <option value="">-- Choose a Room --</option>
-                                  {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
+                                  {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? `  Floor ${room.floor}` : ''}{room.wing ? `  Wing ${room.wing}` : ''}{room.capacity ? `  ${room.capacity} seats` : ''}</option>)}
                                   {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
                                 </select>
                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
