@@ -2,6 +2,11 @@
 import { Router } from "express";
 import upload, { uploadImages } from "../config/multerConfig.js";
 import { checkAndDeductCredit } from "../middlewares/creditCheck.js";
+import {
+  acquireWebsiteEditLock,
+  getWebsiteEditLock,
+  releaseWebsiteEditLock,
+} from "../controllers/websiteControllers/websiteEditLockControllers.js";
 
 import {
   createTemplate,
@@ -16,6 +21,9 @@ import {
 } from "../controllers/websiteControllers/websiteTemplateControllers.js";
 
 const router = Router();
+router.post("/editing-lock/acquire", acquireWebsiteEditLock);
+router.get("/editing-lock", getWebsiteEditLock);
+router.post("/editing-lock/release", releaseWebsiteEditLock);
 router.post(
   "/create-website",
   uploadImages.any(),
