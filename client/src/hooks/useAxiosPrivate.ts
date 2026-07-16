@@ -27,7 +27,7 @@ export default function useAxiosPrivate() {
         const errorCode = error?.response?.data?.code;
         const errorMessage = error?.response?.data?.message;
 
-        if (error?.response?.status === 403 && (errorCode === "ACCOUNT_DISABLED" || errorCode === "ACCESS_DENIED" || errorCode === "ACCOUNT_DELETED")) {
+        if (error?.response?.status === 403 && (errorCode === "ACCOUNT_DISABLED" || errorCode === "ACCOUNT_DELETED")) {
           setAuth((prevState) => ({
             ...prevState,
             accessToken: "",
@@ -57,16 +57,24 @@ export default function useAxiosPrivate() {
           return Promise.reject(error);
         }
 
-        if (error?.response?.status === 403 && !prevRequest.sent) {
+        const shouldRefreshAccessToken =
+          error?.response?.status === 401 ||
+          (error?.response?.status === 403 &&
+            (errorCode === "TOKEN_EXPIRED" || errorCode === "TOKEN_INVALID"));
+
+        if (shouldRefreshAccessToken && prevRequest && !prevRequest.sent) {
           prevRequest.sent = true;
-          const authData = await refresh();
-          if (!authData?.accessToken) {
+          try {
+            const authData = await refresh();
+            if (!authData?.accessToken) {
+              return Promise.reject(error);
+            }
+            prevRequest.headers = prevRequest.headers || {};
+            prevRequest.headers["Authorization"] = `Bearer ${authData.accessToken}`;
+            return axiosPrivate(prevRequest);
+          } catch {
             return Promise.reject(error);
           }
-          prevRequest.headers[
-            "Authorization"
-          ] = `Bearer ${authData?.accessToken}`;
-          return axiosPrivate(prevRequest);
         }
         return Promise.reject(error);
       }

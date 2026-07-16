@@ -74,9 +74,28 @@ const transformBooking = (booking: any, currentUserId?: string) => {
     };
 };
 
+const INDIA_TIME_OFFSET = "+05:30";
+
+/**
+ * Meeting-room forms submit an India-local wall time such as
+ * `2026-07-16T13:00:00`. JavaScript otherwise interprets that value in the
+ * server's own timezone (UTC on Vercel), shifting it by +5:30 when displayed
+ * back in India. Attach the IST offset to timezone-less inputs while leaving
+ * real ISO instants (`Z` / explicit offsets) and Date values untouched.
+ */
+export const parseMeetingRoomDateTime = (value: any): Date => {
+    if (value instanceof Date) return new Date(value.getTime());
+    if (typeof value !== "string") return new Date(value);
+
+    const normalized = value.trim();
+    const hasExplicitTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+    const isLocalDateTime = /^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(normalized);
+    return new Date(isLocalDateTime && !hasExplicitTimeZone ? `${normalized}${INDIA_TIME_OFFSET}` : normalized);
+};
+
 const parseDateRange = (start: any, end: any) => {
-    const parsedStart = new Date(start);
-    const parsedEnd = new Date(end);
+    const parsedStart = parseMeetingRoomDateTime(start);
+    const parsedEnd = parseMeetingRoomDateTime(end);
     if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime()) || parsedEnd <= parsedStart) return null;
     return { start: parsedStart, end: parsedEnd };
 };

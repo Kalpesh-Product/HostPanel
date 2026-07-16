@@ -17,11 +17,14 @@ import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 import { setAuthTabSessionActive } from "../../utils/authSession";
 import { setTabRefreshToken } from "../../utils/refreshTokenSession";
 import { setStoredTenantRole } from "../../lib/tenant-session";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearUserSessionData } from "../../utils/clearUserSessionData";
 
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -169,6 +172,10 @@ const LoginPage = () => {
         }
       }
 
+      // A login can follow another account in the same SPA session. Remove
+      // every prior user's query data and legacy workspace-plan fallback first.
+      queryClient.clear();
+      clearUserSessionData();
       setAuth((prevState) => {
         return {
           ...prevState,
@@ -451,5 +458,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
-
 
