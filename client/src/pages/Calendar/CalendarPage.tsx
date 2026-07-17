@@ -16,6 +16,7 @@ import {
 import { getMyCalendar } from '@/services/calendar';
 import Skeleton from '@/components/ui/Skeleton';
 import PageFrame from '@/components/Pages/PageFrame';
+import useModuleAccessMap from '@/hooks/useModuleAccessMap';
 import { statusPillClass } from '../../lib/status-pill';
 
 type EventType = 'booking' | 'task' | 'ticket' | 'leave' | 'holiday';
@@ -29,6 +30,7 @@ interface EventInvite {
 interface EventDetails {
   roomName?: string;
   bookedByName?: string;
+  bookedForName?: string;
   department?: string;
   currentInviteStatus?: string;
   invites?: EventInvite[];
@@ -100,6 +102,9 @@ const META: Record<string, EventMeta> = {
   holiday: { label: 'Holiday', icon: CalendarIcon, tone: 'bg-rose-100 text-rose-700 border-rose-200' },
 };
 
+const ALL_EVENT_FILTERS: Array<'all' | EventType> = ['all', 'booking', 'task', 'ticket', 'leave', 'holiday'];
+const PROFESSIONAL_EVENT_FILTERS: Array<'all' | EventType> = ['all', 'booking', 'ticket', 'holiday'];
+
 function getEventTypeIcon(type: string) {
   switch (type) {
     case 'booking': return CalendarDays;
@@ -153,6 +158,26 @@ function formatEventCardDateLabel(event: CalendarEvent): string {
   return shortStart;
 }
 
+function formatCalendarTime(value?: string): string {
+  if (!value?.trim()) return 'All day';
+
+  const formatTimePart = (part: string) => {
+    const match = part.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+    if (!match) return part.trim();
+
+    const rawHour = Number(match[1]);
+    const minute = Number(match[2]);
+    const existingPeriod = match[3]?.toUpperCase();
+    if (minute > 59 || rawHour > (existingPeriod ? 12 : 23)) return part.trim();
+
+    const period = existingPeriod || (rawHour >= 12 ? 'PM' : 'AM');
+    const hour = rawHour % 12 || 12;
+    return `${hour}:${String(minute).padStart(2, '0')} ${period}`;
+  };
+
+  return value.split(/\s+-\s+/).map(formatTimePart).join(' - ');
+}
+
 function formatValue(value: unknown, fallback = '—'): string {
   if (Array.isArray(value)) return value.filter(Boolean).join(', ') || fallback;
   if (value === null || value === undefined || value === '') return fallback;
@@ -180,6 +205,7 @@ function getEventFieldGroups(event: CalendarEvent): EventFieldGroup[] {
       return [
         { label: 'Room', value: details.roomName || event.location },
         { label: 'Booked By', value: details.bookedByName },
+        ...(details.bookedForName ? [{ label: 'Host', value: details.bookedForName }] : []),
         { label: 'Department', value: details.department },
         { label: 'Invite Status', value: details.currentInviteStatus ? formatInviteStatusLabel(details.currentInviteStatus) : 'Pending' },
         { label: 'Invites', value: Array.isArray(details.invites) ? details.invites : [], renderInviteList: true },
@@ -384,6 +410,7 @@ const summaryCards = [
 ] as const;
 
 function UnifiedCalendar() {
+  const { workspacePlan, isLoading: isWorkspacePlanLoading } = useModuleAccessMap();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [calendarFeed, setCalendarFeed] = useState<CalendarFeed>({
@@ -397,6 +424,14 @@ function UnifiedCalendar() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const visibleEventFilters = workspacePlan === 'custom' ? ALL_EVENT_FILTERS : PROFESSIONAL_EVENT_FILTERS;
+  const isEventTypeVisible = (type: EventType) => visibleEventFilters.includes(type);
+
+  useEffect(() => {
+    if (workspacePlan !== 'custom' && (filterType === 'task' || filterType === 'leave')) {
+      setFilterType('all');
+    }
+  }, [filterType, workspacePlan]);
 
   useEffect(() => {
     let isMounted = true;
@@ -512,7 +547,7 @@ function UnifiedCalendar() {
 
   const getEventsForDate = (date: Date) => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const allForDate = [...(calendarFeed?.events || []), ...holidayEvents];
+    const allForDate = [...(calendarFeed?.events || []), ...holidayEvents].filter((event) => isEventTypeVisible(event.type));
     return allForDate.filter(event => {
       const matchesDate = event.date && dateStr >= event.date && dateStr <= (event.endDate || event.date);
       const matchesFilter = filterType === 'all' || event.type === filterType;
@@ -533,7 +568,7 @@ function UnifiedCalendar() {
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
   const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const allEvents = [...(calendarFeed?.events || []), ...holidayEvents];
+  const allEvents = [...(calendarFeed?.events || []), ...holidayEvents].filter((event) => isEventTypeVisible(event.type));
   const filteredEvents = allEvents.filter(event => {
     const matchesFilter = filterType === 'all' || event.type === filterType;
     const matchesSearch = searchQuery === '' || getEventSearchText(event).includes(searchQuery.toLowerCase());
@@ -546,8 +581,12 @@ function UnifiedCalendar() {
     ? `Events on ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
     : `Upcoming in ${monthName}`;
 
-  const showLoadingState = isLoading && (calendarFeed?.events || []).length === 0;
+  const showLoadingState = isLoading || isWorkspacePlanLoading;
   const summary = calendarFeed?.summary;
+  const visibleSummaryCards = summaryCards.filter((card) => {
+    if (workspacePlan === 'custom') return true;
+    return card.key === 'holidays' || card.key === 'bookings' || card.key === 'tickets';
+  });
 
   if (showLoadingState) {
     return (
@@ -569,7 +608,9 @@ function UnifiedCalendar() {
                 Calendar
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Unified view of all your bookings, tasks, tickets, and leave requests
+                {workspacePlan === 'custom'
+                  ? 'Unified view of your bookings, tasks, tickets, leave requests, and holidays'
+                  : 'Unified view of your bookings, tickets, and holidays'}
               </p>
             </div>
           </div>
@@ -580,8 +621,8 @@ function UnifiedCalendar() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
-            {summaryCards.map((card) => {
+          <div className={`grid grid-cols-2 gap-3 mb-3 shrink-0 ${workspacePlan === 'custom' ? 'md:grid-cols-5' : 'md:grid-cols-3'}`}>
+            {visibleSummaryCards.map((card) => {
               const Icon = card.icon;
               return (
                 <div key={card.key} className={card.cardClass}>
@@ -631,7 +672,7 @@ function UnifiedCalendar() {
                 </div>
 
                 <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {['all', 'booking', 'task', 'ticket', 'leave', 'holiday'].map(type => (
+                  {visibleEventFilters.map(type => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
@@ -746,7 +787,7 @@ function UnifiedCalendar() {
                             <h4 className="font-bold text-slate-950 text-[12px] mb-1 group-hover:text-[#2563EB] transition-colors">{event.title}</h4>
                             <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500">
                               <Clock size={11} />
-                              {event.time || 'All day'}
+                              {formatCalendarTime(event.time)}
                             </div>
                             <div className="mt-0.5 flex items-center gap-2 text-[11px] font-medium text-slate-500">
                               <CalendarDays size={11} />
@@ -796,120 +837,125 @@ function UnifiedCalendar() {
       </PageFrame>
 
       {showEventModal && selectedEvent && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-white rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden">
-            <div className={`${getEventTypeColor(selectedEvent.type)} p-6 border-b border-opacity-20`}>
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0F172A]/40 p-3 backdrop-blur-sm"
+          onClick={() => { setShowEventModal(false); setSelectedEvent(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-event-title"
+            className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`${getEventTypeColor(selectedEvent.type)} border-b border-opacity-20 p-5`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-white/50 rounded-xl">
-                    {(() => { const Icon = getEventTypeIcon(selectedEvent.type); return <Icon size={20} />; })()}
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/60 shadow-sm">
+                    {(() => { const Icon = getEventTypeIcon(selectedEvent.type); return <Icon size={16} />; })()}
                   </div>
-                  <div>
-                    <div className="text-[10px] font-pmedium uppercase tracking-wider opacity-70 mb-1">
+                  <div className="min-w-0">
+                    <div className="mb-1 text-[9px] font-pmedium uppercase tracking-widest opacity-70">
                       {META[selectedEvent.type]?.label || selectedEvent.type}
                     </div>
-                    <h2 className="text-2xl font-black">{selectedEvent.title}</h2>
+                    <h2 id="calendar-event-title" className="truncate text-base font-pmedium">{selectedEvent.title}</h2>
                   </div>
                 </div>
-                <button onClick={() => { setShowEventModal(false); setSelectedEvent(null); }} className="p-2 hover:bg-white/50 rounded-xl transition-colors">
-                  <X size={20} />
+                <button
+                  type="button"
+                  aria-label="Close event details"
+                  onClick={() => { setShowEventModal(false); setSelectedEvent(null); }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/60 bg-white/40 transition-colors hover:bg-white/70"
+                >
+                  <X size={16} />
                 </button>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                  <div className="p-3 bg-white rounded-xl">
-                    <Clock size={20} className="text-[#2563EB]" />
+            <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 font-pmedium">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+                    <Clock size={14} className="text-[#2563EB]" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Date & Time</p>
-                    <p className="font-bold text-slate-950">{formatEventDateLabel(selectedEvent)}</p>
-                    <p className="text-sm font-medium text-slate-500">{selectedEvent.time || 'All day'}</p>
+                    <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date & Time</p>
+                    <p className="text-[12px] font-pmedium text-slate-950">{formatEventDateLabel(selectedEvent)}</p>
+                    <p className="text-[11px] font-pmedium text-slate-500">{formatCalendarTime(selectedEvent.time)}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                  <div className="p-3 bg-white rounded-xl">
-                    <CalendarIcon size={20} className="text-[#2563EB]" />
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+                    <CalendarIcon size={14} className="text-[#2563EB]" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Module</p>
-                    <p className="font-bold text-slate-950">{META[selectedEvent.type]?.label || selectedEvent.type}</p>
-                    <p className="text-sm font-medium text-slate-500 capitalize">{selectedEvent.type}</p>
+                    <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Module</p>
+                    <p className="text-[12px] font-pmedium capitalize text-slate-950">{META[selectedEvent.type]?.label || selectedEvent.type}</p>
+                    {/* {selectedEvent.reference && <p className="truncate text-[11px] font-pmedium text-slate-500">{selectedEvent.reference}</p>} */}
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {getEventFieldGroups(selectedEvent).map((field) => {
                   if (field.renderInviteList) {
                     return (
-                      <div key={field.label} className="lg:col-span-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="p-3 bg-white rounded-xl">
-                            <Users size={20} className="text-[#2563EB]" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">{field.label}</p>
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                              {(field.value as EventInvite[]).length ? (field.value as EventInvite[]).map((invite, index) => (
-                                <div key={`${field.label}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-xs font-bold text-slate-950">{invite.invitedName || 'Guest'}</p>
-                                    {invite.invitedRole && <p className="truncate text-[11px] font-medium text-slate-500">{invite.invitedRole}</p>}
-                                  </div>
-                                  <span className={statusPillClass(formatInviteStatusLabel(invite.status))}>
-                                    {formatInviteStatusLabel(invite.status)}
-                                  </span>
-                                </div>
-                              )) : (
-                                <span className="text-sm font-medium text-slate-500">-</span>
-                              )}
+                      <div key={field.label} className="sm:col-span-2 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                        <div className="mb-2 flex items-center gap-2 border-b border-slate-200/70 pb-2">
+                          <Users size={13} className="text-[#2563EB]" />
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">{field.label}</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {(field.value as EventInvite[]).length ? (field.value as EventInvite[]).map((invite, index) => (
+                            <div key={`${field.label}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-[11px] font-pmedium text-slate-950">{invite.invitedName || 'Guest'}</p>
+                                {invite.invitedRole && <p className="truncate text-[10px] font-pmedium text-slate-500">{invite.invitedRole}</p>}
+                              </div>
+                              <span className={statusPillClass(formatInviteStatusLabel(invite.status))}>
+                                {formatInviteStatusLabel(invite.status)}
+                              </span>
                             </div>
-                          </div>
+                          )) : (
+                            <span className="text-[11px] font-pmedium text-slate-500">-</span>
+                          )}
                         </div>
                       </div>
                     );
                   }
                   const isFullWidth = Boolean(field.fullWidth);
                   return (
-                    <div key={field.label} className={`${isFullWidth ? 'lg:col-span-2' : ''} rounded-2xl border border-slate-100 bg-slate-50/80 p-4`}>
-                      <div className="flex items-start gap-4">
-                        <div className="p-3 bg-white rounded-xl">
-                          <MapPin size={20} className="text-[#2563EB]" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">{field.label}</p>
-                          <p className="font-bold text-slate-950">{formatValue(field.value)}</p>
-                        </div>
-                      </div>
+                    <div key={field.label} className={`${isFullWidth ? 'sm:col-span-2' : ''} rounded-2xl border border-slate-100 bg-slate-50/60 p-3`}>
+                      <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">{field.label}</p>
+                      <p className="break-words text-[12px] font-pmedium text-slate-950">{formatValue(field.value)}</p>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="flex flex-wrap items-center gap-6">
-                {selectedEvent.priority && (
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Priority</p>
-                    {getPriorityBadge(selectedEvent.priority)}
-                  </div>
-                )}
-                {selectedEvent.status && (
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Status</p>
-                    {getStatusBadge(selectedEvent.status)}
-                  </div>
-                )}
-              </div>
+              {(selectedEvent.priority || selectedEvent.status) && (
+                <div className="flex flex-wrap items-center gap-5 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                  {selectedEvent.priority && (
+                    <div>
+                      <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Priority</p>
+                      {getPriorityBadge(selectedEvent.priority)}
+                    </div>
+                  )}
+                  {selectedEvent.status && (
+                    <div>
+                      <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Status</p>
+                      {getStatusBadge(selectedEvent.status)}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedEvent.description && selectedEvent.type !== 'leave' && (
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                  <p className="mb-2 border-b border-slate-200/70 pb-2 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
                     Description
                   </p>
-                  <p className="text-sm font-medium text-slate-950 bg-slate-50 p-4 rounded-xl">{selectedEvent.description}</p>
+                  <p className="whitespace-pre-wrap text-[12px] font-pmedium leading-relaxed text-slate-950">{selectedEvent.description}</p>
                 </div>
               )}
             </div>

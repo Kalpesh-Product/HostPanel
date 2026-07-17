@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { clearAuthTabSession } from "../utils/authSession";
 import { clearTabRefreshToken, getTabRefreshToken } from "../utils/refreshTokenSession";
 import { clearStoredTenantRole } from "../lib/tenant-session";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearUserSessionData } from "../utils/clearUserSessionData";
 
 export default function useLogout() {
-  const { setAuth, auth } = useAuth();
+  const { setAuth } = useAuth();
   const navigate = useNavigate();
-  const user = auth.user;
+  const queryClient = useQueryClient();
 
   const logout = async () => {
     try {
@@ -23,6 +25,10 @@ export default function useLogout() {
           : undefined,
       });
       toast.success("Successfully signed out");
+    } catch (error: any) {
+      // Signing out locally must not depend on the server being reachable.
+      toast.error(error?.message || "Signed out locally. Server session cleanup failed.");
+    } finally {
       setAuth((prevState) => {
         return {
           ...prevState,
@@ -33,15 +39,11 @@ export default function useLogout() {
       clearAuthTabSession();
       clearTabRefreshToken();
       clearStoredTenantRole();
-      try {
-        localStorage.removeItem("hostpanel_tenant_company_id");
-        localStorage.removeItem("hostpanel_tenant_company_name");
-      } catch { /* noop */ }
+      clearUserSessionData();
+      queryClient.clear();
 
       navigate("/", { replace: true });
       window.history.pushState(null, "", "/");
-    } catch (error) {
-      toast.error(error.message);
     }
   };
   return logout;

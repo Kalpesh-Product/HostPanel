@@ -557,3 +557,80 @@ export function HRExitManagementSkeleton() {
     </div>
   );
 }
+
+export function VisitorManagementSkeleton() {
+  return (
+    <div
+      className="animate-pulse p-2 text-[#0F172A] lg:p-2.5"
+      role="status"
+      aria-label="Loading visitor management"
+      aria-busy="true"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="mb-3 space-y-2">
+          <div className="h-7 w-56 rounded-md bg-gray-200" />
+          <div className="h-4 w-full max-w-2xl rounded-md bg-gray-100" />
+        </div>
+
+        <div className="mb-3 grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-9 rounded-xl bg-gray-200" />
+          ))}
+        </div>
+
+        <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex h-[86px] items-center justify-between rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm"
+            >
+              <div className="space-y-2">
+                <div className="h-3 w-24 rounded-md bg-gray-200" />
+                <div className="h-5 w-10 rounded-md bg-gray-200" />
+              </div>
+              <div className="h-9 w-9 rounded-2xl bg-gray-100" />
+            </div>
+          ))}
+        </div>
+
+        <div className="min-h-[500px] overflow-hidden rounded-2xl border border-slate-100 bg-white/80 shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-8 w-20 rounded-xl bg-gray-200" />
+              ))}
+            </div>
+            <div className="flex w-full flex-wrap gap-3 lg:w-auto lg:flex-nowrap">
+              <div className="h-10 min-w-[180px] flex-1 rounded-lg bg-gray-200 lg:w-56" />
+              <div className="h-10 w-44 rounded-2xl bg-gray-200" />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <div className="min-w-[900px]">
+              <div className="grid grid-cols-8 gap-5 border-b border-slate-100 bg-slate-50/50 px-5 py-4">
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <div key={index} className="h-3 rounded-md bg-gray-200" />
+                ))}
+              </div>
+              {Array.from({ length: 6 }).map((_, rowIndex) => (
+                <div
+                  key={rowIndex}
+                  className="grid grid-cols-8 items-center gap-5 border-b border-slate-100/60 px-5 py-4"
+                >
+                  {Array.from({ length: 8 }).map((_, columnIndex) => (
+                    <div
+                      key={columnIndex}
+                      className={`h-4 rounded-md bg-gray-100 ${columnIndex === 1 ? "w-4/5" : "w-full"}`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <span className="sr-only">Loading visitor management</span>
+    </div>
+  );
+}

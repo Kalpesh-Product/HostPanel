@@ -28,16 +28,33 @@ import {
   Download, Printer, Lock, Home
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
+import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
 
 function formatTimeLabel(value) {
   if (!value) return '';
+
+  const timeOnlyMatch = String(value).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (timeOnlyMatch) {
+    const hour = Number(timeOnlyMatch[1]);
+    const minute = Number(timeOnlyMatch[2]);
+    if (hour <= 23 && minute <= 59) {
+      const period = hour >= 12 ? 'PM' : 'AM';
+      return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${period}`;
+    }
+  }
+
   const date =
     value instanceof Date
       ? value
       : new Date(String(value).includes('T') ? String(value) : `1970-01-01T${value}`);
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  return date.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 function getFlagUrl(isoCode = '') {
@@ -141,18 +158,35 @@ function formatDateKey(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function formatDisplayDate(value) {
   if (!value) return '';
   const date = new Date(value);
   if (!Number.isNaN(date.getTime())) {
-    return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+    return date.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    });
   }
   const fallback = new Date(`${value}T12:00:00`);
   if (Number.isNaN(fallback.getTime())) return String(value);
-  return fallback.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  return fallback.toLocaleDateString('en-US', {
+    timeZone: 'Asia/Kolkata',
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
 }
 
 function toTitleCase(value = '') {
@@ -176,8 +210,8 @@ function getMonthYearFromValue(value) {
   }
 
   return {
-    month: date.toLocaleDateString('en-US', { month: 'long' }),
-    year: date.toLocaleDateString('en-US', { year: 'numeric' }),
+    month: date.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', month: 'long' }),
+    year: date.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric' }),
   };
 }
 
@@ -1075,6 +1109,7 @@ export default function VisitorsManagementPage() {
   const [availabilityStatus, setAvailabilityStatus] = useState('idle');
   const [extendAvailability, setExtendAvailability] = useState('idle');
   const [isVisitorOverviewLoading, setIsVisitorOverviewLoading] = useState(true);
+  const [hasLoadedVisitorOverview, setHasLoadedVisitorOverview] = useState(false);
   const [visitorOverviewError, setVisitorOverviewError] = useState('');
   const [isSubmittingVisitor, setIsSubmittingVisitor] = useState(false);
   const [bookingConfirmation, setBookingConfirmation] = useState(null);
@@ -1242,6 +1277,7 @@ export default function VisitorsManagementPage() {
       } finally {
         if (!isCancelled) {
           setIsVisitorOverviewLoading(false);
+          setHasLoadedVisitorOverview(true);
         }
       }
     }
@@ -2974,10 +3010,11 @@ export default function VisitorsManagementPage() {
           attendees: bookingAttendees,
           seatNumber: isDeskAreaSeatBooking ? walkInSeatNumber : undefined,
           paymentMode: form.paymentMode,
-          paymentStatus: form.paymentMode === 'Cash' ? 'Cash Collected' : 'Payment Completed',
+          paymentStatus: 'Paid',
           financeStatus: form.paymentMode === 'Cash' ? 'Invoice Pending' : 'Sent To Finance',
           paymentVerificationStatus: form.paymentMode === 'Cash' ? '' : 'Pending',
           transactionId: form.transactionId.trim(),
+          paymentProof: form.paymentProofFile,
           discountType: walkInPricing.discountType === 'percent' ? 'percent' : 'flat',
           discountValue: walkInPricing.discountValue,
           discountAmount: walkInPricing.discountAmount,
@@ -3444,6 +3481,14 @@ export default function VisitorsManagementPage() {
     if (normalized === 'cancelled' || normalized === 'canceled') return 'bg-red-50 text-red-600 border-red-200';
     return 'bg-blue-50 text-blue-600 border-blue-200';
   };
+
+  if (isVisitorOverviewLoading && !hasLoadedVisitorOverview) {
+    return (
+      <PageFrame>
+        <VisitorManagementSkeleton />
+      </PageFrame>
+    );
+  }
 
   return (
     <>

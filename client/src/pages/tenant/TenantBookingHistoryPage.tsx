@@ -557,8 +557,8 @@ export default function TenantBookingHistoryPage() {
     setIsSaving(true); setErrorMessage('');
     try {
       await updateMeetingRoomBooking(rescheduleModal.recordId, {
-        start: `${rescheduleForm.date}T${rescheduleForm.startTime}:00`,
-        end: `${rescheduleForm.date}T${rescheduleForm.endTime}:00`,
+        start: `${rescheduleForm.date}T${rescheduleForm.startTime}:00+05:30`,
+        end: `${rescheduleForm.date}T${rescheduleForm.endTime}:00+05:30`,
         scheduleChangeType: 'rescheduled',
         inviteeUserIds: rescheduleInviteeIds,
       });
@@ -579,7 +579,7 @@ export default function TenantBookingHistoryPage() {
     const currentEndStr = extendModal?.endTime || extendModal?.checkOut || '';
     const currentEndMin = timeToMinutes(currentEndStr);
     const nextEndMin = minutesToTimeString((currentEndMin || 0) + extra);
-    const nextEndISO = `${extendDate}T${nextEndMin}:00`;
+    const nextEndISO = `${extendDate}T${nextEndMin}:00+05:30`;
     setIsSaving(true); setErrorMessage('');
     try {
       await updateMeetingRoomBooking(extendModal.recordId, {

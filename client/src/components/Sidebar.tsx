@@ -58,6 +58,7 @@ import useAuth from "../hooks/useAuth";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useLogout from "../hooks/useLogout";
 import PrimaryButton from "./PrimaryButton";
+import Skeleton from "./ui/Skeleton";
 import { PLAN_UI_DATA } from "../pages/WorkspaceSetup/workspaceSetupPlans";
 import {
   getEnabledModuleIdsForPlan,
@@ -564,6 +565,60 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
   );
 };
 
+const SidebarLoadingSkeleton = ({ collapsed }: { collapsed: boolean }) => (
+  <div
+    className={`space-y-5 py-1 ${collapsed ? "px-1" : "px-2"}`}
+    role="status"
+    aria-label="Loading sidebar navigation"
+    aria-busy="true"
+  >
+    {[4, 3].map((itemCount, sectionIndex) => (
+      <div key={`sidebar-skeleton-section-${sectionIndex}`} className="space-y-2">
+        {collapsed ? (
+          <>
+            <Skeleton className="mx-auto h-3 w-7 rounded-sm bg-gray-300" />
+            <div className="h-px bg-gray-300" />
+          </>
+        ) : (
+          <Skeleton className={`mx-2 h-3 ${sectionIndex === 0 ? "w-24" : "w-20"} rounded-sm bg-gray-300`} />
+        )}
+        {Array.from({ length: itemCount }).map((_, itemIndex) => (
+          <div
+            key={`sidebar-skeleton-item-${sectionIndex}-${itemIndex}`}
+            className={`flex h-9 items-center ${collapsed ? "justify-center px-2" : "gap-3 px-3"}`}
+          >
+            <Skeleton className="h-4 w-4 shrink-0 rounded-sm" />
+            {!collapsed && <Skeleton className={`h-3 ${itemIndex % 2 === 0 ? "w-28" : "w-20"} rounded-sm`} />}
+          </div>
+        ))}
+      </div>
+    ))}
+
+    <div className={`flex h-9 items-center ${collapsed ? "justify-center px-2" : "gap-3 px-3"}`}>
+      <Skeleton className="h-4 w-4 shrink-0 rounded-sm" />
+      {!collapsed && <Skeleton className="h-3 w-16 rounded-sm" />}
+    </div>
+
+    <div className="space-y-2 border-t border-gray-300 pt-4">
+      {collapsed ? (
+        <Skeleton className="mx-auto h-3 w-7 rounded-sm bg-gray-300" />
+      ) : (
+        <Skeleton className="mx-auto h-3 w-14 rounded-sm bg-gray-300" />
+      )}
+      {Array.from({ length: 2 }).map((_, itemIndex) => (
+        <div
+          key={`sidebar-skeleton-general-${itemIndex}`}
+          className={`flex h-9 items-center ${collapsed ? "justify-center px-2" : "gap-3 px-3"}`}
+        >
+          <Skeleton className="h-4 w-4 shrink-0 rounded-sm" />
+          {!collapsed && <Skeleton className={`h-3 ${itemIndex === 0 ? "w-16" : "w-20"} rounded-sm`} />}
+        </div>
+      ))}
+    </div>
+    <span className="sr-only">Loading sidebar navigation</span>
+  </div>
+);
+
 export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const { isSidebarOpen } = useSidebar();
   const { auth } = useAuth();
@@ -737,6 +792,7 @@ useEffect(() => {
   const isSectionOpenByDefault = (sectionKey: string) =>
     planLabel === "basic" ||
     sectionKey === "common-modules" ||
+    sectionKey === "department-accesses" ||
     (planLabel === "professional" &&
       (sectionKey === "key-apps" || sectionKey === "founder-core-modules"));
   const upgradePlanOptions =
@@ -1217,39 +1273,21 @@ useEffect(() => {
         } h-[90vh] bg-[#f1f5f9] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
     >
       <div className="px-4 py-3 flex justify-center">
-        <span className="text-[10px] font-pmedium tracking-wider text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">
-          {collapsed ? planLabel[0].toUpperCase() : `Plan - ${planLabel}`}
-        </span>
+        {isSidebarHydrated ? (
+          <span className="text-[10px] font-pmedium tracking-wider text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">
+            {collapsed ? planLabel[0].toUpperCase() : `Plan - ${planLabel}`}
+          </span>
+        ) : (
+          <Skeleton
+            className={`${collapsed ? "h-6 w-6" : "h-6 w-24"} rounded-full bg-gray-300`}
+            aria-hidden="true"
+          />
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
         {!isSidebarHydrated ? (
-          <div className="space-y-4 px-2 py-1 animate-pulse">
-            <div className="space-y-2">
-              <div className="h-3 w-24 rounded bg-gray-300/70 mx-2" />
-              {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={`sidebar-skeleton-top-${idx}`} className="h-9 rounded-md bg-gray-200" />
-              ))}
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 w-16 rounded bg-gray-300/70 mx-2" />
-              {Array.from({ length: 3 }).map((_, idx) => (
-                <div key={`sidebar-skeleton-mid-${idx}`} className="h-9 rounded-md bg-gray-200" />
-              ))}
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 w-20 rounded bg-gray-300/70 mx-2" />
-              {Array.from({ length: 2 }).map((_, idx) => (
-                <div key={`sidebar-skeleton-low-${idx}`} className="h-9 rounded-md bg-gray-200" />
-              ))}
-            </div>
-            <div className="mt-3 border-t border-gray-300/70 pt-3 space-y-2">
-              <div className="h-3 w-14 rounded bg-gray-300/70 mx-2" />
-              {Array.from({ length: 2 }).map((_, idx) => (
-                <div key={`sidebar-skeleton-general-${idx}`} className="h-9 rounded-md bg-gray-200" />
-              ))}
-            </div>
-          </div>
+          <SidebarLoadingSkeleton collapsed={collapsed} />
         ) : (
           (() => {
             const rawSections = mappedSections.length > 0
@@ -1458,7 +1496,7 @@ useEffect(() => {
             ))
         )}
 
-        {planLabel === "basic" && (
+        {isSidebarHydrated && planLabel === "basic" && (
           <div className="space-y-1 px-1">
             <NavGroup
               item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
@@ -1470,7 +1508,7 @@ useEffect(() => {
           </div>
         )}
 
-        <div>
+        {isSidebarHydrated && <div>
           {!collapsed ? (
             <div className="flex items-center justify-center px-3 mb-2">
               <div className="h-px bg-gray-300 flex-1" />
@@ -1494,15 +1532,15 @@ useEffect(() => {
               />
             ))}
           </div>
-        </div>
+        </div>}
       </div>
 
-      <div className="p-4 border-t border-gray-200 hover:bg-gray-200 cursor-pointer transition-colors mt-auto">
+      {/* <div className="p-4 border-t border-gray-200 hover:bg-gray-200 cursor-pointer transition-colors mt-auto">
         <div className="flex items-center gap-3 text-gray-700">
           <Handshake size={16} className="text-gray-500" />
           {!collapsed && <span className="text-xs font-medium">Become a Contributor</span>}
         </div>
-      </div>
+      </div> */}
 
       {isUpgradeModalOpen ? createPortal(
         <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
