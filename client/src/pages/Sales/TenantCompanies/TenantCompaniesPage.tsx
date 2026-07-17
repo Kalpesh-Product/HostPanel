@@ -3278,7 +3278,7 @@ export default function TenantCompaniesPage() {
                 <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
                   <div>
                     <h2 className="text-base font-pmedium text-primary flex items-center gap-2">
-                      {activeModal === 'add' ? <><Building size={18} /> Add Tenant Company</> : activeModal === 'edit' ? <><Edit size={18} /> Edit Tenant Details</> : <><RefreshCw size={18} /> Renew Contract</>}
+                      {activeModal === 'add' ? <> Add Tenant Company</> : activeModal === 'edit' ? <><Edit size={18} /> Edit Tenant Details</> : <><RefreshCw size={18} /> Renew Contract</>}
                     </h2>
                     <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">
                       {activeModal === 'renew' && selectedTenant ? `Renewing: ${selectedTenant.companyName}` : activeModal === 'edit' && selectedTenant ? `Editing: ${selectedTenant.companyName}` : 'Register a new corporate client'}

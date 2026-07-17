@@ -2320,9 +2320,7 @@ export function TicketsPage() {
               <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
-                    <div className="bg-blue-50 text-[#2563EB] p-2 rounded-xl">
-                      <AlertCircle size={20} strokeWidth={2.5} />
-                    </div>
+                   
                     Raise Master Ticket
                   </h2>
                   <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
