@@ -4367,7 +4367,7 @@ const CreateWebsite = () => {
                     <TextField
                       {...field}
                       size="small"
-                      label="CTA Button Text"
+                      label="Call To Action Button Text"
                       placeholder={ctaPlaceholder}
                       fullWidth
                       inputProps={{ maxLength: CHAR_LIMITS.ctaButtonText }}
