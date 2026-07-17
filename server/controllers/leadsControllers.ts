@@ -4,6 +4,7 @@ import Company from "../models/Company.js";
 import WebsiteTemplate from "../models/website/WebsiteTemplate.js";
 import Workspace from "../models/Workspace.js";
 import WebsiteLead from "../models/WebsiteLead.js";
+import { createNotification } from "../utils/notify.js";
 
 const sanitizeValue = (value) => String(value || "").trim();
 const isSyntheticCompanyId = (value) => sanitizeValue(value).includes("-dev-");
@@ -35,6 +36,35 @@ const resolveCompanyIdFromWorkspace = async (workspaceId) => {
   }
 
   return sanitizeValue(workspace?.companyId);
+};
+
+const resolveWorkspaceIdFromCompany = async (companyId) => {
+  const normalizedCompanyId = sanitizeValue(companyId);
+  if (!normalizedCompanyId) return "";
+
+  const template = await WebsiteTemplate.findOne({ companyId: normalizedCompanyId })
+    .select("workspaceId")
+    .lean()
+    .exec();
+  if (template?.workspaceId) return sanitizeValue(template.workspaceId);
+
+  const company = await Company.findOne({ companyId: normalizedCompanyId })
+    .select("_id")
+    .lean()
+    .exec();
+  if (company?._id) {
+    const workspace = await Workspace.findOne({ company: company._id })
+      .select("_id")
+      .lean()
+      .exec();
+    if (workspace?._id) return sanitizeValue(workspace._id);
+  }
+
+  const workspaceByCompanyId = await Workspace.findOne({ companyId: normalizedCompanyId })
+    .select("_id")
+    .lean()
+    .exec();
+  return sanitizeValue(workspaceByCompanyId?._id);
 };
 
 export const getLeads = async (req, res, next) => {
@@ -315,11 +345,21 @@ export const createWebsiteLead = async (req, res) => {
         template?.registeredCompanyName ||
         template?.searchKey,
     );
-    const resolvedWorkspaceId = sanitizeValue(body.workspaceId || template?.workspaceId);
+    let resolvedWorkspaceId = sanitizeValue(body.workspaceId || template?.workspaceId);
     const resolvedCompanyId =
       (resolvedWorkspaceId
         ? await resolveCompanyIdFromWorkspace(resolvedWorkspaceId)
         : "") || sanitizeValue(body.companyId || template?.companyId);
+
+    // Live-site submissions often only send companyId (resolved via the
+    // companyId/companyName branches of resolveTemplateFromRequest above),
+    // leaving resolvedWorkspaceId empty even though the lead itself saves
+    // fine — that silently skips the admin notification block below since
+    // it requires a workspaceId. Backfill it from the company as a last resort.
+    if (!resolvedWorkspaceId && resolvedCompanyId) {
+      resolvedWorkspaceId = await resolveWorkspaceIdFromCompany(resolvedCompanyId);
+    }
+
     const resolvedSource = sanitizeValue(body.source) || "website";
 
     if (!visitorName || !visitorEmail || !visitorPhone) {
@@ -455,6 +495,40 @@ export const createWebsiteLead = async (req, res) => {
       leadMeta: normalizedMeta,
       status: "Pending",
     });
+
+    // Notify workspace owners/admins about new lead
+    if (resolvedWorkspaceId) {
+      try {
+        const mongoose = await import("mongoose");
+        const workspaceMembers = await mongoose.default.model("WorkspaceMember").find({
+          workspace: resolvedWorkspaceId,
+          isActive: true,
+        }).select("user role").populate("role", "name").lean();
+
+        const adminMembers = workspaceMembers.filter((m: any) =>
+          ["founder", "super_admin", "admin"].includes(String(m.role?.name || "").toLowerCase()),
+        );
+
+        for (const member of adminMembers) {
+          createNotification({
+            workspaceId: resolvedWorkspaceId,
+            recipientUserId: String(member.user),
+            type: "new_lead",
+            category: "system",
+            title: "New Website Lead",
+            description: `New lead from ${visitorName} (${visitorEmail}) via ${resolvedSource}. Company: ${resolvedCompanyName}.`,
+            entityType: "lead",
+            entityId: String(localLead._id),
+            targetUrl: `/app/sales`,
+            data: { leadId: String(localLead._id), name: visitorName, email: visitorEmail, company: resolvedCompanyName, source: resolvedSource },
+            priority: "normal",
+            dedupeKey: `new-lead:${localLead._id}:${member.user}`,
+          });
+        }
+      } catch (e) {
+        console.error("Lead notification failed:", e);
+      }
+    }
 
     const upstreamEndpoints = [
       "https://wononomadsbe.vercel.app/api/leads/create-lead",

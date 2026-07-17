@@ -1,6 +1,7 @@
 // @ts-nocheck
 import mongoose from "mongoose";
 import { Task } from "../models/Task.js";
+import { createNotification } from "../utils/notify.js";
 
 const getCurrentWorkspaceId = (req) => {
   return (
@@ -129,6 +130,27 @@ export async function createTask(req, res, next) {
       comments: Array.isArray(comments) ? comments : [],
     });
 
+    // Notify assignee if task is assigned to someone else
+    if (assigneeUserId && String(assigneeUserId) !== String(userId)) {
+      createNotification({
+        workspaceId,
+        recipientUserId: String(assigneeUserId),
+        actorUserId: userId,
+        type: "task_assigned",
+        category: "task",
+        title: "New Task Assigned",
+        description: `Task ${doc.taskCode} "${doc.title}" has been assigned to you.`,
+        entityType: "task",
+        entityId: String(doc._id),
+        entityCode: doc.taskCode,
+        targetUrl: `/app/tasks`,
+        data: { taskCode: doc.taskCode, title: doc.title, priority: doc.priority, dueDate: doc.dueDate },
+        priority: doc.priority === "High" ? "high" : "normal",
+        isActionRequired: true,
+        dedupeKey: `task-assigned:${doc._id}:${assigneeUserId}`,
+      });
+    }
+
     return res.status(201).json({ message: "Task created successfully", data: { task: doc } });
   } catch (error) {
     if (error?.code === 11000) {
@@ -240,6 +262,8 @@ export async function updateTask(req, res, next) {
     if (!mongoose.Types.ObjectId.isValid(taskId)) return res.status(400).json({ message: "Invalid task id" });
     if (!userId) return res.status(401).json({ message: "User is required" });
 
+    const existingTask = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
+
     const update = sanitizeTaskUpdate(req.body);
 
     const task = await Task.findOneAndUpdate(
@@ -249,6 +273,74 @@ export async function updateTask(req, res, next) {
     ).lean().exec();
 
     if (!task) return res.status(404).json({ message: "Task not found" });
+
+    // Notify assignee on status change or reassignment
+    if (existingTask) {
+      const statusChanged = req.body.status && req.body.status !== existingTask.status;
+      const assigneeChanged = req.body.assigneeUserId && String(req.body.assigneeUserId) !== String(existingTask.assigneeUserId);
+      const progressChanged = req.body.progress !== undefined && req.body.progress !== existingTask.progress;
+
+      // Notify new assignee if reassigned
+      if (assigneeChanged && task.assigneeUserId) {
+        createNotification({
+          workspaceId,
+          recipientUserId: String(task.assigneeUserId),
+          actorUserId: userId,
+          type: "task_assigned",
+          category: "task",
+          title: "Task Reassigned to You",
+          description: `Task ${task.taskCode} "${task.title}" has been assigned to you.`,
+          entityType: "task",
+          entityId: String(task._id),
+          entityCode: task.taskCode,
+          targetUrl: `/app/tasks`,
+          data: { taskCode: task.taskCode, title: task.title, priority: task.priority },
+          priority: task.priority === "High" ? "high" : "normal",
+          isActionRequired: true,
+          dedupeKey: `task-reassigned:${task._id}:${task.assigneeUserId}:${Date.now()}`,
+        });
+      }
+
+      // Notify task owner of status change
+      if (statusChanged && existingTask.ownerId && String(existingTask.ownerId) !== String(userId)) {
+        createNotification({
+          workspaceId,
+          recipientUserId: String(existingTask.ownerId),
+          actorUserId: userId,
+          type: "task_status_changed",
+          category: "task",
+          title: "Task Status Updated",
+          description: `Task ${task.taskCode} status changed from "${existingTask.status}" to "${task.status}".`,
+          entityType: "task",
+          entityId: String(task._id),
+          entityCode: task.taskCode,
+          targetUrl: `/app/tasks`,
+          data: { taskCode: task.taskCode, title: task.title, oldStatus: existingTask.status, newStatus: task.status },
+          priority: task.status === "Completed" ? "normal" : "low",
+          dedupeKey: `task-status:${task._id}:${existingTask.ownerId}:${Date.now()}`,
+        });
+      }
+
+      // Notify task owner of progress update
+      if (progressChanged && !statusChanged && existingTask.ownerId && String(existingTask.ownerId) !== String(userId)) {
+        createNotification({
+          workspaceId,
+          recipientUserId: String(existingTask.ownerId),
+          actorUserId: userId,
+          type: "task_progress_updated",
+          category: "task",
+          title: "Task Progress Updated",
+          description: `Task ${task.taskCode} progress updated to ${task.progress}%.`,
+          entityType: "task",
+          entityId: String(task._id),
+          entityCode: task.taskCode,
+          targetUrl: `/app/tasks`,
+          data: { taskCode: task.taskCode, title: task.title, progress: task.progress },
+          priority: "low",
+          dedupeKey: `task-progress:${task._id}:${existingTask.ownerId}:${Date.now()}`,
+        });
+      }
+    }
 
     return res.status(200).json({ message: "Task updated successfully", data: { task } });
   } catch (error) {
@@ -288,6 +380,8 @@ export async function addTaskComment(req, res, next) {
     const { text, author, timeLabel } = req.body || {};
     if (!text || !String(text).trim()) return res.status(400).json({ message: "text is required" });
 
+    const existingTask = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
+
     const task = await Task.findOneAndUpdate(
       { _id: taskId, workspaceId, ownerId: userId },
       {
@@ -303,6 +397,34 @@ export async function addTaskComment(req, res, next) {
     ).lean().exec();
 
     if (!task) return res.status(404).json({ message: "Task not found" });
+
+    // Notify task owner and assignee of new comment (excluding commenter)
+    if (existingTask) {
+      const commentAuthorName = author || "Someone";
+      const recipients = new Set<string>();
+      if (existingTask.ownerId) recipients.add(String(existingTask.ownerId));
+      if (existingTask.assigneeUserId) recipients.add(String(existingTask.assigneeUserId));
+      recipients.delete(String(userId));
+
+      for (const recipientId of recipients) {
+        createNotification({
+          workspaceId,
+          recipientUserId: recipientId,
+          actorUserId: userId,
+          type: "task_comment",
+          category: "task",
+          title: "New Comment on Task",
+          description: `${commentAuthorName} commented on task ${task.taskCode}: "${String(text).trim().slice(0, 100)}"`,
+          entityType: "task",
+          entityId: String(task._id),
+          entityCode: task.taskCode,
+          targetUrl: `/app/tasks`,
+          data: { taskCode: task.taskCode, title: task.title, comment: String(text).trim().slice(0, 200) },
+          priority: "normal",
+          dedupeKey: `task-comment:${task._id}:${recipientId}:${Date.now()}`,
+        });
+      }
+    }
 
     return res.status(200).json({ message: "Comment added successfully", data: { task } });
   } catch (error) {

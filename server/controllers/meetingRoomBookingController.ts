@@ -8,6 +8,7 @@ import TenantEmployee from "../models/TenantEmployee.js";
 import { TenantCompany } from "../models/TenantCompany.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import { Client } from "../models/Client.js";
+import { createNotification } from "../utils/notify.js";
 
 interface AuthenticatedRequest extends Request {
     user?: string;
@@ -499,6 +500,27 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             status: "confirmed",
         });
 
+        // Send confirmation notification to the booker
+        const bookerStartParts = dateTimeParts(range.start);
+        const bookerEndParts = dateTimeParts(range.end);
+        createNotification({
+            workspaceId,
+            recipientUserId: String(resolvedOwnerId),
+            actorUserId: resolvedOwnerId,
+            type: "meeting_booked",
+            category: "meeting",
+            title: "Meeting Room Booking Confirmed",
+            description: `Your booking for ${room.name} on ${bookerStartParts.date} from ${bookerStartParts.time} to ${bookerEndParts.time} has been confirmed.`,
+            entityType: "meeting_booking",
+            entityId: String(booking._id),
+            entityCode: booking.bookingCode,
+            targetUrl: `/meetings/meeting-rooms`,
+            data: { roomName: room.name, date: bookerStartParts.date, startTime: bookerStartParts.time, endTime: bookerEndParts.time, purpose: purpose.trim() },
+            priority: "normal",
+            dedupeKey: `meeting-confirmed:${booking._id}:${resolvedOwnerId}`,
+            allowSelf: true,
+        });
+
         // Deduct credits for tenant bookings
         if (tenantBookingCompanyId && bookingCredits > 0) {
             try {
@@ -537,6 +559,74 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 }
             } catch (ledgerErr) {
                 console.error("Credit deduction failed for tenant booking:", ledgerErr);
+            }
+        }
+
+        // Notify invitees about the meeting room booking
+        if (invites && invites.length > 0) {
+            const startParts = dateTimeParts(range.start);
+            const endParts = dateTimeParts(range.end);
+            const inviterName = hostUser?.name || "Someone";
+
+            for (const invite of invites) {
+                if (invite.invitedUserId && String(invite.invitedUserId) !== String(resolvedOwnerId)) {
+                    createNotification({
+                        workspaceId,
+                        recipientUserId: String(invite.invitedUserId),
+                        actorUserId: resolvedOwnerId,
+                        type: "meeting_invitation",
+                        category: "meeting",
+                        title: "Meeting Room Invitation",
+                        description: `${inviterName} has invited you to a meeting in ${room.name} on ${startParts.date} from ${startParts.time} to ${endParts.time}.`,
+                        entityType: "meeting_booking",
+                        entityId: String(booking._id),
+                        entityCode: booking.bookingCode,
+                        targetUrl: `/meetings/meeting-rooms`,
+                        data: { roomName: room.name, date: startParts.date, startTime: startParts.time, endTime: endParts.time, purpose: purpose.trim() },
+                        priority: "normal",
+                        isActionRequired: true,
+                        dedupeKey: `meeting-invite:${booking._id}:${invite.invitedUserId}`,
+                    });
+                }
+            }
+        }
+
+        // Notify workspace admins about new booking
+        if (workspaceId) {
+            // `role` on WorkspaceMember is an ObjectId ref to Role — a plain
+            // find() can't filter on "role.name" without populating first
+            // (it's not an embedded subdocument), so populate then filter in
+            // JS. Role names are "founder"/"super_admin"/"admin" (see
+            // seedRoles.ts) — there is no role literally named "owner".
+            const workspaceMembers = await mongoose.model("WorkspaceMember").find({
+                workspace: workspaceId,
+                isActive: true,
+            }).select("user role").populate("role", "name").lean();
+
+            const startParts = dateTimeParts(range.start);
+            const endParts = dateTimeParts(range.end);
+            const adminIds = workspaceMembers
+                .filter((m: any) => ["founder", "super_admin", "admin"].includes(String(m.role?.name || "").toLowerCase()))
+                .map((m: any) => String(m.user))
+                .filter((id: string) => id !== String(resolvedOwnerId));
+
+            for (const adminId of adminIds) {
+                createNotification({
+                    workspaceId,
+                    recipientUserId: adminId,
+                    actorUserId: resolvedOwnerId,
+                    type: "meeting_booked",
+                    category: "meeting",
+                    title: "Meeting Room Booked",
+                    description: `${hostUser?.name || "Someone"} booked ${room.name} for ${startParts.date} ${startParts.time}-${endParts.time}.`,
+                    entityType: "meeting_booking",
+                    entityId: String(booking._id),
+                    entityCode: booking.bookingCode,
+                    targetUrl: `/meetings/meeting-rooms`,
+                    data: { roomName: room.name, date: startParts.date, startTime: startParts.time, endTime: endParts.time, purpose: purpose.trim() },
+                    priority: "normal",
+                    dedupeKey: `meeting-booked:${booking._id}:${adminId}`,
+                });
             }
         }
 
@@ -682,6 +772,31 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
 
         await booking.save();
+
+        // Notify invitees of schedule change
+        const updateStartParts = dateTimeParts(range.start);
+        const updateEndParts = dateTimeParts(range.end);
+        const existingInvitees = (booking.invites || [])
+            .filter((inv: any) => inv.invitedUserId && String(inv.invitedUserId) !== String(req.user) && inv.status !== "rejected");
+        for (const inv of existingInvitees) {
+            createNotification({
+                workspaceId,
+                recipientUserId: String(inv.invitedUserId),
+                actorUserId: req.user,
+                type: "meeting_updated",
+                category: "meeting",
+                title: "Meeting Room Booking Updated",
+                description: `The meeting in ${booking.roomName} has been rescheduled to ${updateStartParts.date} ${updateStartParts.time}-${updateEndParts.time}.`,
+                entityType: "meeting_booking",
+                entityId: String(booking._id),
+                entityCode: booking.bookingCode,
+                targetUrl: `/meetings/meeting-rooms`,
+                data: { roomName: booking.roomName, date: updateStartParts.date, startTime: updateStartParts.time, endTime: updateEndParts.time },
+                priority: "normal",
+                dedupeKey: `meeting-updated:${booking._id}:${inv.invitedUserId}:${Date.now()}`,
+            });
+        }
+
         return res.status(200).json({ message: "Booking updated successfully", data: { booking } });
     } catch (error: any) { next(error); }
 };
@@ -732,6 +847,48 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
             }
         }
 
+        // Notify invitees of cancellation
+        const cancelledInvitees = (booking.invites || [])
+            .filter((inv: any) => inv.invitedUserId && String(inv.invitedUserId) !== String(req.user) && inv.status !== "rejected");
+        for (const inv of cancelledInvitees) {
+            createNotification({
+                workspaceId,
+                recipientUserId: String(inv.invitedUserId),
+                actorUserId: req.user,
+                type: "meeting_cancelled",
+                category: "meeting",
+                title: "Meeting Room Booking Cancelled",
+                description: `The meeting in ${booking.roomName} scheduled for ${booking.start ? dateTimeParts(new Date(booking.start)).date : "the booked date"} has been cancelled.`,
+                entityType: "meeting_booking",
+                entityId: String(booking._id),
+                entityCode: booking.bookingCode,
+                targetUrl: `/meetings/meeting-rooms`,
+                data: { roomName: booking.roomName },
+                priority: "high",
+                dedupeKey: `meeting-cancelled:${booking._id}:${inv.invitedUserId}:${Date.now()}`,
+            });
+        }
+
+        // Notify booking owner if canceller is not the owner
+        if (booking.ownerId && String(booking.ownerId) !== String(req.user)) {
+            createNotification({
+                workspaceId,
+                recipientUserId: String(booking.ownerId),
+                actorUserId: req.user,
+                type: "meeting_cancelled",
+                category: "meeting",
+                title: "Your Meeting Room Booking Was Cancelled",
+                description: `Your booking for ${booking.roomName} has been cancelled by another user.`,
+                entityType: "meeting_booking",
+                entityId: String(booking._id),
+                entityCode: booking.bookingCode,
+                targetUrl: `/meetings/meeting-rooms`,
+                data: { roomName: booking.roomName },
+                priority: "high",
+                dedupeKey: `meeting-cancelled-owner:${booking._id}:${booking.ownerId}:${Date.now()}`,
+            });
+        }
+
         return res.status(200).json({ message: "Booking cancelled successfully", data: { booking } });
     } catch (error: any) { next(error); }
 };
@@ -748,6 +905,28 @@ export const respondToInvite = async (req: AuthenticatedRequest, res: Response, 
         invite.responseReason = req.body.reason || "";
         invite.respondedAt = new Date();
         await booking.save();
+
+        // Notify booking owner of invite response
+        if (booking.ownerId && String(booking.ownerId) !== String(req.user)) {
+            const responderName = (await HostUser.findById(req.user).select("name").lean())?.name || "Someone";
+            createNotification({
+                workspaceId: workspaceIdFor(req),
+                recipientUserId: String(booking.ownerId),
+                actorUserId: req.user,
+                type: "meeting_invite_response",
+                category: "meeting",
+                title: `Meeting Invite ${status === "accepted" ? "Accepted" : "Declined"}`,
+                description: `${responderName} has ${status === "accepted" ? "accepted" : "declined"} your invitation to ${booking.roomName}.`,
+                entityType: "meeting_booking",
+                entityId: String(booking._id),
+                entityCode: booking.bookingCode,
+                targetUrl: `/meetings/meeting-rooms`,
+                data: { roomName: booking.roomName, response: status },
+                priority: "normal",
+                dedupeKey: `meeting-response:${booking._id}:${req.user}:${Date.now()}`,
+            });
+        }
+
         return res.status(200).json({ message: "Invite response saved", data: { booking } });
     } catch (error: any) { next(error); }
 };

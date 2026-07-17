@@ -92,6 +92,20 @@ const Header = ({
     },
   });
 
+  const { mutate: markAllRead } = useMutation({
+    mutationKey: ["markAllRead"],
+    mutationFn: async () => {
+      const response = await axios.patch("/api/notifications/mark-all-read");
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Error marking all as read");
+    },
+  });
+
   useEffect(() => {
     const fetchDepartmentName = async () => {
       try {
@@ -359,15 +373,26 @@ const Header = ({
                 overlap="circular"
               />
             </div>
-            <IconButton
-              size="small"
-              onClick={onRefreshNotifications}
-              disabled={isRefreshingNotifications}
-            >
-              <HiOutlineRefresh
-                className={`${isRefreshingNotifications ? "animate-spin" : ""}`}
-              />
-            </IconButton>
+            <div className="flex items-center gap-2">
+              {computedUnseenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => markAllRead()}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+              <IconButton
+                size="small"
+                onClick={onRefreshNotifications}
+                disabled={isRefreshingNotifications}
+              >
+                <HiOutlineRefresh
+                  className={`${isRefreshingNotifications ? "animate-spin" : ""}`}
+                />
+              </IconButton>
+            </div>
           </div>
           <Divider className="my-2" />
           {isRefreshingNotifications ? (
@@ -380,7 +405,51 @@ const Header = ({
                 <p className="text-gray-500 text-sm">No notifications yet.</p>
               ) : (
                 <>
-                  <div className="h-52 overflow-y-auto pr-4" />
+                  <div className="h-52 overflow-y-auto pr-4">
+                    {notifications.slice(0, 10).map((notification: any) => (
+                      <div
+                        key={notification._id}
+                        className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
+                          notification.readAt
+                            ? "bg-white hover:bg-gray-50"
+                            : "bg-blue-50 hover:bg-blue-100"
+                        }`}
+                        onClick={() => {
+                          if (!notification.readAt) {
+                            updateRead(notification._id);
+                          }
+                          if (notification.targetUrl) {
+                            setNotificationAnchorEl(null);
+                            navigate(notification.targetUrl);
+                          }
+                        }}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {notification.title}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                              {notification.description}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className="text-[10px] text-gray-400">
+                              {dayjs(notification.createdAt).fromNow()}
+                            </span>
+                            {!notification.readAt && (
+                              <span className="w-2 h-2 rounded-full bg-blue-500" />
+                            )}
+                          </div>
+                        </div>
+                        {notification.isActionRequired && (
+                          <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                            Action Required
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
                   {notifications.length > 9 && (
                     <div className="mt-2 text-start">

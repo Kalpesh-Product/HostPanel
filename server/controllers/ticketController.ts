@@ -6,6 +6,7 @@ import HostUser from "../models/HostUser.js";
 import { TenantCompany } from "../models/TenantCompany.js";
 import Department from "../models/Department.js";
 import TenantEmployee from "../models/TenantEmployee.js";
+import { createNotification } from "../utils/notify.js";
 
 const nullableObjectIdFields = [
     "assigneeUserId",
@@ -179,6 +180,64 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
 
         const savedTicket = await newTicket.save();
 
+        // Create notifications for the assigned user
+        if (savedTicket.assigneeUserId && String(savedTicket.assigneeUserId) !== String(ownerId)) {
+            createNotification({
+                workspaceId: workspaceId || "",
+                recipientUserId: String(savedTicket.assigneeUserId),
+                actorUserId: ownerId,
+                type: "ticket_assigned",
+                category: "ticket",
+                title: "New Ticket Assigned",
+                description: `Ticket #${savedTicket.ticketCode} has been assigned to you by ${requesterName}.`,
+                entityType: "ticket",
+                entityId: String(savedTicket._id),
+                entityCode: savedTicket.ticketCode,
+                targetUrl: `/tickets`,
+                data: { ticketCode: savedTicket.ticketCode, department: targetDepartment, priority: savedTicket.priority },
+                priority: savedTicket.priority === "High" ? "high" : "normal",
+                isActionRequired: true,
+                dedupeKey: `ticket-assigned:${savedTicket._id}:${savedTicket.assigneeUserId}`,
+            });
+        }
+
+        // Notify workspace founder/admin about new ticket
+        if (workspaceId) {
+            // `role` on WorkspaceMember is an ObjectId ref to Role — a plain
+            // find() can't filter on "role.name" without populating first
+            // (it's not an embedded subdocument), so populate then filter in
+            // JS. Role names are "founder"/"super_admin"/"admin" (see
+            // seedRoles.ts) — there is no role literally named "owner".
+            const workspaceMembers = await mongoose.model("WorkspaceMember").find({
+                workspace: workspaceId,
+                isActive: true,
+            }).select("user role").populate("role", "name").lean();
+
+            const adminIds = workspaceMembers
+                .filter((m: any) => ["founder", "super_admin", "admin"].includes(String(m.role?.name || "").toLowerCase()))
+                .map((m: any) => String(m.user))
+                .filter((id: string) => id !== String(ownerId) && id !== String(savedTicket.assigneeUserId));
+
+            for (const adminId of adminIds) {
+                createNotification({
+                    workspaceId,
+                    recipientUserId: adminId,
+                    actorUserId: ownerId,
+                    type: "ticket_created",
+                    category: "ticket",
+                    title: "New Ticket Created",
+                    description: `${requesterName} created ticket #${savedTicket.ticketCode} in ${targetDepartment}.`,
+                    entityType: "ticket",
+                    entityId: String(savedTicket._id),
+                    entityCode: savedTicket.ticketCode,
+                    targetUrl: `/tickets`,
+                    data: { ticketCode: savedTicket.ticketCode, department: targetDepartment, priority: savedTicket.priority },
+                    priority: savedTicket.priority === "High" ? "high" : "normal",
+                    dedupeKey: `ticket-created:${savedTicket._id}:${adminId}`,
+                });
+            }
+        }
+
         res.status(201).json({
             success: true,
             message: isTenantRequester
@@ -259,6 +318,8 @@ export const updateTicket = async (req: Request, res: Response): Promise<void> =
         const scopeFilter = await buildTicketScopeFilter(req);
         const queryFilter = { _id: req.params.id, ...scopeFilter };
 
+        const existingTicket = await Ticket.findOne(queryFilter).lean();
+
         const updatedTicket = await Ticket.findOneAndUpdate(
             queryFilter,
             { $set: sanitizeTicketPayload(req.body) },
@@ -269,6 +330,61 @@ export const updateTicket = async (req: Request, res: Response): Promise<void> =
             res.status(404).json({ success: false, message: "Ticket not found" });
             return;
         }
+
+        // Notify on status change
+        if (existingTicket && req.body.status && req.body.status !== existingTicket.status) {
+            const ownerId = String(existingTicket.ownerId || "");
+            const assigneeId = String(existingTicket.assigneeUserId || "");
+            const actorId = (req as any).user || "";
+            const recipients = new Set<string>();
+            if (ownerId) recipients.add(ownerId);
+            if (assigneeId) recipients.add(assigneeId);
+            recipients.delete(actorId);
+
+            for (const recipientId of recipients) {
+                createNotification({
+                    workspaceId: scopeFilter.workspaceId || "",
+                    recipientUserId: recipientId,
+                    actorUserId: actorId,
+                    type: "ticket_status_changed",
+                    category: "ticket",
+                    title: "Ticket Status Updated",
+                    description: `Ticket ${updatedTicket.ticketCode} status changed from "${existingTicket.status}" to "${updatedTicket.status}".`,
+                    entityType: "ticket",
+                    entityId: String(updatedTicket._id),
+                    entityCode: updatedTicket.ticketCode,
+                    targetUrl: `/tickets`,
+                    data: { ticketCode: updatedTicket.ticketCode, oldStatus: existingTicket.status, newStatus: updatedTicket.status },
+                    priority: updatedTicket.status === "Resolved" || updatedTicket.status === "Closed" ? "normal" : "low",
+                    dedupeKey: `ticket-status:${updatedTicket._id}:${recipientId}:${Date.now()}`,
+                });
+            }
+        }
+
+        // Notify on reassignment
+        if (existingTicket && req.body.assigneeUserId && String(req.body.assigneeUserId) !== String(existingTicket.assigneeUserId)) {
+            const newAssigneeId = String(req.body.assigneeUserId);
+            if (newAssigneeId && newAssigneeId !== String((req as any).user)) {
+                createNotification({
+                    workspaceId: scopeFilter.workspaceId || "",
+                    recipientUserId: newAssigneeId,
+                    actorUserId: (req as any).user,
+                    type: "ticket_assigned",
+                    category: "ticket",
+                    title: "Ticket Assigned to You",
+                    description: `Ticket ${updatedTicket.ticketCode} has been assigned to you.`,
+                    entityType: "ticket",
+                    entityId: String(updatedTicket._id),
+                    entityCode: updatedTicket.ticketCode,
+                    targetUrl: `/tickets`,
+                    data: { ticketCode: updatedTicket.ticketCode, department: updatedTicket.department, priority: updatedTicket.priority },
+                    priority: updatedTicket.priority === "High" ? "high" : "normal",
+                    isActionRequired: true,
+                    dedupeKey: `ticket-assigned:${updatedTicket._id}:${newAssigneeId}:${Date.now()}`,
+                });
+            }
+        }
+
         res.status(200).json({ success: true, data: updatedTicket });
     } catch (error: any) {
         res.status(400).json({ success: false, message: error.message });
