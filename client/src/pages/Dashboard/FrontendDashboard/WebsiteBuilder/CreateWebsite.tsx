@@ -1834,6 +1834,7 @@ const CreateWebsite = () => {
 
     const formEl = e?.target || formRef.current;
     const fd = new FormData(formEl);
+    fd.set("editorSessionId", editorSessionIdRef.current);
     const appendFileIfPresent = (fieldName: string, value: unknown) => {
       if (value instanceof File) {
         fd.append(fieldName, value);
@@ -2375,7 +2376,6 @@ const CreateWebsite = () => {
       setDraftStatus("saving");
       pendingDraftSnapshotRef.current = snapshot;
       const fd = new FormData();
-      fd.set("editorSessionId", editorSessionIdRef.current);
       fd.set("companyId", String(prefillCompanyId || draftData?.companyId || "").trim());
       fd.set("workspaceId", String(workspaceId || "").trim());
       fd.set("companyName", companyName);
