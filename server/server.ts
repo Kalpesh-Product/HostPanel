@@ -46,6 +46,7 @@ import taskRoutes from "./routes/taskRoutes.js";
 import financeRoutes from "./routes/financeRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -143,6 +144,7 @@ app.use("/api/attendance", verifyJwt, blockWriteIfImpersonating, attendanceRoute
 app.use("/api/it", verifyJwt, blockWriteIfImpersonating, itRoutes);
 app.use("/api/meeting-rooms", verifyJwt, blockWriteIfImpersonating, meetingRoomRoutes);
 app.use("/api/calendar", verifyJwt, blockWriteIfImpersonating, calendarRoutes);
+app.use("/api/notifications", verifyJwt, blockWriteIfImpersonating, notificationRoutes);
 app.use("/api/tickets", verifyJwt, blockWriteIfImpersonating, ticketRoutes);
 app.use("/api/v1/resources", verifyJwt, blockWriteIfImpersonating, resourceRoutes);
 app.use("/api/v1/pricing-packages", verifyJwt, blockWriteIfImpersonating, plansPricingRoutes);

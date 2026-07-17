@@ -13,15 +13,32 @@ import ScrollToTop from "../components/ScrollToTop";
 import useAuth from "../hooks/useAuth";
 import { PERMISSIONS } from "../constants/permissions";
 import AiChat from "../components/AiChat";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import useAxiosPrivate from "../hooks/useAxiosPrivate";
+import { queryClient } from "../main";
 
 const MainLayout = () => {
   const { auth } = useAuth();
+  const axios = useAxiosPrivate();
   const [showFooter, setShowFooter] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const dummyRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
+
+  const { data: notifications = [], isLoading: isLoadingNotifications, refetch: refetchNotifications } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const res = await axios.get("/api/notifications/get-my-notifications");
+      return res.data;
+    },
+    refetchInterval: 15000,
+  });
+
+  const unseenCount = notifications.filter(
+    (n: any) => !n.readAt,
+  ).length;
   useEffect(() => {
     const pathname = location.pathname;
     const rawPermissions: string[] = auth?.user?.permissions?.permissions || [];
@@ -90,7 +107,12 @@ const MainLayout = () => {
             <MenuIcon />
           </IconButton>
         )}
-        <Header />
+        <Header
+          notifications={notifications}
+          unseenCount={unseenCount}
+          onRefreshNotifications={() => refetchNotifications()}
+          isRefreshingNotifications={isLoadingNotifications}
+        />
       </header>
 
       <div className="flex w-full flex-grow">

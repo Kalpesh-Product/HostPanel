@@ -3,6 +3,7 @@ import SupportTicket from "../models/SupportTicket.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
+import { createNotification } from "../utils/notify.js";
 
 const buildTicketId = () => `ST-${Date.now().toString().slice(-8)}`;
 
@@ -155,6 +156,45 @@ export const createSupportTicket = async (req, res, next) => {
       workspaceName,
       image,
     });
+
+    // Notify workspace admins/founders about new support ticket
+    if (req.workspaceMembership?.workspace) {
+      try {
+        const mongoose = await import("mongoose");
+        const workspaceMembers = await mongoose.default.model("WorkspaceMember").find({
+          workspace: req.workspaceMembership.workspace,
+          isActive: true,
+        }).select("user role").populate("role", "name").lean();
+
+        const adminMembers = workspaceMembers.filter((m: any) =>
+          ["founder", "super_admin", "admin"].includes(String(m.role?.name || "").toLowerCase()),
+        );
+
+        for (const member of adminMembers) {
+          const adminId = String(member.user);
+          if (adminId !== String(req.user)) {
+            createNotification({
+              workspaceId: req.workspaceMembership.workspace,
+              recipientUserId: adminId,
+              actorUserId: req.user,
+              type: "support_ticket_created",
+              category: "ticket",
+              title: "New Support Ticket",
+              description: `${requestedByName || "A user"} submitted a support ticket: "${String(title).trim()}"`,
+              entityType: "support_ticket",
+              entityId: String(ticket._id),
+              entityCode: ticket.ticketId,
+              targetUrl: `/company-settings/customer-support`,
+              data: { ticketId: ticket.ticketId, title: String(title).trim() },
+              priority: "normal",
+              dedupeKey: `support-ticket:${ticket._id}:${adminId}`,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Support ticket notification failed:", e);
+      }
+    }
 
     return res.status(201).json({ message: "Support ticket submitted.", data: ticket });
   } catch (error) {

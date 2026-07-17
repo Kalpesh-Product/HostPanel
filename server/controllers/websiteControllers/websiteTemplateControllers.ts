@@ -347,7 +347,7 @@ const deductWorkspaceCreditOnSuccess = async ({ workspaceId, companyId } = {}) =
       $setOnInsert: {
         workspaceId: normalizedWorkspaceId || normalizedCompanyId || undefined,
         companyId: normalizedCompanyId || normalizedWorkspaceId || undefined,
-        plan: "static-free",
+        plan: "basic",
         creditsLimit: 5,
         creditsResetDate: getFirstDayOfNextMonthUtc(),
       },
