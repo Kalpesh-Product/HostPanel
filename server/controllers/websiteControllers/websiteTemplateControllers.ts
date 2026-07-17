@@ -5,7 +5,6 @@ import {
   creditsForPlan,
   resolveWorkspacePlan,
 } from "../../utils/websiteCredits.js";
-import mongoose from "mongoose";
 import {
   deleteFileFromS3ByUrl,
   uploadFileToS3,
@@ -16,6 +15,7 @@ import axios from "axios";
 import { VERTICAL_CONFIG } from "../../config/verticalConfig.js";
 import { THEME_TOKENS } from "../../config/themeTokens.js";
 import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";
+import { assertWebsiteEditLock } from "./websiteEditLockControllers.js";
 
 const VALID_VERTICALS = new Set([
   "co-working",
@@ -2352,9 +2352,6 @@ export const activateTemplate = async (req, res) => {
 };
 
 export const editTemplate = async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     let {
       products,
@@ -2538,15 +2535,15 @@ export const editTemplate = async (req, res, next) => {
 
     validateTextFields();
 
+    await assertWebsiteEditLock(searchKey, req.body?.editorSessionId);
+
     const template = await WebsiteTemplate.findOne(
       buildTemplateLookupByCompanyAndVertical(
         searchKey,
         normalizedVertical || req.body?.vertical || req.body?.verticalType,
       ),
-    ).session(session);
+    );
     if (!template) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(404).json({ message: "Template not found" });
     }
 
@@ -3224,9 +3221,11 @@ export const editTemplate = async (req, res, next) => {
     // Validate before saving to catch schema validation errors
     await template.validate();
 
-    await template.save({ session });
-    await session.commitTransaction();
-    session.endSession();
+    // This handler only writes one MongoDB document, so the save is already
+    // atomic. Keeping a transaction open while processing images and calling
+    // S3 creates a large WriteConflict window when HostPanel and Master Panel
+    // edit the same website.
+    await template.save();
 
     await deductWorkspaceCreditOnSuccess({
       workspaceId: req.body?.workspaceId || template?.workspaceId,
@@ -3245,14 +3244,10 @@ export const editTemplate = async (req, res, next) => {
 
     console.error("Edit Template Error:", err);
 
-    // Safely abort transaction if it's still active
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
-    session.endSession();
-
-    // Return the original error, not the transaction abort error
-    res.status(400).json({ message: originalError });
+    res.status(err?.status || 400).json({
+      code: err?.code,
+      message: originalError,
+    });
   }
 };
 
