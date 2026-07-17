@@ -15,6 +15,7 @@ import axios from "axios";
 import { VERTICAL_CONFIG } from "../../config/verticalConfig.js";
 import { THEME_TOKENS } from "../../config/themeTokens.js";
 import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";
+import recordWebsiteCreditEvent from "../../utils/websiteCreditLedger.js";
 import { assertWebsiteEditLock } from "./websiteEditLockControllers.js";
 
 const VALID_VERTICALS = new Set([
@@ -340,7 +341,7 @@ const deductWorkspaceCreditOnSuccess = async ({ workspaceId, companyId } = {}) =
   if (normalizedWorkspaceId) lookupClauses.push({ workspaceId: normalizedWorkspaceId });
   if (normalizedCompanyId) lookupClauses.push({ companyId: normalizedCompanyId });
 
-  await WorkspaceSubscription.findOneAndUpdate(
+  return await WorkspaceSubscription.findOneAndUpdate(
     { $or: lookupClauses },
     {
       $setOnInsert: {
@@ -1316,7 +1317,7 @@ export const createTemplate = async (req, res, next) => {
       const fieldLimits = [
         ["Title", req.body.title, TEXT_LIMITS.title],
         ["Subtitle", req.body.subTitle, TEXT_LIMITS.subTitle],
-        ["CTA button text", req.body.CTAButtonText, TEXT_LIMITS.CTAButtonText],
+        ["Call To Action button text", req.body.CTAButtonText, TEXT_LIMITS.CTAButtonText],
         ["Product title", req.body.productTitle, TEXT_LIMITS.productTitle],
         ["Gallery title", req.body.galleryTitle, TEXT_LIMITS.galleryTitle],
         [
@@ -2452,7 +2453,7 @@ export const editTemplate = async (req, res, next) => {
       const fieldLimits = [
         ["Title", req.body.title, TEXT_LIMITS.title],
         ["Subtitle", req.body.subTitle, TEXT_LIMITS.subTitle],
-        ["CTA button text", req.body.CTAButtonText, TEXT_LIMITS.CTAButtonText],
+        ["Call To Action button text", req.body.CTAButtonText, TEXT_LIMITS.CTAButtonText],
         ["Product title", req.body.productTitle, TEXT_LIMITS.productTitle],
         ["Gallery title", req.body.galleryTitle, TEXT_LIMITS.galleryTitle],
         [
@@ -3227,9 +3228,20 @@ export const editTemplate = async (req, res, next) => {
     // edit the same website.
     await template.save();
 
-    await deductWorkspaceCreditOnSuccess({
+    const updatedSubscription = await deductWorkspaceCreditOnSuccess({
       workspaceId: req.body?.workspaceId || template?.workspaceId,
       companyId: req.body?.companyId || template?.companyId,
+    });
+
+    // Fire-and-forget: record who consumed the credit for the credits ledger.
+    void recordWebsiteCreditEvent({
+      req,
+      type: "used",
+      credits: 1,
+      subscription: updatedSubscription,
+      workspaceId: req.body?.workspaceId || template?.workspaceId,
+      companyId: req.body?.companyId || template?.companyId,
+      description: "Website edit published",
     });
 
     res
