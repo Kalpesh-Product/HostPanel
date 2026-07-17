@@ -13,8 +13,10 @@ const websiteCreditsSchema = new mongoose.Schema({
   workspaceId: { type: String, unique: true, sparse: true },
   plan: {
     type: String,
-    enum: ["static-free", "professional"],
-    default: "static-free",
+    // "basic" replaces "static-free" (same 5 credits); the legacy value stays
+    // accepted so old rows keep validating until their next plan sync.
+    enum: ["static-free", "basic", "professional", "custom"],
+    default: "basic",
   },
   creditsLimit: { type: Number, default: 5 },
   creditsUsed: { type: Number, default: 0 },
@@ -26,12 +28,15 @@ const websiteCreditsSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-// Monthly limit is plan-based: professional gets 8, everything else the base
-// 5. creditsLimit is kept in sync by syncSubscriptionPlan and used as a
-// fallback for legacy rows that predate the plan field.
+// Monthly limit is plan-based: professional 8, custom 12, basic (and the
+// legacy "static-free" label) the base 5. creditsLimit is kept in sync by
+// syncSubscriptionPlan and used as a fallback for legacy rows that predate
+// the plan field.
 const PROFESSIONAL_MONTHLY_CREDITS = 8;
+const CUSTOM_MONTHLY_CREDITS = 12;
 const getMonthlyLimit = (doc) => {
   if (doc.plan === "professional") return PROFESSIONAL_MONTHLY_CREDITS;
+  if (doc.plan === "custom") return CUSTOM_MONTHLY_CREDITS;
   return Number(doc.creditsLimit || 0) > 0
     ? Number(doc.creditsLimit)
     : MONTHLY_BASE_CREDITS;
