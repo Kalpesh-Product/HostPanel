@@ -16,6 +16,7 @@ import {
   resolveActiveWorkspaceMembership,
 } from "../utils/resolveMembership.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
+import logAuthEvent from "../utils/authActivityLog.js";
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).+$/;
 
@@ -548,6 +549,15 @@ export const login = async (req, res, next) => {
       }
     }
 
+    // Fire-and-forget: record the sign in without delaying the response.
+    void logAuthEvent({
+      user,
+      action: "Sign In",
+      req,
+      company,
+      workspaceId: tenantWorkspaceId || workspaceMembership?.workspace || "",
+    });
+
     res.status(200).json({
       user: {
         ...buildAuthUserPayload(
@@ -597,6 +607,10 @@ export const logout = async (req, res, next) => {
     await HostUser.findOneAndUpdate({ refreshToken }, { refreshToken: "" })
       .lean()
       .exec();
+
+    // Fire-and-forget: record the sign out without delaying the response.
+    void logAuthEvent({ user, action: "Sign Out", req });
+
     res.clearCookie("clientCookie", {
       httpOnly: true,
       sameSite: "None",

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2, CheckCircle2, ChevronDown, Clock, Download, Edit2, Eye, FileDown, FileSpreadsheet, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Building2,View, CheckCircle2, ChevronDown, Clock, Download, Edit2, Eye, FileDown, FileSpreadsheet, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
@@ -2029,7 +2029,7 @@ export default function PricingPackagesPage() {
                     {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
                   </h2>
                   <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-2 truncate">
-                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
+                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -2048,33 +2048,33 @@ export default function PricingPackagesPage() {
                 {modalKind === 'resource' && modalMode === 'add' ? (
                   <div className="space-y-4">
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Resource snapshot</p>
-                          <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">Summary before saving.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
-                            {getResourceCategoryLabel(addResourceForm.resourceCategory)}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
-                            {addResourceForm.location || 'Location pending'}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
-                            Floor {addResourceForm.floor || '--'}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
-                            Wing {addResourceForm.wing || 'N/A'}
-                          </span>
-                          {isDeskCategory(addResourceForm.resourceCategory) ? (
-                            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
-                              {getInventoryModeLabel(addResourceForm.inventoryMode)}
+                      {/* <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Resource snapshot</p>
+                            <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">Summary before saving.</p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
+                              {getResourceCategoryLabel(addResourceForm.resourceCategory)}
                             </span>
-                          ) : null}
+                            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
+                              {addResourceForm.location || 'Location pending'}
+                            </span>
+                            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
+                              Floor {addResourceForm.floor || '--'}
+                            </span>
+                            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
+                              Wing {addResourceForm.wing || 'N/A'}
+                            </span>
+                            {isDeskCategory(addResourceForm.resourceCategory) ? (
+                              <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
+                                {getInventoryModeLabel(addResourceForm.inventoryMode)}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </div> */}
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                     <FormSectionHeader icon={Monitor} label="Resource Details" />
@@ -2084,7 +2084,7 @@ export default function PricingPackagesPage() {
                       <input required type="text" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
-                    <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+                    <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-2' : 'md:grid-cols-2'}`}>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location *</label>
                         {locationMode === 'custom' ? (
@@ -2126,10 +2126,12 @@ export default function PricingPackagesPage() {
                         </select>
                       </div>
 
+                      
                       {addResourceForm.resourceCategory === 'open_desk' ? (
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Inventory *</label>
                           <div className="relative">
+                            
                             <select required className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.inventoryMode} onChange={(e) => {
                               const nextInventoryMode = e.target.value;
                               setAddResourceForm((prev) => ({
@@ -2191,9 +2193,7 @@ export default function PricingPackagesPage() {
                           </div>
                         )}
                       </div>
-                    </div>
-
-                    <div className="space-y-1.5">
+                      <div className="space-y-1.5">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                         {isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
@@ -2220,6 +2220,9 @@ export default function PricingPackagesPage() {
                         );
                       })()}
                     </div>
+                    </div>
+
+                    
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
@@ -2269,7 +2272,7 @@ export default function PricingPackagesPage() {
                   </div>
                 ) : modalKind === 'resource' ? (
                   <div className="space-y-4">
-                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                    {/* <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                       <p className="text-[11px] font-pmedium uppercase tracking-widest text-blue-500">Resource</p>
                       <p className="mt-1 text-base font-pmedium text-blue-900">{resourceForm.name || selectedItem?.name}</p>
                       <p className="text-[12px] font-pmedium text-blue-700">{resourceForm.type || selectedItem?.type}</p>
@@ -2287,7 +2290,7 @@ export default function PricingPackagesPage() {
                           Wing {resourceForm.wing || '--'}
                         </span>
                       </div>
-                    </div>
+                    </div> */}
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                     <FormSectionHeader icon={Monitor} label="Resource Details" />
@@ -2297,7 +2300,7 @@ export default function PricingPackagesPage() {
                       <input required disabled={isViewingResource} type="text" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
-                    <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+                    <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-2' : 'md:grid-cols-2'}`}>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location *</label>
                         {locationMode === 'custom' ? (
@@ -2480,8 +2483,9 @@ export default function PricingPackagesPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                      <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <FormSectionHeader icon={View} label="Preview" />
+                      {/* <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p> */}
                       <p className="mt-1 text-sm font-pmedium text-slate-800">
                         {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day` : 'Daily rate not set'}
                       </p>

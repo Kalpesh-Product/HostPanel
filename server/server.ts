@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 import { corsConfig } from "./config/corsConfig.js";
 import verifyJwt from "./middlewares/verifyJwt.js";
 import blockWriteIfImpersonating from "./middlewares/blockWriteIfImpersonating.js";
+import activityLogger from "./middlewares/activityLogger.js";
 import websiteTemplateRoutes from "./routes/websiteTemplateRoutes.js";
 import serviceRoutes from "./routes/serviceRoutes.js";
 import leadsRoutes from "./routes/leadsRoutes.js";
@@ -106,6 +107,10 @@ app.use(cors(corsConfig));
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Records every authenticated mutating request into the shared DB so the
+// master panel can show host activity. Skips public/auth/impersonated traffic.
+app.use(activityLogger);
 
 app.use("/api/auth", authRoutes);
 app.post("/api/leads/create-lead", createWebsiteLead);

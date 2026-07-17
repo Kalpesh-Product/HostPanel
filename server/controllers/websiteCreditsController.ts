@@ -1,6 +1,7 @@
 // @ts-nocheck
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
 import WebsiteCreditsRequest from "../models/WebsiteCreditsRequest.js";
+import recordWebsiteCreditEvent from "../utils/websiteCreditLedger.js";
 
 export const requestCredits = async (req, res) => {
   try {
@@ -96,6 +97,17 @@ export const approveCreditsRequest = async (req, res) => {
     subscription.addOnCreditsPurchased =
       Number(subscription.addOnCreditsPurchased || 0) + Number(creditRequest.requestedCredits || 0);
     await subscription.save();
+
+    // Fire-and-forget: record the grant in the credits ledger.
+    void recordWebsiteCreditEvent({
+      req,
+      type: "added",
+      credits: Number(creditRequest.requestedCredits || 0),
+      subscription,
+      workspaceId: creditRequest.workspaceId,
+      companyId: creditRequest.companyId,
+      description: "Credits added via approved credit request",
+    });
 
     return res.status(200).json(subscription);
   } catch (error) {
