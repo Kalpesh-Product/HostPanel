@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
+import useBusinessHours from '../../hooks/useBusinessHours';
 
 import {
   createVisitorLog,
@@ -122,8 +123,8 @@ function getDefaultVisitorForm() {
   };
 }
 
-const WALK_IN_WORKING_START = 9 * 60;
-const WALK_IN_WORKING_END = 19 * 60;
+const DEFAULT_WALK_IN_WORKING_START = 9 * 60;
+const DEFAULT_WALK_IN_WORKING_END = 22 * 60;
 const WALK_IN_SLOT_STEP = 5;
 const WALK_IN_MIN_DURATION_MINUTES = 30;
 const WALK_IN_GST_RATE = 0.18;
@@ -716,7 +717,7 @@ function getOverlapConflict(booking, roomName, startDateKey, endDateKey, startMi
   return bookingStart < endMinutes && startMinutes < bufferedBookingEnd;
 }
 
-function buildWalkInSuggestions(bookings, rooms, selectedRoom, startDate, endDate, startTime, endTime) {
+function buildWalkInSuggestions(bookings, rooms, selectedRoom, startDate, endDate, startTime, endTime, workingStartMinutes = DEFAULT_WALK_IN_WORKING_START, workingEndMinutes = DEFAULT_WALK_IN_WORKING_END) {
   const startDateKey = formatDateKey(startDate);
   const endDateKey = formatDateKey(endDate || startDate);
   const startMinutes = timeToMinutes(startTime);
@@ -750,7 +751,7 @@ function buildWalkInSuggestions(bookings, rooms, selectedRoom, startDate, endDat
 
   const durationMinutes = Math.max(30, endMinutes - startMinutes);
   const candidateSlots: Array<{ start: string; end: string }> = [];
-  for (let minutes = WALK_IN_WORKING_START; minutes + durationMinutes <= WALK_IN_WORKING_END; minutes += WALK_IN_SLOT_STEP) {
+  for (let minutes = workingStartMinutes; minutes + durationMinutes <= workingEndMinutes; minutes += WALK_IN_SLOT_STEP) {
     const nextEnd = minutes + durationMinutes;
     const conflict = bookings.some((booking) => getOverlapConflict(booking, selectedRoom?.name || '', startDateKey, endDateKey, minutes, nextEnd));
     if (!conflict) {
@@ -925,6 +926,9 @@ function ValidationSummary({ errors = {} }) {
 export default function VisitorsManagementPage() {
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
+  const businessHours = useBusinessHours();
+  const WALK_IN_WORKING_START = businessHours.startMinutes;
+  const WALK_IN_WORKING_END = businessHours.endMinutes;
   const isReadOnlySession = Boolean(auth?.impersonation);
   const workspaceId = String(
     auth?.user?.workspaceMembership?.workspaceId ||
@@ -1072,6 +1076,7 @@ export default function VisitorsManagementPage() {
   const [viewingClient, setViewingClient] = useState(null);
   const [showBadge, setShowBadge] = useState(null);
   const [cancellingBooking, setCancellingBooking] = useState(null);
+  const [confirmingCheckout, setConfirmingCheckout] = useState(null);
   const [reschedulingBooking, setReschedulingBooking] = useState(null);
 
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
@@ -2269,6 +2274,8 @@ export default function VisitorsManagementPage() {
         form.endDate || form.startDate,
         form.startTime,
         form.endTime,
+        WALK_IN_WORKING_START,
+        WALK_IN_WORKING_END,
       );
 
       return {
@@ -2294,6 +2301,8 @@ export default function VisitorsManagementPage() {
       hasConflict: false,
     };
   }, [
+    WALK_IN_WORKING_START,
+    WALK_IN_WORKING_END,
     deskSeatOptions,
     filteredWalkInRooms,
     form.endDate,
@@ -3736,7 +3745,7 @@ export default function VisitorsManagementPage() {
                                 </button>
                               )}
                               {isCheckedIn ? (
-                                <button title="Check out visitor" onClick={() => handleCheckOut(vis.id)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all">
+                                <button title="Check out visitor" onClick={() => setConfirmingCheckout(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all">
                                   <LogOut size={15} strokeWidth={2.5} />
                                 </button>
                               ) : isApproved ? (
@@ -5763,7 +5772,13 @@ export default function VisitorsManagementPage() {
                         <span className="text-[10px] font-pmedium text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><Check size={10} /> Live Master Calendar Sync</span>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[150px] overflow-y-auto pr-2">
-                        {['09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00'].map((slot, idx) => {
+                        {Array.from({ length: Math.floor((businessHours.endMinutes - businessHours.startMinutes) / 60) }, (_, i) => {
+                          const startH = Math.floor((businessHours.startMinutes + i * 60) / 60);
+                          const startM = (businessHours.startMinutes + i * 60) % 60;
+                          const endH = Math.floor((businessHours.startMinutes + (i + 1) * 60) / 60);
+                          const endM = (businessHours.startMinutes + (i + 1) * 60) % 60;
+                          return `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}-${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+                        }).map((slot, idx) => {
                           const [slotStart = '', slotEnd = ''] = slot.split('-');
                           const slotStartMinutes = timeToMinutes(slotStart);
                           const slotEndMinutes = timeToMinutes(slotEnd);
@@ -5929,9 +5944,9 @@ export default function VisitorsManagementPage() {
                     <p className={`text-base font-pmedium ${viewingVisitor.status === 'Cancelled' ? 'text-red-700 line-through' : 'text-green-700'}`}>{viewingVisitor.checkIn || formatTimeLabel(viewingVisitor.checkInAt) || '--:--'}</p>
                   </div>
                   <div className="text-gray-300"><ArrowRight size={24} strokeWidth={3} /></div>
-                  <div className={`flex-1 p-3 border rounded-xl ${(viewingVisitor.checkOut || '--:--') === '--:--' ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-100'}`}>
-                    <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mb-1">Time Out</p>
-                    <p className="text-base font-pmedium text-gray-700">{viewingVisitor.checkOut || formatTimeLabel(viewingVisitor.checkOutAt) || '--:--'}</p>
+                  <div className={`flex-1 p-3 border rounded-xl ${(viewingVisitor.checkOut || '--:--') === '--:--' ? 'border-red-200 bg-red-50' : 'border-red-300 bg-red-100'}`}>
+                    <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mb-1">Time Out</p>
+                    <p className="text-base font-pmedium text-red-700">{viewingVisitor.checkOut || formatTimeLabel(viewingVisitor.checkOutAt) || '--:--'}</p>
                   </div>
                 </div>
 
@@ -5952,14 +5967,14 @@ export default function VisitorsManagementPage() {
               </div>
 
               <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5 shrink-0">
-                <button onClick={() => setViewingVisitor(null)} className="flex-1 py-2.5 bg-white border border-gray-200 rounded-lg font-pmedium text-xs text-gray-600 hover:bg-gray-100 transition-all">CLOSE</button>
+                <button onClick={() => setViewingVisitor(null)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-2.5 bg-grey-600 text-black shadow-lg shadow-grey-200 hover:bg-grey-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">CLOSE</button>
                 {!isVisitorCheckedOut(viewingVisitor) && (
-                  <button onClick={() => handlePrintBadge(viewingVisitor)} className="flex-1 py-2.5 bg-slate-900 text-white rounded-lg font-pmedium text-xs shadow-lg hover:bg-black transition-all flex items-center justify-center gap-1.5">
+                  <button onClick={() => handlePrintBadge(viewingVisitor)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-2.5 bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
                     <Printer size={15} /> PRINT BADGE
                   </button>
                 )}
                 {viewingVisitor.status === 'Checked In' && (
-                  <button disabled={isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={() => handleCheckOut(viewingVisitor.id)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-2.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
+                  <button disabled={isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={() => setConfirmingCheckout(viewingVisitor)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-2.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
                     <LogOut size={15} /> CHECK OUT
                   </button>
                 )}
@@ -6232,6 +6247,38 @@ export default function VisitorsManagementPage() {
           </div>
         )}
 
+        {/* MODAL 5C: CONFIRM CHECK-OUT */}
+        {confirmingCheckout && (
+          <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-md">
+            <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col">
+              <div className="p-5 sm:p-6 bg-red-50/70 border-b border-red-100 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-red-100 text-red-600 rounded-xl"><LogOut size={24} /></div>
+                  <div>
+                    <h2 className="text-lg font-pmedium text-red-900 leading-none">Check-Out Visitor</h2>
+                    <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mt-1">Confirm Action</p>
+                  </div>
+                </div>
+                <button onClick={() => setConfirmingCheckout(null)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-5">
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3 items-start">
+                  <ShieldAlert className="text-gray-500 shrink-0 mt-0.5" size={20} />
+                  <div className="text-xs text-gray-600 font-medium leading-relaxed">
+                    Are you sure you want to check out <span className="font-bold text-gray-900">{confirmingCheckout.name || confirmingCheckout.fullName || 'this visitor'}</span>? This will mark their visit as completed and record the check-out time.
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex gap-3">
+                <button onClick={() => setConfirmingCheckout(null)} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
+                <button disabled={isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={() => { const v = confirmingCheckout; setConfirmingCheckout(null); handleCheckOut(v.id); }} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-red-600 text-white shadow-md shadow-red-100 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CHECK-OUT</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* MODAL 6: POST-CHECK-IN BADGE */}
         {showBadge && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/95 backdrop-blur-md">
@@ -6265,7 +6312,7 @@ export default function VisitorsManagementPage() {
               <p className="text-[10px] font-pmedium text-green-600 mt-4 max-w-[240px] leading-relaxed">{showBadge.notes || "Host has been notified via email and SMS."}</p>
 
               <div className="w-full mt-5 grid grid-cols-2 gap-2">
-                <button onClick={handlePrintBadge} className="w-full py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium shadow-lg hover:bg-blue-700 transition-all">
+                <button onClick={() => handlePrintBadge()} className="w-full py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium shadow-lg hover:bg-blue-700 transition-all">
                   PRINT BADGE
                 </button>
                 <button onClick={() => setShowBadge(null)} className="w-full py-3 border border-gray-300 text-gray-700 rounded-2xl text-xs font-pmedium hover:bg-gray-50 transition-all">

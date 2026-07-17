@@ -9,6 +9,7 @@ import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } f
 import { getMeetingRoomBookings, createMeetingRoomBooking } from '@/services/meeting-room-bookings';
 import { getMyTenantCompany } from '@/services/tenant-companies';
 import { getResources } from '@/services/resources';
+import useBusinessHours from '@/hooks/useBusinessHours';
 
 const ROOM_TYPE_OPTIONS = ['All', 'Meeting Room', 'Conference Room'];
 const BOOKING_SLOT_STEP_MINUTES = 5;
@@ -403,17 +404,23 @@ export default function TenantMeetingRoomBookingPage() {
   const todayValue = getTodayInputValue();
   const currentTimeValue = getCurrentTimeInputValue();
   const roundedCurrentTimeValue = roundUpToStepTime(currentTimeValue);
+  const businessHours = useBusinessHours();
   const startTimeOptions = useMemo(
-    () => buildTimeOptions(bookingForm.date === todayValue ? roundedCurrentTimeValue : '00:00'),
-    [bookingForm.date, roundedCurrentTimeValue, todayValue],
+    () => buildTimeOptions(
+      bookingForm.date === todayValue
+        ? getLaterTimeInputValue(roundedCurrentTimeValue, businessHours.start)
+        : businessHours.start,
+      minutesToTimeString(businessHours.endMinutes - BOOKING_MIN_DURATION_MINUTES),
+    ),
+    [bookingForm.date, roundedCurrentTimeValue, todayValue, businessHours.start, businessHours.end],
   );
   const endTimeOptions = useMemo(() => {
     const minimumEndTime = getMinimumEndTime(bookingForm.startTime);
     const baseMin = bookingForm.date === todayValue
-      ? getLaterTimeInputValue(roundedCurrentTimeValue, minimumEndTime || '')
-      : minimumEndTime;
-    return buildTimeOptions(baseMin || '00:00');
-  }, [bookingForm.date, bookingForm.startTime, roundedCurrentTimeValue, todayValue]);
+      ? getLaterTimeInputValue(roundedCurrentTimeValue, minimumEndTime || '', businessHours.start)
+      : getLaterTimeInputValue(minimumEndTime || '', businessHours.start);
+    return buildTimeOptions(baseMin || businessHours.start, businessHours.end);
+  }, [bookingForm.date, bookingForm.startTime, roundedCurrentTimeValue, todayValue, businessHours.start, businessHours.end]);
 
   const groupedRooms: RoomGroup[] = useMemo(() => {
     const groups = new Map<string, RoomGroup>();

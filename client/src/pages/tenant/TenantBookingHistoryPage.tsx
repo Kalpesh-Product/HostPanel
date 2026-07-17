@@ -21,6 +21,7 @@ import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } f
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
 import { getMyTenantCompany } from '@/services/tenant-companies';
 import { getMeetingRoomBookings, respondToMeetingRoomInvite, updateMeetingRoomBooking, cancelBooking } from '@/services/meeting-room-bookings';
+import useBusinessHours from '@/hooks/useBusinessHours';
 
 const BOOKING_SLOT_STEP_MINUTES = 5;
 const BOOKING_MIN_DURATION_MINUTES = 30;
@@ -435,18 +436,25 @@ export default function TenantBookingHistoryPage() {
   const currentTimeValue = getCurrentTimeInputValue();
   const roundedCurrentTimeValue = roundUpToStepTime(currentTimeValue);
 
+  const businessHours = useBusinessHours();
+
   const rescheduleStartTimeOptions = useMemo(
-    () => buildTimeOptions(rescheduleForm.date === todayValue ? roundedCurrentTimeValue : '00:00'),
-    [rescheduleForm.date, roundedCurrentTimeValue, todayValue],
+    () => buildTimeOptions(
+      rescheduleForm.date === todayValue
+        ? getLaterTimeInputValue(roundedCurrentTimeValue, businessHours.start)
+        : businessHours.start,
+      minutesToTimeString(businessHours.endMinutes - BOOKING_MIN_DURATION_MINUTES),
+    ),
+    [rescheduleForm.date, roundedCurrentTimeValue, todayValue, businessHours.start, businessHours.endMinutes],
   );
 
   const rescheduleEndTimeOptions = useMemo(() => {
     const minimumEndTime = getMinimumEndTime(rescheduleForm.startTime);
     const baseMin = rescheduleForm.date === todayValue
-      ? getLaterTimeInputValue(roundedCurrentTimeValue, minimumEndTime || '')
-      : minimumEndTime;
-    return buildTimeOptions(baseMin || '00:00');
-  }, [rescheduleForm.date, rescheduleForm.startTime, roundedCurrentTimeValue, todayValue]);
+      ? getLaterTimeInputValue(roundedCurrentTimeValue, minimumEndTime || '', businessHours.start)
+      : getLaterTimeInputValue(minimumEndTime || '', businessHours.start);
+    return buildTimeOptions(baseMin || businessHours.start, businessHours.end);
+  }, [rescheduleForm.date, rescheduleForm.startTime, roundedCurrentTimeValue, todayValue, businessHours.start, businessHours.end, businessHours.endMinutes]);
 
   useEffect(() => {
     if (mainTab === 'invites' && inviteBookings.length > 0) return;

@@ -87,7 +87,7 @@ const workspaceSchema = new mongoose.Schema(
       weekStartsOn: { type: String, enum: ["monday", "sunday"], default: "monday" },
       businessHours: {
         start: { type: String, default: "09:00" },
-        end: { type: String, default: "18:00" },
+        end: { type: String, default: "22:00" },
       },
     },
     branding: {
