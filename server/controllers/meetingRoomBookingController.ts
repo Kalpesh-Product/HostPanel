@@ -8,6 +8,7 @@ import TenantEmployee from "../models/TenantEmployee.js";
 import { TenantCompany } from "../models/TenantCompany.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import { Client } from "../models/Client.js";
+import Workspace from "../models/Workspace.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import { createNotification } from "../utils/notify.js";
 
@@ -29,6 +30,24 @@ const BOOKING_DAY_END_MINUTES = 22 * 60;
 //         { type: { $in: ["Meeting Room", "Conference Room", "Desk", "Cabin", "Virtual Office"] } },
 //     ],
 // };
+
+function toMinutes(time: string): number {
+    const [h, m] = time.split(":").map(Number);
+    return (h || 0) * 60 + (m || 0);
+}
+
+async function getWorkspaceBusinessHours(workspaceId: string): Promise<{ startMinutes: number; endMinutes: number }> {
+    try {
+        const workspace = await Workspace.findById(workspaceId).select("preferences.businessHours").lean();
+        const bh = workspace?.preferences?.businessHours;
+        if (bh?.start && bh?.end) {
+            return { startMinutes: toMinutes(bh.start), endMinutes: toMinutes(bh.end) };
+        }
+    } catch {
+        // fall through to defaults
+    }
+    return { startMinutes: BOOKING_DAY_START_MINUTES, endMinutes: BOOKING_DAY_END_MINUTES };
+}
 
 const dateTimeParts = (date: Date) => {
     const parts = new Intl.DateTimeFormat("en-GB", {
@@ -97,7 +116,7 @@ export const parseMeetingRoomDateTime = (value: any): Date => {
     return new Date(isLocalDateTime && !hasExplicitTimeZone ? `${normalized}${INDIA_TIME_OFFSET}` : normalized);
 };
 
-const parseDateRange = (start: any, end: any) => {
+const parseDateRange = (start: any, end: any, dayStartMinutes?: number, dayEndMinutes?: number) => {
     const parsedStart = parseMeetingRoomDateTime(start);
     const parsedEnd = parseMeetingRoomDateTime(end);
     if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime()) || parsedEnd <= parsedStart) return null;
@@ -109,10 +128,12 @@ const parseDateRange = (start: any, end: any) => {
     };
     const startMinutes = toMinutes(startParts.time);
     const endMinutes = toMinutes(endParts.time);
+    const DAY_START = dayStartMinutes ?? BOOKING_DAY_START_MINUTES;
+    const DAY_END = dayEndMinutes ?? BOOKING_DAY_END_MINUTES;
     if (
         startParts.date !== endParts.date ||
-        startMinutes < BOOKING_DAY_START_MINUTES ||
-        endMinutes > BOOKING_DAY_END_MINUTES ||
+        startMinutes < DAY_START ||
+        endMinutes > DAY_END ||
         startMinutes % 5 !== 0 ||
         endMinutes % 5 !== 0 ||
         endMinutes - startMinutes < 30
@@ -131,15 +152,15 @@ const parseDateRange = (start: any, end: any) => {
  * - range: parseDateRange(start, end) when both are present; otherwise built
  *   from date + startTime + endTime. Null when neither shape yields a valid range.
  */
-export const normalizeCreateBookingInput = (body: any = {}) => {
+export const normalizeCreateBookingInput = (body: any = {}, businessHours?: { startMinutes: number; endMinutes: number }) => {
     const roomIdCandidate = getValidObjectId(body?.roomId);
     const roomNameCandidate = typeof body?.roomName === "string" ? body.roomName.trim() : "";
 
     let range = null;
     if (body?.start != null && body?.end != null) {
-        range = parseDateRange(body.start, body.end);
+        range = parseDateRange(body.start, body.end, businessHours?.startMinutes, businessHours?.endMinutes);
     } else if (body?.date && body?.startTime && body?.endTime) {
-        range = parseDateRange(`${body.date}T${body.startTime}:00`, `${body.date}T${body.endTime}:00`);
+        range = parseDateRange(`${body.date}T${body.startTime}:00`, `${body.date}T${body.endTime}:00`, businessHours?.startMinutes, businessHours?.endMinutes);
     }
 
     return { roomIdCandidate, roomNameCandidate, range };
@@ -368,7 +389,8 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
     try {
         const workspaceId = workspaceIdFor(req);
         const { purpose, attendees, inviteeUserIds = [] } = req.body;
-        const { roomIdCandidate, roomNameCandidate, range } = normalizeCreateBookingInput(req.body);
+        const businessHours = await getWorkspaceBusinessHours(workspaceId);
+        const { roomIdCandidate, roomNameCandidate, range } = normalizeCreateBookingInput(req.body, businessHours);
         if (!workspaceId || !req.user) return res.status(401).json({ message: "An active workspace is required" });
         if ((!roomIdCandidate && !roomNameCandidate) || !purpose?.trim() || !range) return res.status(400).json({ message: "Room, valid start/end times, and purpose are required" });
 
@@ -736,7 +758,8 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         const workspaceId = workspaceIdFor(req);
         const booking: any = await MeetingRoomBooking.findOne({ _id: id, workspaceId });
         if (!booking) return res.status(404).json({ message: "Booking not found" });
-        const range = parseDateRange(req.body.start || booking.start, req.body.end || booking.end);
+        const businessHours = await getWorkspaceBusinessHours(workspaceId);
+        const range = parseDateRange(req.body.start || booking.start, req.body.end || booking.end, businessHours.startMinutes, businessHours.endMinutes);
         if (!range) return res.status(400).json({ message: "Valid start and end times are required" });
         if (await findOverlap(booking.roomId, range.start, range.end, id)) return res.status(409).json({ message: "Room is already booked for the selected time slot" });
 

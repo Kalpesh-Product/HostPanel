@@ -112,6 +112,8 @@ export function computeAvailableSlots(
   resourceName: string,
   date: string,
   desiredDurationMinutes: number,
+  dayStartMinutes?: number,
+  dayEndMinutes?: number,
 ): Array<{ startTime: string; endTime: string }> {
   // Collect all confirmed / in-progress bookings for this resource on this date
   const dayBookings = bookings
@@ -126,8 +128,8 @@ export function computeAvailableSlots(
         (timeToMinutes(a.startTime) ?? 0) - (timeToMinutes(b.startTime) ?? 0),
     );
 
-  const DAY_START = BOOKING_DAY_START_MINUTES;
-  const DAY_END = BOOKING_DAY_END_MINUTES;
+  const DAY_START = dayStartMinutes ?? BOOKING_DAY_START_MINUTES;
+  const DAY_END = dayEndMinutes ?? BOOKING_DAY_END_MINUTES;
 
   // Build free windows between booked intervals
   const freeWindows: Array<{ start: number; end: number }> = [];

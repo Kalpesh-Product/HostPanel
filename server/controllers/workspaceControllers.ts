@@ -652,7 +652,7 @@ export const getWorkspaceSettings = async (req, res, next) => {
             weekStartsOn: preferences.weekStartsOn || "monday",
             businessHours: {
               start: preferences.businessHours?.start || "09:00",
-              end: preferences.businessHours?.end || "18:00",
+              end: preferences.businessHours?.end || "22:00",
             },
           },
           branding: {

@@ -38,6 +38,7 @@ import {
 } from '../../services/meeting-room-bookings';
 import { validateEmail, validatePhone, computeExternalPricing, hasSlotConflict, computeAvailableSlots, timeToMinutes as helpersTimeToMinutes } from './externalBookingHelpers';
 import { statusPillClass } from '../../lib/status-pill';
+import useBusinessHours from '../../hooks/useBusinessHours';
 
 
 interface StoredUser {
@@ -179,10 +180,10 @@ const MEETING_ROOM_EXTENSION_RATES = {
 
 const BOOKING_SLOT_STEP_MINUTES = 5;
 const BOOKING_MIN_DURATION_MINUTES = 30;
-const BOOKING_DAY_START = '09:00';
-const BOOKING_DAY_END = '22:00';
-const BOOKING_DAY_START_MINUTES = 9 * 60;
-const BOOKING_DAY_END_MINUTES = 22 * 60;
+const DEFAULT_BOOKING_DAY_START = '09:00';
+const DEFAULT_BOOKING_DAY_END = '22:00';
+const DEFAULT_BOOKING_DAY_START_MINUTES = 9 * 60;
+const DEFAULT_BOOKING_DAY_END_MINUTES = 22 * 60;
 function normalizeBookingFloor(value: string | number = '') {
   const normalized = String(value || '').trim();
   if (!normalized) return '';
@@ -479,7 +480,13 @@ function isAlignedToStep(totalMinutes: number, stepMinutes: number = BOOKING_SLO
   return Number.isInteger(totalMinutes) && totalMinutes % stepMinutes === 0;
 }
 
-function getBookingTimeValidation(dateValue: any, startTimeValue: any, endTimeValue: any) {
+function getBookingTimeValidation(
+  dateValue: any,
+  startTimeValue: any,
+  endTimeValue: any,
+  dayStartMinutes: number = DEFAULT_BOOKING_DAY_START_MINUTES,
+  dayEndMinutes: number = DEFAULT_BOOKING_DAY_END_MINUTES,
+) {
   if (!dateValue || !startTimeValue) {
     return { valid: true, reason: '' };
   }
@@ -505,8 +512,8 @@ function getBookingTimeValidation(dateValue: any, startTimeValue: any, endTimeVa
     return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
   }
 
-  if (startMinutes < BOOKING_DAY_START_MINUTES || startMinutes >= BOOKING_DAY_END_MINUTES) {
-    return { valid: false, reason: 'Bookings are available from 9:00 AM to 10:00 PM only.' };
+  if (startMinutes < dayStartMinutes || startMinutes >= dayEndMinutes) {
+    return { valid: false, reason: `Bookings are available from ${formatTime12h(minutesToTimeString(dayStartMinutes))} to ${formatTime12h(minutesToTimeString(dayEndMinutes))} only.` };
   }
 
   if (endTimeValue) {
@@ -523,8 +530,8 @@ function getBookingTimeValidation(dateValue: any, startTimeValue: any, endTimeVa
       return { valid: false, reason: 'End time must be after start time.' };
     }
 
-    if (endMinutes > BOOKING_DAY_END_MINUTES) {
-      return { valid: false, reason: 'Bookings must end by 10:00 PM.' };
+    if (endMinutes > dayEndMinutes) {
+      return { valid: false, reason: `Bookings must end by ${formatTime12h(minutesToTimeString(dayEndMinutes))}.` };
     }
 
     if (endMinutes - startMinutes < BOOKING_MIN_DURATION_MINUTES) {
@@ -1042,6 +1049,12 @@ function ExternalBookingDialog({
   managerName,
   onSuccess,
 }: ExternalBookingDialogProps) {
+  const businessHours = useBusinessHours();
+  const BOOKING_DAY_START = businessHours.start;
+  const BOOKING_DAY_END = businessHours.end;
+  const BOOKING_DAY_START_MINUTES = businessHours.startMinutes;
+  const BOOKING_DAY_END_MINUTES = businessHours.endMinutes;
+
   // ── Tab navigation ──────────────────────────────────────────────────────────
   const [activeDialogTab, setActiveDialogTab] = useState<'client' | 'booking'>('client');
 
@@ -1156,9 +1169,9 @@ function ExternalBookingDialog({
     const endMin = helpersTimeToMinutes(bookingForm.endTime);
     if (startMin === null || endMin === null || endMin <= startMin) return [];
     const desiredDuration = endMin - startMin;
-    const suggestions = computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, desiredDuration);
+    const suggestions = computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, desiredDuration, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
     return suggestions.slice(0, 6); // show max 6 chips
-  }, [externalSlotConflict, allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime]);
+  }, [externalSlotConflict, allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
 
   // Reset all state when dialog closes
   const handleClose = () => {
@@ -1208,7 +1221,7 @@ function ExternalBookingDialog({
     if (bookingForm.paymentMode !== 'Cash' && !bookingForm.paymentProofFile) errors.paymentProofFile = 'Upload the GPay payment screenshot.';
 
     // Time validation
-    const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime);
+    const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
     if (!timeValidation.valid) {
       if (timeValidation.reason.includes('date')) errors.date = timeValidation.reason;
       else if (timeValidation.reason.includes('time') || timeValidation.reason.includes('passed')) errors.startTime = timeValidation.reason;
@@ -1653,7 +1666,7 @@ function ExternalBookingDialog({
                                 const startMin = timeToMinutes(bookingForm.startTime);
                                 const endMin = timeToMinutes(bookingForm.endTime);
                                 if (startMin === null || endMin === null || endMin <= startMin) return [];
-                                return computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, endMin - startMin).slice(0, 6);
+                                return computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, endMin - startMin, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES).slice(0, 6);
                               })()
                             : [];
 
@@ -1973,6 +1986,11 @@ function ExternalBookingDialog({
 
 export function MeetingRoomsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const businessHours = useBusinessHours();
+  const BOOKING_DAY_START = businessHours.start;
+  const BOOKING_DAY_END = businessHours.end;
+  const BOOKING_DAY_START_MINUTES = businessHours.startMinutes;
+  const BOOKING_DAY_END_MINUTES = businessHours.endMinutes;
 
   const storedUser = getStoredUser();
   const actingContext = getStoredActingManagerContext(storedUser);
@@ -2435,7 +2453,7 @@ export function MeetingRoomsPage() {
     }
 
     return windows.filter((window) => toMinutes(window.end) - toMinutes(window.start) >= BOOKING_MIN_DURATION_MINUTES);
-  }, [allBookings, todayStr]);
+  }, [allBookings, todayStr, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
 
   const getSuggestedSlots = useCallback((roomName: string, date: string, desiredStartTime: string, desiredEndTime: string, excludeRecordId: string | null = null) => {
     const duration = (() => {
@@ -2900,8 +2918,8 @@ export function MeetingRoomsPage() {
 
   // --------- BOOKING TIME VALIDATION ---------
   const bookingTimeValidation = useMemo(() => {
-    return getBookingTimeValidation(newBooking.date, newBooking.startTime, newBooking.endTime);
-  }, [newBooking.date, newBooking.startTime, newBooking.endTime]);
+    return getBookingTimeValidation(newBooking.date, newBooking.startTime, newBooking.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+  }, [newBooking.date, newBooking.startTime, newBooking.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
 
   const bookingStatus = useMemo(() => {
     if (!newBooking.roomName || !newBooking.date || !newBooking.startTime || !newBooking.endTime) return 'pending';
@@ -2926,8 +2944,8 @@ export function MeetingRoomsPage() {
 
   // --------- INTERNAL BOOKING AVAILABILITY ---------
   const internalBookingTimeValidation = useMemo(() => {
-    return getBookingTimeValidation(internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime);
-  }, [internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime]);
+    return getBookingTimeValidation(internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+  }, [internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
 
   const internalBookingAvailability = useMemo(() => {
     if (!internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime) return 'pending';
@@ -2952,8 +2970,8 @@ export function MeetingRoomsPage() {
 
   // --------- RESCHEDULE TIME VALIDATION ---------
   const rescheduleTimeValidation = useMemo(() => {
-    return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime);
-  }, [rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime]);
+    return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+  }, [rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
 
   const rescheduleStatus = useMemo(() => {
     if (!rescheduleData.roomName || !rescheduleData.date || !rescheduleData.startTime || !rescheduleData.endTime) return 'pending';
@@ -3137,13 +3155,13 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [newBooking.date]);
+  }, [newBooking.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
 
   const createEndTimeOptions = useMemo(() => {
     if (!newBooking.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(newBooking.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
     return buildTimeOptions(minEnd, BOOKING_DAY_END);
-  }, [newBooking.startTime]);
+  }, [newBooking.startTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END]);
 
   const tenantStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
@@ -3156,13 +3174,13 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [tenantBookingForm.date]);
+  }, [tenantBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
 
   const tenantEndTimeOptions = useMemo(() => {
     if (!tenantBookingForm.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(tenantBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
     return buildTimeOptions(minEnd, BOOKING_DAY_END);
-  }, [tenantBookingForm.startTime]);
+  }, [tenantBookingForm.startTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END]);
 
   const internalStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
@@ -3175,7 +3193,7 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [internalBookingForm.date]);
+  }, [internalBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
 
   const externalStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
@@ -3188,7 +3206,7 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [externalBookingForm.date]);
+  }, [externalBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
 
   // --------- INVITE MEMBER HELPERS ---------
   const resolveMemberName = (member: any) => {
@@ -3322,13 +3340,13 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [rescheduleData.date]);
+  }, [rescheduleData.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
 
   const rescheduleEndTimeOptions = useMemo(() => {
     if (!rescheduleData.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(rescheduleData.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
     return buildTimeOptions(minEnd, BOOKING_DAY_END);
-  }, [rescheduleData.startTime]);
+  }, [rescheduleData.startTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END]);
 
   // --------- ALL NORMALIZED ROOMS (flat list for booking dialogs) ---------
   const allNormalizedRooms = useMemo(() => {
@@ -3632,7 +3650,7 @@ export function MeetingRoomsPage() {
     if (!externalBookingForm.date) return setErrorMessage('Date is required.');
     if (!externalBookingForm.startTime) return setErrorMessage('Start time is required.');
     if (!externalBookingForm.endTime) return setErrorMessage('End time is required.');
-    const externalTimeValidation = getBookingTimeValidation(externalBookingForm.date, externalBookingForm.startTime, externalBookingForm.endTime);
+    const externalTimeValidation = getBookingTimeValidation(externalBookingForm.date, externalBookingForm.startTime, externalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
     if (!externalTimeValidation.valid) return setErrorMessage(externalTimeValidation.reason);
     if (externalBookingForm.paymentMode !== 'Cash' && !externalBookingForm.transactionId.trim()) return setErrorMessage('Transaction / UTR number is required for GPay payments.');
     if (externalBookingForm.paymentMode !== 'Cash' && !externalBookingForm.paymentProofFile) return setErrorMessage('Upload the GPay payment screenshot.');
@@ -3737,7 +3755,7 @@ export function MeetingRoomsPage() {
     if (!tenantBookingForm.date) { setTenantBookingError('Date is required.'); return; }
     if (!tenantBookingForm.startTime) { setTenantBookingError('Start time is required.'); return; }
     if (!tenantBookingForm.endTime) { setTenantBookingError('End time is required.'); return; }
-    const tenantTimeValidation = getBookingTimeValidation(tenantBookingForm.date, tenantBookingForm.startTime, tenantBookingForm.endTime);
+    const tenantTimeValidation = getBookingTimeValidation(tenantBookingForm.date, tenantBookingForm.startTime, tenantBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
     if (!tenantTimeValidation.valid) { setTenantBookingError(tenantTimeValidation.reason); return; }
     setIsSavingTenantBooking(true);
     setTenantBookingError('');

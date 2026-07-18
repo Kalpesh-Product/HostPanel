@@ -5,6 +5,8 @@ import { createPricingPackage, deletePricingPackage, getPricingPackages, updateP
 import { toast } from 'sonner';
 import { AlertTriangle, Building2,View, CheckCircle2, ChevronDown, Clock, Download, Edit2, Eye, FileDown, FileSpreadsheet, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
+import useAxiosPrivate from '../../../hooks/useAxiosPrivate';
+import { formatTime12h } from '../../../utils/time';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
@@ -566,7 +568,6 @@ function FormSectionHeader({ icon: Icon, label }) {
   );
 }
 
-const RESOURCE_FULL_DAY_HOURS = 24;
 
 function formatAutoPriceValue(value) {
   const numeric = Number(value || 0);
@@ -598,7 +599,7 @@ export default function PricingPackagesPage() {
   const [resourceForm, setResourceForm] = useState({ name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1', description: '', pricePerHour: '', pricePerDay: '', credits: '', status: 'Active' });
   const [addResourceForm, setAddResourceForm] = useState({
     name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
-    pricePerHour: '', pricePerDay: '', credits: '1', status: 'Active', description: '',
+    pricePerHour: '', pricePerDay: '', credits: '', status: '', description: '',
   });
   const [packageForm, setPackageForm] = useState({
     category: 'Membership',
@@ -622,6 +623,11 @@ export default function PricingPackagesPage() {
     isRecommended: false,
     status: 'Active',
   });
+  const axiosPrivate = useAxiosPrivate();
+  const [bookingHours, setBookingHours] = useState({ start: '09:00', end: '22:00' });
+  const [isHoursModalOpen, setIsHoursModalOpen] = useState(false);
+  const [hoursForm, setHoursForm] = useState({ start: '09:00', end: '22:00' });
+  const [isSavingHours, setIsSavingHours] = useState(false);
   const bulkUploadInputRef = useRef(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [isTemplateInfoOpen, setIsTemplateInfoOpen] = useState(false);
@@ -665,6 +671,73 @@ export default function PricingPackagesPage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    axiosPrivate
+      .get('/api/workspaces/settings')
+      .then((res) => {
+        const bh = res?.data?.data?.settings?.preferences?.businessHours;
+        if (mounted && bh?.start && bh?.end) {
+          setBookingHours({ start: bh.start, end: bh.end });
+        }
+      })
+      .catch(() => {
+        // keep defaults
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [axiosPrivate]);
+
+  // Hours in a bookable day, derived from the workspace booking hours (e.g. 9 AM – 10 PM = 13).
+  // Drives the hourly ↔ daily price conversion on resource forms.
+  const bookingSpanHours = useMemo(() => {
+    const toMin = (t) => {
+      const [h, m] = String(t || '').split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    const span = (toMin(bookingHours.end) - toMin(bookingHours.start)) / 60;
+    return span > 0 ? Math.round(span * 100) / 100 : 13;
+  }, [bookingHours]);
+
+  const openHoursModal = () => {
+    setHoursForm({ ...bookingHours });
+    setIsHoursModalOpen(true);
+  };
+
+  const handleSaveBookingHours = async () => {
+    if (!hoursForm.start || !hoursForm.end || hoursForm.start >= hoursForm.end) {
+      toast.error('Opening time must be before closing time.');
+      return;
+    }
+    try {
+      setIsSavingHours(true);
+      await axiosPrivate.patch('/api/workspaces/settings', {
+        preferences: { businessHours: { start: hoursForm.start, end: hoursForm.end } },
+      });
+      setBookingHours({ ...hoursForm });
+      // Re-derive daily prices on any open resource form so they match the new span.
+      const toMin = (t) => {
+        const [h, m] = String(t || '').split(':').map(Number);
+        return (h || 0) * 60 + (m || 0);
+      };
+      const newSpan = Math.round(((toMin(hoursForm.end) - toMin(hoursForm.start)) / 60) * 100) / 100;
+      const recalcDaily = (current) => {
+        const hourly = Number(current.pricePerHour);
+        if (current.pricePerHour === '' || !Number.isFinite(hourly) || hourly < 0) return current;
+        return { ...current, pricePerDay: formatAutoPriceValue(hourly * newSpan) };
+      };
+      setAddResourceForm(recalcDaily);
+      setResourceForm(recalcDaily);
+      setIsHoursModalOpen(false);
+      toast.success('Booking hours updated. All booking forms will use these timings.');
+    } catch (error) {
+      toast.error((error as any)?.response?.data?.message || 'Unable to update booking hours.');
+    } finally {
+      setIsSavingHours(false);
+    }
+  };
 
   const membershipPackages = useMemo(() => packages.filter((entry) => entry.category === 'Membership'), [packages]);
   const tenantPackages = useMemo(() => packages.filter((entry) => entry.category === 'Tenant'), [packages]);
@@ -876,8 +949,8 @@ export default function PricingPackagesPage() {
     setFloorMode('select');
     setWingMode('select');
     setAddResourceForm({
-      name: '', type: '', resourceCategory: 'open_desk', inventoryMode: 'area', location: '', floor: '', wing: '', capacity: '1',
-      pricePerHour: '', pricePerDay: '', credits: '1', status: 'Active', description: '',
+      name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
+      pricePerHour: '', pricePerDay: '', credits: '', status: '', description: '',
     });
     setIsModalOpen(true);
   };
@@ -1094,7 +1167,7 @@ export default function PricingPackagesPage() {
     setWingMode('select');
     setAddResourceForm({
       name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
-      pricePerHour: '', pricePerDay: '', credits: '1', status: 'Active', description: '',
+      pricePerHour: '', pricePerDay: '', credits: '', status: '', description: '',
     });
   };
 
@@ -1250,6 +1323,7 @@ export default function PricingPackagesPage() {
             credits: Number(addResourceForm.credits || 1),
             description: addResourceForm.description.trim(),
             status: addResourceForm.status,
+            workingHours: bookingSpanHours,
           };
           const response = await createResource(payload);
           const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
@@ -1275,6 +1349,7 @@ export default function PricingPackagesPage() {
             pricePerDay: Number(resourceForm.pricePerDay || 0),
             credits: Number(resourceForm.credits || 1),
             status: resourceForm.status,
+            workingHours: bookingSpanHours,
           });
           const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
           setResources((current) => current.map((item) => (item.recordId === saved.recordId ? saved : item)));
@@ -1643,9 +1718,14 @@ export default function PricingPackagesPage() {
                 <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
               {activeTab === 'resource' ? (
-                <button onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
-                  <Plus size={13} strokeWidth={3} /> ADD RESOURCE
-                </button>
+                <>
+                  <button onClick={openHoursModal} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap" title="Set the booking timings used across meeting room, walk-in and tenant bookings">
+                    <Clock size={13} strokeWidth={2.5} /> {formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}
+                  </button>
+                  <button onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
+                    <Plus size={13} strokeWidth={3} /> ADD RESOURCE
+                  </button>
+                </>
               ) : (
                 // Memberships disabled — this button always creates Tenant packages now.
                 // <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')}>ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}</button>
@@ -2014,6 +2094,52 @@ export default function PricingPackagesPage() {
           </div>
         ) : null}
 
+        {isHoursModalOpen ? (
+          <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsHoursModalOpen(false)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300"
+            >
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+              <div className="p-5 sm:p-6 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-pmedium text-primary tracking-tight">Booking Hours</h2>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
+                    Applies to meeting room, walk-in and tenant bookings.
+                  </p>
+                </div>
+                <button type="button" onClick={() => setIsHoursModalOpen(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5 sm:p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Opening Time</label>
+                    <input type="time" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={hoursForm.start} onChange={(e) => setHoursForm((prev) => ({ ...prev, start: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Closing Time</label>
+                    <input type="time" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={hoursForm.end} onChange={(e) => setHoursForm((prev) => ({ ...prev, end: e.target.value }))} />
+                  </div>
+                </div>
+                <p className="text-[11px] font-pmedium text-slate-500">
+                  These timings control the available slots shown on all booking forms — meeting rooms, walk-ins and tenant bookings.
+                </p>
+              </div>
+              <div className="p-4 sm:p-5 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+                <button type="button" onClick={() => setIsHoursModalOpen(false)} className="flex-1 px-6 py-2.5 rounded-xl font-pmedium text-[10px] uppercase tracking-wider bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                  Cancel
+                </button>
+                <button type="button" onClick={handleSaveBookingHours} disabled={isSavingHours} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
+                  {isSavingHours ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                  {isSavingHours ? 'Saving...' : 'Save Hours'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {isModalOpen ? (
           <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeModal}>
             <div
@@ -2226,36 +2352,49 @@ export default function PricingPackagesPage() {
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
-                      <textarea rows={2} className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                      <textarea rows={2} placeholder="Add a short description or list of amenities..." className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                       <FormSectionHeader icon={Tag} label="Pricing & Credits (set by Sales)" />
+                      <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
+                        <p className="text-[11px] font-pmedium text-slate-600">
+                          <Clock size={11} className="inline -mt-0.5 mr-1 text-blue-500" />
+                          Booking hours: <span className="text-slate-900">{formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
+                        </p>
+                        <button type="button" onClick={openHoursModal} className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline whitespace-nowrap">
+                          Change
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Hours per Day</label>
+                        <input type="text" readOnly className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none cursor-not-allowed" value={`${bookingSpanHours} hrs (${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)})`} title="Calculated from the workspace booking hours. Use the Change link above to update." />
+                      </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour (&#8377;)</label>
-                          <input type="number" min="0" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
+                          <input type="number" min="0" required placeholder="e.g. 100" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
                             const hourly = Number(nextHour);
                             if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
-                            return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
+                            return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * bookingSpanHours) };
                           })} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day (&#8377;)</label>
-                          <input type="number" min="0" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
+                          <input type="number" min="0" required placeholder="e.g. 1000" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
                             const daily = Number(nextDay);
                             if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
-                            return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
+                            return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / bookingSpanHours) };
                           })} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits</label>
-                          <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <input type="number" min="1" required placeholder="e.g. 10" className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
                         </div>
                       </div>
                     </div>
@@ -2264,7 +2403,8 @@ export default function PricingPackagesPage() {
                       <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
-                        <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                        <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                          <option value="">Select status</option>
                           {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                         </select>
                       </div>
@@ -2445,6 +2585,17 @@ export default function PricingPackagesPage() {
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                       <FormSectionHeader icon={Tag} label="Pricing & Credits (set by Sales)" />
+                      <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
+                        <p className="text-[11px] font-pmedium text-slate-600">
+                          <Clock size={11} className="inline -mt-0.5 mr-1 text-blue-500" />
+                          Booking hours: <span className="text-slate-900">{formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
+                        </p>
+                        {!isViewingResource ? (
+                          <button type="button" onClick={openHoursModal} className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline whitespace-nowrap">
+                            Change
+                          </button>
+                        ) : null}
+                      </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour (&#8377;)</label>
@@ -2453,7 +2604,7 @@ export default function PricingPackagesPage() {
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
                             const hourly = Number(nextHour);
                             if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
-                            return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
+                            return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * bookingSpanHours) };
                           })} />
                         </div>
                         <div className="space-y-1">
@@ -2463,7 +2614,7 @@ export default function PricingPackagesPage() {
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
                             const daily = Number(nextDay);
                             if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
-                            return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
+                            return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / bookingSpanHours) };
                           })} />
                         </div>
                         <div className="space-y-1">

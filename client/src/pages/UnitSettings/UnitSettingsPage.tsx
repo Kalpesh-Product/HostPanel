@@ -6,18 +6,21 @@ import {
   Briefcase,
   Building2,
   ClipboardList,
+  Clock,
   ListChecks,
   Loader2,
   LockKeyhole,
   MapPin,
   PanelsTopLeft,
   Plus,
+  Save,
   Users,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import { getWorkspaceManagementOverview } from "../../services/unit-management";
+import { getWorkspaceSettings, updateWorkspaceSettings } from "../../services/unit-settings";
 
 type WorkspaceItem = {
   id: string;
@@ -71,6 +74,9 @@ export default function WorkspaceSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [businessStart, setBusinessStart] = useState("09:00");
+  const [businessEnd, setBusinessEnd] = useState("22:00");
+  const [isSavingHours, setIsSavingHours] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -87,6 +93,20 @@ export default function WorkspaceSettingsPage() {
       }
     };
     void load();
+
+    (async () => {
+      try {
+        const res = await getWorkspaceSettings(axiosPrivate);
+        const bh = res?.data?.data?.settings?.preferences?.businessHours;
+        if (mounted && bh) {
+          setBusinessStart(bh.start || "09:00");
+          setBusinessEnd(bh.end || "22:00");
+        }
+      } catch {
+        // keep defaults
+      }
+    })();
+
     return () => {
       mounted = false;
     };
@@ -205,6 +225,39 @@ export default function WorkspaceSettingsPage() {
     }
   };
 
+  const saveBusinessHours = async () => {
+    if (!businessStart || !businessEnd) {
+      toast.error("Please set both start and end times.");
+      return;
+    }
+    if (businessStart >= businessEnd) {
+      toast.error("Start time must be before end time.");
+      return;
+    }
+    try {
+      setIsSavingHours(true);
+      await updateWorkspaceSettings(axiosPrivate, {
+        profile: {
+          workspaceName: activeWorkspace?.workspaceName || "",
+        },
+        preferences: {
+          timezone: "Asia/Kolkata",
+          currency: "INR",
+          dateFormat: "DD MMM YYYY",
+          timeFormat: "12h",
+          weekStartsOn: "monday",
+          businessHours: { start: businessStart, end: businessEnd },
+        },
+        branding: { primaryColor: "#2563EB" },
+      });
+      toast.success("Business hours updated successfully.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update business hours.");
+    } finally {
+      setIsSavingHours(false);
+    }
+  };
+
   return (
     <>
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -304,6 +357,56 @@ export default function WorkspaceSettingsPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </section>
+
+            <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+                <div className="flex items-start gap-3">
+                  <span className="rounded-2xl bg-amber-50 p-2 text-amber-600 shrink-0">
+                    <Clock className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Business Hours</p>
+                    <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
+                      Set operating hours for meeting rooms, walk-ins, and bookings. Applied across all resources.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveBusinessHours}
+                  disabled={isSavingHours}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSavingHours ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
+                  {isSavingHours ? "SAVING..." : "SAVE HOURS"}
+                </button>
+              </div>
+              <div className="p-3 sm:p-4 lg:p-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Opening Time</label>
+                    <input
+                      type="time"
+                      value={businessStart}
+                      onChange={(e) => setBusinessStart(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Closing Time</label>
+                    <input
+                      type="time"
+                      value={businessEnd}
+                      onChange={(e) => setBusinessEnd(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    />
+                  </div>
+                </div>
+                <p className="mt-3 text-[10px] font-medium text-slate-400">
+                  Current: {businessStart ? (() => { const [h, m] = businessStart.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'} – {businessEnd ? (() => { const [h, m] = businessEnd.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'}
+                </p>
               </div>
             </section>
 
