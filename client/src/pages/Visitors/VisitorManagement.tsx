@@ -1755,14 +1755,33 @@ export default function VisitorsManagementPage() {
   }, [form.email, form.phone, savedVisitorDirectory, visitorMode]);
 
   const applySavedVisitorContact = (visitor) => {
+    const visitorPhone = normalizePhoneForMatch(visitor?.phone || '');
+    const visitorEmail = normalizeText(visitor?.email || '');
+    const matchedClient = bookingClients.find((client) => {
+      const clientPhone = normalizePhoneForMatch(client?.phone || '');
+      const clientEmail = normalizeText(client?.email || '');
+      return (visitorPhone && clientPhone && clientPhone === visitorPhone)
+        || (visitorEmail && clientEmail && clientEmail === visitorEmail);
+    }) || null;
+
+    if (matchedClient) {
+      applyExistingClient(matchedClient);
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
-      name: visitor?.name || prev.name,
-      phone: visitor?.phone || prev.phone,
-      email: visitor?.email || prev.email,
-      company: visitor?.company || prev.company,
+      clientBookingMode: 'existing',
+      clientId: '',
+      clientSearch: visitor?.name || visitor?.phone || visitor?.email || '',
+      name: visitor?.name || '',
+      phone: visitor?.phone || '',
+      email: visitor?.email || '',
+      company: visitor?.company || '',
       purpose: visitor?.purpose || prev.purpose,
     }));
+    setWalkInTouched({});
+    setWalkInSubmitAttempted(false);
   };
 
   const standardVisitorDirectory = useMemo(() => {
@@ -1875,39 +1894,6 @@ export default function VisitorsManagementPage() {
       };
     });
   };
-
-  useEffect(() => {
-    if (visitorMode === 'verify_booking' || form.sourceVisitorId || form.clientBookingMode === 'existing') {
-      return;
-    }
-
-    const primaryMatch = matchedSavedVisitors[0];
-    if (!primaryMatch) {
-      return;
-    }
-
-    setForm((prev) => {
-      const next = { ...prev };
-      let changed = false;
-
-      if (!prev.name && primaryMatch.name) {
-        next.name = primaryMatch.name;
-        changed = true;
-      }
-
-      if (!prev.company && primaryMatch.company) {
-        next.company = primaryMatch.company;
-        changed = true;
-      }
-
-      if (!prev.purpose && primaryMatch.purpose) {
-        next.purpose = primaryMatch.purpose;
-        changed = true;
-      }
-
-      return changed ? next : prev;
-    });
-  }, [form.clientBookingMode, form.sourceVisitorId, matchedSavedVisitors, visitorMode]);
 
   const normalizedMeetingRoomCatalog = useMemo(
     () => meetingRoomCatalog.map(normalizeMeetingRoom),
@@ -2708,11 +2694,32 @@ export default function VisitorsManagementPage() {
       clientBookingMode: 'existing',
       clientId: client.id || client.recordId || client._id || '',
       clientSearch: '',
-      name: client.name || prev.name,
-      phone: client.phone || prev.phone,
-      email: client.email || prev.email,
-      company: client.company || prev.company,
+      name: client.name || '',
+      phone: client.phone || '',
+      email: client.email || '',
+      company: client.company || '',
     }));
+    setWalkInTouched({});
+    setWalkInSubmitAttempted(false);
+  };
+
+  const switchClientBookingMode = (mode) => {
+    setForm((prev) => {
+      if (mode === 'new') {
+        return {
+          ...prev,
+          clientBookingMode: 'new',
+          clientId: '',
+          clientSearch: '',
+          sourceVisitorId: '',
+          name: '',
+          phone: '',
+          email: '',
+          company: '',
+        };
+      }
+      return { ...prev, clientBookingMode: 'existing' };
+    });
     setWalkInTouched({});
     setWalkInSubmitAttempted(false);
   };
@@ -4915,7 +4922,7 @@ export default function VisitorsManagementPage() {
                                 <button
                                   key={mode}
                                   type="button"
-                                  onClick={() => setForm((prev) => ({ ...prev, clientBookingMode: mode, clientId: mode === 'new' ? '' : prev.clientId }))}
+                                  onClick={() => switchClientBookingMode(mode)}
                                   className={`rounded-lg px-2.5 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'}`}
                                 >
                                   {label}
