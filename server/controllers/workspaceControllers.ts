@@ -13,6 +13,7 @@ import {
   EXTRA_COMMON_MODULE_IDS,
 } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
+import { recalcResourceDailyPricesForWorkspace } from "../services/resourceService.js";
 
 const _getRoleName = (role: any) => {
   if (!role) return "";
@@ -621,7 +622,16 @@ export const switchWorkspace = async (req, res, next) => {
 
 export const getWorkspaceSettings = async (req, res, next) => {
   try {
-    const { workspace } = await getCurrentWorkspaceContext(req.user);
+    // Prefer the workspace verifyJwt already resolved (req.workspaceMembership) —
+    // for tenant users that is the host's workspace (via TenantEmployee →
+    // TenantCompany), which getCurrentWorkspaceContext cannot resolve.
+    const membershipWorkspaceId = req.workspaceMembership?.workspace;
+    let workspace = membershipWorkspaceId
+      ? await Workspace.findById(membershipWorkspaceId)
+      : null;
+    if (!workspace) {
+      ({ workspace } = await getCurrentWorkspaceContext(req.user));
+    }
     if (!workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
     }
@@ -788,6 +798,11 @@ export const updateWorkspaceSettings = async (req, res, next) => {
     const preferences = payload.preferences || {};
     const branding = payload.branding || {};
 
+    // Recalc on every save that includes businessHours (not only on change):
+    // it is idempotent, and it lets a plain re-save heal resources whose daily
+    // price was stored under a different span (e.g. the old hourly × 24 formula).
+    const shouldRecalcResourcePrices = Boolean(preferences.businessHours);
+
     workspace.workspaceName = String(profile.workspaceName || workspace.workspaceName).trim();
     workspace.businessName = String(profile.businessName || workspace.businessName || "").trim();
     if (profile.location) {
@@ -814,6 +829,11 @@ export const updateWorkspaceSettings = async (req, res, next) => {
       ...branding,
     };
     await workspace.save();
+
+    if (shouldRecalcResourcePrices) {
+      const recalced = await recalcResourceDailyPricesForWorkspace(String(workspace._id));
+      console.log(`[workspace-settings] business hours saved — recalculated daily prices for ${recalced} resource(s) in workspace ${workspace._id}`);
+    }
 
     return res.status(200).json({
       message: "Workspace settings updated successfully.",

@@ -2873,6 +2873,15 @@ export function MeetingRoomsPage() {
     return status === 'booked' || status === 'in progress';
   };
 
+  // Badge count for the Invites tab: only invites the user can still act on.
+  // A pending invite whose booking has ended is shown as expired in the list
+  // and must not keep the red badge alive.
+  const actionablePendingInviteCount = receivedInvites.filter((invite) => {
+    if (invite.status !== 'pending') return false;
+    const linkedBooking = allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null;
+    return isInviteResponseOpen(linkedBooking);
+  }).length;
+
   const isRoomOptionDisabled = (roomName: string) => {
     const room = roomCatalog.find(r => r.name === roomName);
     if (!room) return false;
@@ -4045,9 +4054,9 @@ export function MeetingRoomsPage() {
                         >
                           {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
                           INVITES
-                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
+                          {actionablePendingInviteCount > 0 && (
                             <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-pmedium rounded-full shadow-sm shadow-red-200 animate-pulse">
-                              {receivedInvites.filter(i => i.status === 'pending').length}
+                              {actionablePendingInviteCount}
                             </span>
                           )}
                         </button>
@@ -4086,9 +4095,9 @@ export function MeetingRoomsPage() {
                         >
                           {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
                           INVITES
-                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
+                          {actionablePendingInviteCount > 0 && (
                             <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-pmedium rounded-full shadow-sm shadow-red-200 animate-pulse">
-                              {receivedInvites.filter(i => i.status === 'pending').length}
+                              {actionablePendingInviteCount}
                             </span>
                           )}
                         </button>

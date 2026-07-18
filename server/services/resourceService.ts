@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { Resource } from "../models/Resource.js";
+import Workspace from "../models/Workspace.js";
 import {
     formatResource,
     normalizeResourceName,
@@ -15,7 +16,28 @@ import {
     hasResourcePricingAndCredits,
 } from "./resourceSyncService.js";
 
-const RESOURCE_FULL_DAY_HOURS = 24;
+// Fallback bookable-day span when a workspace has no business hours saved
+// (default 09:00–22:00 = 13 hours).
+const DEFAULT_BOOKING_SPAN_HOURS = 13;
+
+function timeStringToMinutes(value: string): number {
+    const [hours, minutes] = String(value || "").split(":").map(Number);
+    return (hours || 0) * 60 + (minutes || 0);
+}
+
+export async function getWorkspaceBookingSpanHours(workspaceId: string): Promise<number> {
+    try {
+        const workspace = await Workspace.findById(workspaceId).select("preferences.businessHours").lean().exec();
+        const bh = (workspace as any)?.preferences?.businessHours;
+        if (bh?.start && bh?.end) {
+            const span = (timeStringToMinutes(bh.end) - timeStringToMinutes(bh.start)) / 60;
+            if (span > 0) return Math.round(span * 100) / 100;
+        }
+    } catch {
+        // fall through to default
+    }
+    return DEFAULT_BOOKING_SPAN_HOURS;
+}
 
 const assignableResourceCategories = new Set(["open_desk", "cabin_desk"]);
 
@@ -123,11 +145,13 @@ function validateResourceCapacity(resourceCategory: string, inventoryMode: strin
     throw error;
 }
 
-function resolveResourcePricePerDay(pricePerHour = 0, pricePerDay = 0) {
+// An explicitly supplied daily price always wins (the client keeps it in sync
+// with hourly × booking span); we only derive it when missing.
+function resolveResourcePricePerDay(pricePerHour = 0, pricePerDay = 0, spanHours = DEFAULT_BOOKING_SPAN_HOURS) {
     const hour = Number(pricePerHour || 0);
     const day = Number(pricePerDay || 0);
-    if (hour > 0) return hour * RESOURCE_FULL_DAY_HOURS;
     if (day > 0) return day;
+    if (hour > 0) return Math.round(hour * spanHours * 100) / 100;
     return 0;
 }
 
@@ -211,6 +235,45 @@ export async function listResourcesForOwner(workspaceId: string, ownerId: string
     };
 }
 
+// Called after a workspace's business hours change: daily prices are defined
+// as hourly × bookable span, so every priced resource is re-derived from its
+// hourly rate against the new span.
+export async function recalcResourceDailyPricesForWorkspace(workspaceId: string) {
+    const spanHours = await getWorkspaceBookingSpanHours(workspaceId);
+    const resources = await Resource.find({
+        workspaceId: new mongoose.Types.ObjectId(workspaceId),
+        pricePerHour: { $gt: 0 },
+    })
+        .select("pricePerHour pricePerDay pricing")
+        .lean()
+        .exec();
+
+    // Targeted $set updates instead of document save(): legacy resources can
+    // carry values that fail current schema validation on unrelated fields
+    // (e.g. retired `type` enum entries), which must not block a price recalc.
+    const operations = [];
+    for (const resource of resources) {
+        const newDaily = Math.round(Number(resource.pricePerHour) * spanHours * 100) / 100;
+        if (Number(resource.pricePerDay) === newDaily) continue;
+        operations.push({
+            updateOne: {
+                filter: { _id: resource._id },
+                update: {
+                    $set: {
+                        pricePerDay: newDaily,
+                        pricing: formatPricingSummary(resource.pricePerHour, newDaily, resource.pricing || ""),
+                        pricingUpdatedAt: new Date(),
+                    },
+                },
+            },
+        });
+    }
+    if (operations.length > 0) {
+        await Resource.bulkWrite(operations);
+    }
+    return operations.length;
+}
+
 export async function createResourceForOwner(workspaceId: string, ownerId: string, input: any) {
     const validationError = validateCreateInput(input);
     if (validationError) {
@@ -228,9 +291,11 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
     const inventoryMode = normalizeResourceInventoryMode(input.inventoryMode, resourceCategory, input.capacity);
     const capacity = validateResourceCapacity(resourceCategory, inventoryMode, input.capacity);
     const pricePerHour = typeof input.pricePerHour === "number" ? input.pricePerHour : 0;
+    const bookingSpanHours = await getWorkspaceBookingSpanHours(workspaceId);
     const pricePerDay = resolveResourcePricePerDay(
         pricePerHour,
         typeof input.pricePerDay === "number" ? input.pricePerDay : 0,
+        bookingSpanHours,
     );
     const credits = Number(input.credits || 0);
     const status = resolveResourceStatusForActivation({
@@ -310,6 +375,7 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
         resource!.pricePerDay = resolveResourcePricePerDay(
             typeof input.pricePerHour === "number" ? input.pricePerHour : resource!.pricePerHour,
             typeof input.pricePerDay === "number" ? input.pricePerDay : resource!.pricePerDay,
+            await getWorkspaceBookingSpanHours(workspaceId),
         );
     }
     if (typeof input.credits === "number") resource!.credits = input.credits;

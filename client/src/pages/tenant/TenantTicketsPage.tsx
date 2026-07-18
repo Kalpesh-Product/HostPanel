@@ -214,7 +214,7 @@ export default function TenantTicketsPage() {
   if (isLoading) return <TicketsSkeleton />;
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="flex items-center gap-4">

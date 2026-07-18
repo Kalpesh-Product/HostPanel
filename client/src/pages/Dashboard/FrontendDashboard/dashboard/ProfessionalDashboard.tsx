@@ -25,6 +25,7 @@ import {
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
 import { statusBadgeColor, humanRelTime } from "./dashboardUtils";
+import { getStoredUser } from "../../../../lib/auth-session";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
 import { getTickets } from "../../../../services/tickets";
@@ -39,21 +40,36 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
 
+  // Bookings are fetched per-workspace; resolve it the same way the meeting rooms page does.
+  const storedUser = getStoredUser();
+  const dashboardWorkspaceId = String(
+    storedUser?.workspaceMembership?.workspaceId ||
+    storedUser?.workspaceMembership?.workspace ||
+    storedUser?.primaryWorkspace ||
+    storedUser?.workspace?.id ||
+    storedUser?.workspaceId ||
+    "",
+  );
+
   const { data: tenantsRaw = [], isLoading: tenantsLoading } = useQuery({
     queryKey: ["dashboard-tenants"],
     queryFn: async () => {
       const res = await getTenantCompanies();
-      const d = res?.data?.data ?? res?.data ?? res;
+      // listTenantCompanies responds with { tenants: [...] } at the top level.
+      const d = res?.data?.tenants ?? res?.data?.data?.tenants ?? res?.data?.data ?? res?.data;
       return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: bookingsRaw = [], isLoading: bookingsLoading } = useQuery({
-    queryKey: ["dashboard-bookings"],
+    queryKey: ["dashboard-bookings", dashboardWorkspaceId],
     queryFn: async () => {
-      const d = await getMeetingRoomBookings();
-      return Array.isArray(d) ? d : [];
+      if (!dashboardWorkspaceId) return [];
+      const d = await getMeetingRoomBookings(dashboardWorkspaceId);
+      // Service unwraps to { roomDetails, bookings, receivedInvites }.
+      const list = (d as any)?.bookings ?? d;
+      return Array.isArray(list) ? list : [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -70,8 +86,10 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   const { data: visitorsRaw = [], isLoading: visitorsLoading } = useQuery({
     queryKey: ["dashboard-visitors-full"],
     queryFn: async () => {
-      const res = await axiosPrivate.get("/api/visitors/fetch-visitors");
-      return Array.isArray(res?.data) ? res.data : [];
+      // Real endpoint is /api/v1/visitors → { data: { visitors: [...] } }.
+      const res = await axiosPrivate.get("/api/v1/visitors", { params: { limit: 200 } });
+      const d = res?.data?.data?.visitors ?? res?.data?.visitors;
+      return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -79,23 +97,28 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   // ── Derived stats ──────────────────────────────────────────────────────────
 
   const tenantStats = useMemo(() => {
-    const active = tenantsRaw.filter((t: any) => ["active", "Active", "ACTIVE"].includes(t.status)).length;
-    const expiringSoon = tenantsRaw.filter((t: any) => {
-      if (!t.endDate) return false;
-      const daysLeft = Math.ceil((new Date(t.endDate).getTime() - Date.now()) / 86400000);
-      return daysLeft >= 0 && daysLeft <= 30;
-    }).length;
-    const pending = tenantsRaw.filter((t: any) => ["pending", "Pending", "PENDING"].includes(t.status)).length;
+    // Server derives tenant status from contract end: Active / Expiring Soon /
+    // Expired / Pending Space Assignment.
+    const statusOf = (t: any) => String(t.status || "").toLowerCase();
+    const active = tenantsRaw.filter((t: any) => statusOf(t) === "active").length;
+    const expiringSoon = tenantsRaw.filter((t: any) => statusOf(t).includes("expiring")).length;
+    const pending = tenantsRaw.filter((t: any) => statusOf(t).includes("pending") || statusOf(t) === "expired").length;
     return { total: tenantsRaw.length, active, expiringSoon, pending };
   }, [tenantsRaw]);
 
   const bookingStats = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const todayBookings = bookingsRaw.filter((b: any) => (b.date || b.startDate || b.createdAt || "").startsWith(today));
-    const confirmed = bookingsRaw.filter((b: any) => ["confirmed", "Confirmed"].includes(b.status)).length;
-    const cancelled = bookingsRaw.filter((b: any) => ["cancelled", "Cancelled"].includes(b.status)).length;
-    const pending = bookingsRaw.filter((b: any) => ["pending", "Pending"].includes(b.status)).length;
-    return { total: bookingsRaw.length, todayCount: todayBookings.length, confirmed, cancelled, pending };
+    const today = dayjs().format("YYYY-MM-DD");
+    const now = Date.now();
+    const todayBookings = bookingsRaw.filter((b: any) => String(b.date || b.startDate || b.createdAt || "").startsWith(today));
+    const statusOf = (b: any) => String(b.status || "").toLowerCase();
+    const cancelled = bookingsRaw.filter((b: any) => statusOf(b) === "cancelled").length;
+    // A confirmed booking whose end time has passed counts as completed.
+    const isCompleted = (b: any) =>
+      statusOf(b) === "completed" ||
+      (statusOf(b) !== "cancelled" && b.end && new Date(b.end).getTime() < now);
+    const completed = bookingsRaw.filter(isCompleted).length;
+    const confirmed = bookingsRaw.filter((b: any) => statusOf(b) === "confirmed" && !isCompleted(b)).length;
+    return { total: bookingsRaw.length, todayCount: todayBookings.length, confirmed, cancelled, completed };
   }, [bookingsRaw]);
 
   const ticketStats = useMemo(() => {
@@ -108,9 +131,13 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   const visitorStats = useMemo(() => {
     const todayStr = dayjs().format("YYYY-MM-DD");
     const todayCount = visitorsRaw.filter((v: any) =>
-      (v.dateOfVisit || v.checkInTime || v.createdAt || "").startsWith(todayStr)
+      String(v.checkInAt || v.createdAt || "").startsWith(todayStr)
     ).length;
-    const checkedIn = visitorsRaw.filter((v: any) => v.isCheckedIn || v.checkedIn || false).length;
+    // Visitor status is stored as checked_in / checked_out; a live visitor has
+    // a check-in without a check-out.
+    const checkedIn = visitorsRaw.filter((v: any) =>
+      String(v.status || "").toLowerCase() === "checked_in" || (v.checkInAt && !v.checkOutAt)
+    ).length;
     return { todayCount, checkedIn };
   }, [visitorsRaw]);
 
@@ -157,7 +184,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       if (!isNaN(joinedAt.getTime())) joined[(joinedAt.getMonth() + 9) % 12]++;
 
       const renewedAt = new Date(
-        tenant.renewedAt || tenant.renewalDate || tenant.contractStart || tenant.agreementDetails?.startDate || ""
+        tenant.renewedAt || tenant.renewalDate || tenant.contractStartAt || tenant.contractStart || tenant.agreementDetails?.startDate || ""
       );
       // Contract renewal resets contractStart, while the original createdAt remains unchanged.
       if (
@@ -198,13 +225,13 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   // Donut data
   const tenantDonut = {
     series: [tenantStats.active, tenantStats.pending, tenantStats.expiringSoon],
-    labels: ["Active", "Pending", "Expiring"],
+    labels: ["Active", "Pending/Expired", "Expiring Soon"],
     colors: ["#1E3D73", "#80bf01", "#f59e0b"],
   };
   const bookingDonut = {
-    series: [bookingStats.confirmed, bookingStats.pending, bookingStats.cancelled],
-    labels: ["Confirmed", "Pending", "Cancelled"],
-    colors: ["#1E3D73", "#f59e0b", "#ef4444"],
+    series: [bookingStats.confirmed, bookingStats.completed, bookingStats.cancelled],
+    labels: ["Confirmed", "Completed", "Cancelled"],
+    colors: ["#1E3D73", "#22c55e", "#ef4444"],
   };
   const ticketDonut = {
     series: [ticketStats.open, ticketStats.inProgress, ticketStats.resolved],
@@ -222,11 +249,31 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   const recentTenants = useMemo(() =>
     [...tenantsRaw].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 6),
     [tenantsRaw]);
+  const recentVisitors = useMemo(() =>
+    [...visitorsRaw].sort((a: any, b: any) => new Date(b.checkInAt || b.createdAt || 0).getTime() - new Date(a.checkInAt || a.createdAt || 0).getTime()).slice(0, 5),
+    [visitorsRaw]);
+
+  // Visitor types come from the VisitorLog enum: standard / department / tenant.
+  const visitorDonut = useMemo(() => {
+    const typeOf = (v: any) => String(v.visitorType || "standard").toLowerCase();
+    return {
+      series: [
+        visitorsRaw.filter((v: any) => typeOf(v) === "standard").length,
+        visitorsRaw.filter((v: any) => typeOf(v) === "department").length,
+        visitorsRaw.filter((v: any) => typeOf(v) === "tenant").length,
+      ],
+      labels: ["Standard", "Department", "Tenant"],
+      colors: ["#2563EB", "#7c3aed", "#80bf01"],
+    };
+  }, [visitorsRaw]);
+
+  const prettifyVisitorStatus = (status: string) =>
+    String(status || "Pending").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   const quickLinks: QuickLinkItem[] = [
     { icon: Map, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
     { icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/company-settings/website-builder", color: "#7c3aed" },
-    { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/administration/tenant-companies", color: "#1E3D73" },
+    { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/sales-crm/tenant-companies", color: "#1E3D73" },
     { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/meetings/meeting-rooms", color: "#2563EB" },
     { icon: Ticket, label: "Customer Support", description: "Handle open tickets", route: "/company-settings/customer-support", color: "#ef4444" },
     { icon: UserPlus, label: "Visitor Management", description: "Check-in / check-out", route: "/visitors/visitor-management", color: "#80bf01" },
@@ -261,9 +308,9 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Professional-plan module overview */}
       <WidgetSection layout={3} title="Overview" border normalCase>
-        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/administration/tenant-companies" />
+        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/sales-crm/tenant-companies" />
         <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/meetings/meeting-rooms" />
-        <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/meetings/meeting-rooms" />
+        <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.completed} completed`} color="#059669" route="/meetings/meeting-rooms" />
         <StatCard icon={Ticket} label="Customer Support" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/company-settings/customer-support" />
         <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/company-settings/customer-support" />
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
@@ -273,6 +320,23 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       <WidgetSection layout={4} title="Quick Links" border normalCase>
         {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
       </WidgetSection>
+
+      {/* Recent visitors and visitor type */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
+          {recentVisitors.length > 0 ? recentVisitors.map((v: any, i: number) => (
+            <RecentItem
+              key={i}
+              title={v.fullName || v.firstName || "Visitor"}
+              sub={v.purpose || v.company || "Visit"}
+              badge={prettifyVisitorStatus(v.status)}
+              badgeColor={statusBadgeColor(v.status || "")}
+              time={humanRelTime(v.checkInAt || v.createdAt)}
+            />
+          )) : <p className="text-content text-gray-400 text-center py-6">No recent visitors</p>}
+        </SectionCard>
+        <DonutWidget title="Visitor Type" series={visitorDonut.series} labels={visitorDonut.labels} colors={visitorDonut.colors} centerLabel="Visitors" />
+      </div>
 
       {/* Recent bookings and booking status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -296,7 +360,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent tenants and tenant status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/administration/tenant-companies">
+        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/sales-crm/tenant-companies">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
@@ -319,7 +383,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Expiry alert */}
       {tenantStats.expiringSoon > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/administration/tenant-companies")}>
+        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/sales-crm/tenant-companies")}>
           <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
           <div>
             <p className="text-content font-pmedium text-amber-800">{tenantStats.expiringSoon} tenant agreement{tenantStats.expiringSoon > 1 ? "s" : ""} expiring within 30 days</p>

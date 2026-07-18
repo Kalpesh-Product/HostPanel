@@ -730,8 +730,16 @@ export default function PricingPackagesPage() {
       };
       setAddResourceForm(recalcDaily);
       setResourceForm(recalcDaily);
+      // The server re-derives every resource's daily price from the new span —
+      // refetch so the table reflects the recalculated prices.
+      try {
+        const refreshed = await getResources();
+        setResources((refreshed?.data?.data?.resources || refreshed?.data?.resources || []).map(normalizeResource));
+      } catch {
+        // table will refresh on next load
+      }
       setIsHoursModalOpen(false);
-      toast.success('Booking hours updated. All booking forms will use these timings.');
+      toast.success('Booking hours updated. Resource daily prices have been recalculated.');
     } catch (error) {
       toast.error((error as any)?.response?.data?.message || 'Unable to update booking hours.');
     } finally {

@@ -26,7 +26,7 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer, Lock, Home
+  Download, Printer, Lock, Home, UserCheck
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
@@ -465,7 +465,8 @@ function getWalkInValidationErrors(form = {}, options = {}) {
   if (!email) errors.email = requiredMessage;
   else if (!isValidEmail(email)) errors.email = 'Enter a valid email address.';
 
-  ['spaceType', 'floor', 'wing', 'resourceName', 'startDate', 'endDate', 'startTime', 'endTime', 'paymentMode'].forEach((field) => {
+  // Wing is optional — rooms can be picked across all wings of the floor.
+  ['spaceType', 'floor', 'resourceName', 'startDate', 'endDate', 'startTime', 'endTime', 'paymentMode'].forEach((field) => {
     if (!String(form[field] || '').trim()) errors[field] = requiredMessage;
   });
 
@@ -730,28 +731,42 @@ function buildWalkInSuggestions(bookings, rooms, selectedRoom, startDate, endDat
   const selectedFloor = normalizeText(selectedRoom?.floor || '');
   const selectedCapacity = Number(selectedRoom?.capacity || 0);
   const normalizedRooms = rooms.map(normalizeMeetingRoom);
+  const isFreeForSlot = (room) =>
+    !bookings.some((booking) => getOverlapConflict(booking, room.name, startDateKey, endDateKey, startMinutes, endMinutes));
+
+  // Same-type rooms first (same floor preferred), then any other free space —
+  // desk, cabin, meeting or conference room — so the visitor always gets options.
   const matchingRooms = normalizedRooms.filter((room) => (
     room.type === selectedRoomType &&
     room.capacity >= selectedCapacity &&
     (!selectedFloor || normalizeText(room.floor) === selectedFloor)
   ));
-  const fallbackRooms = matchingRooms.length > 0
+  const sameTypeRooms = matchingRooms.length > 0
     ? matchingRooms
     : normalizedRooms.filter((room) => room.type === selectedRoomType && room.capacity >= selectedCapacity);
+  const otherTypeRooms = normalizedRooms.filter((room) => room.type !== selectedRoomType);
 
-  const roomSuggestions = fallbackRooms
-    .filter((room) => !bookings.some((booking) => getOverlapConflict(booking, room.name, startDateKey, endDateKey, startMinutes, endMinutes)))
-    .slice(0, 4)
-    .map((room) => ({
-      name: room.name,
-      capacity: Number(room.capacity || 0),
-      type: room.type || getRoomTypeFromName(room.name),
-      floor: room.floor || 'Floor 1',
-    }));
+  const toSuggestion = (room) => ({
+    name: room.name,
+    capacity: Number(room.capacity || 0),
+    type: room.type || getRoomTypeFromName(room.name),
+    floor: room.floor || 'Floor 1',
+  });
+  const freeSameType = sameTypeRooms.filter(isFreeForSlot).map(toSuggestion);
+  const freeOtherTypes = otherTypeRooms.filter(isFreeForSlot).map(toSuggestion);
+  const roomSuggestions = [...freeSameType, ...freeOtherTypes].slice(0, 4);
 
+  // Slot alternatives keep the requested duration and never suggest a time
+  // that has already passed when booking for today.
   const durationMinutes = Math.max(30, endMinutes - startMinutes);
+  let cursor = workingStartMinutes;
+  if (startDateKey === formatDateKey(new Date())) {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    cursor = Math.max(cursor, Math.ceil(nowMinutes / WALK_IN_SLOT_STEP) * WALK_IN_SLOT_STEP);
+  }
   const candidateSlots: Array<{ start: string; end: string }> = [];
-  for (let minutes = workingStartMinutes; minutes + durationMinutes <= workingEndMinutes; minutes += WALK_IN_SLOT_STEP) {
+  for (let minutes = cursor; minutes + durationMinutes <= workingEndMinutes; minutes += WALK_IN_SLOT_STEP) {
     const nextEnd = minutes + durationMinutes;
     const conflict = bookings.some((booking) => getOverlapConflict(booking, selectedRoom?.name || '', startDateKey, endDateKey, minutes, nextEnd));
     if (!conflict) {
@@ -759,9 +774,9 @@ function buildWalkInSuggestions(bookings, rooms, selectedRoom, startDate, endDat
         start: minutesToTime(minutes),
         end: minutesToTime(nextEnd),
       });
-    }
-    if (candidateSlots.length === 3) {
-      break;
+      if (candidateSlots.length === 3) break;
+      // Skip past this window so alternatives are distinct slots, not 5-minute shifts.
+      minutes = nextEnd - WALK_IN_SLOT_STEP;
     }
   }
 
@@ -774,7 +789,7 @@ function buildWalkInSuggestions(bookings, rooms, selectedRoom, startDate, endDat
 function normalizeVerifiedBooking(booking) {
   if (!booking) return null;
 
-  const id = String(booking.id || booking.bookingCode || '').trim().toUpperCase();
+  const id = String(booking.bookingCode || booking.id || '').trim().toUpperCase();
   return {
     id,
     recordId: String(booking.recordId || booking._id || booking.id || booking.bookingCode || id || '').trim(),
@@ -803,7 +818,7 @@ function normalizeVerifiedBooking(booking) {
 
 function getBookingDisplayStatus(status) {
   const normalized = normalizeText(status);
-  if (normalized === 'booked') return 'Booked';
+  if (normalized === 'booked' || normalized === 'confirmed') return 'Booked';
   if (normalized === 'in progress' || normalized === 'checked in' || normalized === 'checked-in') return 'In Progress';
   if (normalized === 'completed' || normalized === 'checked out' || normalized === 'checked-out') return 'Completed';
   if (normalized === 'cancelled' || normalized === 'canceled') return 'Cancelled';
@@ -817,11 +832,41 @@ function isExternalMeetingBooking(booking) {
   return normalizeText(booking?.bookingType) === 'external';
 }
 
+/**
+ * Live walk-in booking lifecycle, derived from the clock:
+ *   Booked      — before start, entry not confirmed (reschedule/cancel allowed)
+ *   Confirmed   — front desk confirmed entry, meeting not started yet
+ *   In Progress — between start and end (extend allowed)
+ *   Completed   — past end time (view only)
+ * Stored Cancelled/Completed always win over the clock.
+ */
+function deriveWalkInLiveStatus(storedStatus, date, startTime, endTime) {
+  if (storedStatus === 'Cancelled' || storedStatus === 'Completed') return storedStatus;
+  const dateKey = formatDateKey(date);
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  if (!dateKey || startMinutes == null || endMinutes == null) return storedStatus;
+
+  const now = new Date();
+  const todayKey = formatDateKey(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (dateKey < todayKey || (dateKey === todayKey && nowMinutes >= endMinutes)) return 'Completed';
+  if (dateKey === todayKey && nowMinutes >= startMinutes) return 'In Progress';
+  // Meeting has not started yet. A stored "In Progress" here means the front
+  // desk already confirmed the visitor's entry — surface that as Confirmed.
+  if (storedStatus === 'In Progress') return 'Confirmed';
+  return storedStatus === 'Rescheduled' ? 'Rescheduled' : 'Booked';
+}
+
 function normalizeDailyBooking(booking) {
   if (!booking) return null;
 
-  const id = String(booking.id || booking.bookingCode || booking.recordId || booking._id || '').trim().toUpperCase();
-  const status = getBookingDisplayStatus(booking.liveStatus || booking.status);
+  // Prefer the friendly bookingCode (MRB-...) — it is what the confirmation
+  // email shows and what the front desk verifies against.
+  const id = String(booking.bookingCode || booking.id || booking.recordId || booking._id || '').trim().toUpperCase();
+  const storedStatus = getBookingDisplayStatus(booking.liveStatus || booking.status);
+  const status = deriveWalkInLiveStatus(storedStatus, booking.date, booking.startTime, booking.endTime);
   const paymentStatus = booking.paymentStatus || (status === 'Booked' ? 'Pending Payment' : '');
   const originalTime = booking.previousStartTime && booking.previousEndTime
     ? `${formatTimeLabel(booking.previousStartTime)} - ${formatTimeLabel(booking.previousEndTime)}`
@@ -1891,12 +1936,18 @@ export default function VisitorsManagementPage() {
     return floors.length > 0 ? floors : availableFloors;
   }, [availableFloors, form.spaceType, normalizedMeetingRoomCatalog]);
 
+  // Wings actually present on the selected floor for the selected space type —
+  // sourced from the resource catalog, not hardcoded.
   const walkInWingOptions = useMemo(() => {
-    return ['A', 'B'];
-  }, []);
+    const wings = normalizedMeetingRoomCatalog
+      .filter((room) => (!form.spaceType || room.type === form.spaceType) && (!form.floor || room.floor === form.floor))
+      .map((room) => normalizeText(room.wing))
+      .filter(Boolean);
+    return Array.from(new Set(wings)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [form.floor, form.spaceType, normalizedMeetingRoomCatalog]);
 
   const walkInRoomOptions = useMemo(() => {
-    if (!form.spaceType || !form.floor || !form.wing) {
+    if (!form.spaceType || !form.floor) {
       return [];
     }
 
@@ -1905,7 +1956,7 @@ export default function VisitorsManagementPage() {
     const selectedWing = form.wing;
 
     return normalizedMeetingRoomCatalog
-      .filter((room) => room.type === selectedType && room.floor === selectedFloor && room.wing === selectedWing)
+      .filter((room) => room.type === selectedType && room.floor === selectedFloor && (!selectedWing || room.wing === selectedWing))
       .map((room) => {
         const assignedToTenant = Boolean(room.assignedTenantCompanyId || room.assignedTenantCompanyName);
         const assignedToDepartment = Boolean(room.assignedDepartmentId || room.assignedDepartmentName);
@@ -2145,18 +2196,6 @@ export default function VisitorsManagementPage() {
         status: 'pending',
         available: false,
         reason: 'Select a floor to continue.',
-        roomSuggestions: [],
-        slotSuggestions: [],
-        seatSuggestions: [],
-        hasConflict: false,
-      };
-    }
-
-    if (!form.wing) {
-      return {
-        status: 'pending',
-        available: false,
-        reason: 'Select a wing to continue.',
         roomSuggestions: [],
         slotSuggestions: [],
         seatSuggestions: [],
@@ -2455,7 +2494,7 @@ export default function VisitorsManagementPage() {
   }, [lockedVisitorModes, visitorMode]);
 
   useEffect(() => {
-    if (!form.spaceType || !form.floor || !form.wing || !walkInRoomOptions.length) {
+    if (!form.spaceType || !form.floor || !walkInRoomOptions.length) {
       if (form.resourceName || form.seatNumber) {
         setForm((prev) => ({
           ...prev,
@@ -2512,8 +2551,13 @@ export default function VisitorsManagementPage() {
 
   const handleVerifySearch = () => {
     const normalizedId = String(form.bookingId || '').trim().toUpperCase();
-    const backendMatch = meetingRoomBookings.find((booking) => String(booking.id || booking.bookingCode || booking.recordId || '').toUpperCase() === normalizedId);
-    const localMatch = upcomingBookings.find((booking) => String(booking.id || booking.bookingCode || booking.recordId || '').toUpperCase() === normalizedId);
+    // Match every identifier a visitor might quote — the confirmation email
+    // carries bookingCode (MRB-...), while internal views may show the record id.
+    const matchesEnteredId = (booking) =>
+      [booking.bookingCode, booking.id, booking.recordId]
+        .some((candidate) => String(candidate || '').trim().toUpperCase() === normalizedId);
+    const backendMatch = meetingRoomBookings.find(matchesEnteredId);
+    const localMatch = upcomingBookings.find(matchesEnteredId);
     const found = backendMatch ? normalizeVerifiedBooking(backendMatch) : localMatch;
     if (found) {
       setVerifiedBooking(found);
@@ -3759,8 +3803,13 @@ export default function VisitorsManagementPage() {
                               )}
                             </div>
                             {isCheckedIn ? (
-                              <button type="button" disabled title="Upgrade plan to access this feature." className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-400 rounded-lg text-[9px] font-pmedium uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap cursor-not-allowed">
-                                <Lock size={11} /> Convert to Client
+                              <button
+                                type="button"
+                                title="Open a walk-in booking pre-filled with this visitor's details. Completing the booking checks them out and converts them to a client."
+                                onClick={() => openBookingFromVisitor(vis)}
+                                className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[9px] font-pmedium uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap"
+                              >
+                                <UserCheck size={11} /> Convert to Client
                               </button>
                             ) : null}
                           </div>
@@ -3890,7 +3939,7 @@ export default function VisitorsManagementPage() {
                             <Clock size={12} /> Extend Slot
                           </button>
                         </>
-                      ) : bkg.status === 'Completed' || bkg.status === 'Cancelled' ? (
+                      ) : bkg.status === 'Completed' || bkg.status === 'Cancelled' || bkg.status === 'Confirmed' ? (
                         <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
                           <Eye size={14} /> View
                         </button>
@@ -4094,7 +4143,7 @@ export default function VisitorsManagementPage() {
                   >Standard Visitor</button>
                   <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => { setVisitorMode('tour'); setTourTouched({}); setTourSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
                   <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
-                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
+                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking</button>
                 </div>
               </div>
 
@@ -4968,7 +5017,7 @@ export default function VisitorsManagementPage() {
                               <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><LayoutGrid size={16} /></span>
                               <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Location &amp; Capacity</span>
                             </h4>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Space Type <span className="text-red-400">*</span></label>
                                 <select
@@ -5007,7 +5056,7 @@ export default function VisitorsManagementPage() {
                                 {visibleWalkInErrors.floor ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.floor}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing <span className="text-slate-400 normal-case">(optional)</span></label>
                                 <select
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.wing ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.wing}
@@ -5018,7 +5067,7 @@ export default function VisitorsManagementPage() {
                                     setForm({ ...form, wing: nextWing, resourceName: '', seatNumber: '' });
                                   }}
                                 >
-                                  <option value="" disabled>Select a wing</option>
+                                  <option value="">All wings</option>
                                   {walkInWingOptions.map((wing) => (
                                     <option key={wing} value={wing}>Wing {wing}</option>
                                   ))}
@@ -5030,7 +5079,7 @@ export default function VisitorsManagementPage() {
                                 <select
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.resourceName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.resourceName}
-                                  disabled={!form.spaceType || !form.floor || !form.wing}
+                                  disabled={!form.spaceType || !form.floor}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, resourceName: true }))}
                                   onChange={(e) => setForm({ ...form, resourceName: e.target.value, seatNumber: '' })}
                                 >
@@ -5406,10 +5455,11 @@ export default function VisitorsManagementPage() {
 
                   {visitorMode === 'verify_booking' && (
                     <div className="space-y-2.5 animate-in fade-in h-full flex flex-col bg-gray-50 rounded-lg border border-gray-200 p-2.5 text-[10px]">
-                      <h3 className="text-xs font-pmedium text-blue-600 uppercase tracking-widest border-b border-blue-200 pb-2 mb-2 flex items-center gap-2"><Search size={16} /> Online Booking Lookup</h3>
+                      <h3 className="text-xs font-pmedium text-blue-600 uppercase tracking-widest border-b border-blue-200 pb-2 mb-2 flex items-center gap-2"><Search size={16} /> Verify Booking</h3>
+                      <p className="text-[11px] font-pmedium text-slate-500 -mt-1">Ask the visitor for the booking ID from their confirmation email and enter it below to verify the booking.</p>
 
                       <div className="flex gap-3">
-                        <input type="text" placeholder="Enter booking ID..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-blue-500 outline-none uppercase shadow-sm text-xs" value={form.bookingId} onChange={e => setForm({ ...form, bookingId: e.target.value })} />
+                        <input type="text" placeholder="Enter booking ID from the confirmation email..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-blue-500 outline-none uppercase shadow-sm text-xs" value={form.bookingId} onChange={e => setForm({ ...form, bookingId: e.target.value })} />
                         <button onClick={handleVerifySearch} disabled={!form.bookingId || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission to verify booking IDs.' : undefined} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-6 bg-gray-900 text-white hover:bg-black disabled:bg-gray-300 transition-all shadow-md">FETCH</button>
                       </div>
 
@@ -5503,7 +5553,7 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {visitorMode === 'verify_booking' && (
-                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-[2] py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
+                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
                     <CheckCircle2 size={18} /> {verifiedBooking?.status === 'Pending Payment' ? 'MARK PAID & CHECK IN' : 'CONFIRM ENTRY'}
                   </button>
                 )}
@@ -5516,10 +5566,15 @@ export default function VisitorsManagementPage() {
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
             <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-2xl">
               <div className="bg-emerald-50 px-6 py-5 border-b border-emerald-100 flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">Booking Confirmed</p>
-                  <h3 className="mt-1 text-2xl font-black text-emerald-950">Walk-in booking saved</h3>
-                  <p className="mt-1 text-sm font-semibold text-emerald-900/80">Move to verification and fetch the booking ID.</p>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                    <CheckCircle2 size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Booking Confirmed</p>
+                    <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">Walk-in booking saved</h3>
+                    <p className="mt-0.5 text-[12px] font-pmedium text-emerald-900/70">A confirmation email with this booking ID has been sent to the visitor.</p>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -5533,27 +5588,27 @@ export default function VisitorsManagementPage() {
                 </button>
               </div>
               <div className="p-6 space-y-3.5">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Booking ID</p>
-                  <p className="mt-1 text-2xl font-black tracking-[0.2em] text-emerald-700">{bookingConfirmation.bookingId}</p>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-gray-500">This ID is already saved and ready to verify.</p>
+                <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-4 text-center">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Booking ID</p>
+                  <p className="mt-1 text-3xl font-pmedium tracking-[0.15em] text-emerald-700">{bookingConfirmation.bookingId}</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Saved and ready to verify at the front desk</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Room</p>
-                    <p className="mt-1 text-sm font-black text-gray-900">{bookingConfirmation.roomName}</p>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p>
+                    <p className="mt-1 text-[13px] font-pmedium text-slate-900">{bookingConfirmation.roomName}</p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Total</p>
-                    <p className="mt-1 text-sm font-black text-gray-900">{formatCurrency(bookingConfirmation.totalAmount || 0)}</p>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total</p>
+                    <p className="mt-1 text-[13px] font-pmedium text-slate-900">{formatCurrency(bookingConfirmation.totalAmount || 0)}</p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Mode</p>
-                    <p className="mt-1 text-sm font-black text-gray-900">{bookingConfirmation.paymentMode || 'Cash'}</p>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Payment Mode</p>
+                    <p className="mt-1 text-[13px] font-pmedium text-slate-900">{bookingConfirmation.paymentMode || 'Cash'}</p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Transaction</p>
-                    <p className="mt-1 text-sm font-black text-gray-900">{bookingConfirmation.transactionId || 'Not required'}</p>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Transaction</p>
+                    <p className="mt-1 text-[13px] font-pmedium text-slate-900">{bookingConfirmation.transactionId || 'Not required'}</p>
                   </div>
                 </div>
                 <button
@@ -5572,9 +5627,9 @@ export default function VisitorsManagementPage() {
                     setBookingConfirmation(null);
                     setAvailabilityStatus('idle');
                   }}
-                  className="w-full rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-pmedium text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700"
+                  className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  GO TO VERIFY BOOKING
+                  <ShieldCheck size={13} /> Go To Verify Booking
                 </button>
               </div>
             </div>
@@ -5587,7 +5642,7 @@ export default function VisitorsManagementPage() {
             <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col animate-in zoom-in duration-200">
               <div className="p-6 md:p-8 bg-indigo-600 text-white flex justify-between items-center shrink-0">
                 <div>
-                  <h2 className="text-xl font-black flex items-center gap-2"><Clock size={20} /> Extend Booking</h2>
+                  <h2 className="text-xl font-pmedium flex items-center gap-2"><Clock size={20} /> Extend Booking</h2>
                   <p className="text-[10px] font-pmedium text-indigo-200 uppercase tracking-widest mt-1">{extendingBooking.resource} • {extendingBooking.bookedBy}</p>
                 </div>
                 <button onClick={() => { setIsExtendModalOpen(false); setExtendAvailability('idle'); }} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={16} /></button>
@@ -5666,7 +5721,7 @@ export default function VisitorsManagementPage() {
 
                 <div className="pt-2 flex gap-3">
                   <button type="button" onClick={() => { setIsExtendModalOpen(false); setExtendAvailability('idle'); }} className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-xs">CANCEL</button>
-                  <button type="submit" disabled={extendAvailability !== 'available'} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-xl font-pmedium shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="submit" disabled={extendAvailability !== 'available'} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-pmedium shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     COLLECT & EXTEND <CheckCircle2 size={16} />
                   </button>
                 </div>
@@ -5765,48 +5820,95 @@ export default function VisitorsManagementPage() {
                     />
                   </div>
 
-                  {rescheduleForm.newDate ? (
+                  {rescheduleForm.newDate ? (() => {
+                    const rescheduleDateKey = formatDateKey(rescheduleForm.newDate);
+                    const todayKey = formatDateKey(new Date());
+                    const now = new Date();
+                    const nowRounded = Math.ceil((now.getHours() * 60 + now.getMinutes()) / WALK_IN_SLOT_STEP) * WALK_IN_SLOT_STEP;
+                    // For today the day effectively starts "now" — past slots are never offered.
+                    const dayStartMinutes = rescheduleDateKey === todayKey ? Math.max(businessHours.startMinutes, nowRounded) : businessHours.startMinutes;
+                    const originalStartMinutes = timeToMinutes(reschedulingBooking?.raw?.startTime || '');
+                    const originalEndMinutes = timeToMinutes(reschedulingBooking?.raw?.endTime || '');
+                    const originalDuration = originalStartMinutes != null && originalEndMinutes != null && originalEndMinutes > originalStartMinutes
+                      ? originalEndMinutes - originalStartMinutes
+                      : 60;
+                    const selectedStartMinutes = timeToMinutes(rescheduleForm.newStartTime);
+                    const selectedEndMinutes = timeToMinutes(rescheduleForm.newEndTime);
+                    // Chart windows follow the picked start/end duration; before any pick, the original booking's duration.
+                    const chartDuration = selectedStartMinutes != null && selectedEndMinutes != null && selectedEndMinutes > selectedStartMinutes
+                      ? selectedEndMinutes - selectedStartMinutes
+                      : originalDuration;
+                    const startOptions = buildTimeOptions(minutesToTime(dayStartMinutes), minutesToTime(businessHours.endMinutes - WALK_IN_MIN_DURATION_MINUTES), WALK_IN_SLOT_STEP);
+                    const endOptions = buildTimeOptions(
+                      minutesToTime((selectedStartMinutes != null ? selectedStartMinutes : dayStartMinutes) + WALK_IN_MIN_DURATION_MINUTES),
+                      minutesToTime(businessHours.endMinutes),
+                      WALK_IN_SLOT_STEP,
+                    );
+                    const currentBookingId = String(reschedulingBooking?.recordId || reschedulingBooking?.id || '').trim();
+                    const isSlotBooked = (slotStartMinutes, slotEndMinutes) => meetingRoomBookings.some((booking) => {
+                      const bookingId = String(booking.recordId || booking.id || booking.bookingCode || '').trim();
+                      if (bookingId && bookingId === currentBookingId) return false;
+                      return getOverlapConflict(
+                        booking,
+                        reschedulingBooking?.resource || '',
+                        rescheduleDateKey,
+                        rescheduleDateKey,
+                        slotStartMinutes,
+                        slotEndMinutes,
+                      );
+                    });
+                    const chartSlots = [];
+                    for (let minutes = dayStartMinutes; minutes + chartDuration <= businessHours.endMinutes; minutes += chartDuration) {
+                      chartSlots.push({ startMinutes: minutes, endMinutes: minutes + chartDuration, start: minutesToTime(minutes), end: minutesToTime(minutes + chartDuration) });
+                    }
+                    return (
                     <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">New Start Time *</label>
+                          <select
+                            className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-[12px] text-gray-900 focus:border-amber-400 outline-none transition-all shadow-sm cursor-pointer"
+                            value={rescheduleForm.newStartTime}
+                            onChange={(e) => {
+                              const nextStart = e.target.value;
+                              const nextStartMinutes = timeToMinutes(nextStart);
+                              // Keep the current duration when moving the start time.
+                              const nextEnd = nextStartMinutes != null
+                                ? minutesToTime(Math.min(businessHours.endMinutes, nextStartMinutes + chartDuration))
+                                : '';
+                              setRescheduleForm({ ...rescheduleForm, newStartTime: nextStart, newEndTime: nextEnd });
+                            }}
+                          >
+                            <option value="">Select start</option>
+                            {startOptions.map((time) => <option key={time} value={time}>{formatTimeLabel(time)}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">New End Time *</label>
+                          <select
+                            className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-[12px] text-gray-900 focus:border-amber-400 outline-none transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-100"
+                            value={rescheduleForm.newEndTime}
+                            disabled={!rescheduleForm.newStartTime}
+                            onChange={(e) => setRescheduleForm({ ...rescheduleForm, newEndTime: e.target.value })}
+                          >
+                            <option value="">Select end</option>
+                            {endOptions.map((time) => <option key={time} value={time}>{formatTimeLabel(time)}</option>)}
+                          </select>
+                        </div>
+                      </div>
                       <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Available Time Slots</label>
+                        <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Available {Math.round(chartDuration / 60 * 100) / 100} hr Slots</label>
                         <span className="text-[10px] font-pmedium text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><Check size={10} /> Live Master Calendar Sync</span>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[150px] overflow-y-auto pr-2">
-                        {Array.from({ length: Math.floor((businessHours.endMinutes - businessHours.startMinutes) / 60) }, (_, i) => {
-                          const startH = Math.floor((businessHours.startMinutes + i * 60) / 60);
-                          const startM = (businessHours.startMinutes + i * 60) % 60;
-                          const endH = Math.floor((businessHours.startMinutes + (i + 1) * 60) / 60);
-                          const endM = (businessHours.startMinutes + (i + 1) * 60) % 60;
-                          return `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}-${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-                        }).map((slot, idx) => {
-                          const [slotStart = '', slotEnd = ''] = slot.split('-');
-                          const slotStartMinutes = timeToMinutes(slotStart);
-                          const slotEndMinutes = timeToMinutes(slotEnd);
-                          const rescheduleDateKey = formatDateKey(rescheduleForm.newDate);
-                          const currentBookingId = String(reschedulingBooking?.recordId || reschedulingBooking?.id || '').trim();
-                          const booked = meetingRoomBookings.some((booking) => {
-                            const bookingId = String(booking.recordId || booking.id || booking.bookingCode || '').trim();
-                            if (bookingId && bookingId === currentBookingId) {
-                              return false;
-                            }
-                            if (slotStartMinutes == null || slotEndMinutes == null) {
-                              return false;
-                            }
-                            return getOverlapConflict(
-                              booking,
-                              reschedulingBooking?.resource || '',
-                              rescheduleDateKey,
-                              rescheduleDateKey,
-                              slotStartMinutes,
-                              slotEndMinutes,
-                            );
-                          });
-                          const selected = rescheduleForm.newStartTime === slotStart && rescheduleForm.newEndTime === slotEnd;
-                          const displayLabel = `${formatTimeLabel(slotStart)} - ${formatTimeLabel(slotEnd)}`;
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[170px] overflow-y-auto pr-2">
+                        {chartSlots.map((slot) => {
+                          const booked = isSlotBooked(slot.startMinutes, slot.endMinutes);
+                          const selected = rescheduleForm.newStartTime === slot.start && rescheduleForm.newEndTime === slot.end;
+                          const displayLabel = `${formatTimeLabel(slot.start)} - ${formatTimeLabel(slot.end)}`;
                           return (
                             <button
-                              key={idx} disabled={booked} onClick={() => setRescheduleForm({ ...rescheduleForm, newStartTime: slotStart, newEndTime: slotEnd })}
-                              className={`relative p-3 rounded-xl border-2 text-xs font-black transition-all text-center overflow-hidden
+                              key={slot.start} disabled={booked} onClick={() => setRescheduleForm({ ...rescheduleForm, newStartTime: slot.start, newEndTime: slot.end })}
+                              className={`relative p-3 rounded-xl border-2 text-xs font-pmedium transition-all text-center overflow-hidden
                                ${booked ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60' :
                                   selected ? 'bg-amber-500 border-amber-500 text-white shadow-md' :
                                     'bg-white border-green-200 text-green-700 hover:bg-green-50'}`}
@@ -5814,11 +5916,15 @@ export default function VisitorsManagementPage() {
                               <span className={booked ? 'line-through decoration-red-400 decoration-2' : ''}>{displayLabel}</span>
                               {booked && <span className={statusPillClass("Booked by another")}>Booked by another</span>}
                             </button>
-                          )
+                          );
                         })}
+                        {chartSlots.length === 0 && (
+                          <div className="col-span-full p-6 text-center text-gray-400 font-pmedium text-xs">No slots left within business hours for this date.</div>
+                        )}
                       </div>
                     </div>
-                  ) : (
+                    );
+                  })() : (
                     <div className="p-8 border-2 border-dashed border-gray-200 rounded-2xl text-center text-gray-400 font-bold text-sm bg-gray-50/50">
                       Please select a date above to view live slot availability.
                     </div>
@@ -6069,6 +6175,35 @@ export default function VisitorsManagementPage() {
                     <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.attendees || 0}</p>
                   </div>
                 </div>
+
+                {(viewingBooking.paymentProofUrl || viewingBooking.transactionId) && (
+                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 mb-3">Payment Proof</p>
+                    <div className="flex flex-wrap items-start gap-4">
+                      {viewingBooking.transactionId && (
+                        <div>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Transaction / UTR</p>
+                          <p className="mt-1 text-sm font-pmedium text-gray-900 break-all">{viewingBooking.transactionId}</p>
+                        </div>
+                      )}
+                      {viewingBooking.paymentProofUrl && (
+                        <div>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500 mb-1.5">Payment Screenshot</p>
+                          <a href={viewingBooking.paymentProofUrl} target="_blank" rel="noopener noreferrer" title="Open full screenshot in a new tab" className="block">
+                            <img
+                              src={viewingBooking.paymentProofUrl}
+                              alt="Payment screenshot"
+                              className="h-28 w-auto max-w-[220px] rounded-xl border border-gray-200 object-cover shadow-sm hover:shadow-md hover:border-blue-300 transition-all"
+                            />
+                          </a>
+                          <a href={viewingBooking.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline">
+                            <Eye size={11} /> View full size
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 mb-3">Contact & Source</p>

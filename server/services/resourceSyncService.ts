@@ -17,7 +17,7 @@ export const areaCapacityCatalog: Record<string, number[]> = {
     open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     cabin_desk: [4, 6, 8, 10],
 };
-const RESOURCE_FULL_DAY_HOURS = 24;
+const DEFAULT_BOOKING_SPAN_HOURS = 13;
 
 export function normalizeResourceFloor(value = "") {
     const normalized = String(value || "").trim();
@@ -96,11 +96,14 @@ export function hasResourcePricingAndCredits(resource: any = {}) {
     return (hourly > 0 || daily > 0) && credits > 0;
 }
 
+// The stored daily price is authoritative — resourceService keeps it in sync
+// with hourly × workspace booking span. Only derive when it is missing, using
+// the default span (09:00–22:00 = 13h) since no workspace context is available here.
 function resolveResourcePricePerDay(pricePerHour = 0, pricePerDay = 0) {
     const hour = Number(pricePerHour || 0);
     const day = Number(pricePerDay || 0);
-    if (hour > 0) return hour * RESOURCE_FULL_DAY_HOURS;
     if (day > 0) return day;
+    if (hour > 0) return hour * DEFAULT_BOOKING_SPAN_HOURS;
     return 0;
 }
 
