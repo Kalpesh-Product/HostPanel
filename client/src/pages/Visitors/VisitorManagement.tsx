@@ -58,6 +58,17 @@ function formatTimeLabel(value) {
   });
 }
 
+function getWorkspaceClockMinutes(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(value);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return Number(values.hour || 0) * 60 + Number(values.minute || 0);
+}
+
 function getFlagUrl(isoCode = '') {
   return `https://flagcdn.com/w40/${String(isoCode || '').toLowerCase()}.png`;
 }
@@ -1755,14 +1766,33 @@ export default function VisitorsManagementPage() {
   }, [form.email, form.phone, savedVisitorDirectory, visitorMode]);
 
   const applySavedVisitorContact = (visitor) => {
+    const visitorPhone = normalizePhoneForMatch(visitor?.phone || '');
+    const visitorEmail = normalizeText(visitor?.email || '');
+    const matchedClient = bookingClients.find((client) => {
+      const clientPhone = normalizePhoneForMatch(client?.phone || '');
+      const clientEmail = normalizeText(client?.email || '');
+      return (visitorPhone && clientPhone && clientPhone === visitorPhone)
+        || (visitorEmail && clientEmail && clientEmail === visitorEmail);
+    }) || null;
+
+    if (matchedClient) {
+      applyExistingClient(matchedClient);
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
-      name: visitor?.name || prev.name,
-      phone: visitor?.phone || prev.phone,
-      email: visitor?.email || prev.email,
-      company: visitor?.company || prev.company,
+      clientBookingMode: 'existing',
+      clientId: '',
+      clientSearch: visitor?.name || visitor?.phone || visitor?.email || '',
+      name: visitor?.name || '',
+      phone: visitor?.phone || '',
+      email: visitor?.email || '',
+      company: visitor?.company || '',
       purpose: visitor?.purpose || prev.purpose,
     }));
+    setWalkInTouched({});
+    setWalkInSubmitAttempted(false);
   };
 
   const standardVisitorDirectory = useMemo(() => {
@@ -1876,39 +1906,6 @@ export default function VisitorsManagementPage() {
     });
   };
 
-  useEffect(() => {
-    if (visitorMode === 'verify_booking' || form.sourceVisitorId || form.clientBookingMode === 'existing') {
-      return;
-    }
-
-    const primaryMatch = matchedSavedVisitors[0];
-    if (!primaryMatch) {
-      return;
-    }
-
-    setForm((prev) => {
-      const next = { ...prev };
-      let changed = false;
-
-      if (!prev.name && primaryMatch.name) {
-        next.name = primaryMatch.name;
-        changed = true;
-      }
-
-      if (!prev.company && primaryMatch.company) {
-        next.company = primaryMatch.company;
-        changed = true;
-      }
-
-      if (!prev.purpose && primaryMatch.purpose) {
-        next.purpose = primaryMatch.purpose;
-        changed = true;
-      }
-
-      return changed ? next : prev;
-    });
-  }, [form.clientBookingMode, form.sourceVisitorId, matchedSavedVisitors, visitorMode]);
-
   const normalizedMeetingRoomCatalog = useMemo(
     () => meetingRoomCatalog.map(normalizeMeetingRoom),
     [meetingRoomCatalog],
@@ -2007,19 +2004,57 @@ export default function VisitorsManagementPage() {
 
     return walkInRoomOptions.find((room) => room.name === form.resourceName) || null;
   }, [walkInRoomOptions, form.resourceName]);
-  const currentRoundedTime = useMemo(() => roundUpToStepTime(minutesToTime(new Date().getHours() * 60 + new Date().getMinutes())), []);
+  const currentRoundedTime = useMemo(
+    () => roundUpToStepTime(minutesToTime(getWorkspaceClockMinutes() + 1)),
+    [],
+  );
   const walkInStartTimeOptions = useMemo(() => {
-    const minStart = form.startDate && formatDateKey(form.startDate) === formatDateKey(new Date())
-      ? currentRoundedTime
-      : '00:00';
-    return buildTimeOptions(minStart || '00:00');
-  }, [currentRoundedTime, form.startDate]);
+    const isToday = form.startDate && formatDateKey(form.startDate) === formatDateKey(new Date());
+    const currentMinutes = timeToMinutes(currentRoundedTime);
+    const minStartMinutes = isToday && currentMinutes != null
+      ? Math.max(WALK_IN_WORKING_START, currentMinutes)
+      : WALK_IN_WORKING_START;
+    const latestStartMinutes = WALK_IN_WORKING_END - WALK_IN_MIN_DURATION_MINUTES;
+
+    if (minStartMinutes > latestStartMinutes) {
+      return [];
+    }
+
+    return buildTimeOptions(
+      minutesToTime(minStartMinutes),
+      minutesToTime(latestStartMinutes),
+    );
+  }, [WALK_IN_WORKING_END, WALK_IN_WORKING_START, currentRoundedTime, form.startDate]);
   const walkInEndTimeOptions = useMemo(() => {
-    const minEnd = form.startTime
-      ? minutesToTime((timeToMinutes(form.startTime) || 0) + WALK_IN_MIN_DURATION_MINUTES)
-      : '00:00';
-    return buildTimeOptions(minEnd);
-  }, [form.startTime]);
+    const startMinutes = timeToMinutes(form.startTime);
+    if (startMinutes == null) {
+      return [];
+    }
+
+    const minEndMinutes = startMinutes + WALK_IN_MIN_DURATION_MINUTES;
+    if (minEndMinutes > WALK_IN_WORKING_END) {
+      return [];
+    }
+
+    return buildTimeOptions(
+      minutesToTime(minEndMinutes),
+      minutesToTime(WALK_IN_WORKING_END),
+    );
+  }, [WALK_IN_WORKING_END, form.startTime]);
+
+  useEffect(() => {
+    const startIsValid = !form.startTime || walkInStartTimeOptions.includes(form.startTime);
+    const endIsValid = !form.endTime || walkInEndTimeOptions.includes(form.endTime);
+    if (startIsValid && endIsValid) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      startTime: startIsValid ? prev.startTime : '',
+      endTime: startIsValid && endIsValid ? prev.endTime : '',
+    }));
+  }, [form.endTime, form.startTime, walkInEndTimeOptions, walkInStartTimeOptions]);
 
   const isDeskAreaSeatBooking = isDeskAreaRoom(selectedWalkInRoom);
   const selectedSeatNumber = normalizeSeatNumber(form.seatNumber);
@@ -2239,11 +2274,49 @@ export default function VisitorsManagementPage() {
       };
     }
 
+    const todayKey = formatDateKey(new Date());
+    if (startDateKey < todayKey || endDateKey < todayKey) {
+      return {
+        status: 'pending',
+        available: false,
+        reason: 'Past dates cannot be booked.',
+        roomSuggestions: [],
+        slotSuggestions: [],
+        seatSuggestions: [],
+        hasConflict: false,
+      };
+    }
+
     if (startMinutes == null || endMinutes == null || endMinutes <= startMinutes) {
       return {
         status: 'pending',
         available: false,
         reason: 'Choose a valid start and end time.',
+        roomSuggestions: [],
+        slotSuggestions: [],
+        seatSuggestions: [],
+        hasConflict: false,
+      };
+    }
+
+    if (startMinutes < WALK_IN_WORKING_START || endMinutes > WALK_IN_WORKING_END) {
+      return {
+        status: 'pending',
+        available: false,
+        reason: `Choose a time between ${formatTimeLabel(minutesToTime(WALK_IN_WORKING_START))} and ${formatTimeLabel(minutesToTime(WALK_IN_WORKING_END))}.`,
+        roomSuggestions: [],
+        slotSuggestions: [],
+        seatSuggestions: [],
+        hasConflict: false,
+      };
+    }
+
+    const currentMinutes = timeToMinutes(currentRoundedTime);
+    if (startDateKey === todayKey && currentMinutes != null && startMinutes < currentMinutes) {
+      return {
+        status: 'pending',
+        available: false,
+        reason: 'Choose a start time that has not passed.',
         roomSuggestions: [],
         slotSuggestions: [],
         seatSuggestions: [],
@@ -2342,6 +2415,7 @@ export default function VisitorsManagementPage() {
   }, [
     WALK_IN_WORKING_START,
     WALK_IN_WORKING_END,
+    currentRoundedTime,
     deskSeatOptions,
     filteredWalkInRooms,
     form.endDate,
@@ -2672,9 +2746,12 @@ export default function VisitorsManagementPage() {
   const openBookingFromVisitor = (visitor) => {
     const visitorId = visitor?.recordId || visitor?.id || '';
     const now = new Date();
-    const defaultStartTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
-    const defaultEndTime = `${String(nextHour.getHours()).padStart(2, '0')}:${String(nextHour.getMinutes()).padStart(2, '0')}`;
+    const roundedNowMinutes = Math.ceil((getWorkspaceClockMinutes(now) + 1) / WALK_IN_SLOT_STEP) * WALK_IN_SLOT_STEP;
+    const defaultStartMinutes = Math.max(WALK_IN_WORKING_START, roundedNowMinutes);
+    const hasRemainingBookingWindow = defaultStartMinutes + WALK_IN_MIN_DURATION_MINUTES <= WALK_IN_WORKING_END;
+    const defaultDuration = defaultStartMinutes + 60 <= WALK_IN_WORKING_END ? 60 : WALK_IN_MIN_DURATION_MINUTES;
+    const defaultStartTime = hasRemainingBookingWindow ? minutesToTime(defaultStartMinutes) : '';
+    const defaultEndTime = hasRemainingBookingWindow ? minutesToTime(defaultStartMinutes + defaultDuration) : '';
     const today = formatDateKey(now);
 
     setVisitorMode('walkin_booking');
@@ -2708,11 +2785,32 @@ export default function VisitorsManagementPage() {
       clientBookingMode: 'existing',
       clientId: client.id || client.recordId || client._id || '',
       clientSearch: '',
-      name: client.name || prev.name,
-      phone: client.phone || prev.phone,
-      email: client.email || prev.email,
-      company: client.company || prev.company,
+      name: client.name || '',
+      phone: client.phone || '',
+      email: client.email || '',
+      company: client.company || '',
     }));
+    setWalkInTouched({});
+    setWalkInSubmitAttempted(false);
+  };
+
+  const switchClientBookingMode = (mode) => {
+    setForm((prev) => {
+      if (mode === 'new') {
+        return {
+          ...prev,
+          clientBookingMode: 'new',
+          clientId: '',
+          clientSearch: '',
+          sourceVisitorId: '',
+          name: '',
+          phone: '',
+          email: '',
+          company: '',
+        };
+      }
+      return { ...prev, clientBookingMode: 'existing' };
+    });
     setWalkInTouched({});
     setWalkInSubmitAttempted(false);
   };
@@ -4915,7 +5013,7 @@ export default function VisitorsManagementPage() {
                                 <button
                                   key={mode}
                                   type="button"
-                                  onClick={() => setForm((prev) => ({ ...prev, clientBookingMode: mode, clientId: mode === 'new' ? '' : prev.clientId }))}
+                                  onClick={() => switchClientBookingMode(mode)}
                                   className={`rounded-lg px-2.5 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'}`}
                                 >
                                   {label}
@@ -5178,21 +5276,31 @@ export default function VisitorsManagementPage() {
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Start Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
+                                  min={formatDateKey(new Date())}
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.startDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.startDate}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, startDate: true }))}
-                                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                                  onChange={(e) => {
+                                    const nextStartDate = e.target.value;
+                                    setForm({
+                                      ...form,
+                                      startDate: nextStartDate,
+                                      endDate: !form.endDate || form.endDate < nextStartDate ? nextStartDate : form.endDate,
+                                      startTime: '',
+                                      endTime: '',
+                                    });
+                                  }}
                                 />
                                 {visibleWalkInErrors.startDate ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.startDate}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking End Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
-                                  min={form.startDate}
+                                  min={form.startDate || formatDateKey(new Date())}
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.endDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.endDate}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, endDate: true }))}
@@ -5202,20 +5310,28 @@ export default function VisitorsManagementPage() {
                               </div>
                             </div>
 
-                            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
-                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Availability</label>
-                              <p className={`mt-1 text-[12px] font-semibold ${walkInAvailability.status === 'available'
-                                  ? 'text-emerald-700'
-                                  : walkInAvailability.status === 'conflict'
-                                    ? 'text-rose-700'
-                                    : 'text-blue-900'
+                            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 sm:flex sm:items-start sm:justify-between sm:gap-6">
+                              <div className="min-w-0">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Availability</label>
+                                <p className={`mt-1 text-[12px] font-semibold ${walkInAvailability.status === 'available'
+                                    ? 'text-emerald-700'
+                                    : walkInAvailability.status === 'conflict'
+                                      ? 'text-rose-700'
+                                      : 'text-blue-900'
                                 }`}>
-                                {walkInAvailability.reason}
-                              </p>
-                              {meetingRoomOverviewError ? (
-                                <p className="mt-2 text-[10px] font-medium text-red-500">{meetingRoomOverviewError}</p>
-                              ) : null}
-                              {visibleWalkInErrors.availability ? <p className="mt-2 text-[10px] font-medium text-red-500">{visibleWalkInErrors.availability}</p> : null}
+                                  {walkInAvailability.reason}
+                                </p>
+                                {meetingRoomOverviewError ? (
+                                  <p className="mt-2 text-[10px] font-medium text-red-500">{meetingRoomOverviewError}</p>
+                                ) : null}
+                                {visibleWalkInErrors.availability ? <p className="mt-2 text-[10px] font-medium text-red-500">{visibleWalkInErrors.availability}</p> : null}
+                              </div>
+                              <div className="mt-3 shrink-0 border-t border-blue-100 pt-3 text-left sm:mt-0 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 sm:text-right">
+                                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Hours</p>
+                                <p className="mt-1 whitespace-nowrap text-[12px] font-pmedium text-blue-800">
+                                  {formatTimeOptionLabel(businessHours.start)} - {formatTimeOptionLabel(businessHours.end)}
+                                </p>
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -5238,6 +5354,9 @@ export default function VisitorsManagementPage() {
                                   }}
                                 >
                                   <option value="">Select start time</option>
+                                  {form.startDate && walkInStartTimeOptions.length === 0 ? (
+                                    <option value="" disabled>No booking hours remaining today</option>
+                                  ) : null}
                                   {walkInStartTimeOptions.map((timeValue) => (
                                     <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
                                   ))}
