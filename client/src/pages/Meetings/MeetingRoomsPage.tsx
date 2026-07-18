@@ -36,7 +36,7 @@ import {
   createExternalClient,
   sendExternalBookingConfirmationEmail,
 } from '../../services/meeting-room-bookings';
-import { validateEmail, validatePhone, computeExternalPricing, hasSlotConflict, computeAvailableSlots, timeToMinutes as helpersTimeToMinutes } from './externalBookingHelpers';
+import { validateEmail, validatePhone, computeExternalPricing, computeExternalPricingMultiDay, computeBusinessHoursDuration, hasSlotConflict, computeAvailableSlots, timeToMinutes as helpersTimeToMinutes } from './externalBookingHelpers';
 import { statusPillClass } from '../../lib/status-pill';
 import useBusinessHours from '../../hooks/useBusinessHours';
 
@@ -486,6 +486,7 @@ function getBookingTimeValidation(
   endTimeValue: any,
   dayStartMinutes: number = DEFAULT_BOOKING_DAY_START_MINUTES,
   dayEndMinutes: number = DEFAULT_BOOKING_DAY_END_MINUTES,
+  endDateValue: any = dateValue,
 ) {
   if (!dateValue || !startTimeValue) {
     return { valid: true, reason: '' };
@@ -526,16 +527,25 @@ function getBookingTimeValidation(
       return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
     }
 
+    const endDateParts = getMeetingTimeZoneDateParts(endDateValue || dateValue);
+    const endDateKey = endDateParts ? `${endDateParts.year}-${endDateParts.month}-${endDateParts.day}` : bookingDateKey;
+
+    if (endDateKey < bookingDateKey) {
+      return { valid: false, reason: 'End date cannot be before the start date.' };
+    }
+
+    // A multi-day booking occupies the same start–end window on every day of
+    // the range, so end time must be after start time even across days.
     if (endMinutes <= startMinutes) {
       return { valid: false, reason: 'End time must be after start time.' };
     }
 
-    if (endMinutes > dayEndMinutes) {
-      return { valid: false, reason: `Bookings must end by ${formatTime12h(minutesToTimeString(dayEndMinutes))}.` };
+    if (endMinutes < dayStartMinutes || endMinutes > dayEndMinutes) {
+      return { valid: false, reason: `Bookings must end between ${formatTime12h(minutesToTimeString(dayStartMinutes))} and ${formatTime12h(minutesToTimeString(dayEndMinutes))}.` };
     }
 
     if (endMinutes - startMinutes < BOOKING_MIN_DURATION_MINUTES) {
-      return { valid: false, reason: 'Minimum booking duration is 30 minutes.' };
+      return { valid: false, reason: 'Minimum booking duration is 30 minutes per day.' };
     }
   }
 
@@ -553,6 +563,7 @@ function deriveLiveMeetingStatus(booking: any, now: Date = new Date()) {
   }
 
   const bookingDateParts = getMeetingTimeZoneDateParts(booking.date);
+  const bookingEndDateParts = getMeetingTimeZoneDateParts(booking.endDate || booking.date);
   const currentClock = getMeetingClockParts(now);
   const startMinutes = timeToMinutes(booking.startTime);
   const endMinutes = timeToMinutes(booking.endTime);
@@ -562,24 +573,33 @@ function deriveLiveMeetingStatus(booking: any, now: Date = new Date()) {
   }
 
   const bookingDateKey = `${bookingDateParts.year}-${bookingDateParts.month}-${bookingDateParts.day}`;
+  const bookingEndDateKey = bookingEndDateParts
+    ? `${bookingEndDateParts.year}-${bookingEndDateParts.month}-${bookingEndDateParts.day}`
+    : bookingDateKey;
 
   if (currentClock.dateKey < bookingDateKey) {
     return 'booked';
   }
 
-  if (currentClock.dateKey > bookingDateKey) {
+  if (currentClock.dateKey > bookingEndDateKey) {
     return 'completed';
   }
 
-  if (currentClock.minutes < startMinutes) {
-    return 'booked';
-  }
-
-  if (currentClock.minutes < endMinutes) {
+  // Multi-day booking: on any day strictly between the start and end date
+  // it's running all day, regardless of the start/end clock times.
+  if (currentClock.dateKey > bookingDateKey && currentClock.dateKey < bookingEndDateKey) {
     return 'in progress';
   }
 
-  return 'completed';
+  if (currentClock.dateKey === bookingDateKey && currentClock.minutes < startMinutes) {
+    return 'booked';
+  }
+
+  if (currentClock.dateKey === bookingEndDateKey && currentClock.minutes >= endMinutes) {
+    return 'completed';
+  }
+
+  return 'in progress';
 }
 
 function normalizeBooking(booking: any, currentUserId: string): Booking {
@@ -599,7 +619,9 @@ function normalizeBooking(booking: any, currentUserId: string): Booking {
     id: String(booking.id || booking._id || booking.recordId || ''),
     checkIn: booking.checkIn || booking.startTime,
     checkOut: booking.checkOut || booking.endTime,
+    endDate: booking.endDate || booking.date || '',
     previousDate: booking.previousDate || '',
+    previousEndDate: booking.previousEndDate || '',
     previousStartTime: booking.previousStartTime || '',
     previousEndTime: booking.previousEndTime || '',
     scheduleChangeType: booking.scheduleChangeType || '',
@@ -654,7 +676,11 @@ function getBookingDisplayStatus(booking: any) {
 }
 
 function isRescheduledBooking(booking: any) {
-  return normalize(booking?.status) === 'rescheduled' || normalize(booking?.storedStatus) === 'rescheduled';
+  // Reschedules keep status "confirmed" and record the change via
+  // scheduleChangeType, so status alone never identifies them.
+  return normalize(booking?.status) === 'rescheduled'
+    || normalize(booking?.storedStatus) === 'rescheduled'
+    || normalize(booking?.scheduleChangeType) === 'rescheduled';
 }
 
 function isPendingCurrentUserInvite(booking: any) {
@@ -1084,6 +1110,7 @@ function ExternalBookingDialog({
     floor: '',
     wing: '',
     date: '',
+    endDate: '',
     startTime: '',
     endTime: '',
     purpose: '',
@@ -1129,19 +1156,27 @@ function ExternalBookingDialog({
   // Reactive pricing computation
   const externalPricing = useMemo(() => {
     const pricePerHour = selectedResource?.pricePerHour ?? 0;
-    return computeExternalPricing(
+    return computeExternalPricingMultiDay(
       pricePerHour,
+      bookingForm.date,
       bookingForm.startTime,
+      bookingForm.endDate || bookingForm.date,
       bookingForm.endTime,
       bookingForm.discountType,
       bookingForm.discountValue,
+      BOOKING_DAY_START_MINUTES,
+      BOOKING_DAY_END_MINUTES,
     );
   }, [
     selectedResource,
+    bookingForm.date,
+    bookingForm.endDate,
     bookingForm.startTime,
     bookingForm.endTime,
     bookingForm.discountType,
     bookingForm.discountValue,
+    BOOKING_DAY_START_MINUTES,
+    BOOKING_DAY_END_MINUTES,
   ]);
 
   // Discount validation — runs whenever discount inputs or base price change
@@ -1199,6 +1234,7 @@ function ExternalBookingDialog({
       floor: '',
       wing: '',
       date: '',
+      endDate: '',
       startTime: '',
       endTime: '',
       purpose: '',
@@ -1223,6 +1259,7 @@ function ExternalBookingDialog({
 
     if (!bookingForm.resourceName) errors.resource = 'Please select a resource.';
     if (!bookingForm.date) errors.date = 'Date is required.';
+    if (bookingForm.endDate && bookingForm.endDate < bookingForm.date) errors.endDate = 'End date cannot be before the start date.';
     if (!bookingForm.startTime) errors.startTime = 'Start time is required.';
     if (!bookingForm.endTime) errors.endTime = 'End time is required.';
     if (!bookingForm.purpose.trim()) errors.purpose = 'Purpose is required.';
@@ -1231,7 +1268,7 @@ function ExternalBookingDialog({
     if (bookingForm.paymentMode !== 'Cash' && !bookingForm.paymentProofFile) errors.paymentProofFile = 'Upload the GPay payment screenshot.';
 
     // Time validation
-    const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+    const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, bookingForm.endDate || bookingForm.date);
     if (!timeValidation.valid) {
       if (timeValidation.reason.includes('date')) errors.date = timeValidation.reason;
       else if (timeValidation.reason.includes('time') || timeValidation.reason.includes('passed')) errors.startTime = timeValidation.reason;
@@ -1258,13 +1295,13 @@ function ExternalBookingDialog({
 
       const roomId = String(room._id ?? room.id ?? '');
       const start = `${bookingForm.date}T${bookingForm.startTime}:00+05:30`;
-      const end = `${bookingForm.date}T${bookingForm.endTime}:00+05:30`;
+      const end = `${bookingForm.endDate || bookingForm.date}T${bookingForm.endTime}:00+05:30`;
 
       await createMeetingRoomBooking({
         bookingType: 'External',
         roomId,
         roomName: room.name,
-        bookedByName: managerName,
+        bookedByName: selectedClient.name,
         bookedForName: selectedClient.name,
         externalClientId: selectedClient._id,
         start,
@@ -1526,9 +1563,9 @@ function ExternalBookingDialog({
                       )}
                     </div>
 
-                    {/* ── Row 3: Date (left) + Start time (right) ─────────────────── */}
+                    {/* ── Row 3: Start Date (left) + End Date (right) ──────────────── */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Date</label>
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Start Date</label>
                       <input
                         type="date"
                         value={bookingForm.date}
@@ -1540,7 +1577,14 @@ function ExternalBookingDialog({
                           return `${p.year}-${p.month}-${p.day}`;
                         })()}
                         onChange={(e) => {
-                          setBookingForm((f) => ({ ...f, date: e.target.value, startTime: '', endTime: '' }));
+                          const nextDate = e.target.value;
+                          setBookingForm((f) => ({
+                            ...f,
+                            date: nextDate,
+                            endDate: !f.endDate || f.endDate < nextDate ? nextDate : f.endDate,
+                            startTime: '',
+                            endTime: '',
+                          }));
                           if (bookingErrors.date) setBookingErrors((prev) => { const n = { ...prev }; delete n.date; return n; });
                         }}
                         className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -1550,6 +1594,26 @@ function ExternalBookingDialog({
                       )}
                     </div>
 
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">End Date</label>
+                      <input
+                        type="date"
+                        value={bookingForm.endDate || bookingForm.date}
+                        min={bookingForm.date || undefined}
+                        disabled={!bookingForm.date}
+                        onChange={(e) => {
+                          const nextEndDate = e.target.value;
+                          setBookingForm((f) => ({ ...f, endDate: nextEndDate }));
+                          if (bookingErrors.endDate) setBookingErrors((prev) => { const n = { ...prev }; delete n.endDate; return n; });
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                      />
+                      {bookingErrors.endDate && (
+                        <p className="text-[11px] text-red-500 font-pmedium mt-0.5">{bookingErrors.endDate}</p>
+                      )}
+                    </div>
+
+                    {/* ── Row 4: Start time (left) + End time (right) ──────────────── */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Start Time</label>
                       <select
@@ -1600,7 +1664,7 @@ function ExternalBookingDialog({
                       )}
                     </div>
 
-                    {/* ── Row 4: End time (left) + Duration display (right) ────────── */}
+                    {/* ── Row 5: End time (left) + Duration display (right) ────────── */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">End Time</label>
                       <select
@@ -1631,6 +1695,14 @@ function ExternalBookingDialog({
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Duration</label>
                       <p className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 min-h-[42px] flex items-center">
                         {(() => {
+                          if (bookingForm.endDate && bookingForm.endDate !== bookingForm.date) {
+                            const hours = computeBusinessHoursDuration(bookingForm.date, bookingForm.startTime, bookingForm.endDate, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+                            if (hours <= 0) return '—';
+                            const h = Math.floor(hours);
+                            const m = Math.round((hours - h) * 60);
+                            const label = m === 0 ? `${h} h` : `${h} h ${m} min`;
+                            return `${label} total (same slot each day)`;
+                          }
                           const startMin = timeToMinutes(bookingForm.startTime);
                           const endMin = timeToMinutes(bookingForm.endTime);
                           if (startMin === null || endMin === null || endMin <= startMin) return '—';
@@ -1648,6 +1720,34 @@ function ExternalBookingDialog({
                     {bookingForm.resourceName && bookingForm.date && (
                       <div className="sm:col-span-2">
                         {(() => {
+                          if (bookingForm.endDate && bookingForm.endDate !== bookingForm.date) {
+                            return (
+                              <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-2 border border-blue-100">
+                                <AlertCircle className="text-blue-500 shrink-0 mt-0.5" size={15} />
+                                <p className="text-[12px] text-blue-800 font-pmedium">
+                                  Multi-day booking — availability is checked when you submit. If the resource is already booked on any day in this range, you&apos;ll be asked to pick another slot.
+                                </p>
+                              </div>
+                            );
+                          }
+                          const todayIST = (() => {
+                            const parts = new Intl.DateTimeFormat('en-GB', {
+                              timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+                            }).formatToParts(new Date());
+                            const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+                            return `${p.year}-${p.month}-${p.day}`;
+                          })();
+                          const isBookingToday = bookingForm.date === todayIST;
+                          const nowFloorMinutes = (() => {
+                            if (!isBookingToday) return BOOKING_DAY_START_MINUTES;
+                            const nowParts = new Intl.DateTimeFormat('en-GB', {
+                              timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false,
+                            }).formatToParts(new Date());
+                            const np = Object.fromEntries(nowParts.map((x) => [x.type, x.value]));
+                            const nowMinutes = Number(np.hour) * 60 + Number(np.minute);
+                            return Math.ceil((nowMinutes + 1) / 5) * 5;
+                          })();
+
                           const dayBookings = allBookings.filter(
                             (b) => b.roomName === bookingForm.resourceName && b.date === bookingForm.date && b.status !== 'cancelled'
                           );
@@ -1656,7 +1756,7 @@ function ExternalBookingDialog({
                             const toTime = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
                             const sorted = [...dayBookings].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
                             const windows: { start: string; end: string }[] = [];
-                            let cursor = BOOKING_DAY_START_MINUTES;
+                            let cursor = Math.max(BOOKING_DAY_START_MINUTES, nowFloorMinutes);
                             sorted.forEach((b) => {
                               const bs = toMin(b.startTime);
                               const be = toMin(b.endTime);
@@ -1676,7 +1776,7 @@ function ExternalBookingDialog({
                                 const startMin = timeToMinutes(bookingForm.startTime);
                                 const endMin = timeToMinutes(bookingForm.endTime);
                                 if (startMin === null || endMin === null || endMin <= startMin) return [];
-                                return computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, endMin - startMin, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES).slice(0, 6);
+                                return computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, endMin - startMin, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, nowFloorMinutes).slice(0, 6);
                               })()
                             : [];
 
@@ -2238,6 +2338,9 @@ export function MeetingRoomsPage() {
   const [extendForm, setExtendForm] = useState<{ extraMinutes: string }>({ extraMinutes: '30' });
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
+  const [cancelRefundType, setCancelRefundType] = useState<string>('Full Refund');
+  const [showRescheduleConfirm, setShowRescheduleConfirm] = useState<boolean>(false);
+  const [reschedulePaymentMode, setReschedulePaymentMode] = useState<string>('Cash');
   const [showRejectInviteDialog, setShowRejectInviteDialog] = useState<boolean>(false);
   const [inviteToReject, setInviteToReject] = useState<Invite | null>(null);
   const [inviteRejectReason, setInviteRejectReason] = useState<string>('');
@@ -2625,6 +2728,13 @@ export function MeetingRoomsPage() {
     return allBookings
       .filter((b) => normalize(b.bookingType) === 'external')
       .filter((b) => {
+        const displayStatus = getBookingDisplayStatus(b);
+        const isHistoryStatus = displayStatus === 'completed' || displayStatus === 'cancelled';
+        // Bookings tab: only what's still active (booked / in progress).
+        // Booking History tab: only what's finished (completed / cancelled).
+        return activeTab === 'booking_history' ? isHistoryStatus : !isHistoryStatus;
+      })
+      .filter((b) => {
         const q = externalSearchQuery.toLowerCase();
         if (q.length >= 2) {
           const matchesClient = getExternalClientName(b).toLowerCase().includes(q);
@@ -2645,7 +2755,7 @@ export function MeetingRoomsPage() {
         if (dateCompare !== 0) return dateCompare;
         return (b.startTime || '').localeCompare(a.startTime || '');
       });
-  }, [allBookings, mainBookingTab, externalSearchQuery, externalPaymentFilter, externalStatusFilter]);
+  }, [allBookings, mainBookingTab, activeTab, externalSearchQuery, externalPaymentFilter, externalStatusFilter]);
 
   const memberDirectoryById = useMemo(() => {
     const directory = new Map();
@@ -2855,13 +2965,19 @@ export function MeetingRoomsPage() {
 
   const renderScheduleSummary = (booking: any, opts?: { showDate?: boolean }) => {
     const showDate = opts?.showDate !== false;
+    const isMultiDay = Boolean(booking.endDate) && booking.endDate !== booking.date;
+    const isPreviouslyMultiDay = Boolean(booking.previousEndDate) && booking.previousEndDate !== booking.previousDate;
     return (
       <div className="text-[12px] font-pmedium text-slate-600 flex flex-col gap-0.5">
-        {showDate && <span className="font-pmedium text-[#0F172A]">{booking.date || ''}</span>}
+        {showDate && (
+          <span className="font-pmedium text-[#0F172A]">
+            {booking.date || ''}{isMultiDay ? ` → ${booking.endDate}` : ''}
+          </span>
+        )}
         <span className="whitespace-nowrap">{formatTimeSlot(booking.startTime, booking.endTime)}</span>
         {isRescheduledBooking(booking) && booking.previousDate && (
           <span className="text-[10px] font-pmedium text-purple-500 line-through">
-            {booking.previousDate} {formatTimeSlot(booking.previousStartTime, booking.previousEndTime)}
+            {booking.previousDate}{isPreviouslyMultiDay ? ` → ${booking.previousEndDate}` : ''} {formatTimeSlot(booking.previousStartTime, booking.previousEndTime)}
           </span>
         )}
       </div>
@@ -2989,13 +3105,18 @@ export function MeetingRoomsPage() {
 
   // --------- RESCHEDULE TIME VALIDATION ---------
   const rescheduleTimeValidation = useMemo(() => {
-    return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
-  }, [rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
+    return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, (rescheduleData as any).endDate || rescheduleData.date);
+  }, [rescheduleData.date, (rescheduleData as any).endDate, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
+
+  const rescheduleIsMultiDay = Boolean((rescheduleData as any).endDate) && (rescheduleData as any).endDate !== rescheduleData.date;
 
   const rescheduleStatus = useMemo(() => {
     if (!rescheduleData.roomName || !rescheduleData.date || !rescheduleData.startTime || !rescheduleData.endTime) return 'pending';
+    // Same-day-only conflict lookup — a multi-day range is verified by the
+    // server at submit time (see handleRescheduleBooking's 409 handling).
+    if (rescheduleIsMultiDay) return 'multi-day';
     return checkAvailability(rescheduleData, rescheduleData.recordId || null);
-  }, [rescheduleData, checkAvailability]);
+  }, [rescheduleData, rescheduleIsMultiDay, checkAvailability]);
 
   const rescheduleCreditEstimate = useMemo(() => {
     if (normalize(rescheduleData.bookingType) !== 'tenant') return 0;
@@ -3362,6 +3483,8 @@ export function MeetingRoomsPage() {
   }, [rescheduleData.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
 
   const rescheduleEndTimeOptions = useMemo(() => {
+    // The same start–end window repeats on each day of a multi-day range, so
+    // the end time must always be at least start + minimum duration.
     if (!rescheduleData.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(rescheduleData.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
     return buildTimeOptions(minEnd, BOOKING_DAY_END);
@@ -3415,8 +3538,11 @@ export function MeetingRoomsPage() {
     setIsSavingBooking(true);
     setErrorMessage('');
 
+    const isExternal = normalize(bookingToCancel.bookingType) === 'external';
+    const reasonToSend = isExternal ? `${cancelReason.trim()} | ${cancelRefundType}` : cancelReason.trim();
+
     try {
-      await cancelBooking(bookingToCancel.recordId, cancelReason.trim());
+      await cancelBooking(bookingToCancel.recordId, reasonToSend);
       await reloadBookings();
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to cancel booking.');
@@ -3426,36 +3552,45 @@ export function MeetingRoomsPage() {
     setShowCancelDialog(false);
     setBookingToCancel(null);
     setCancelReason('');
+    setCancelRefundType('Full Refund');
     setIsSavingBooking(false);
   };
 
   const handleRescheduleBooking = async () => {
     if (!rescheduleTimeValidation.valid) { setErrorMessage(rescheduleTimeValidation.reason); return; }
-    if (!rescheduleData?.recordId || rescheduleStatus !== 'available') return;
+    if (!rescheduleData?.recordId || (rescheduleStatus !== 'available' && rescheduleStatus !== 'multi-day')) return;
 
+    setShowRescheduleConfirm(false);
     setIsSavingBooking(true);
     setErrorMessage('');
 
+    const isExternal = normalize(rescheduleData.bookingType) === 'external';
+    const rescheduleEndDate = (rescheduleData as any).endDate || rescheduleData.date;
+
     try {
       // For external bookings, recalculate total based on new duration
-      const isExternal = normalize(rescheduleData.bookingType) === 'external';
       let externalPricingUpdate: Record<string, any> = {};
       if (isExternal && rescheduleData.startTime && rescheduleData.endTime) {
         const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
         const pricePerHour = Number(room?.pricePerHour || 0);
         if (pricePerHour > 0) {
-          const newPricing = computeExternalPricing(pricePerHour, rescheduleData.startTime, rescheduleData.endTime, 'flat', 0);
+          const newPricing = computeExternalPricingMultiDay(pricePerHour, rescheduleData.date, rescheduleData.startTime, rescheduleEndDate, rescheduleData.endTime, 'flat', 0, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
           externalPricingUpdate = {
             baseAmount: newPricing.basePriceRaw,
             gstAmount: newPricing.gstAmount,
             totalAmount: newPricing.totalAmount,
           };
+          // Extra amount due → record how the frontdesk collected it.
+          if (newPricing.totalAmount - Number(rescheduleData.totalAmount || 0) > 0.5) {
+            externalPricingUpdate.paymentMode = reschedulePaymentMode || 'Cash';
+            externalPricingUpdate.paymentStatus = 'Paid';
+          }
         }
       }
 
       await updateMeetingRoomBooking(rescheduleData.recordId, {
         start: buildBookingDateTime(rescheduleData.date, rescheduleData.startTime),
-        end: buildBookingDateTime(rescheduleData.date, rescheduleData.endTime),
+        end: buildBookingDateTime(rescheduleEndDate, rescheduleData.endTime),
         scheduleChangeType: 'rescheduled',
         ...(normalize(rescheduleData.bookingType) === 'tenant' && rescheduleInviteeIds.length > 0 ? { inviteeUserIds: rescheduleInviteeIds } : {}),
         ...externalPricingUpdate,
@@ -3469,6 +3604,7 @@ export function MeetingRoomsPage() {
     setShowRescheduleDialog(false);
     setRescheduleData({});
     setRescheduleInviteeIds([]);
+    setReschedulePaymentMode('Cash');
     setIsSavingBooking(false);
   };
 
@@ -4194,7 +4330,7 @@ export function MeetingRoomsPage() {
                                       <div className="flex items-center justify-center gap-1.5">
                                         <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                                         {displayStatus === 'booked' && (
-                                          <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
+                                          <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime, originalDate: b.date, originalEndDate: b.endDate, originalStartTime: b.startTime, originalEndTime: b.endTime } as any); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
                                         )}
                                         {displayStatus === 'in progress' && (
                                           <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5} /></button>
@@ -4241,7 +4377,7 @@ export function MeetingRoomsPage() {
                                 <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-pmedium text-slate-600">
                                   <div>
                                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Date</span>
-                                    {b.date}
+                                    {b.date}{b.endDate && b.endDate !== b.date ? ` → ${b.endDate}` : ''}
                                   </div>
                                   <div>
                                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Time</span>
@@ -4257,7 +4393,7 @@ export function MeetingRoomsPage() {
                                 <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
                                   <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
                                   {displayStatus === 'booked' && (
-                                    <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
+                                    <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime, originalDate: b.date, originalEndDate: b.endDate, originalStartTime: b.startTime, originalEndTime: b.endTime } as any); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
                                   )}
                                   {displayStatus === 'in progress' && (
                                     <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs rounded-xl shadow-sm">Extend</button>
@@ -4346,7 +4482,7 @@ export function MeetingRoomsPage() {
                                     <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                                     {canRescheduleBooking && (
                                       <>
-                                        <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
+                                        <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime, originalDate: b.date, originalEndDate: b.endDate, originalStartTime: b.startTime, originalEndTime: b.endTime } as any); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
                                         <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
                                       </>
                                     )}
@@ -4419,7 +4555,7 @@ export function MeetingRoomsPage() {
                               <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
                               {canRescheduleBooking && (
                                 <>
-                                  <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
+                                  <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime, originalDate: b.date, originalEndDate: b.endDate, originalStartTime: b.startTime, originalEndTime: b.endTime } as any); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
                                   <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Cancel</button>
                                 </>
                               )}
@@ -5263,7 +5399,9 @@ export function MeetingRoomsPage() {
                         <div>
                           <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Host / Dept</p>
                           <p className="text-[12px] font-pmedium text-slate-900">
-                            {(viewingBooking as any).bookedForName || viewingBooking.bookedByName}
+                            {normalize(viewingBooking.bookingType) === 'external'
+                              ? ((viewingBooking as any).hostName || viewingBooking.bookedByName)
+                              : ((viewingBooking as any).bookedForName || viewingBooking.bookedByName)}
                           </p>
                           <span className={`mt-1 inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
                             {getBookingTagLabel(viewingBooking)}
@@ -5337,7 +5475,7 @@ export function MeetingRoomsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                           <div>
                             <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Client Name</p>
-                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).bookedForName || '—'}</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{getExternalClientName(viewingBooking) || '—'}</p>
                           </div>
                           {(viewingBooking as any).paymentMode && (
                             <div>
@@ -5460,7 +5598,7 @@ export function MeetingRoomsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                         {canRescheduleOwnBooking(viewingBooking) && (
                           <>
-                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setRescheduleInviteeIds(viewingBooking.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[12px] text-slate-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><CalendarClock size={14} /> Reschedule</button>
+                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime, originalDate: viewingBooking.date, originalEndDate: viewingBooking.endDate, originalStartTime: viewingBooking.startTime, originalEndTime: viewingBooking.endTime } as any); setRescheduleInviteeIds(viewingBooking.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[12px] text-slate-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><CalendarClock size={14} /> Reschedule</button>
                             <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-2.5 bg-white border border-red-200 rounded-xl font-pmedium text-[12px] text-red-600 hover:bg-red-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><XCircle size={14} /> Cancel</button>
                           </>
                         )}
@@ -5688,10 +5826,27 @@ export function MeetingRoomsPage() {
                     onChange={(e) => setCancelReason(e.target.value)}
                   />
                 </div>
+                {normalize(bookingToCancel.bookingType) === 'external' && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Refund Action</label>
+                    <div className="relative">
+                      <select
+                        className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-red-500/20 focus:border-red-500 shadow-sm transition-all"
+                        value={cancelRefundType}
+                        onChange={(e) => setCancelRefundType(e.target.value)}
+                      >
+                        <option value="Full Refund">Full Refund (100% Credits/Money back)</option>
+                        <option value="Partial Refund">Partial Refund (50% Penalty)</option>
+                        <option value="No refund">No Refund (Late Cancellation)</option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3">
-                <button disabled={isSavingBooking} onClick={() => setShowCancelDialog(false)} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
-                <button disabled={!cancelReason.trim() || isSavingBooking} onClick={handleCancelBooking} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-pmedium text-[13px] shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Cancel Meeting'}</button>
+                <button type="button" disabled={isSavingBooking} onClick={() => setShowCancelDialog(false)} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Keep It</button>
+                <button type="button" disabled={!cancelReason.trim() || isSavingBooking} onClick={handleCancelBooking} className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">{isSavingBooking ? 'Saving...' : 'Cancel Meeting'}</button>
               </div>
             </motion.div>
           </div>
@@ -5725,7 +5880,22 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-6 md:p-8 space-y-6">
-                {normalize(rescheduleData.bookingType) !== 'tenant' && (
+                {normalize(rescheduleData.bookingType) === 'external' ? (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Meeting Being Rescheduled</p>
+                      <p className="font-pmedium text-[#0F172A] text-[13px]">{rescheduleData.roomName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Current Schedule</p>
+                      <p className="font-pmedium text-[#0F172A] text-[13px]">
+                        {(rescheduleData as any).originalDate || rescheduleData.date}
+                        {(rescheduleData as any).originalEndDate && (rescheduleData as any).originalEndDate !== ((rescheduleData as any).originalDate || rescheduleData.date) ? ` → ${(rescheduleData as any).originalEndDate}` : ''}
+                        {' '}· {formatTimeOptionLabel((rescheduleData as any).originalStartTime || rescheduleData.startTime || '')} – {formatTimeOptionLabel((rescheduleData as any).originalEndTime || rescheduleData.endTime || '')}
+                      </p>
+                    </div>
+                  </div>
+                ) : normalize(rescheduleData.bookingType) !== 'tenant' && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Update Location (Optional)</label>
                   <div className="relative">
@@ -5742,10 +5912,23 @@ export function MeetingRoomsPage() {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">New Date</label>
-                    <input type="date" min={todayStr} value={rescheduleData.date || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({ ...rescheduleData, date: e.target.value })} />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">New Start Date</label>
+                    <input type="date" min={todayStr} value={rescheduleData.date || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
+                      const nextDate = e.target.value;
+                      setRescheduleData({
+                        ...rescheduleData,
+                        date: nextDate,
+                        ...(normalize(rescheduleData.bookingType) === 'external' ? { endDate: !(rescheduleData as any).endDate || (rescheduleData as any).endDate < nextDate ? nextDate : (rescheduleData as any).endDate } : {}),
+                      });
+                    }} />
                   </div>
+                  {normalize(rescheduleData.bookingType) === 'external' && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">New End Date</label>
+                      <input type="date" min={rescheduleData.date || todayStr} value={(rescheduleData as any).endDate || rescheduleData.date || ''} disabled={!rescheduleData.date} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all disabled:bg-slate-50 disabled:text-slate-400" onChange={(e) => setRescheduleData({ ...rescheduleData, endDate: e.target.value } as any)} />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">New Check In</label>
                     <select value={rescheduleData.startTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
@@ -5775,6 +5958,61 @@ export function MeetingRoomsPage() {
                     </select>
                   </div>
                 </div>
+
+                {normalize(rescheduleData.bookingType) === 'external' && rescheduleIsMultiDay && (
+                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3">
+                    <AlertCircle className="text-blue-500 shrink-0 mt-0.5" size={18} />
+                    <p className="text-[12px] font-pmedium text-blue-800">Multi-day reschedule — availability is checked when you submit. If the resource is already booked on any day in this range, you&apos;ll be asked to pick another slot.</p>
+                  </div>
+                )}
+
+                {normalize(rescheduleData.bookingType) === 'external' && !rescheduleIsMultiDay && rescheduleData.date && rescheduleData.roomName && (() => {
+                  const originalStartMinutes = timeToMinutes((rescheduleData as any).originalStartTime || rescheduleData.startTime || '');
+                  const originalEndMinutes = timeToMinutes((rescheduleData as any).originalEndTime || rescheduleData.endTime || '');
+                  const originalDuration = originalStartMinutes != null && originalEndMinutes != null && originalEndMinutes > originalStartMinutes
+                    ? originalEndMinutes - originalStartMinutes
+                    : 60;
+                  const selectedStartMinutes = timeToMinutes(rescheduleData.startTime);
+                  const selectedEndMinutes = timeToMinutes(rescheduleData.endTime);
+                  const chartDuration = selectedStartMinutes != null && selectedEndMinutes != null && selectedEndMinutes > selectedStartMinutes
+                    ? selectedEndMinutes - selectedStartMinutes
+                    : originalDuration;
+                  const windows = getRoomTimeWindows(rescheduleData.roomName, rescheduleData.date, rescheduleData.recordId || null);
+                  const chartSlots: Array<{ start: string; end: string }> = [];
+                  windows.forEach((window) => {
+                    const windowStart = timeToMinutes(window.start) || 0;
+                    const windowEnd = timeToMinutes(window.end) || 0;
+                    for (let minutes = windowStart; minutes + chartDuration <= windowEnd; minutes += chartDuration) {
+                      chartSlots.push({ start: minutesToTimeString(minutes), end: minutesToTimeString(minutes + chartDuration) });
+                    }
+                  });
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Available {Math.round(chartDuration / 60 * 100) / 100} hr Slots</label>
+                        <span className="text-[10px] font-pmedium text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><CheckCircle2 size={10} /> Live Calendar Sync</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[170px] overflow-y-auto pr-2">
+                        {chartSlots.map((slot) => {
+                          const selected = rescheduleData.startTime === slot.start && rescheduleData.endTime === slot.end;
+                          return (
+                            <button
+                              key={slot.start}
+                              type="button"
+                              onClick={() => setRescheduleData({ ...rescheduleData, startTime: slot.start, endTime: slot.end })}
+                              className={`relative p-3 rounded-xl border-2 text-xs font-pmedium transition-all text-center overflow-hidden ${selected ? 'bg-[#2563EB] border-[#2563EB] text-white shadow-md' : 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50'}`}
+                            >
+                              {formatTimeOptionLabel(slot.start)} - {formatTimeOptionLabel(slot.end)}
+                            </button>
+                          );
+                        })}
+                        {chartSlots.length === 0 && (
+                          <div className="col-span-full p-6 text-center text-slate-400 font-pmedium text-xs border-2 border-dashed border-slate-200 rounded-2xl">No slots left within business hours for this date.</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {normalize(rescheduleData.bookingType) === 'tenant' && (() => {
                   const currentCredits = Number(rescheduleData.bookingCredits || 0);
@@ -5891,8 +6129,9 @@ export function MeetingRoomsPage() {
                 {normalize(rescheduleData.bookingType) === 'external' && rescheduleData.startTime && rescheduleData.endTime && rescheduleTimeValidation.valid && (() => {
                   const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
                   const pricePerHour = Number(room?.pricePerHour || 0);
-                  const origPricing = computeExternalPricing(pricePerHour, rescheduleData.previousStartTime || rescheduleData.startTime, rescheduleData.previousEndTime || rescheduleData.endTime, 'flat', 0);
-                  const newPricing = computeExternalPricing(pricePerHour, rescheduleData.startTime, rescheduleData.endTime, 'flat', 0);
+                  const rescheduleEndDate = (rescheduleData as any).endDate || rescheduleData.date;
+                  const origPricing = computeExternalPricing(pricePerHour, (rescheduleData as any).originalStartTime || rescheduleData.startTime, (rescheduleData as any).originalEndTime || rescheduleData.endTime, 'flat', 0);
+                  const newPricing = computeExternalPricingMultiDay(pricePerHour, rescheduleData.date, rescheduleData.startTime, rescheduleEndDate, rescheduleData.endTime, 'flat', 0, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
                   const origTotal = Number(rescheduleData.totalAmount || origPricing.totalAmount || 0);
                   const newTotal = newPricing.totalAmount;
                   const diff = newTotal - origTotal;
@@ -5926,6 +6165,23 @@ export function MeetingRoomsPage() {
                       {pricePerHour > 0 && (
                         <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr · GST included</p>
                       )}
+                      {hasDiff && diff > 0 && (
+                        <div className="pt-2 border-t border-amber-100">
+                          <p className="text-[10px] font-pmedium text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Collect Extra Payment ({formatCurrency(diff)})</p>
+                          <div className="flex gap-2">
+                            {['Cash', 'GPay (UPI)'].map((mode) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => setReschedulePaymentMode(mode)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${reschedulePaymentMode === mode ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'}`}
+                              >
+                                {mode}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -5936,16 +6192,59 @@ export function MeetingRoomsPage() {
                     <p className="text-[13px] text-emerald-800 font-pmedium">Slot is available!</p>
                   </div>
                 )}
-                {rescheduleTimeValidation.valid && rescheduleStatus === 'conflict' && (
+                {rescheduleTimeValidation.valid && (rescheduleStatus === 'conflict' || rescheduleStatus === 'full') && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100 mt-2">
                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-red-800 font-pmedium">Slot conflict detected. Please adjust time.</p>
+                    <p className="text-[13px] text-red-800 font-pmedium">{rescheduleStatus === 'full' ? 'Slot not available — no open slots on this date. Choose another date.' : 'Slot not available. Pick one of the available slots above.'}</p>
                   </div>
                 )}
               </div>
               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3 sticky bottom-0">
-                <button disabled={isSavingBooking} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50" onClick={() => setShowRescheduleDialog(false)}>Cancel</button>
-                <button disabled={rescheduleStatus !== 'available' || isSavingBooking} onClick={handleRescheduleBooking} className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Update'}</button>
+                <button type="button" disabled={isSavingBooking} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowRescheduleDialog(false)}>Cancel</button>
+                <button
+                  type="button"
+                  disabled={(rescheduleStatus !== 'available' && rescheduleStatus !== 'multi-day') || isSavingBooking}
+                  onClick={() => {
+                    if (normalize(rescheduleData.bookingType) === 'external') {
+                      setShowRescheduleConfirm(true);
+                    } else {
+                      handleRescheduleBooking();
+                    }
+                  }}
+                  className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingBooking ? 'Saving...' : 'Reschedule Booking'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 6b. RESCHEDULE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {showRescheduleConfirm && (
+          <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRescheduleConfirm(false)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl border border-white/70 relative z-[96] overflow-hidden"
+            >
+              <div className="p-6 flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-50 text-[#2563EB]">
+                  <CalendarClock size={22} />
+                </div>
+                <h2 className="text-base font-pmedium text-slate-900">Reschedule this meeting?</h2>
+                <p className="text-[13px] font-pmedium text-slate-500 leading-relaxed">
+                  The client will be emailed with the updated slot once this is confirmed.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex gap-3">
+                <button type="button" disabled={isSavingBooking} onClick={() => setShowRescheduleConfirm(false)} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Go Back</button>
+                <button type="button" disabled={isSavingBooking} onClick={handleRescheduleBooking} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">{isSavingBooking ? 'Saving...' : 'Yes, Reschedule'}</button>
               </div>
             </motion.div>
           </div>

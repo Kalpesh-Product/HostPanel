@@ -114,6 +114,7 @@ export function computeAvailableSlots(
   desiredDurationMinutes: number,
   dayStartMinutes?: number,
   dayEndMinutes?: number,
+  minStartMinutes?: number,
 ): Array<{ startTime: string; endTime: string }> {
   // Collect all confirmed / in-progress bookings for this resource on this date
   const dayBookings = bookings
@@ -128,7 +129,7 @@ export function computeAvailableSlots(
         (timeToMinutes(a.startTime) ?? 0) - (timeToMinutes(b.startTime) ?? 0),
     );
 
-  const DAY_START = dayStartMinutes ?? BOOKING_DAY_START_MINUTES;
+  const DAY_START = Math.max(dayStartMinutes ?? BOOKING_DAY_START_MINUTES, minStartMinutes ?? -Infinity);
   const DAY_END = dayEndMinutes ?? BOOKING_DAY_END_MINUTES;
 
   // Build free windows between booked intervals
@@ -188,6 +189,104 @@ const ZERO_PRICING: ExternalPricingResult = {
   totalAmount: 0,
   noRateSet: false,
 };
+
+/**
+ * A multi-day booking reserves the SAME start–end time window on each
+ * calendar day between startDate and endDate (inclusive), so the billed
+ * duration is (endTime − startTime) × number of days — e.g. 10 AM–12 PM
+ * across 3 days = 6 hours, never full business days in between. The window
+ * is clamped to business hours before multiplying. When startDate ===
+ * endDate this reduces to the plain same-day duration.
+ *
+ * Returns hours (may be fractional), or 0 for any invalid/empty input
+ * (including endTime ≤ startTime — the per-day window must be positive).
+ */
+export function computeBusinessHoursDuration(
+  startDate: string,
+  startTime: string,
+  endDate: string,
+  endTime: string,
+  dayStartMinutes: number = BOOKING_DAY_START_MINUTES,
+  dayEndMinutes: number = BOOKING_DAY_END_MINUTES,
+): number {
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  if (!startDate || !endDate || startMinutes === null || endMinutes === null) {
+    return 0;
+  }
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return 0;
+  }
+
+  const dayCount = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+  if (dayCount <= 0) {
+    return 0;
+  }
+
+  const dailyStart = Math.max(startMinutes, dayStartMinutes);
+  const dailyEnd = Math.min(endMinutes, dayEndMinutes);
+  if (dailyEnd <= dailyStart) {
+    return 0;
+  }
+
+  return ((dailyEnd - dailyStart) * dayCount) / 60;
+}
+
+function applyDiscountAndGst(basePriceRaw: number, discountType: 'flat' | 'percent', discountValue: number | string): ExternalPricingResult {
+  const rawDiscountInput = Number(discountValue) || 0;
+  let discountAmount = 0;
+
+  if (rawDiscountInput > 0) {
+    if (discountType === 'percent') {
+      const pct = Math.min(Math.max(rawDiscountInput, 0), 100);
+      discountAmount = Math.round(basePriceRaw * (pct / 100) * 100) / 100;
+    } else {
+      discountAmount = Math.min(Math.max(rawDiscountInput, 0), basePriceRaw);
+      discountAmount = Math.round(discountAmount * 100) / 100;
+    }
+  }
+
+  const discountedBase = Math.max(basePriceRaw - discountAmount, 0);
+  const gstAmount = Math.round(discountedBase * 0.18 * 100) / 100;
+  const totalAmount = Math.round((discountedBase + gstAmount) * 100) / 100;
+
+  return { basePriceRaw, discountAmount, gstAmount, totalAmount, noRateSet: false };
+}
+
+/**
+ * Same pricing model as computeExternalPricing, but for a booking that may
+ * span multiple calendar days. Only the business-hours portion of each day
+ * in [startDate, endDate] is billed (see computeBusinessHoursDuration).
+ */
+export function computeExternalPricingMultiDay(
+  pricePerHour: number,
+  startDate: string,
+  startTime: string,
+  endDate: string,
+  endTime: string,
+  discountType: 'flat' | 'percent',
+  discountValue: number | string,
+  dayStartMinutes?: number,
+  dayEndMinutes?: number,
+): ExternalPricingResult {
+  const priceNum = Number(pricePerHour ?? 0);
+  const noRateSet = pricePerHour === 0 || pricePerHour === null || pricePerHour === undefined;
+
+  if (noRateSet || !startDate || !startTime || !endDate || !endTime) {
+    return { ...ZERO_PRICING, noRateSet };
+  }
+
+  const durationHours = computeBusinessHoursDuration(startDate, startTime, endDate, endTime, dayStartMinutes, dayEndMinutes);
+  if (durationHours <= 0) {
+    return { ...ZERO_PRICING, noRateSet };
+  }
+
+  const basePriceRaw = Math.round(priceNum * durationHours * 100) / 100;
+  return applyDiscountAndGst(basePriceRaw, discountType, discountValue);
+}
 
 /**
  * Computes the full external booking price breakdown.

@@ -12,6 +12,7 @@ import {
 } from '../../services/visitors';
 import { PERMISSIONS } from '../../constants/permissions';
 import {
+  cancelBooking as cancelMeetingRoomBooking,
   createExternalClient,
   createMeetingRoomBooking,
   getExternalClients,
@@ -808,6 +809,7 @@ function normalizeVerifiedBooking(booking) {
     date: booking.date ? formatWalkInDateLabel(booking.date, booking.date) : booking.date || '',
     time: booking.time || `${formatTimeLabel(booking.startTime)} - ${formatTimeLabel(booking.endTime)}`,
     bookedBy: booking.bookedByName || booking.bookedBy || '',
+    host: booking.hostName || '',
     company: booking.clientCompany || booking.company || booking.bookingSource || 'Frontdesk',
     phone: booking.bookedByPhone || booking.phone || '',
     email: booking.bookedByEmail || booking.email || '',
@@ -851,9 +853,11 @@ function isExternalMeetingBooking(booking) {
  *   Completed   — past end time (view only)
  * Stored Cancelled/Completed always win over the clock.
  */
-function deriveWalkInLiveStatus(storedStatus, date, startTime, endTime) {
+function deriveWalkInLiveStatus(storedStatus, date, startTime, endTime, endDate) {
   if (storedStatus === 'Cancelled' || storedStatus === 'Completed') return storedStatus;
   const dateKey = formatDateKey(date);
+  // Multi-day bookings only complete after their END date's end time.
+  const endDateKey = formatDateKey(endDate || date) || dateKey;
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
   if (!dateKey || startMinutes == null || endMinutes == null) return storedStatus;
@@ -862,8 +866,8 @@ function deriveWalkInLiveStatus(storedStatus, date, startTime, endTime) {
   const todayKey = formatDateKey(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  if (dateKey < todayKey || (dateKey === todayKey && nowMinutes >= endMinutes)) return 'Completed';
-  if (dateKey === todayKey && nowMinutes >= startMinutes) return 'In Progress';
+  if (endDateKey < todayKey || (endDateKey === todayKey && nowMinutes >= endMinutes)) return 'Completed';
+  if (dateKey < todayKey || (dateKey === todayKey && nowMinutes >= startMinutes)) return 'In Progress';
   // Meeting has not started yet. A stored "In Progress" here means the front
   // desk already confirmed the visitor's entry — surface that as Confirmed.
   if (storedStatus === 'In Progress') return 'Confirmed';
@@ -877,13 +881,19 @@ function normalizeDailyBooking(booking) {
   // email shows and what the front desk verifies against.
   const id = String(booking.bookingCode || booking.id || booking.recordId || booking._id || '').trim().toUpperCase();
   const storedStatus = getBookingDisplayStatus(booking.liveStatus || booking.status);
-  const status = deriveWalkInLiveStatus(storedStatus, booking.date, booking.startTime, booking.endTime);
+  const status = deriveWalkInLiveStatus(storedStatus, booking.date, booking.startTime, booking.endTime, booking.endDate);
   const paymentStatus = booking.paymentStatus || (status === 'Booked' ? 'Pending Payment' : '');
   const originalTime = booking.previousStartTime && booking.previousEndTime
     ? `${formatTimeLabel(booking.previousStartTime)} - ${formatTimeLabel(booking.previousEndTime)}`
     : '';
   const originalDateLabel = booking.previousDate ? formatDisplayDate(booking.previousDate) : '';
+  const originalEndDateLabel = booking.previousEndDate && booking.previousEndDate !== booking.previousDate
+    ? formatDisplayDate(booking.previousEndDate)
+    : '';
+  const isRescheduled = normalizeText(booking.scheduleChangeType) === 'rescheduled';
   const isExtended = normalizeText(booking.scheduleChangeType) === 'extended' || Boolean(originalTime);
+  const scheduleChangeLabel = isRescheduled ? 'Rescheduled' : 'Extended';
+  const isMultiDay = Boolean(booking.endDate) && booking.endDate !== booking.date;
 
   return {
     id,
@@ -892,11 +902,18 @@ function normalizeDailyBooking(booking) {
     resource: booking.roomName || booking.resource || 'Meeting Room',
     date: booking.date || '',
     dateLabel: formatDisplayDate(booking.date),
+    endDate: booking.endDate || booking.date || '',
+    endDateLabel: isMultiDay ? formatDisplayDate(booking.endDate) : '',
+    isMultiDay,
     time: booking.time || `${formatTimeLabel(booking.startTime)} - ${formatTimeLabel(booking.endTime)}`,
     originalDateLabel,
+    originalEndDateLabel,
     originalTime,
     isExtended,
+    isRescheduled,
+    scheduleChangeLabel,
     bookedBy: booking.bookedByName || booking.bookedBy || '',
+    host: booking.hostName || '',
     company: booking.clientCompany || booking.company || booking.bookingSource || 'Frontdesk',
     phone: booking.bookedByPhone || booking.phone || '',
     email: booking.bookedByEmail || booking.email || '',
@@ -1134,6 +1151,8 @@ export default function VisitorsManagementPage() {
   const [cancellingBooking, setCancellingBooking] = useState(null);
   const [confirmingCheckout, setConfirmingCheckout] = useState(null);
   const [reschedulingBooking, setReschedulingBooking] = useState(null);
+  const [showRescheduleConfirm, setShowRescheduleConfirm] = useState(false);
+  const [isReschedulingBookingSaving, setIsReschedulingBookingSaving] = useState(false);
 
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
   const [extendingBooking, setExtendingBooking] = useState(null);
@@ -1198,7 +1217,7 @@ export default function VisitorsManagementPage() {
   const [form, setForm] = useState(getDefaultVisitorForm());
 
   const [cancelForm, setCancelForm] = useState({ reason: '', refundType: 'Full Refund' });
-  const [rescheduleForm, setRescheduleForm] = useState({ newDate: '', newStartTime: '', newEndTime: '' });
+  const [rescheduleForm, setRescheduleForm] = useState({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' });
   const [extendForm, setExtendForm] = useState({ newEndTime: '', paymentMode: 'Cash' });
   const [verifiedBooking, setVerifiedBooking] = useState(null);
 
@@ -2169,9 +2188,10 @@ export default function VisitorsManagementPage() {
 
     const durationMinutes = Math.max(30, endMinutes - startMinutes);
     const durationHours = (durationMinutes / 60) * dateSpanDays;
-    const subtotalBeforeDiscount = dateSpanDays > 1
-      ? rate.daily * dateSpanDays
-      : Math.max(rate.hourly, Math.ceil(durationHours * rate.hourly));
+    // Bill proportionally to the actual start/end time on each day of the
+    // span (e.g. 30 min = half the hourly rate) — never a flat full-day
+    // charge regardless of how many hours were actually booked that day.
+    const subtotalBeforeDiscount = Math.round(durationHours * rate.hourly * 100) / 100;
     const discountType = form.discountType === 'percent' ? 'percent' : 'amount';
     const rawDiscountValue = Number(form.discountValue || 0);
     const discountValue = Number.isFinite(rawDiscountValue) ? Math.max(rawDiscountValue, 0) : 0;
@@ -3155,6 +3175,7 @@ export default function VisitorsManagementPage() {
           roomName: selectedWalkInRoom?.name || form.resourceName,
           floor: selectedWalkInRoom?.floor || form.floor || '',
           date: form.startDate,
+          endDate: form.endDate || form.startDate,
           startTime: form.startTime,
           endTime: form.endTime,
           purpose: form.purpose || 'Walk-in Booking',
@@ -3191,6 +3212,7 @@ export default function VisitorsManagementPage() {
             clientCompany: normalizedCompany,
             clientId: externalClientId,
             date: form.startDate,
+            endDate: form.endDate || form.startDate,
             startTime: form.startTime,
             endTime: form.endTime,
           };
@@ -3424,21 +3446,20 @@ export default function VisitorsManagementPage() {
     const bookingId = cancellingBooking.recordId || cancellingBooking.id;
 
     try {
-      const response = await updateMeetingRoomBooking(bookingId, {
-        status: 'cancelled',
-        cancelReason: `${cancelForm.reason} | ${cancelForm.refundType}`,
-      });
+      // The generic update endpoint ignores status/cancelReason — only the
+      // dedicated cancel endpoint actually cancels (and emails the client).
+      const response = await cancelMeetingRoomBooking(bookingId, `${cancelForm.reason} | ${cancelForm.refundType}`);
       const updatedBooking = response?.data?.booking || response?.booking || null;
       if (updatedBooking) {
         syncDailyBookingState(updatedBooking);
       } else {
         setUpcomingBookings((prev) => prev.map((booking) => booking.id === cancellingBooking.id ? { ...booking, status: 'Cancelled' } : booking));
       }
-      alert(`System: Booking ${cancellingBooking.id} cancelled. Refund Type: ${cancelForm.refundType}. Slot freed.`);
+      toast.success(`Booking ${cancellingBooking.id} cancelled (${cancelForm.refundType}). Slot freed and the client has been emailed.`);
       setCancellingBooking(null);
       setCancelForm({ reason: '', refundType: 'Full Refund' });
     } catch (error) {
-      alert(error.message || 'Unable to cancel this booking right now.');
+      toast.error(error.message || 'Unable to cancel this booking right now.');
     }
   };
 
@@ -3464,23 +3485,54 @@ export default function VisitorsManagementPage() {
       return;
     }
 
+    const rescheduleEndDate = rescheduleForm.newEndDate || rescheduleForm.newDate;
+
+    // Persist the recomputed price alongside the new slot — the same per-day
+    // window math the modal's Pricing Adjustment panel shows the user.
+    // Look up in the FULL room catalog — walkInRoomOptions is filtered by the
+    // walk-in form's space type/floor, which are unrelated when rescheduling
+    // from the Bookings tab, and a missed lookup falls back to a guessed rate.
+    const rescheduleRoom = normalizedMeetingRoomCatalog.find((room) => room.name === reschedulingBooking?.resource) || null;
+    const rescheduleRate = getWalkInRate(rescheduleRoom);
+    const rescheduleDaySpan = Math.max(1, getWalkInDaySpan(rescheduleForm.newDate, rescheduleEndDate) || 1);
+    const rescheduleHours = ((endMinutes - startMinutes) / 60) * rescheduleDaySpan;
+    const rescheduleBase = Math.round(rescheduleHours * rescheduleRate.hourly * 100) / 100;
+    const rescheduleGst = Math.round(rescheduleBase * WALK_IN_GST_RATE * 100) / 100;
+    const rescheduleNewTotal = Math.round((rescheduleBase + rescheduleGst) * 100) / 100;
+    const reschedulePricing = rescheduleRate.hourly > 0
+      ? { baseAmount: rescheduleBase, gstAmount: rescheduleGst, totalAmount: rescheduleNewTotal }
+      : {};
+    // Extra amount due → record how the frontdesk collected it (Cash/GPay).
+    const rescheduleOriginalTotal = Number(reschedulingBooking?.totalAmount || reschedulingBooking?.amountDue || 0);
+    const hasExtraDue = rescheduleRate.hourly > 0 && rescheduleNewTotal - rescheduleOriginalTotal > 0.5;
+    const reschedulePayment = hasExtraDue
+      ? { paymentMode: rescheduleForm.paymentMode || 'Cash', paymentStatus: 'Paid' }
+      : {};
+
+    setShowRescheduleConfirm(false);
+    setIsReschedulingBookingSaving(true);
+
     updateMeetingRoomBooking(bookingId, {
-      date: rescheduleForm.newDate,
-      startTime: rescheduleForm.newStartTime,
-      endTime: rescheduleForm.newEndTime,
-      status: 'rescheduled',
+      start: `${rescheduleForm.newDate}T${rescheduleForm.newStartTime}:00+05:30`,
+      end: `${rescheduleEndDate}T${rescheduleForm.newEndTime}:00+05:30`,
+      scheduleChangeType: 'rescheduled',
+      ...reschedulePricing,
+      ...reschedulePayment,
     })
       .then((response) => {
         const updatedBooking = response?.data?.booking || response?.booking || null;
         if (updatedBooking) {
           syncDailyBookingState(updatedBooking);
         }
-        alert(`System: Booking rescheduled to ${rescheduleForm.newDate} at ${formatTimeLabel(rescheduleForm.newStartTime)} - ${formatTimeLabel(rescheduleForm.newEndTime)}. Customer notified.`);
+        toast.success(`Booking rescheduled to ${rescheduleForm.newDate}${rescheduleEndDate !== rescheduleForm.newDate ? ` → ${rescheduleEndDate}` : ''} at ${formatTimeLabel(rescheduleForm.newStartTime)} - ${formatTimeLabel(rescheduleForm.newEndTime)}. The client has been emailed.`);
         setReschedulingBooking(null);
-        setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' });
+        setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' });
       })
       .catch((error) => {
-        alert(error.message || 'Unable to reschedule this booking right now.');
+        toast.error(error.message || 'Unable to reschedule this booking right now.');
+      })
+      .finally(() => {
+        setIsReschedulingBookingSaving(false);
       });
   };
 
@@ -3951,18 +4003,33 @@ export default function VisitorsManagementPage() {
                         <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-pmedium text-slate-500">{bkg.source === 'Website' ? <Globe size={11} /> : <Smartphone size={11} />} {bkg.source || 'Frontdesk'}</span>
                       </td>
                       <td className="px-5 py-4 align-top whitespace-nowrap">
-                        <p className="flex items-center gap-1.5 text-[12px] font-pmedium text-slate-800"><CalendarDays size={13} className="text-slate-400" /> {bkg.dateLabel || formatDisplayDate(bkg.date)}</p>
-                        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-pmedium text-slate-500"><Clock size={12} /> {bkg.time || 'Time not set'}</p>
+                        {bkg.isExtended ? (
+                          <div className="space-y-1">
+                            <p className="flex items-center gap-1.5 text-[10px] font-pmedium text-slate-400 line-through decoration-slate-300">
+                              <CalendarDays size={11} /> {bkg.originalDateLabel || bkg.dateLabel}{bkg.originalEndDateLabel ? ` → ${bkg.originalEndDateLabel}` : ''} • {bkg.originalTime || bkg.time}
+                            </p>
+                            <p className={`flex items-center gap-1.5 text-[12px] font-pmedium ${bkg.isRescheduled ? 'text-blue-700' : 'text-purple-700'}`}>
+                              <CalendarDays size={13} /> {bkg.dateLabel || formatDisplayDate(bkg.date)}{bkg.isMultiDay ? ` → ${bkg.endDateLabel}` : ''} • {bkg.time}
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="flex items-center gap-1.5 text-[12px] font-pmedium text-slate-800">
+                              <CalendarDays size={13} className="text-slate-400" /> {bkg.dateLabel || formatDisplayDate(bkg.date)}{bkg.isMultiDay ? ` → ${bkg.endDateLabel}` : ''}
+                            </p>
+                            <p className="mt-1 flex items-center gap-1.5 text-[11px] font-pmedium text-slate-500"><Clock size={12} /> {bkg.time || 'Time not set'}</p>
+                          </>
+                        )}
                       </td>
                       <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.paymentStatus || 'Pending')}>{bkg.paymentStatus || 'Pending'}</span><p className="mt-1.5 text-[10px] font-pmedium text-slate-500">{bkg.paymentMode || 'Not set'}</p></td>
                       <td className="px-5 py-4 align-top"><p className="text-[13px] font-pmedium text-slate-950">{formatCurrency(bkg.totalAmount || bkg.amountDue || 0)}</p>{Number(bkg.discountAmount || 0) > 0 && <p className="mt-1 text-[10px] font-pmedium text-emerald-600">Discount {formatCurrency(bkg.discountAmount)}</p>}</td>
-                      <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.status)}>{bkg.status}</span>{bkg.isExtended && <span className={statusPillClass('Extended')}>Extended</span>}</td>
+                      <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.status)}>{bkg.status}</span>{bkg.isExtended && <span className={statusPillClass(bkg.scheduleChangeLabel)}>{bkg.scheduleChangeLabel}</span>}</td>
                       <td className="px-5 py-4 align-top">
                         <div className="flex items-center gap-1.5">
                           <button type="button" title="View booking" onClick={() => setViewingBooking(bkg)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
                           {bkg.invoiceFileUrl && <button type="button" title="Download invoice" onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"><Download size={15} strokeWidth={2.5} /></button>}
                           {bkg.status === 'In Progress' && <button type="button" title="Extend slot" onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="p-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-all"><Clock size={15} strokeWidth={2.5} /></button>}
-                          {bkg.status !== 'In Progress' && bkg.status !== 'Completed' && bkg.status !== 'Cancelled' && <><button type="button" title="Reschedule booking" onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition-all"><CalendarIcon size={15} strokeWidth={2.5} /></button><button type="button" title="Cancel booking" onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"><XCircle size={15} strokeWidth={2.5} /></button></>}
+                          {bkg.status !== 'In Progress' && bkg.status !== 'Completed' && bkg.status !== 'Cancelled' && <><button type="button" title="Reschedule booking" onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); }} className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition-all"><CalendarIcon size={15} strokeWidth={2.5} /></button><button type="button" title="Cancel booking" onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"><XCircle size={15} strokeWidth={2.5} /></button></>}
                         </div>
                       </td>
                     </tr>
@@ -4046,7 +4113,7 @@ export default function VisitorsManagementPage() {
                           <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
                             <Eye size={14} /> View
                           </button>
-                          <button onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-2xl text-[7px] font-pmedium uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                          <button onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); }} className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-2xl text-[7px] font-pmedium uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
                             <CalendarIcon size={12} /> Reschedule
                           </button>
                           {bkg.status !== 'In Progress' && (
@@ -5700,6 +5767,8 @@ export default function VisitorsManagementPage() {
                   onClick={() => {
                     setShowBookingConfirmationPopup(false);
                     setBookingConfirmation(null);
+                    setIsLoggingVisitor(false);
+                    setActiveTab('bookings');
                   }}
                   className="w-9 h-9 rounded-full bg-white text-emerald-700 shadow-sm hover:bg-emerald-100 transition-all flex items-center justify-center"
                 >
@@ -5914,7 +5983,7 @@ export default function VisitorsManagementPage() {
                     <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mt-1">{reschedulingBooking.resource}</p>
                   </div>
                 </div>
-                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
+                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); setShowRescheduleConfirm(false); }} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={16} /></button>
               </div>
 
               <div className="p-5 sm:p-6 space-y-5 overflow-y-auto">
@@ -5930,17 +5999,42 @@ export default function VisitorsManagementPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Select New Date *</label>
-                    <input
-                      type="date"
-                      className="w-full px-5 py-4 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-amber-400 outline-none transition-all shadow-sm cursor-pointer"
-                      value={rescheduleForm.newDate} onChange={e => setRescheduleForm({ ...rescheduleForm, newDate: e.target.value, newStartTime: '', newEndTime: '' })}
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">New Start Date *</label>
+                      <input
+                        type="date"
+                        className="w-full px-5 py-4 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-amber-400 outline-none transition-all shadow-sm cursor-pointer"
+                        value={rescheduleForm.newDate}
+                        onChange={e => {
+                          const nextDate = e.target.value;
+                          setRescheduleForm({
+                            ...rescheduleForm,
+                            newDate: nextDate,
+                            newEndDate: !rescheduleForm.newEndDate || rescheduleForm.newEndDate < nextDate ? nextDate : rescheduleForm.newEndDate,
+                            newStartTime: '',
+                            newEndTime: '',
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">New End Date *</label>
+                      <input
+                        type="date"
+                        min={rescheduleForm.newDate || undefined}
+                        disabled={!rescheduleForm.newDate}
+                        className="w-full px-5 py-4 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-amber-400 outline-none transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                        value={rescheduleForm.newEndDate || rescheduleForm.newDate}
+                        onChange={e => setRescheduleForm({ ...rescheduleForm, newEndDate: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   {rescheduleForm.newDate ? (() => {
                     const rescheduleDateKey = formatDateKey(rescheduleForm.newDate);
+                    const rescheduleEndDateKey = formatDateKey(rescheduleForm.newEndDate || rescheduleForm.newDate);
+                    const isMultiDay = rescheduleEndDateKey !== rescheduleDateKey;
                     const todayKey = formatDateKey(new Date());
                     const now = new Date();
                     const nowRounded = Math.ceil((now.getHours() * 60 + now.getMinutes()) / WALK_IN_SLOT_STEP) * WALK_IN_SLOT_STEP;
@@ -5958,11 +6052,13 @@ export default function VisitorsManagementPage() {
                       ? selectedEndMinutes - selectedStartMinutes
                       : originalDuration;
                     const startOptions = buildTimeOptions(minutesToTime(dayStartMinutes), minutesToTime(businessHours.endMinutes - WALK_IN_MIN_DURATION_MINUTES), WALK_IN_SLOT_STEP);
-                    const endOptions = buildTimeOptions(
-                      minutesToTime((selectedStartMinutes != null ? selectedStartMinutes : dayStartMinutes) + WALK_IN_MIN_DURATION_MINUTES),
-                      minutesToTime(businessHours.endMinutes),
-                      WALK_IN_SLOT_STEP,
-                    );
+                    const endOptions = isMultiDay
+                      ? buildTimeOptions(minutesToTime(businessHours.startMinutes), minutesToTime(businessHours.endMinutes), WALK_IN_SLOT_STEP)
+                      : buildTimeOptions(
+                          minutesToTime((selectedStartMinutes != null ? selectedStartMinutes : dayStartMinutes) + WALK_IN_MIN_DURATION_MINUTES),
+                          minutesToTime(businessHours.endMinutes),
+                          WALK_IN_SLOT_STEP,
+                        );
                     const currentBookingId = String(reschedulingBooking?.recordId || reschedulingBooking?.id || '').trim();
                     const isSlotBooked = (slotStartMinutes, slotEndMinutes) => meetingRoomBookings.some((booking) => {
                       const bookingId = String(booking.recordId || booking.id || booking.bookingCode || '').trim();
@@ -5971,15 +6067,36 @@ export default function VisitorsManagementPage() {
                         booking,
                         reschedulingBooking?.resource || '',
                         rescheduleDateKey,
-                        rescheduleDateKey,
+                        rescheduleEndDateKey,
                         slotStartMinutes,
                         slotEndMinutes,
                       );
                     });
                     const chartSlots = [];
-                    for (let minutes = dayStartMinutes; minutes + chartDuration <= businessHours.endMinutes; minutes += chartDuration) {
-                      chartSlots.push({ startMinutes: minutes, endMinutes: minutes + chartDuration, start: minutesToTime(minutes), end: minutesToTime(minutes + chartDuration) });
+                    if (!isMultiDay) {
+                      for (let minutes = dayStartMinutes; minutes + chartDuration <= businessHours.endMinutes; minutes += chartDuration) {
+                        chartSlots.push({ startMinutes: minutes, endMinutes: minutes + chartDuration, start: minutesToTime(minutes), end: minutesToTime(minutes + chartDuration) });
+                      }
                     }
+
+                    const hasSelection = selectedStartMinutes != null && selectedEndMinutes != null && selectedEndMinutes > selectedStartMinutes;
+                    const multiDayConflict = isMultiDay && hasSelection ? isSlotBooked(selectedStartMinutes, selectedEndMinutes) : false;
+
+                    const room = normalizedMeetingRoomCatalog.find((r) => r.name === reschedulingBooking?.resource) || null;
+                    const rate = getWalkInRate(room);
+                    const dateSpanDays = Math.max(1, getWalkInDaySpan(rescheduleForm.newDate, rescheduleForm.newEndDate || rescheduleForm.newDate) || 1);
+                    // Bill proportionally to the actual start/end time on each day of
+                    // the span, not a flat full-day charge regardless of duration.
+                    const newDurationHours = hasSelection ? ((selectedEndMinutes - selectedStartMinutes) / 60) * dateSpanDays : 0;
+                    const newSubtotal = hasSelection
+                      ? Math.round(newDurationHours * rate.hourly * 100) / 100
+                      : 0;
+                    const newGst = newSubtotal * WALK_IN_GST_RATE;
+                    const newTotal = newSubtotal + newGst;
+                    const origTotal = Number(reschedulingBooking?.totalAmount || reschedulingBooking?.amountDue || 0);
+                    const priceDiff = newTotal - origTotal;
+                    const hasPriceDiff = Math.abs(priceDiff) > 0.5;
+
                     return (
                     <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -6015,32 +6132,105 @@ export default function VisitorsManagementPage() {
                           </select>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Available {Math.round(chartDuration / 60 * 100) / 100} hr Slots</label>
-                        <span className="text-[10px] font-pmedium text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><Check size={10} /> Live Master Calendar Sync</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[170px] overflow-y-auto pr-2">
-                        {chartSlots.map((slot) => {
-                          const booked = isSlotBooked(slot.startMinutes, slot.endMinutes);
-                          const selected = rescheduleForm.newStartTime === slot.start && rescheduleForm.newEndTime === slot.end;
-                          const displayLabel = `${formatTimeLabel(slot.start)} - ${formatTimeLabel(slot.end)}`;
-                          return (
-                            <button
-                              key={slot.start} disabled={booked} onClick={() => setRescheduleForm({ ...rescheduleForm, newStartTime: slot.start, newEndTime: slot.end })}
-                              className={`relative p-3 rounded-xl border-2 text-xs font-pmedium transition-all text-center overflow-hidden
-                               ${booked ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60' :
-                                  selected ? 'bg-amber-500 border-amber-500 text-white shadow-md' :
-                                    'bg-white border-green-200 text-green-700 hover:bg-green-50'}`}
-                            >
-                              <span className={booked ? 'line-through decoration-red-400 decoration-2' : ''}>{displayLabel}</span>
-                              {booked && <span className={statusPillClass("Booked by another")}>Booked by another</span>}
-                            </button>
-                          );
-                        })}
-                        {chartSlots.length === 0 && (
-                          <div className="col-span-full p-6 text-center text-gray-400 font-pmedium text-xs">No slots left within business hours for this date.</div>
-                        )}
-                      </div>
+
+                      {!isMultiDay ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Available {Math.round(chartDuration / 60 * 100) / 100} hr Slots</label>
+                            <span className="text-[10px] font-pmedium text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><Check size={10} /> Live Master Calendar Sync</span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[170px] overflow-y-auto pr-2">
+                            {chartSlots.map((slot) => {
+                              const booked = isSlotBooked(slot.startMinutes, slot.endMinutes);
+                              const selected = rescheduleForm.newStartTime === slot.start && rescheduleForm.newEndTime === slot.end;
+                              const displayLabel = `${formatTimeLabel(slot.start)} - ${formatTimeLabel(slot.end)}`;
+                              return (
+                                <button
+                                  key={slot.start} disabled={booked} onClick={() => setRescheduleForm({ ...rescheduleForm, newStartTime: slot.start, newEndTime: slot.end })}
+                                  className={`relative p-3 rounded-xl border-2 text-xs font-pmedium transition-all text-center overflow-hidden
+                                   ${booked ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60' :
+                                      selected ? 'bg-amber-500 border-amber-500 text-white shadow-md' :
+                                        'bg-white border-green-200 text-green-700 hover:bg-green-50'}`}
+                                >
+                                  <span className={booked ? 'line-through decoration-red-400 decoration-2' : ''}>{displayLabel}</span>
+                                  {booked && <span className={statusPillClass("Booked by another")}>Booked by another</span>}
+                                </button>
+                              );
+                            })}
+                            {chartSlots.length === 0 && (
+                              <div className="col-span-full p-6 text-center text-gray-400 font-pmedium text-xs">No slots left within business hours for this date.</div>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3">
+                          <AlertCircle className="text-blue-500 shrink-0 mt-0.5" size={18} />
+                          <p className="text-[12px] font-pmedium text-blue-800">Multi-day reschedule — pick a start and end time above, we'll check the whole date range for conflicts.</p>
+                        </div>
+                      )}
+
+                      {isMultiDay && hasSelection && (
+                        multiDayConflict ? (
+                          <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
+                            <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                            <p className="text-[13px] text-red-800 font-pmedium">Slot not available — this resource is already booked on one of the days in this range. Choose a different date or time.</p>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100">
+                            <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                            <p className="text-[13px] text-emerald-800 font-pmedium">Slot is available across the full date range!</p>
+                          </div>
+                        )
+                      )}
+
+                      {hasSelection && (!isMultiDay || !multiDayConflict) && (
+                        <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-2">
+                          <div className="flex items-center gap-2 font-pmedium text-amber-800 text-[13px]">
+                            <Wallet size={15} />
+                            Pricing Adjustment
+                          </div>
+                          <div className="grid grid-cols-3 gap-3 text-center">
+                            <div className="rounded-xl bg-white/70 px-2 py-2 border border-amber-100">
+                              <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Original</p>
+                              <p className="text-sm font-pmedium text-amber-800 mt-0.5">{formatCurrency(origTotal)}</p>
+                            </div>
+                            <div className="rounded-xl bg-white/70 px-2 py-2 border border-amber-100">
+                              <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">New Estimate</p>
+                              <p className="text-sm font-pmedium text-amber-800 mt-0.5">{formatCurrency(newTotal)}</p>
+                            </div>
+                            <div className={`rounded-xl px-2 py-2 border ${hasPriceDiff && priceDiff > 0 ? 'bg-red-50 border-red-200' : hasPriceDiff && priceDiff < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white/70 border-amber-100'}`}>
+                              <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">{hasPriceDiff && priceDiff > 0 ? 'Extra Charge' : hasPriceDiff && priceDiff < 0 ? 'Saving' : 'Change'}</p>
+                              {hasPriceDiff && priceDiff > 0 ? (
+                                <p className="text-sm font-pmedium text-red-700 mt-0.5">+{formatCurrency(priceDiff)}</p>
+                              ) : hasPriceDiff && priceDiff < 0 ? (
+                                <p className="text-sm font-pmedium text-emerald-700 mt-0.5">{formatCurrency(priceDiff)}</p>
+                              ) : (
+                                <p className="text-sm font-pmedium text-gray-500 mt-0.5">—</p>
+                              )}
+                            </div>
+                          </div>
+                          {rate.hourly > 0 && (
+                            <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(rate.hourly)}/hr · GST included</p>
+                          )}
+                          {hasPriceDiff && priceDiff > 0 && (
+                            <div className="pt-2 border-t border-amber-100">
+                              <p className="text-[10px] font-pmedium text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Collect Extra Payment ({formatCurrency(priceDiff)})</p>
+                              <div className="flex gap-2">
+                                {['Cash', 'GPay (UPI)'].map((mode) => (
+                                  <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setRescheduleForm({ ...rescheduleForm, paymentMode: mode })}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${rescheduleForm.paymentMode === mode ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'}`}
+                                  >
+                                    {mode}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     );
                   })() : (
@@ -6052,10 +6242,49 @@ export default function VisitorsManagementPage() {
               </div>
 
               <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
-                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }) }} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl font-pmedium text-[10px] uppercase text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
-                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime} onClick={handleRescheduleUpcoming} className="flex-1 py-3 bg-amber-500 text-white rounded-xl text-[10px] uppercase font-pmedium shadow-md shadow-amber-100 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
-                  <CheckCircle2 size={18} /> UPDATE BOOKING SLOT
+                <button onClick={() => { setReschedulingBooking(null); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); setShowRescheduleConfirm(false); }} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl font-pmedium text-[10px] uppercase text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
+                <button disabled={!rescheduleForm.newDate || !rescheduleForm.newStartTime || !rescheduleForm.newEndTime || (() => {
+                    const startMinutes = timeToMinutes(rescheduleForm.newStartTime);
+                    const endMinutes = timeToMinutes(rescheduleForm.newEndTime);
+                    if (startMinutes == null || endMinutes == null || endMinutes <= startMinutes) return false;
+                    const currentBookingId = String(reschedulingBooking?.recordId || reschedulingBooking?.id || '').trim();
+                    return meetingRoomBookings.some((booking) => {
+                      const bookingId = String(booking.recordId || booking.id || booking.bookingCode || '').trim();
+                      if (bookingId && bookingId === currentBookingId) return false;
+                      return getOverlapConflict(
+                        booking,
+                        reschedulingBooking?.resource || '',
+                        formatDateKey(rescheduleForm.newDate),
+                        formatDateKey(rescheduleForm.newEndDate || rescheduleForm.newDate),
+                        startMinutes,
+                        endMinutes,
+                      );
+                    });
+                  })() || isReschedulingBookingSaving} onClick={() => setShowRescheduleConfirm(true)} className="flex-1 py-3 bg-amber-500 text-white rounded-xl text-[10px] uppercase font-pmedium shadow-md shadow-amber-100 disabled:bg-gray-300 disabled:shadow-none hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
+                  <CheckCircle2 size={18} /> {isReschedulingBookingSaving ? 'Saving...' : 'UPDATE BOOKING SLOT'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 4B: RESCHEDULE CONFIRMATION */}
+        {showRescheduleConfirm && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={() => setShowRescheduleConfirm(false)} />
+            <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl border border-white/70 relative z-10 overflow-hidden animate-in zoom-in duration-200">
+              <div className="p-6 flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-amber-50 text-amber-600">
+                  <CalendarIcon size={22} />
+                </div>
+                <h2 className="text-base font-pmedium text-gray-900">Reschedule this booking?</h2>
+                <p className="text-[13px] font-pmedium text-gray-500 leading-relaxed">
+                  The client will be emailed with the updated slot once this is confirmed.
+                </p>
+              </div>
+              <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex gap-3">
+                <button type="button" disabled={isReschedulingBookingSaving} onClick={() => setShowRescheduleConfirm(false)} className="flex-1 px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Go Back</button>
+                <button type="button" disabled={isReschedulingBookingSaving} onClick={handleRescheduleUpcoming} className="flex-1 px-6 py-2.5 bg-amber-500 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-amber-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">{isReschedulingBookingSaving ? 'Saving...' : 'Yes, Reschedule'}</button>
               </div>
             </div>
           </div>
@@ -6210,104 +6439,132 @@ export default function VisitorsManagementPage() {
 
         {/* MODAL 5B: VIEW DAILY BOOKING DETAILS */}
         {viewingBooking && (
-          <div className="fixed inset-0 z-[105] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
-            <div className="bg-white rounded-[24px] w-full max-w-[760px] shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[82vh]">
-              <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-start shrink-0">
-                <div>
-                  <h2 className="text-lg font-pmedium text-gray-900 leading-none flex flex-wrap items-center gap-2">
-                    {viewingBooking.resource}
-                    <span className={statusPillClass(viewingBooking.status)}>{viewingBooking.status}</span>
-                  </h2>
-                  <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mt-2">
-                    {viewingBooking.company}
-                  </p>
+          <div className="fixed inset-0 z-[105] flex items-center justify-center p-3 bg-[#0F172A]/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[2rem] max-w-xl w-full max-h-[90vh] shadow-2xl border border-white/70 flex flex-col overflow-hidden animate-in zoom-in duration-200">
+              <div className="p-5 sm:p-6 border-b border-gray-100 bg-blue-50/30 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    <Building size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-gray-800 truncate">Booking Details</h2>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={statusPillClass(viewingBooking.status)}>{viewingBooking.status}</span>
+                      {viewingBooking.isExtended && (
+                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${viewingBooking.isRescheduled ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
+                          {viewingBooking.scheduleChangeLabel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <button onClick={() => setViewingBooking(null)} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all">
-                  <X size={18} />
+                <button onClick={() => setViewingBooking(null)} className="w-8 h-8 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 shadow-sm hover:text-gray-700 hover:bg-gray-50 transition-colors shrink-0">
+                  <X size={16} />
                 </button>
               </div>
 
-              <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1 bg-white">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5 space-y-1.5">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Booked By</p>
-                    <p className="text-sm font-pmedium text-gray-900">{viewingBooking.bookedBy}</p>
-                    <p className="text-xs font-pmedium text-gray-500">{viewingBooking.company}</p>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5 space-y-1.5">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Schedule</p>
-                    <p className="text-sm font-pmedium text-gray-900">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}</p>
-                    <p className="text-xs font-pmedium text-gray-500">{viewingBooking.time}</p>
-                    {viewingBooking.isExtended && (
-                      <div className="pt-2 space-y-1">
-                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Original Slot</p>
-                        <p className="text-xs font-bold text-gray-400 line-through decoration-gray-300">{viewingBooking.originalDateLabel || viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)} â€¢ {viewingBooking.originalTime || viewingBooking.time}</p>
-                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-purple-600 mt-2">Extended Slot</p>
-                        <p className="text-xs font-bold text-purple-700">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)} â€¢ {viewingBooking.time}</p>
-                      </div>
-                    )}
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 bg-white">
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                    <Building size={14} /> Booking Information
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50/60 p-4 rounded-2xl border border-gray-100">
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Location</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingBooking.resource}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Client</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingBooking.bookedBy}</p>
+                      <p className="mt-0.5 text-[11px] font-pmedium text-gray-500">{viewingBooking.company}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Host</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingBooking.host || frontdeskProfile.name}</p>
+                      <p className="mt-0.5 text-[11px] font-pmedium text-gray-500">Frontdesk action logged by this workspace member</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Schedule</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}{viewingBooking.isMultiDay ? ` → ${viewingBooking.endDateLabel}` : ''}</p>
+                      <p className="mt-0.5 text-[11px] font-pmedium text-gray-500">{viewingBooking.time}</p>
+                      {viewingBooking.isExtended && (
+                        <div className="pt-2 space-y-1">
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Original Slot</p>
+                          <p className="text-[11px] font-bold text-gray-400 line-through decoration-gray-300">{viewingBooking.originalDateLabel || viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)}{viewingBooking.originalEndDateLabel ? ` → ${viewingBooking.originalEndDateLabel}` : ''} â€¢ {viewingBooking.originalTime || viewingBooking.time}</p>
+                          <p className={`text-[9px] font-pmedium uppercase tracking-widest mt-2 ${viewingBooking.isRescheduled ? 'text-blue-600' : 'text-purple-600'}`}>{viewingBooking.scheduleChangeLabel} Slot</p>
+                          <p className={`text-[11px] font-bold ${viewingBooking.isRescheduled ? 'text-blue-700' : 'text-purple-700'}`}>{viewingBooking.dateLabel || formatDisplayDate(viewingBooking.date)} â€¢ {viewingBooking.time}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Status</p>
-                    <p className={`mt-2 text-sm font-pmedium ${normalizeText(viewingBooking.paymentStatus).includes('pending') || normalizeText(viewingBooking.paymentStatus).includes('unpaid') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingBooking.paymentStatus || 'Pending Payment'}</p>
-                  </div>
-                  <div className="rounded-2xl border border-gray-100 bg-white p-4 md:col-span-1">
-                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Amount Breakdown</p>
-                    <div className="mt-3 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-pmedium text-gray-500">Base Amount</span>
-                        <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.subtotalBeforeDiscount || viewingBooking.baseAmount || 0)}</span>
-                      </div>
-                      {Number(viewingBooking.discountAmount || 0) > 0 && (
-                        <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2">
-                          <span className="text-xs font-pmedium text-emerald-600">
-                            Discount{viewingBooking.discountType === 'percent' ? ` (${Number(viewingBooking.discountValue || 0)}%)` : ''}
-                          </span>
-                          <span className="text-sm font-pmedium text-emerald-700">- {formatCurrency(viewingBooking.discountAmount)}</span>
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                    <CreditCard size={14} /> Payment
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Status</p>
+                      <p className={`mt-2 text-sm font-pmedium ${normalizeText(viewingBooking.paymentStatus).includes('pending') || normalizeText(viewingBooking.paymentStatus).includes('unpaid') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingBooking.paymentStatus || 'Pending Payment'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 md:col-span-1">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Amount Breakdown</p>
+                      <div className="mt-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-pmedium text-gray-500">Base Amount</span>
+                          <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.subtotalBeforeDiscount || viewingBooking.baseAmount || 0)}</span>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-pmedium text-gray-500">GST (18%)</span>
-                        <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
-                      </div>
-                      {Number(viewingBooking.extensionAmount || 0) > 0 && (
-                        <div className="flex items-center justify-between rounded-xl bg-purple-50 px-3 py-2">
-                          <span className="text-xs font-pmedium text-purple-600">Extension Charges</span>
-                          <span className="text-sm font-pmedium text-purple-700">{formatCurrency(viewingBooking.extensionAmount)}</span>
+                        {Number(viewingBooking.discountAmount || 0) > 0 && (
+                          <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2">
+                            <span className="text-xs font-pmedium text-emerald-600">
+                              Discount{viewingBooking.discountType === 'percent' ? ` (${Number(viewingBooking.discountValue || 0)}%)` : ''}
+                            </span>
+                            <span className="text-sm font-pmedium text-emerald-700">- {formatCurrency(viewingBooking.discountAmount)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-pmedium text-gray-500">GST (18%)</span>
+                          <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between border-t border-gray-200 pt-2.5">
-                        <span className="text-sm font-pmedium text-gray-900">Total Paid</span>
-                        <span className="text-base font-pmedium text-blue-700">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amountDue || 0)}</span>
+                        {Number(viewingBooking.extensionAmount || 0) > 0 && (
+                          <div className="flex items-center justify-between rounded-xl bg-purple-50 px-3 py-2">
+                            <span className="text-xs font-pmedium text-purple-600">Extension Charges</span>
+                            <span className="text-sm font-pmedium text-purple-700">{formatCurrency(viewingBooking.extensionAmount)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between border-t border-gray-200 pt-2.5">
+                          <span className="text-sm font-pmedium text-gray-900">Total Paid</span>
+                          <span className="text-base font-pmedium text-blue-700">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amountDue || 0)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Mode</p>
-                    <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.paymentMode || 'Not set'}</p>
-                  </div>
-                  <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                    <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Attendees</p>
-                    <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.attendees || 0}</p>
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Mode</p>
+                      <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.paymentMode || 'Not set'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Attendees</p>
+                      <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingBooking.attendees || 0}</p>
+                    </div>
                   </div>
                 </div>
 
                 {(viewingBooking.paymentProofUrl || viewingBooking.transactionId) && (
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 mb-3">Payment Proof</p>
-                    <div className="flex flex-wrap items-start gap-4">
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                      <FileText size={14} /> Payment Proof
+                    </h3>
+                    <div className="flex flex-wrap items-start gap-4 bg-gray-50/60 p-4 rounded-2xl border border-gray-100">
                       {viewingBooking.transactionId && (
                         <div>
-                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Transaction / UTR</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500">Transaction / UTR</p>
                           <p className="mt-1 text-sm font-pmedium text-gray-900 break-all">{viewingBooking.transactionId}</p>
                         </div>
                       )}
                       {viewingBooking.paymentProofUrl && (
                         <div>
-                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500 mb-1.5">Payment Screenshot</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500 mb-1.5">Payment Screenshot</p>
                           <a href={viewingBooking.paymentProofUrl} target="_blank" rel="noopener noreferrer" title="Open full screenshot in a new tab" className="block">
                             <img
                               src={viewingBooking.paymentProofUrl}
@@ -6324,56 +6581,49 @@ export default function VisitorsManagementPage() {
                   </div>
                 )}
 
-                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 mb-3">Contact & Source</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Phone</p>
-                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.phone || 'Not provided'}</p>
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                    <User size={14} /> Contact &amp; Source
+                  </h3>
+                  <div className="bg-gray-50/60 p-4 rounded-2xl border border-gray-100">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500">Phone</p>
+                        <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.phone || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500">Email</p>
+                        <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.email || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500">Finance Status</p>
+                        <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.financeStatus || 'Not set'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500">Source Reference</p>
+                        <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.sourceReference || 'Frontdesk'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500">Booking Type</p>
+                        <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.bookingType || 'External'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Email</p>
-                      <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.email || 'Not provided'}</p>
+                    <div className="mt-4">
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-500">Notes</p>
+                      <p className="mt-1 text-sm font-medium text-gray-700 leading-relaxed">{viewingBooking.notes || 'No booking notes added.'}</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Finance Status</p>
-                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.financeStatus || 'Not set'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Source Reference</p>
-                      <p className="mt-1 font-pmedium text-gray-900 break-all">{viewingBooking.sourceReference || 'Frontdesk'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Booking Type</p>
-                      <p className="mt-1 font-pmedium text-gray-900">{viewingBooking.bookingType || 'External'}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Notes</p>
-                    <p className="mt-1 text-sm font-medium text-gray-700 leading-relaxed">{viewingBooking.notes || 'No booking notes added.'}</p>
                   </div>
                 </div>
-              </div>
 
-              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5 shrink-0">
-                <button onClick={() => setViewingBooking(null)} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl text-[10px] uppercase font-pmedium text-gray-600 hover:bg-gray-100 transition-all">
-                  CLOSE
-                </button>
                 {viewingBooking.status === 'In Progress' ? (
-                  <>
-                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="flex-1 py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-[10px] uppercase font-pmedium hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
-                      <Clock size={18} /> EXTEND SLOT
-                    </button>
-                  </>
+                  <div className="grid grid-cols-1 gap-3 pt-1">
+                    <button onClick={() => { setExtendingBooking(viewingBooking); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"><Clock size={14} /> Extend Slot</button>
+                  </div>
                 ) : viewingBooking.status !== 'Completed' && viewingBooking.status !== 'Cancelled' && (
-                  <>
-                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); setViewingBooking(null); }} className="flex-1 py-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-[10px] uppercase font-pmedium hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
-                      <CalendarIcon size={18} /> RESCHEDULE
-                    </button>
-                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="flex-1 py-3 bg-red-600 text-white rounded-xl text-[10px] uppercase font-pmedium shadow-md shadow-red-100 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
-                      <XCircle size={18} /> CANCEL
-                    </button>
-                  </>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); setViewingBooking(null); }} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[12px] text-slate-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><CalendarIcon size={14} /> Reschedule</button>
+                    <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="w-full py-2.5 bg-white border border-red-200 rounded-xl font-pmedium text-[12px] text-red-600 hover:bg-red-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><XCircle size={14} /> Cancel</button>
+                  </div>
                 )}
               </div>
             </div>
