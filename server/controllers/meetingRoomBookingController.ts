@@ -392,6 +392,39 @@ const findOverlap = (roomId: any, start: Date, end: Date, excludeId?: string) =>
     end: { $gt: start },
 });
 
+const isDuplicateBookingCodeError = (error: any) =>
+    Number(error?.code) === 11000 && Boolean(error?.keyPattern?.bookingCode || error?.keyValue?.bookingCode);
+
+async function createBookingWithUniqueCode(payload: Record<string, any>) {
+    const maxAttempts = 5;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const lastBooking = await MeetingRoomBooking.findOne({})
+            .sort({ bookingNumber: -1 })
+            .select("bookingNumber")
+            .lean()
+            .exec();
+        const lastBookingNumber = Number(lastBooking?.bookingNumber);
+        const bookingNumber = Number.isFinite(lastBookingNumber)
+            ? Math.max(1001, lastBookingNumber + 1)
+            : 1001;
+
+        try {
+            return await MeetingRoomBooking.create({
+                ...payload,
+                bookingNumber,
+                bookingCode: `MRB-${bookingNumber}`,
+            });
+        } catch (error: any) {
+            if (!isDuplicateBookingCodeError(error) || attempt === maxAttempts - 1) {
+                throw error;
+            }
+        }
+    }
+
+    throw new Error("Unable to allocate a unique meeting-room booking code");
+}
+
 export const createBooking = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const workspaceId = workspaceIdFor(req);
@@ -463,20 +496,15 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 return res.status(409).json({ message: "This resource is already booked for the selected time slot." });
             }
 
-            // 3. Resolve booking number and host user
-            const [lastExternalBooking, extHostUser] = await Promise.all([
-                MeetingRoomBooking.findOne({ workspaceId }).sort({ bookingNumber: -1 }).lean().exec(),
-                HostUser.findById(req.user).lean().exec(),
-            ]);
-            const extBookingNumber = lastExternalBooking ? Number(lastExternalBooking.bookingNumber) + 1 : 1001;
+            // 3. Resolve the host user. Booking codes are allocated globally because
+            // the model's bookingCode index is globally unique across workspaces.
+            const extHostUser = await HostUser.findById(req.user).lean().exec();
 
             // 4. Create the booking document
-            const extBooking = await MeetingRoomBooking.create({
+            const extBooking = await createBookingWithUniqueCode({
                 workspaceId,
                 roomId,
                 roomName: room.name,
-                bookingNumber: extBookingNumber,
-                bookingCode: `MRB-${extBookingNumber}`,
                 bookingType: "External",
                 ownerId: req.user,
                 bookedByUserId: req.user,
@@ -519,10 +547,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         if (attendeeCount > Number(room.capacity || 0)) return res.status(400).json({ message: "Attendee count exceeds room capacity" });
         if (await findOverlap(roomId, range.start, range.end)) return res.status(409).json({ message: "Room is already booked for the selected time slot" });
 
-        const [lastBooking, hostUser] = await Promise.all([
-            MeetingRoomBooking.findOne({ workspaceId }).sort({ bookingNumber: -1 }).lean().exec(),
-            HostUser.findById(req.user).lean().exec(),
-        ]);
+        const hostUser = await HostUser.findById(req.user).lean().exec();
 
         // Resolve ownerId for Internal on-behalf bookings
         let resolvedOwnerId: any = req.user;
@@ -548,8 +573,6 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         const invites = rawInvites.filter(
             (inv: any) => String(inv.invitedUserId || '') !== String(resolvedOwnerId)
         );
-        const bookingNumber = lastBooking ? Number(lastBooking.bookingNumber) + 1 : 1001;
-
         // Calculate credits for the booking
         const durationMinutes = (range.end.getTime() - range.start.getTime()) / 60000;
         const ratePerHour = Number(room.credits || 0);
@@ -567,12 +590,10 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             tenantBookingCompanyName = resolved.tenantBookingCompanyName;
         }
 
-        const booking = await MeetingRoomBooking.create({
+        const booking = await createBookingWithUniqueCode({
             workspaceId,
             roomId,
             roomName: room.name,
-            bookingNumber,
-            bookingCode: `MRB-${bookingNumber}`,
             start: range.start,
             end: range.end,
             originalStart: range.start,
@@ -634,7 +655,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                         await TenantCreditLedger.create({
                             tenantCompanyId: tenantCompany._id,
                             workspaceId,
-                            id: `CRD-${Date.now()}-${bookingNumber}`,
+                            id: `CRD-${Date.now()}-${booking.bookingNumber}`,
                             date: range.start,
                             type: "Booking",
                             resource: "Meeting Room",
