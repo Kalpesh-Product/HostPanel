@@ -51,6 +51,7 @@ export interface IMeetingRoomBooking extends Document {
     status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled" | "rescheduled";
     cancelReason?: string;
     bookingNotes?: string;
+    reminderSentAt?: Date;
 
     scheduleChangeType?: string;
     extensionAmount?: number;
@@ -184,6 +185,9 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
 
         cancelReason: { type: String, maxlength: 1000 },
         bookingNotes: { type: String, maxlength: 1000 },
+        // Set once the 30-minutes-before-start reminder email has gone out,
+        // so the scheduler never double-sends for the same booking.
+        reminderSentAt: { type: Date, default: null },
         scheduleChangeType: { type: String, enum: ["rescheduled", "extended"] },
         extensionAmount: { type: Number, default: 0, min: 0 },
 

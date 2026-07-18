@@ -75,13 +75,34 @@ const transformBooking = (booking: any, currentUserId?: string) => {
     const ownerName = owner?.name || "";
     const isOnBehalf = ownerId && bookedByUserId && ownerId !== bookedByUserId;
     const bookedForName = booking.bookedForName || (isOnBehalf ? ownerName : "");
+
+    // Surface the pre-change schedule for extended/rescheduled bookings so the
+    // UI can show "old slot -> new slot". originalStart/originalEnd are set
+    // once at creation time and only differ from start/end after a change.
+    const originalStartDate = booking.originalStart ? new Date(booking.originalStart) : null;
+    const originalEndDate = booking.originalEnd ? new Date(booking.originalEnd) : null;
+    const hasScheduleChanged = Boolean(
+        originalStartDate && originalEndDate && booking.start && booking.end &&
+        (originalStartDate.getTime() !== new Date(booking.start).getTime() ||
+            originalEndDate.getTime() !== new Date(booking.end).getTime())
+    );
+    const previousStartParts = hasScheduleChanged && originalStartDate ? dateTimeParts(originalStartDate) : null;
+    const previousEndParts = hasScheduleChanged && originalEndDate ? dateTimeParts(originalEndDate) : null;
+
     return {
         ...booking,
         recordId: String(booking._id || booking.id || ""),
         id: String(booking._id || booking.id || ""),
         date: start.date,
+        // endDate differs from date for multi-day bookings — start/end only
+        // ever exposed endTime before, silently hiding the day span.
+        endDate: end.date,
         startTime: start.time,
         endTime: end.time,
+        previousDate: previousStartParts?.date || "",
+        previousEndDate: previousEndParts?.date || "",
+        previousStartTime: previousStartParts?.time || "",
+        previousEndTime: previousEndParts?.time || "",
         roomName: booking.roomName || room?.name || "",
         floor: room?.floor || "",
         wing: room?.wing || "",
@@ -90,6 +111,10 @@ const transformBooking = (booking: any, currentUserId?: string) => {
         bookedByName: booking.bookedByName || ownerName || "",
         bookedForName,
         bookedByUserId,
+        // The workspace member who performed the frontdesk action (creator of the
+        // booking), always the populated owner — independent of who the booking
+        // is for (client, on-behalf member, etc).
+        hostName: ownerName || "",
         // Expose externalClientId as clientId so client-tab booking matching works
         clientId: String(booking.externalClientId || ""),
         isMe: Boolean(currentUserId && ownerId === String(currentUserId)),
@@ -130,9 +155,15 @@ const parseDateRange = (start: any, end: any, dayStartMinutes?: number, dayEndMi
     const endMinutes = toMinutes(endParts.time);
     const DAY_START = dayStartMinutes ?? BOOKING_DAY_START_MINUTES;
     const DAY_END = dayEndMinutes ?? BOOKING_DAY_END_MINUTES;
+    // A multi-day booking reserves the SAME start–end time window on each day
+    // of the range (mirrors computeBusinessHoursDuration on the client), so
+    // the end time must always be after the start time and the per-day window
+    // must meet the 30-minute minimum — even when the dates differ.
     if (
-        startParts.date !== endParts.date ||
+        startParts.date > endParts.date ||
         startMinutes < DAY_START ||
+        startMinutes >= DAY_END ||
+        endMinutes < DAY_START ||
         endMinutes > DAY_END ||
         startMinutes % 5 !== 0 ||
         endMinutes % 5 !== 0 ||
@@ -160,7 +191,10 @@ export const normalizeCreateBookingInput = (body: any = {}, businessHours?: { st
     if (body?.start != null && body?.end != null) {
         range = parseDateRange(body.start, body.end, businessHours?.startMinutes, businessHours?.endMinutes);
     } else if (body?.date && body?.startTime && body?.endTime) {
-        range = parseDateRange(`${body.date}T${body.startTime}:00`, `${body.date}T${body.endTime}:00`, businessHours?.startMinutes, businessHours?.endMinutes);
+        // endDate lets a multi-day booking end on a different calendar date
+        // than it started; defaults to the same day when omitted.
+        const endDateCandidate = typeof body?.endDate === "string" && body.endDate.trim() ? body.endDate.trim() : body.date;
+        range = parseDateRange(`${body.date}T${body.startTime}:00`, `${endDateCandidate}T${body.endTime}:00`, businessHours?.startMinutes, businessHours?.endMinutes);
     }
 
     return { roomIdCandidate, roomNameCandidate, range };
@@ -816,11 +850,19 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
 
         // Apply schedule changes
+        const previousStart = booking.start;
+        const previousEnd = booking.end;
         booking.start = range.start;
         booking.end = range.end;
         if (req.body.scheduleChangeType) booking.scheduleChangeType = req.body.scheduleChangeType;
         if (req.body.extensionAmount !== undefined) booking.extensionAmount = req.body.extensionAmount;
+        if (req.body.baseAmount !== undefined) booking.baseAmount = req.body.baseAmount;
+        if (req.body.gstAmount !== undefined) booking.gstAmount = req.body.gstAmount;
         if (req.body.totalAmount !== undefined) booking.totalAmount = req.body.totalAmount;
+        // Extra charges collected at the frontdesk during extend/reschedule.
+        if (typeof req.body.paymentMode === "string" && req.body.paymentMode.trim()) booking.paymentMode = req.body.paymentMode.trim();
+        if (typeof req.body.paymentStatus === "string" && req.body.paymentStatus.trim()) booking.paymentStatus = req.body.paymentStatus.trim();
+        if (typeof req.body.transactionId === "string" && req.body.transactionId.trim()) booking.transactionId = req.body.transactionId.trim();
 
         // Merge new invitees if provided
         const inviteeUserIds = Array.isArray(req.body.inviteeUserIds) ? req.body.inviteeUserIds : [];
@@ -889,6 +931,12 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
 
         await booking.save();
 
+        // Email the external client when their booking is genuinely rescheduled
+        // (not for extensions, which are a routine slot bump, not a change of plan).
+        if (req.body.scheduleChangeType === "rescheduled") {
+            sendExternalLifecycleEmail(booking, "rescheduled", { previousStart, previousEnd });
+        }
+
         // Notify invitees of schedule change
         const updateStartParts = dateTimeParts(range.start);
         const updateEndParts = dateTimeParts(range.end);
@@ -913,7 +961,9 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
             });
         }
 
-        return res.status(200).json({ message: "Booking updated successfully", data: { booking } });
+        // Return the transformed shape (date/startTime/endTime/previous* etc.)
+        // — the frontdesk UIs merge this straight into their booking lists.
+        return res.status(200).json({ message: "Booking updated successfully", data: { booking: transformBooking(booking.toObject(), String(req.user || "")) } });
     } catch (error: any) { next(error); }
 };
 
@@ -924,9 +974,22 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
         const workspaceId = workspaceIdFor(req);
         const booking = await MeetingRoomBooking.findOne({ _id: id, workspaceId }).exec();
         if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+        // External bookings must be cancelled at least 30 minutes before the
+        // start time — after that the slot is committed and the client has
+        // already received their starting-soon reminder.
+        if (String(booking.bookingType) === "External" && booking.start) {
+            const minutesToStart = (new Date(booking.start).getTime() - Date.now()) / 60000;
+            if (minutesToStart < 30) {
+                return res.status(400).json({ message: "External bookings can only be cancelled at least 30 minutes before the start time." });
+            }
+        }
+
         booking.status = "cancelled";
         booking.cancelReason = req.body.cancelReason || "Cancelled by user";
         await booking.save();
+
+        sendExternalLifecycleEmail(booking, "cancelled", { cancelReason: booking.cancelReason });
 
         // Refund credits for tenant bookings
         const bookingType = String(booking.bookingType || "").toLowerCase();
@@ -1005,7 +1068,7 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
             });
         }
 
-        return res.status(200).json({ message: "Booking cancelled successfully", data: { booking } });
+        return res.status(200).json({ message: "Booking cancelled successfully", data: { booking: transformBooking(booking.toObject(), String(req.user || "")) } });
     } catch (error: any) { next(error); }
 };
 
@@ -1125,6 +1188,108 @@ export const createExternalClient = async (req: Request, res: Response) => {
             } catch {}
         }
         return res.status(500).json({ message: err.message || 'Server error' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// sendExternalLifecycleEmail — best-effort email to an external client when
+// their booking is rescheduled or cancelled by the front desk. Never throws:
+// email delivery failures must not block the underlying reschedule/cancel.
+// ─────────────────────────────────────────────────────────────────────────────
+const sendExternalLifecycleEmail = async (
+    booking: any,
+    kind: "rescheduled" | "cancelled",
+    extra: { previousStart?: Date | null; previousEnd?: Date | null; cancelReason?: string } = {},
+) => {
+    try {
+        if (String(booking?.bookingType) !== "External") return;
+        const recipientEmail = String(booking.bookedByEmail || "").trim();
+        if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) return;
+
+        const clientName = booking.bookedForName || booking.bookedByName || "Guest";
+        const roomName = booking.roomName || "Meeting Room";
+        const bookingCode = booking.bookingCode || String(booking._id);
+        const start = booking.start ? dateTimeParts(new Date(booking.start)) : { date: "", time: "" };
+        const end = booking.end ? dateTimeParts(new Date(booking.end)) : { date: "", time: "" };
+
+        const { sendMail } = await import("../config/mailer.js");
+
+        if (kind === "rescheduled") {
+            const prevStart = extra.previousStart ? dateTimeParts(new Date(extra.previousStart)) : null;
+            const prevEnd = extra.previousEnd ? dateTimeParts(new Date(extra.previousEnd)) : null;
+            const subject = `Booking Rescheduled — ${roomName} on ${start.date}`;
+            const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+        <tr><td style="background:#d97706;padding:32px 40px;">
+          <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;">Booking Rescheduled</p>
+          <p style="margin:8px 0 0;font-size:13px;color:#fde68a;">Your meeting room slot has changed</p>
+        </td></tr>
+        <tr><td style="padding:32px 40px;">
+          <p style="margin:0 0 24px;font-size:15px;color:#334155;">Hi <strong>${clientName}</strong>, your booking (ID <strong>${bookingCode}</strong>) has been rescheduled. Here are the updated details:</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:16px;">
+            ${prevStart && prevEnd ? `<tr style="background:#f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Previous Slot</td><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#94a3b8;text-decoration:line-through;">${prevStart.date} · ${prevStart.time} – ${prevEnd.time}</td></tr>` : ""}
+            <tr style="border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">New Slot</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.date} · ${start.time} – ${end.time}</td></tr>
+            <tr style="background:#f8fafc;border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Meeting Room</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${roomName}</td></tr>
+          </table>
+          <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">If this change doesn't work for you, please contact us directly.</p>
+        </td></tr>
+        <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;color:#94a3b8;">This is an automated notice. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+            await sendMail({
+                to: recipientEmail,
+                subject,
+                html,
+                text: `Your booking (${bookingCode}) for ${roomName} has been rescheduled to ${start.date} ${start.time}-${end.time}.`,
+            });
+        } else {
+            const subject = `Booking Cancelled — ${roomName} on ${start.date}`;
+            const reasonLine = String(extra.cancelReason || "").trim();
+            const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+        <tr><td style="background:#dc2626;padding:32px 40px;">
+          <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;">Booking Cancelled</p>
+          <p style="margin:8px 0 0;font-size:13px;color:#fecaca;">Your meeting room reservation was cancelled</p>
+        </td></tr>
+        <tr><td style="padding:32px 40px;">
+          <p style="margin:0 0 24px;font-size:15px;color:#334155;">Hi <strong>${clientName}</strong>, your booking (ID <strong>${bookingCode}</strong>) below has been cancelled.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:16px;">
+            <tr style="background:#f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Meeting Room</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${roomName}</td></tr>
+            <tr style="border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Was Scheduled For</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.date} · ${start.time} – ${end.time}</td></tr>
+            ${reasonLine ? `<tr style="background:#f8fafc;border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Reason</td><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#0f172a;">${reasonLine}</td></tr>` : ""}
+          </table>
+          <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">If you have any questions or would like to rebook, please contact us directly.</p>
+        </td></tr>
+        <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;color:#94a3b8;">This is an automated notice. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+            await sendMail({
+                to: recipientEmail,
+                subject,
+                html,
+                text: `Your booking (${bookingCode}) for ${roomName} on ${start.date} ${start.time}-${end.time} has been cancelled.${reasonLine ? ` Reason: ${reasonLine}` : ""}`,
+            });
+        }
+    } catch (err) {
+        console.error(`sendExternalLifecycleEmail(${kind}) failed:`, err);
     }
 };
 

@@ -38,6 +38,7 @@ import hrRoutes from "./routes/hrRoutes.js";
 import { publicRouter as recruitmentPublicRoutes } from "./routes/recruitmentRoutes.js";
 import { getPublicRecruitmentJobOpenings } from "./controllers/recruitmentController.js";
 import { seedSystemRoles } from "./config/seedRoles.js";
+import { startBookingReminderScheduler } from "./services/bookingReminderService.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import maintenanceRoutes from "./routes/maintenanceRoutes.js";
 import housekeepingRoutes from "./routes/housekeepingRoutes.js";
@@ -77,6 +78,9 @@ const startServer = async () => {
         error?.message || error
       );
     });
+
+    // Emails external clients ~30 minutes before their booking starts.
+    startBookingReminderScheduler();
 
     app.listen(PORT, () => {
       console.log(`Server is running on PORT ${PORT}`);
