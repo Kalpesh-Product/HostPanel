@@ -624,6 +624,16 @@ function normalizeBooking(booking: any, currentUserId: string): Booking {
   };
 }
 
+function getExternalClientName(booking: any): string {
+  return String(
+    booking?.bookedForName ||
+    booking?.externalClientName ||
+    booking?.clientName ||
+    booking?.bookedByName ||
+    '',
+  ).trim();
+}
+
 function getBookingAttendeeCount(data: any) {
   const inviteCount = Array.isArray(data?.inviteeUserIds) ? data.inviteeUserIds.length : 0;
   const explicitCount = Number(data?.attendees || 0);
@@ -2617,7 +2627,7 @@ export function MeetingRoomsPage() {
       .filter((b) => {
         const q = externalSearchQuery.toLowerCase();
         if (q.length >= 2) {
-          const matchesClient = ((b as any).bookedForName || '').toLowerCase().includes(q);
+          const matchesClient = getExternalClientName(b).toLowerCase().includes(q);
           const matchesRoom = (b.roomName || '').toLowerCase().includes(q);
           const matchesCode = ((b as any).bookingCode || '').toLowerCase().includes(q);
           if (!matchesClient && !matchesRoom && !matchesCode) return false;
@@ -3634,13 +3644,14 @@ export function MeetingRoomsPage() {
     const seen = new Set<string>();
     const clients: { name: string; phone: string; email: string; company: string }[] = [];
     allBookings
-      .filter(b => normalize(b.bookingType) === 'external' && b.bookedByName)
+      .filter(b => normalize(b.bookingType) === 'external' && getExternalClientName(b))
       .forEach(b => {
-        const key = b.bookedByName || '';
+        const clientName = getExternalClientName(b);
+        const key = clientName.toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
           clients.push({
-            name: b.bookedByName || '',
+            name: clientName,
             phone: (b as any).bookedByPhone || '',
             email: (b as any).bookedByEmail || '',
             company: (b as any).clientCompany || '',
@@ -3670,6 +3681,7 @@ export function MeetingRoomsPage() {
         bookingType: 'External',
         bookingSource: 'Admin Panel',
         bookedByName: externalBookingForm.name,
+        bookedForName: externalBookingForm.name,
         bookedByPhone: externalBookingForm.phone,
         bookedByEmail: externalBookingForm.email,
         clientCompany: externalBookingForm.company,
@@ -4153,7 +4165,7 @@ export function MeetingRoomsPage() {
                                 return (
                                   <tr key={b.recordId || b.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-5 py-4">
-                                      <p className="font-pmedium text-[#0F172A] text-[13px]">{(b as any).bookedForName || '—'}</p>
+                                      <p className="font-pmedium text-[#0F172A] text-[13px]">{getExternalClientName(b) || '—'}</p>
                                     </td>
                                     <td className="px-5 py-4">
                                       <div className="flex items-center gap-2">
@@ -4219,7 +4231,7 @@ export function MeetingRoomsPage() {
                               <div key={b.recordId || b.id} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
                                 <div className="flex justify-between items-start">
                                   <div>
-                                    <p className="font-pmedium text-[#0F172A] text-sm">{(b as any).bookedForName || '—'}</p>
+                                    <p className="font-pmedium text-[#0F172A] text-sm">{getExternalClientName(b) || '—'}</p>
                                     <p className="text-[11px] font-pmedium text-slate-500">{b.roomName}</p>
                                   </div>
                                   <span className={statusPillClass(displayStatus)}>
