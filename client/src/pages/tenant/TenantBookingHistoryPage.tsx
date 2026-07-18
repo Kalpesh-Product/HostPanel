@@ -260,7 +260,7 @@ export default function TenantBookingHistoryPage() {
   const currentUserEmail = normalizeId(currentUser?.email || '');
   const tenantCompanyName = currentUser?.tenantCompanyName || currentUser?.workspaceMembership?.tenantCompanyName || getStoredTenantCompanyName() || 'Tenant Workspace';
   const tenantCompanyId = normalizeId(currentUser?.tenantCompanyId || currentUser?.workspaceMembership?.tenantCompanyId || getStoredTenantCompanyId() || '');
-  const workspaceId = normalizeId(currentUser?.primaryWorkspace || currentUser?.workspaceMembership?.workspaceId || currentUser?.workspaceId || '');
+  const storedWorkspaceId = normalizeId(currentUser?.primaryWorkspace || currentUser?.workspaceMembership?.workspaceId || currentUser?.workspaceId || '');
   const normalizedTenantCompanyName = normalizeId(tenantCompanyName);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -298,18 +298,27 @@ export default function TenantBookingHistoryPage() {
     Math.max(0, Number(currentCompany?.creditsAllocated || currentCompany?.creditsTotal || 0) - Number(currentCompany?.creditsUsed || 0)),
   );
 
+  // Tenant logins have no primaryWorkspace — resolve the host workspace from
+  // the tenant-company payload so workspace-scoped fetches actually work.
+  const [workspaceId, setWorkspaceId] = useState<string>(storedWorkspaceId);
+
   const loadBookings = async () => {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const [bookingsResponse, companiesResponse] = await Promise.allSettled([
-        getMeetingRoomBookings(workspaceId), getMyTenantCompany(),
-      ]);
-      const nextBookings = bookingsResponse.status === 'fulfilled' ? extractList(bookingsResponse.value, ['bookings', 'items']) : [];
-      const nextCompanies = companiesResponse.status === 'fulfilled' && companiesResponse.value?.data?.tenant ? [companiesResponse.value.data.tenant] : [];
+      const companiesResponse = await getMyTenantCompany().catch(() => null);
+      const company = companiesResponse?.data?.tenant || null;
+      setTenantCompanies(company ? [company] : []);
 
-      setBookings(nextBookings);
-      setTenantCompanies(nextCompanies);
+      const resolvedWorkspaceId = workspaceId || normalizeId(company?.workspaceId || '');
+      if (!workspaceId && resolvedWorkspaceId) setWorkspaceId(resolvedWorkspaceId);
+
+      if (resolvedWorkspaceId) {
+        const bookingsResponse = await getMeetingRoomBookings(resolvedWorkspaceId);
+        setBookings(extractList(bookingsResponse, ['bookings', 'items']));
+      } else {
+        setBookings([]);
+      }
     } catch (error: any) {
       setErrorMessage(error?.message || 'Unable to load booking history.');
     } finally {
@@ -605,7 +614,7 @@ export default function TenantBookingHistoryPage() {
   if (isLoading) return <TablePageSkeleton />;
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>

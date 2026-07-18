@@ -377,6 +377,13 @@ export const resolveInvites = async (
     return mergeResolvedInvites(hostMatches, tenantMatches, validIds);
 };
 
+// Tenant users live in the tenant portal — their meeting notifications must
+// deep-link there, not to the host panel's meeting rooms page.
+const bookingTargetUrlFor = (bookingType: any) =>
+    String(bookingType || "").toLowerCase() === "tenant"
+        ? "/dashboard/tenant/booking-history"
+        : "/meetings/meeting-rooms";
+
 const findOverlap = (roomId: any, start: Date, end: Date, excludeId?: string) => MeetingRoomBooking.findOne({
     roomId,
     status: ACTIVE_BOOKING_STATUSES,
@@ -469,7 +476,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 roomId,
                 roomName: room.name,
                 bookingNumber: extBookingNumber,
-                bookingCode: `MRB-${Date.now()}-${extBookingNumber}`,
+                bookingCode: `MRB-${extBookingNumber}`,
                 bookingType: "External",
                 ownerId: req.user,
                 bookedByUserId: req.user,
@@ -565,7 +572,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             roomId,
             roomName: room.name,
             bookingNumber,
-            bookingCode: `MRB-${Date.now()}-${bookingNumber}`,
+            bookingCode: `MRB-${bookingNumber}`,
             start: range.start,
             end: range.end,
             originalStart: range.start,
@@ -601,7 +608,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             entityType: "meeting_booking",
             entityId: String(booking._id),
             entityCode: booking.bookingCode,
-            targetUrl: `/meetings/meeting-rooms`,
+            targetUrl: bookingTargetUrlFor(req.body.bookingType),
             data: { roomName: room.name, date: bookerStartParts.date, startTime: bookerStartParts.time, endTime: bookerEndParts.time, purpose: purpose.trim() },
             priority: "normal",
             dedupeKey: `meeting-confirmed:${booking._id}:${resolvedOwnerId}`,
@@ -668,7 +675,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                         entityType: "meeting_booking",
                         entityId: String(booking._id),
                         entityCode: booking.bookingCode,
-                        targetUrl: `/meetings/meeting-rooms`,
+                        targetUrl: bookingTargetUrlFor(req.body.bookingType),
                         data: { roomName: room.name, date: startParts.date, startTime: startParts.time, endTime: endParts.time, purpose: purpose.trim() },
                         priority: "normal",
                         isActionRequired: true,
@@ -878,7 +885,7 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
                 entityType: "meeting_booking",
                 entityId: String(booking._id),
                 entityCode: booking.bookingCode,
-                targetUrl: `/meetings/meeting-rooms`,
+                targetUrl: bookingTargetUrlFor(booking.bookingType),
                 data: { roomName: booking.roomName, date: updateStartParts.date, startTime: updateStartParts.time, endTime: updateEndParts.time },
                 priority: "normal",
                 dedupeKey: `meeting-updated:${booking._id}:${inv.invitedUserId}:${Date.now()}`,
@@ -950,7 +957,7 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
                 entityType: "meeting_booking",
                 entityId: String(booking._id),
                 entityCode: booking.bookingCode,
-                targetUrl: `/meetings/meeting-rooms`,
+                targetUrl: bookingTargetUrlFor(booking.bookingType),
                 data: { roomName: booking.roomName },
                 priority: "high",
                 dedupeKey: `meeting-cancelled:${booking._id}:${inv.invitedUserId}:${Date.now()}`,
@@ -970,7 +977,7 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
                 entityType: "meeting_booking",
                 entityId: String(booking._id),
                 entityCode: booking.bookingCode,
-                targetUrl: `/meetings/meeting-rooms`,
+                targetUrl: bookingTargetUrlFor(booking.bookingType),
                 data: { roomName: booking.roomName },
                 priority: "high",
                 dedupeKey: `meeting-cancelled-owner:${booking._id}:${booking.ownerId}:${Date.now()}`,
@@ -1008,7 +1015,7 @@ export const respondToInvite = async (req: AuthenticatedRequest, res: Response, 
                 entityType: "meeting_booking",
                 entityId: String(booking._id),
                 entityCode: booking.bookingCode,
-                targetUrl: `/meetings/meeting-rooms`,
+                targetUrl: bookingTargetUrlFor(booking.bookingType),
                 data: { roomName: booking.roomName, response: status },
                 priority: "normal",
                 dedupeKey: `meeting-response:${booking._id}:${req.user}:${Date.now()}`,
@@ -1152,6 +1159,15 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
         <tr><td style="padding:32px 40px;">
           <p style="margin:0 0 24px;font-size:15px;color:#334155;">Hi <strong>${clientName}</strong>, your booking is confirmed. Here are the details:</p>
 
+          <!-- Booking ID banner: quote this at the front desk to verify the booking -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:2px dashed #2563EB;border-radius:12px;background:#eff6ff;margin-bottom:24px;">
+            <tr><td style="padding:16px 20px;text-align:center;">
+              <p style="margin:0;font-size:10px;font-weight:900;color:#2563EB;text-transform:uppercase;letter-spacing:0.1em;">Your Booking ID</p>
+              <p style="margin:6px 0 0;font-size:22px;font-weight:900;color:#0f172a;letter-spacing:1px;">${booking.bookingCode || String(booking._id)}</p>
+              <p style="margin:6px 0 0;font-size:11px;color:#64748b;">Show this ID at the front desk when you arrive to verify your booking.</p>
+            </td></tr>
+          </table>
+
           <!-- Details table -->
           <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
             <tr style="background:#f1f5f9;">
@@ -1193,7 +1209,7 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
 </html>`;
 
         const { sendMail } = await import("../config/mailer.js");
-        await sendMail({ to: recipientEmail, subject, html, text: `Booking confirmed: ${roomName} on ${start.date} from ${start.time} to ${end.time}. Payment: ${paymentStatus}.` });
+        await sendMail({ to: recipientEmail, subject, html, text: `Booking confirmed: ${roomName} on ${start.date} from ${start.time} to ${end.time}. Booking ID: ${booking.bookingCode || String(booking._id)} (show this at the front desk to verify). Payment: ${paymentStatus}.` });
 
         return res.status(200).json({ success: true, message: "Confirmation email sent." });
     } catch (err: any) {

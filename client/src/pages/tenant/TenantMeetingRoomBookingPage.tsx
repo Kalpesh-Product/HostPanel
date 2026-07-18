@@ -251,9 +251,13 @@ interface InviteeOption {
 export default function TenantMeetingRoomBookingPage() {
   const currentUser = getStoredUser() || {};
   const tenantCompanyName = currentUser?.tenantCompanyName || currentUser?.workspaceMembership?.tenantCompanyName || getStoredTenantCompanyName() || 'Tenant Workspace';
-  const workspaceId = currentUser?.primaryWorkspace || '';
   const tenantCompanyId = String(currentUser?.tenantCompanyId || currentUser?.workspaceMembership?.tenantCompanyId || getStoredTenantCompanyId() || '').trim();
   const currentUserName = currentUser?.fullName || currentUser?.name || 'Tenant User';
+
+  // Tenant logins have no primaryWorkspace — the host workspace comes back on
+  // the tenant-company payload. Start with whatever is stored and let the
+  // company fetch fill it in.
+  const [workspaceId, setWorkspaceId] = useState<string>(String(currentUser?.primaryWorkspace || ''));
 
   const [isLoading, setIsLoading] = useState(true);
   const [isInviteesLoading, setIsInviteesLoading] = useState(true);
@@ -311,7 +315,9 @@ export default function TenantMeetingRoomBookingPage() {
     loadRooms();
 
     return () => { isMounted = false; };
-  }, [tenantCompanyId]);
+    // workspaceId resolves async from the tenant-company fetch — re-run so
+    // existing bookings (conflict detection) load once it is known.
+  }, [tenantCompanyId, workspaceId]);
 
   const currentCompany = useMemo(() => {
     if (!Array.isArray(tenantCompanies) || tenantCompanies.length === 0) return null;
@@ -343,6 +349,7 @@ export default function TenantMeetingRoomBookingPage() {
         if (!isMounted) return;
         const company = response?.data?.tenant || null;
         setTenantCompanies(company ? [company] : []);
+        if (company?.workspaceId) setWorkspaceId((prev) => prev || String(company.workspaceId));
         const employees = Array.isArray(company?.employees) ? company.employees : [];
         const currentUserEmail = (currentUser?.email || '').toLowerCase().trim();
         const mapped: InviteeOption[] = employees
@@ -412,7 +419,7 @@ export default function TenantMeetingRoomBookingPage() {
         : businessHours.start,
       minutesToTimeString(businessHours.endMinutes - BOOKING_MIN_DURATION_MINUTES),
     ),
-    [bookingForm.date, roundedCurrentTimeValue, todayValue, businessHours.start, businessHours.end],
+    [bookingForm.date, roundedCurrentTimeValue, todayValue, businessHours.start, businessHours.endMinutes],
   );
   const endTimeOptions = useMemo(() => {
     const minimumEndTime = getMinimumEndTime(bookingForm.startTime);
@@ -479,6 +486,47 @@ export default function TenantMeetingRoomBookingPage() {
       return isTimeOverlap(existingStartMinutes, existingEndMinutes, incomingStartMinutes, incomingEndMinutes);
     });
   }, [bookingForm.date, bookingForm.endTime, bookingForm.startTime, normalizedBookings, selectedRoom]);
+
+  // When the chosen slot conflicts, offer the nearest free windows of the same
+  // duration in this room — within business hours, and for today never in the past.
+  const alternativeSlotSuggestions = useMemo(() => {
+    if (!selectedRoom || selectedRoomConflictBookings.length === 0) return [];
+    const selectedRoomName = normalizeText(selectedRoom.name);
+    const selectedDateKey = normalizeDateKey(bookingForm.date);
+    const startMinutes = timeToMinutes(bookingForm.startTime);
+    const endMinutes = timeToMinutes(bookingForm.endTime);
+    if (!selectedDateKey || startMinutes === null || endMinutes === null || endMinutes <= startMinutes) return [];
+    const duration = Math.max(BOOKING_MIN_DURATION_MINUTES, endMinutes - startMinutes);
+
+    const dayBookings = normalizedBookings.filter((b) =>
+      b.roomName === selectedRoomName && b.dateKey === selectedDateKey &&
+      b.status !== 'cancelled' && b.status !== 'canceled');
+
+    let cursor = businessHours.startMinutes;
+    if (selectedDateKey === getTodayInputValue()) {
+      const nowMinutes = timeToMinutes(roundUpToStepTime(getCurrentTimeInputValue()));
+      if (nowMinutes !== null) cursor = Math.max(cursor, nowMinutes);
+    }
+    cursor = Math.ceil(cursor / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES;
+
+    const slots: Array<{ start: string; end: string }> = [];
+    for (let minutes = cursor; minutes + duration <= businessHours.endMinutes; minutes += BOOKING_SLOT_STEP_MINUTES) {
+      const slotEnd = minutes + duration;
+      const hasConflict = dayBookings.some((b) => {
+        const existingStart = timeToMinutes(b.startTime);
+        const existingEnd = timeToMinutes(b.endTime);
+        if (existingStart === null || existingEnd === null) return false;
+        return isTimeOverlap(existingStart, existingEnd, minutes, slotEnd);
+      });
+      if (!hasConflict) {
+        slots.push({ start: minutesToTimeString(minutes), end: minutesToTimeString(slotEnd) });
+        if (slots.length === 4) break;
+        // Jump past this window so suggestions are distinct, not 5 minutes apart.
+        minutes = slotEnd - BOOKING_SLOT_STEP_MINUTES;
+      }
+    }
+    return slots;
+  }, [bookingForm.date, bookingForm.endTime, bookingForm.startTime, businessHours.startMinutes, businessHours.endMinutes, normalizedBookings, selectedRoom, selectedRoomConflictBookings.length]);
 
   const selectedRoomCreditEstimate = useMemo(() => {
     if (!selectedRoom) return 0;
@@ -602,7 +650,7 @@ export default function TenantMeetingRoomBookingPage() {
     : 'No invitees selected';
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
@@ -848,6 +896,26 @@ export default function TenantMeetingRoomBookingPage() {
                       </div>
                     ))}
                   </div>
+                  {alternativeSlotSuggestions.length > 0 && (
+                    <div className="rounded-2xl bg-white border border-emerald-100 p-3 space-y-2">
+                      <p className="text-[11px] font-pbold uppercase tracking-widest text-emerald-600 flex items-center gap-1.5">
+                        <CheckCircle2 size={13} /> Available alternatives for this duration
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {alternativeSlotSuggestions.map((slot) => (
+                          <button
+                            key={`${slot.start}-${slot.end}`}
+                            type="button"
+                            onClick={() => setBookingForm((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
+                            className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-pmedium hover:bg-emerald-100 active:scale-95 transition-all"
+                          >
+                            {formatTime12h(slot.start)} – {formatTime12h(slot.end)}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] font-pmedium text-slate-400">Tap a slot to apply it to your booking.</p>
+                    </div>
+                  )}
                 </div>
               )}
 

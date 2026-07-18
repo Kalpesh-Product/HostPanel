@@ -493,6 +493,10 @@ async function formatTenantCompany(company) {
   return {
     recordId: company._id,
     id: company.tenantCode,
+    // Host workspace this tenant belongs to — tenant-portal pages need it to
+    // fetch workspace-scoped data (bookings, business hours) since tenant
+    // logins have no primaryWorkspace of their own.
+    workspaceId: company.workspaceId ? String(company.workspaceId) : "",
     tenantNumber: company.tenantNumber,
     tenantCode: company.tenantCode,
     companyName: company.companyName,
