@@ -688,7 +688,7 @@ export default function LeadsManagementPage() {
                         <select
                           value={lead.status}
                           onChange={(e) => handleUpdateWebsiteLeadStatus(lead._id, e.target.value)}
-                          className={`rounded-full border px-2 py-0.5 text-[10px] font-pmedium uppercase tracking-widest cursor-pointer outline-none focus:ring-2 focus:ring-[#2563EB]/20 bg-white text-slate-600 border-slate-200`}
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider cursor-pointer outline-none focus:ring-2 focus:ring-[#2563EB]/20 ${websiteStageStyle}`}
                         >
                           {WEBSITE_STATUSES.map((s) => (
                             <option key={s} value={s}>{s}</option>
