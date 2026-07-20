@@ -356,10 +356,10 @@ export default function LeadsManagementPage() {
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
-        title: isWebsite ? "Website Leads Report" : "Sales Leads Management Report", department: departmentLabel, category: "Other", dataWindow: "Custom",
+        title: isWebsite ? "All Website & Nomad Leads Report" : "Sales Leads Management Report", department: departmentLabel, category: "Other", dataWindow: "Custom",
         reportMonth: new Date().toISOString().slice(0, 7), period: "Leads Management", generatedBy: currentUserName,
         format: reportFormat,
-        description: `${isWebsite ? "Website leads" : "Sales leads"} export for ${departmentLabel}${stageLabel !== "All" ? `, stage ${stageLabel}` : ""}${searchQuery.trim() ? `, filtered by ${searchQuery.trim()}` : ""}.`,
+        description: `${isWebsite ? "Website and Nomad leads" : "Sales leads"} export for ${departmentLabel}${stageLabel !== "All" ? `, stage ${stageLabel}` : ""}${searchQuery.trim() ? `, filtered by ${searchQuery.trim()}` : ""}.`,
         sourceType: "custom", sourceRef: isWebsite ? "website-leads" : "sales-leads-management",
         reportRows: buildLeadReportRows(exportData, { stageFilter: stageLabel, searchQuery: searchLabel }, pipelineStats),
         monthlyData: [],
@@ -419,10 +419,10 @@ export default function LeadsManagementPage() {
 
         
 
-        {/* 2. MAIN TABS (Website Leads | Unit Tour List) */}
+        {/* 2. MAIN TABS (Website & Nomad Leads | Unit Tour List) */}
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {[
-            { key: "website-leads", label: "Website Leads" },
+            { key: "website-leads", label: "All Website & Nomad Leads" },
             { key: "unit-tour", label: "Unit Tour Leads" },
           ].map((tab) => (
             <button key={tab.key} type="button" onClick={() => { setMainTab(tab.key); setStageFilter("All"); setSearchQuery(""); }}

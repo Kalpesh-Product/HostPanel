@@ -95,6 +95,7 @@ import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification"
 import StaffViewPage from "../pages/StaffView/StaffViewPage";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
+import NomadsLeads from "../pages/Dashboard/FrontendDashboard/NomadsLeads";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
 import AddModulesPage from "../pages/Dashboard/FrontendDashboard/AddModulesPage";
@@ -432,6 +433,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "reviews",
                     element: <CompanyReviews />,
+                  },
+                  {
+                    path: "nomads-leads",
+                    element: <NomadsLeads />,
                   },
                   {
                     path: "website-builder",

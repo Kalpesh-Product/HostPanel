@@ -268,7 +268,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
       { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
-      { label: "Reviews" },
+      { label: "Nomads Reviews" },
+    ],
+  },
+  {
+    pattern: "/company-settings/nomads-leads",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
+      { label: "Nomads Leads" },
     ],
   },
   {

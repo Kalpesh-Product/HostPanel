@@ -331,9 +331,9 @@ export function WebsiteReviewsSkeleton() {
   );
 }
 
-export function WebsiteLeadsSkeleton() {
+export function WebsiteLeadsSkeleton({ label = "Loading website leads" } = {}) {
   return (
-    <div className="animate-pulse flex flex-col gap-4" aria-busy="true" aria-label="Loading website leads">
+    <div className="animate-pulse flex flex-col gap-4" aria-busy="true" aria-label={label}>
       <div className="mb-1 flex flex-col items-start justify-between gap-3 md:flex-row md:items-end">
         <div className="space-y-2">
           <Skeleton className="h-6 w-40 rounded-md" />

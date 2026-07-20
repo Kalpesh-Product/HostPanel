@@ -4,10 +4,28 @@ import Company from "../models/Company.js";
 import WebsiteTemplate from "../models/website/WebsiteTemplate.js";
 import Workspace from "../models/Workspace.js";
 import WebsiteLead from "../models/WebsiteLead.js";
-import { createNotification } from "../utils/notify.js";
 
 const sanitizeValue = (value) => String(value || "").trim();
 const isSyntheticCompanyId = (value) => sanitizeValue(value).includes("-dev-");
+const isNomadLead = (lead) => sanitizeValue(lead?.source).toLowerCase() === "nomad";
+
+const filterLeadsByScope = (leads, leadScope) => {
+  const normalizedScope = sanitizeValue(leadScope).toLowerCase();
+  if (normalizedScope === "nomads") return leads.filter(isNomadLead);
+  if (normalizedScope === "website") return leads.filter((lead) => !isNomadLead(lead));
+  return leads;
+};
+
+const filterEscalatedLeadsForWorkspace = (leads, workspaceId) => {
+  const normalizedWorkspaceId = sanitizeValue(workspaceId);
+  if (!normalizedWorkspaceId) return [];
+
+  return leads.filter(
+    (lead) =>
+      lead?.isEscalated === true &&
+      sanitizeValue(lead?.escalatedWorkspaceId) === normalizedWorkspaceId,
+  );
+};
 
 const resolveCompanyIdFromWorkspace = async (workspaceId) => {
   const normalizedWorkspaceId = sanitizeValue(workspaceId);
@@ -69,15 +87,18 @@ const resolveWorkspaceIdFromCompany = async (companyId) => {
 
 export const getLeads = async (req, res, next) => {
   try {
+    const leadScope = sanitizeValue(req.query?.leadScope).toLowerCase();
+    const isNomadsScope = leadScope === "nomads";
     const requestedWorkspaceId =
       sanitizeValue(req.query?.workspaceId) ||
       sanitizeValue(req.workspaceMembership?.workspace);
     const requestedCompanyId = sanitizeValue(req.query?.companyId);
 
-    // Workspace is the strongest tenant boundary in the new model.
-    // If workspaceId is present, always resolve company from workspace/template first.
-    let companyId = "";
-    if (requestedWorkspaceId) {
+    // Website leads use workspace as the strongest tenant boundary. Nomads data,
+    // like Nomads reviews, stays company-scoped because upstream records may not
+    // carry a HostPanel workspace id.
+    let companyId = isNomadsScope ? requestedCompanyId : "";
+    if (!companyId && requestedWorkspaceId) {
       companyId = await resolveCompanyIdFromWorkspace(requestedWorkspaceId);
     }
 
@@ -92,16 +113,29 @@ export const getLeads = async (req, res, next) => {
       });
     }
 
-    const localLeadQuery = requestedWorkspaceId
-      ? { workspaceId: requestedWorkspaceId }
-      : { companyId };
+    const targetWorkspaceId =
+      requestedWorkspaceId || (await resolveWorkspaceIdFromCompany(companyId));
+
+    if (!targetWorkspaceId) {
+      return res.status(400).json({
+        message: "A HostPanel workspace is required to fetch escalated leads",
+      });
+    }
+
+    const localLeadQuery = {
+      ...(!isNomadsScope
+        ? { workspaceId: targetWorkspaceId }
+        : { companyId }),
+      isEscalated: true,
+      escalatedWorkspaceId: targetWorkspaceId,
+    };
 
     const localLeads = await WebsiteLead.find(localLeadQuery)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
 
-    const mappedLocal = localLeads.map((lead, index) => ({
+    const mappedLocal = filterLeadsByScope(localLeads, leadScope).map((lead, index) => ({
       _id: String(lead._id),
       srNo: index + 1,
       fullName: lead.fullName,
@@ -116,14 +150,38 @@ export const getLeads = async (req, res, next) => {
       recievedDate: lead.createdAt,
       companyName: lead.companyName || "",
       companyId: lead.companyId || "",
+      isEscalated: lead.isEscalated === true,
+      escalatedWorkspaceId: lead.escalatedWorkspaceId || "",
+      escalatedHostCompanyId: lead.escalatedHostCompanyId || "",
+      escalatedAt: lead.escalatedAt || null,
       ...(lead?.leadMeta && typeof lead.leadMeta === "object" ? lead.leadMeta : {}),
     }));
 
     try {
       const leads = await axios.get(
-        `https://wononomadsbe.vercel.app/api/company/leads?companyId=${companyId}`
+        "https://wononomadsbe.vercel.app/api/company/leads",
+        {
+          params: {
+            companyId,
+            isEscalated: true,
+            workspaceId: targetWorkspaceId,
+          },
+        },
       );
-      const remote = Array.isArray(leads?.data) ? leads.data : [];
+      const rawRemote = Array.isArray(leads?.data)
+        ? leads.data
+        : Array.isArray(leads?.data?.leads)
+          ? leads.data.leads
+          : [];
+      const escalatedRemote = filterEscalatedLeadsForWorkspace(
+        rawRemote,
+        targetWorkspaceId,
+      );
+      const remote = filterLeadsByScope(escalatedRemote, leadScope).sort((a, b) => {
+        const aDate = new Date(a?.recievedDate || a?.receivedDate || a?.createdAt || 0).getTime();
+        const bDate = new Date(b?.recievedDate || b?.receivedDate || b?.createdAt || 0).getTime();
+        return bDate - aDate;
+      });
       if (remote.length > 0) {
         return res.status(200).json(remote);
       }
@@ -496,39 +554,8 @@ export const createWebsiteLead = async (req, res) => {
       status: "Pending",
     });
 
-    // Notify workspace owners/admins about new lead
-    if (resolvedWorkspaceId) {
-      try {
-        const mongoose = await import("mongoose");
-        const workspaceMembers = await mongoose.default.model("WorkspaceMember").find({
-          workspace: resolvedWorkspaceId,
-          isActive: true,
-        }).select("user role").populate("role", "name").lean();
-
-        const adminMembers = workspaceMembers.filter((m: any) =>
-          ["founder", "super_admin", "admin"].includes(String(m.role?.name || "").toLowerCase()),
-        );
-
-        for (const member of adminMembers) {
-          createNotification({
-            workspaceId: resolvedWorkspaceId,
-            recipientUserId: String(member.user),
-            type: "new_lead",
-            category: "system",
-            title: "New Website Lead",
-            description: `New lead from ${visitorName} (${visitorEmail}) via ${resolvedSource}. Company: ${resolvedCompanyName}.`,
-            entityType: "lead",
-            entityId: String(localLead._id),
-            targetUrl: `/app/sales`,
-            data: { leadId: String(localLead._id), name: visitorName, email: visitorEmail, company: resolvedCompanyName, source: resolvedSource },
-            priority: "normal",
-            dedupeKey: `new-lead:${localLead._id}:${member.user}`,
-          });
-        }
-      } catch (e) {
-        console.error("Lead notification failed:", e);
-      }
-    }
+    // The enquiry remains Master Panel-only until staff explicitly escalate it.
+    // HostPanel notifications must not fire during the initial public submission.
 
     const upstreamEndpoints = [
       "https://wononomadsbe.vercel.app/api/leads/create-lead",
