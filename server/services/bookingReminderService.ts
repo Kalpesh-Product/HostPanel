@@ -73,7 +73,9 @@ const runReminderSweep = async () => {
     // emailing) so overlapping sweeps or restarts never double-send.
     // Only external bookings carry a client email worth reminding.
     for (;;) {
-        const booking = await MeetingRoomBooking.findOneAndUpdate(
+        // The model export is untyped (mongoose.models fallback), so lean()
+        // yields a FlattenMaps union that TS can't index — treat as any.
+        const booking: any = await MeetingRoomBooking.findOneAndUpdate(
             {
                 bookingType: "External",
                 status: { $nin: ["cancelled", "completed"] },

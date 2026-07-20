@@ -9,7 +9,7 @@ export function statusToneClass(value: unknown = ''): string {
   if (/(reject|cancel|disable|inactive|expired|absent|lost|overdue|fail|declin|ban|high|late)/.test(v)) {
     return 'bg-rose-50 text-rose-700';
   }
-  if (/(approve|complete|resolve|active|joined|convert|checked in|checked-in|present|paid|success|done|confirm)/.test(v)) {
+  if (/(approve|complete|resolve|active|joined|convert|close|checked in|checked-in|present|paid|success|done|confirm)/.test(v)) {
     return 'bg-emerald-50 text-emerald-700';
   }
   if (/(in progress|in-progress|contact|accept|register|booked|upcoming|medium|half day|on leave)/.test(v)) {
