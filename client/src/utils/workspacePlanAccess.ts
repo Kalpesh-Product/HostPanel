@@ -83,6 +83,12 @@ export const isModuleLockedForPlan = (plan: PlanType, moduleId: string): boolean
   return BASIC_LOCKED_MODULE_IDS.includes(moduleId as (typeof BASIC_LOCKED_MODULE_IDS)[number]);
 };
 
+// PDF / Excel report exports are a Custom-plan capability only. On pages that
+// Basic and Professional plans can also open (Leads, Customer Support,
+// Resource Pricing, Sales, etc.) the export controls are hidden for those two
+// plans and shown only for Custom.
+export const canExportReports = (plan: PlanType): boolean => plan === "custom";
+
 // Reads a workspace plan off any shape the app stores the logged-in user/workspace
 // in (auth context user, storedUser from localStorage, organization overview payload).
 export const getWorkspacePlan = (user: unknown): PlanType => {

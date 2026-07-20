@@ -16,6 +16,13 @@ const websiteLeadSchema = new mongoose.Schema(
     noOfPeople: { type: String, trim: true, default: "" },
     leadMeta: { type: mongoose.Schema.Types.Mixed, default: {} },
     status: { type: String, trim: true, default: "Pending" },
+    hostPanelStatus: {
+      type: String,
+      trim: true,
+      enum: ["Pending", "Closed"],
+      default: "Pending",
+    },
+    hostPanelStatusUpdatedAt: { type: Date, default: null },
     comment: { type: String, trim: true, default: "" },
     upstreamSynced: { type: Boolean, default: false },
     upstreamError: { type: String, default: "" },

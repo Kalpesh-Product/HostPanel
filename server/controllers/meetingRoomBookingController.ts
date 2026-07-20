@@ -63,6 +63,76 @@ const dateTimeParts = (date: Date) => {
     return { date: `${values.year}-${values.month}-${values.day}`, time: `${values.hour}:${values.minute}` };
 };
 
+// ── Email formatting helpers ────────────────────────────────────────────────
+// Emails use a friendly date + 12-hour IST time (the app's 24h/ISO internal
+// format stays untouched). Poppins mirrors the app's "pmedium" font, with a
+// safe fallback since email clients can't load the local Poppins TTF.
+const EMAIL_FONT = "'Poppins','Segoe UI',Arial,sans-serif";
+
+const emailDateParts = (date: Date) => {
+    const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }).format(new Date(date));
+    const time = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(date));
+    const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date));
+    return { day, time, dayKey };
+};
+
+// Same-day: "20 Jul 2026, 10:00 AM – 12:00 PM"
+// Multi-day: "20 Jul 2026, 10:00 AM  →  22 Jul 2026, 12:00 PM"
+const emailSlotLabel = (start?: Date | null, end?: Date | null) => {
+    if (!start || !end) return "—";
+    const s = emailDateParts(start);
+    const e = emailDateParts(end);
+    return s.dayKey === e.dayKey
+        ? `${s.day}, ${s.time} &ndash; ${e.time}`
+        : `${s.day}, ${s.time} &nbsp;&rarr;&nbsp; ${e.day}, ${e.time}`;
+};
+
+const emailCurrency = (n: number) => `&#8377;${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const computeDiscountAmount = (booking: any) => {
+    const base = Number(booking.baseAmount || 0);
+    const discountValue = Number(booking.discountValue || 0);
+    if (discountValue <= 0 || base <= 0) return 0;
+    return String(booking.discountType) === "percent"
+        ? Math.round(base * (Math.min(discountValue, 100) / 100) * 100) / 100
+        : Math.min(discountValue, base);
+};
+
+const isBookingPaid = (booking: any) => {
+    const status = String(booking.paymentStatus || "").trim();
+    return /paid|collected|not.?required|complete/i.test(status) || Number(booking.totalAmount || 0) <= 0;
+};
+
+// A pricing breakdown table (base, discount, GST, total) plus the payment
+// status. Returns "" only when there is genuinely nothing to charge.
+const emailPricingBlock = (booking: any) => {
+    const base = Number(booking.baseAmount || 0);
+    const gst = Number(booking.gstAmount || 0);
+    const total = Number(booking.totalAmount || 0);
+    if (total <= 0 && base <= 0) return "";
+    const discountAmount = computeDiscountAmount(booking);
+    const discountLabel = String(booking.discountType) === "percent" ? `Discount (${Number(booking.discountValue || 0)}%)` : "Discount";
+    const paid = isBookingPaid(booking);
+    const paymentMode = String(booking.paymentMode || "").trim();
+
+    const row = (label: string, value: string, opts: { color?: string; strong?: boolean; bg?: string } = {}) =>
+        `<tr style="border-top:1px solid #f1f5f9;background:${opts.bg || "#ffffff"};">
+          <td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">${label}</td>
+          <td style="padding:10px 16px;font-size:13px;font-weight:${opts.strong ? 700 : 600};color:${opts.color || "#0f172a"};text-align:right;font-family:${EMAIL_FONT};">${value}</td>
+        </tr>`;
+
+    return `
+      <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;font-family:${EMAIL_FONT};">Pricing Breakdown</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+        ${row("Base Amount", emailCurrency(base))}
+        ${discountAmount > 0 ? row(discountLabel, `&minus; ${emailCurrency(discountAmount)}`, { color: "#059669", bg: "#f0fdf4" }) : ""}
+        ${row("GST (18%)", emailCurrency(gst))}
+        ${row("Total", emailCurrency(total), { color: "#2563eb", strong: true, bg: "#f8fafc" })}
+        ${row("Payment Status", paid ? "PAID" : "UNPAID &mdash; DUE", { color: paid ? "#059669" : "#d97706", strong: true, bg: paid ? "#f0fdf4" : "#fffbeb" })}
+        ${paymentMode ? row("Payment Mode", paymentMode) : ""}
+      </table>`;
+};
+
 const transformBooking = (booking: any, currentUserId?: string) => {
     const room = booking.roomId && typeof booking.roomId === "object" ? booking.roomId : null;
     const owner = booking.ownerId && typeof booking.ownerId === "object" ? booking.ownerId : null;
@@ -88,6 +158,14 @@ const transformBooking = (booking: any, currentUserId?: string) => {
     );
     const previousStartParts = hasScheduleChanged && originalStartDate ? dateTimeParts(originalStartDate) : null;
     const previousEndParts = hasScheduleChanged && originalEndDate ? dateTimeParts(originalEndDate) : null;
+
+    // externalClientId is populated on list fetches so the booking detail view
+    // can show the client's contact details (which aren't stored on the
+    // booking itself). Fall back to whatever was captured on the booking.
+    const externalClient = booking.externalClientId && typeof booking.externalClientId === "object"
+        ? booking.externalClientId
+        : null;
+    const externalClientRawId = String(externalClient?._id || booking.externalClientId || "");
 
     return {
         ...booking,
@@ -116,7 +194,15 @@ const transformBooking = (booking: any, currentUserId?: string) => {
         // is for (client, on-behalf member, etc).
         hostName: ownerName || "",
         // Expose externalClientId as clientId so client-tab booking matching works
-        clientId: String(booking.externalClientId || ""),
+        clientId: externalClientRawId,
+        // Client contact for the booking detail view. bookedByEmail/phone come
+        // straight off the booking; company/name prefer the linked Client record.
+        clientName: externalClient?.name || bookedForName || booking.bookedByName || "",
+        clientEmail: externalClient?.email || booking.bookedByEmail || "",
+        clientPhone: externalClient?.phone || booking.bookedByPhone || "",
+        clientCompany: externalClient?.company || booking.clientCompany || "",
+        clientCode: externalClient?.clientCode || "",
+        bookedByPhone: booking.bookedByPhone || externalClient?.phone || "",
         isMe: Boolean(currentUserId && ownerId === String(currentUserId)),
         storedStatus: booking.status,
     };
@@ -418,10 +504,15 @@ const bookingTargetUrlFor = (bookingType: any) =>
         ? "/dashboard/tenant/booking-history"
         : "/meetings/meeting-rooms";
 
-const findOverlap = (roomId: any, start: Date, end: Date, excludeId?: string) => MeetingRoomBooking.findOne({
+// Shared desk-area resources (capacity > 1) hold one booking per seat, so two
+// bookings only clash when they share the SAME seat. When seatNumber is given
+// the overlap check is scoped to that seat; otherwise (single-occupancy rooms)
+// any time overlap on the resource clashes.
+const findOverlap = (roomId: any, start: Date, end: Date, excludeId?: string, seatNumber?: number | null) => MeetingRoomBooking.findOne({
     roomId,
     status: ACTIVE_BOOKING_STATUSES,
     ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+    ...(seatNumber != null && Number(seatNumber) > 0 ? { seatNumber: Number(seatNumber) } : {}),
     start: { $lt: end },
     end: { $gt: start },
 });
@@ -525,9 +616,10 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 if (!clientDoc) return res.status(422).json({ message: "Client not found in this workspace." });
             }
 
-            // 2. Overlap check
-            if (await findOverlap(roomId, range.start, range.end)) {
-                return res.status(409).json({ message: "This resource is already booked for the selected time slot." });
+            // 2. Overlap check (seat-aware for shared desk-area resources)
+            const extSeatNumber = Number(req.body.seatNumber) > 0 ? Number(req.body.seatNumber) : null;
+            if (await findOverlap(roomId, range.start, range.end, undefined, extSeatNumber)) {
+                return res.status(409).json({ message: extSeatNumber ? "This seat is already booked for the selected time slot." : "This resource is already booked for the selected time slot." });
             }
 
             // 3. Resolve the host user. Booking codes are allocated globally because
@@ -551,6 +643,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 originalStart: range.start,
                 originalEnd: range.end,
                 attendees: Math.max(1, Number(req.body.attendees || 1)),
+                seatNumber: extSeatNumber,
                 purpose: purpose.trim(),
                 bookingNotes: req.body.bookingNotes || "",
                 baseAmount: Number(baseAmount) || 0,
@@ -559,7 +652,10 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 discountType,
                 discountValue: Number(discountValue) || 0,
                 paymentMode: normalizedPaymentMode,
-                paymentStatus: normalizedPaymentMode ? "Paid" : paymentStatus,
+                // Online payments (proof required) are always Paid. Cash honors
+                // the front desk's Paid/Unpaid choice so an unpaid booking can
+                // be collected later at verify-booking.
+                paymentStatus: isOnlinePayment ? "Paid" : (String(paymentStatus || "").trim() || "Paid"),
                 transactionId: String(transactionId || "").trim(),
                 paymentProofUrl,
                 status: "confirmed",
@@ -788,7 +884,7 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
         const workspaceId = workspaceIdFor(req);
         if (!workspaceId || workspaceId !== req.params.workspaceId) return res.status(403).json({ message: "Workspace access denied" });
         const [bookings, rooms] = await Promise.all([
-            MeetingRoomBooking.find({ workspaceId }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").sort({ start: -1 }).lean().exec(),
+            MeetingRoomBooking.find({ workspaceId }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").populate("externalClientId", "name email phone company clientCode").sort({ start: -1 }).lean().exec(),
             Resource.find({
                 workspaceId,
                 isActive: true,
@@ -823,7 +919,7 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         const businessHours = await getWorkspaceBusinessHours(workspaceId);
         const range = parseDateRange(req.body.start || booking.start, req.body.end || booking.end, businessHours.startMinutes, businessHours.endMinutes);
         if (!range) return res.status(400).json({ message: "Valid start and end times are required" });
-        if (await findOverlap(booking.roomId, range.start, range.end, id)) return res.status(409).json({ message: "Room is already booked for the selected time slot" });
+        if (await findOverlap(booking.roomId, range.start, range.end, id, booking.seatNumber)) return res.status(409).json({ message: booking.seatNumber ? "This seat is already booked for the selected time slot" : "Room is already booked for the selected time slot" });
 
         // Pre-check credit availability before modifying booking
         const bookingType = String(booking.bookingType || "").toLowerCase();
@@ -852,6 +948,7 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         // Apply schedule changes
         const previousStart = booking.start;
         const previousEnd = booking.end;
+        const previousTotal = Number(booking.totalAmount || 0);
         booking.start = range.start;
         booking.end = range.end;
         if (req.body.scheduleChangeType) booking.scheduleChangeType = req.body.scheduleChangeType;
@@ -934,7 +1031,7 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         // Email the external client when their booking is genuinely rescheduled
         // (not for extensions, which are a routine slot bump, not a change of plan).
         if (req.body.scheduleChangeType === "rescheduled") {
-            sendExternalLifecycleEmail(booking, "rescheduled", { previousStart, previousEnd });
+            sendExternalLifecycleEmail(booking, "rescheduled", { previousStart, previousEnd, previousTotal });
         }
 
         // Notify invitees of schedule change
@@ -989,7 +1086,11 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
         booking.cancelReason = req.body.cancelReason || "Cancelled by user";
         await booking.save();
 
-        sendExternalLifecycleEmail(booking, "cancelled", { cancelReason: booking.cancelReason });
+        // The frontdesk cancel form appends the refund choice as "reason | Refund Type".
+        const reasonParts = String(booking.cancelReason || "").split("|").map((s: string) => s.trim());
+        const refundType = reasonParts.length > 1 ? reasonParts[reasonParts.length - 1] : "";
+        const cleanReason = reasonParts.length > 1 ? reasonParts.slice(0, -1).join(" | ") : reasonParts[0];
+        sendExternalLifecycleEmail(booking, "cancelled", { cancelReason: cleanReason, refundType });
 
         // Refund credits for tenant bookings
         const bookingType = String(booking.bookingType || "").toLowerCase();
@@ -1199,7 +1300,7 @@ export const createExternalClient = async (req: Request, res: Response) => {
 const sendExternalLifecycleEmail = async (
     booking: any,
     kind: "rescheduled" | "cancelled",
-    extra: { previousStart?: Date | null; previousEnd?: Date | null; cancelReason?: string } = {},
+    extra: { previousStart?: Date | null; previousEnd?: Date | null; previousTotal?: number; cancelReason?: string; refundType?: string } = {},
 ) => {
     try {
         if (String(booking?.bookingType) !== "External") return;
@@ -1209,37 +1310,54 @@ const sendExternalLifecycleEmail = async (
         const clientName = booking.bookedForName || booking.bookedByName || "Guest";
         const roomName = booking.roomName || "Meeting Room";
         const bookingCode = booking.bookingCode || String(booking._id);
-        const start = booking.start ? dateTimeParts(new Date(booking.start)) : { date: "", time: "" };
-        const end = booking.end ? dateTimeParts(new Date(booking.end)) : { date: "", time: "" };
+        const startDate = booking.start ? new Date(booking.start) : null;
+        const endDate = booking.end ? new Date(booking.end) : null;
+        const slotLabel = emailSlotLabel(startDate, endDate);
+        const dayLabel = startDate ? emailDateParts(startDate).day : "";
+        const paid = isBookingPaid(booking);
 
         const { sendMail } = await import("../config/mailer.js");
 
+        const row = (label: string, value: string, opts: { color?: string; strong?: boolean; bg?: string; strike?: boolean } = {}) =>
+            `<tr style="border-top:1px solid #f1f5f9;background:${opts.bg || "#ffffff"};">
+              <td style="padding:11px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">${label}</td>
+              <td style="padding:11px 16px;font-size:13px;font-weight:${opts.strong ? 700 : 600};color:${opts.color || "#0f172a"};text-align:right;${opts.strike ? "text-decoration:line-through;" : ""}font-family:${EMAIL_FONT};">${value}</td>
+            </tr>`;
+
         if (kind === "rescheduled") {
-            const prevStart = extra.previousStart ? dateTimeParts(new Date(extra.previousStart)) : null;
-            const prevEnd = extra.previousEnd ? dateTimeParts(new Date(extra.previousEnd)) : null;
-            const subject = `Booking Rescheduled — ${roomName} on ${start.date}`;
+            const prevSlot = emailSlotLabel(extra.previousStart || null, extra.previousEnd || null);
+            const newTotal = Number(booking.totalAmount || 0);
+            const prevTotal = Number(extra.previousTotal ?? newTotal);
+            const diff = Math.round((newTotal - prevTotal) * 100) / 100;
+            const subject = `Booking Rescheduled — ${roomName} on ${dayLabel}`;
             const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f8fafc;font-family:${EMAIL_FONT};">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);font-family:${EMAIL_FONT};">
         <tr><td style="background:#d97706;padding:32px 40px;">
-          <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;">Booking Rescheduled</p>
-          <p style="margin:8px 0 0;font-size:13px;color:#fde68a;">Your meeting room slot has changed</p>
+          <p style="margin:0;font-size:22px;font-weight:600;color:#ffffff;font-family:${EMAIL_FONT};">Booking Rescheduled</p>
+          <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#fde68a;font-family:${EMAIL_FONT};">Your meeting room slot has changed</p>
         </td></tr>
         <tr><td style="padding:32px 40px;">
-          <p style="margin:0 0 24px;font-size:15px;color:#334155;">Hi <strong>${clientName}</strong>, your booking (ID <strong>${bookingCode}</strong>) has been rescheduled. Here are the updated details:</p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:16px;">
-            ${prevStart && prevEnd ? `<tr style="background:#f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Previous Slot</td><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#94a3b8;text-decoration:line-through;">${prevStart.date} · ${prevStart.time} – ${prevEnd.time}</td></tr>` : ""}
-            <tr style="border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">New Slot</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.date} · ${start.time} – ${end.time}</td></tr>
-            <tr style="background:#f8fafc;border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Meeting Room</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${roomName}</td></tr>
+          <p style="margin:0 0 24px;font-size:15px;font-weight:500;color:#334155;font-family:${EMAIL_FONT};">Hi <strong>${clientName}</strong>, your booking (ID <strong>${bookingCode}</strong>) has been rescheduled. Here are the updated details:</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+            ${row("Meeting Room", roomName)}
+            ${row("Original Schedule", prevSlot, { color: "#94a3b8", strike: true, bg: "#f8fafc" })}
+            ${row("New Schedule", slotLabel, { color: "#0f172a", strong: true })}
           </table>
-          <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">If this change doesn't work for you, please contact us directly.</p>
+          ${emailPricingBlock(booking)}
+          ${diff > 0
+                ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #fecaca;border-radius:12px;background:#fef2f2;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#b91c1c;font-family:${EMAIL_FONT};">Additional ${emailCurrency(diff)} is due for the new slot &mdash; please pay this at the front desk.</td></tr></table>`
+                : diff < 0
+                    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#047857;font-family:${EMAIL_FONT};">A refund of ${emailCurrency(Math.abs(diff))} is due for the shorter slot &mdash; please collect this from the front desk.</td></tr></table>`
+                    : ""}
+          <p style="margin:0;font-size:13px;font-weight:500;color:#94a3b8;line-height:1.6;font-family:${EMAIL_FONT};">If this change doesn't work for you, please contact us directly.</p>
         </td></tr>
         <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:11px;color:#94a3b8;">This is an automated notice. Please do not reply to this email.</p>
+          <p style="margin:0;font-size:11px;font-weight:500;color:#94a3b8;font-family:${EMAIL_FONT};">This is an automated notice. Please do not reply to this email.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -1249,33 +1367,39 @@ const sendExternalLifecycleEmail = async (
                 to: recipientEmail,
                 subject,
                 html,
-                text: `Your booking (${bookingCode}) for ${roomName} has been rescheduled to ${start.date} ${start.time}-${end.time}.`,
+                text: `Your booking (${bookingCode}) for ${roomName} has been rescheduled. New schedule: ${slotLabel.replace(/&ndash;|&rarr;|&nbsp;/g, "-")}. Total: ${emailCurrency(newTotal)} (${paid ? "Paid" : "Unpaid"}).${diff > 0 ? ` Additional ${emailCurrency(diff)} due at the front desk.` : diff < 0 ? ` Refund of ${emailCurrency(Math.abs(diff))} at the front desk.` : ""}`,
             });
         } else {
-            const subject = `Booking Cancelled — ${roomName} on ${start.date}`;
+            const subject = `Booking Cancelled — ${roomName} on ${dayLabel}`;
             const reasonLine = String(extra.cancelReason || "").trim();
+            const refundType = String(extra.refundType || "").trim();
+            const total = Number(booking.totalAmount || 0);
+            // Only a previously-paid booking has money to refund on cancel.
+            const showRefund = paid && total > 0 && refundType && !/no.?refund/i.test(refundType);
             const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f8fafc;font-family:${EMAIL_FONT};">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);font-family:${EMAIL_FONT};">
         <tr><td style="background:#dc2626;padding:32px 40px;">
-          <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;">Booking Cancelled</p>
-          <p style="margin:8px 0 0;font-size:13px;color:#fecaca;">Your meeting room reservation was cancelled</p>
+          <p style="margin:0;font-size:22px;font-weight:600;color:#ffffff;font-family:${EMAIL_FONT};">Booking Cancelled</p>
+          <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#fecaca;font-family:${EMAIL_FONT};">Your meeting room reservation was cancelled</p>
         </td></tr>
         <tr><td style="padding:32px 40px;">
-          <p style="margin:0 0 24px;font-size:15px;color:#334155;">Hi <strong>${clientName}</strong>, your booking (ID <strong>${bookingCode}</strong>) below has been cancelled.</p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:16px;">
-            <tr style="background:#f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Meeting Room</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${roomName}</td></tr>
-            <tr style="border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Was Scheduled For</td><td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.date} · ${start.time} – ${end.time}</td></tr>
-            ${reasonLine ? `<tr style="background:#f8fafc;border-top:1px solid #f1f5f9;"><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Reason</td><td style="padding:12px 16px;font-size:13px;font-weight:700;color:#0f172a;">${reasonLine}</td></tr>` : ""}
+          <p style="margin:0 0 24px;font-size:15px;font-weight:500;color:#334155;font-family:${EMAIL_FONT};">Hi <strong>${clientName}</strong>, your booking (ID <strong>${bookingCode}</strong>) below has been cancelled.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+            ${row("Meeting Room", roomName)}
+            ${row("Was Scheduled For", slotLabel, { bg: "#f8fafc" })}
+            ${total > 0 ? row("Amount", `${emailCurrency(total)} (${paid ? "Paid" : "Unpaid"})`) : ""}
+            ${reasonLine ? row("Reason", reasonLine, { bg: "#f8fafc" }) : ""}
           </table>
-          <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">If you have any questions or would like to rebook, please contact us directly.</p>
+          ${showRefund ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#047857;font-family:${EMAIL_FONT};">Refund (${refundType}) is due for this cancellation &mdash; please collect it from the front desk.</td></tr></table>` : ""}
+          <p style="margin:0;font-size:13px;font-weight:500;color:#94a3b8;line-height:1.6;font-family:${EMAIL_FONT};">If you have any questions or would like to rebook, please contact us directly.</p>
         </td></tr>
         <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:11px;color:#94a3b8;">This is an automated notice. Please do not reply to this email.</p>
+          <p style="margin:0;font-size:11px;font-weight:500;color:#94a3b8;font-family:${EMAIL_FONT};">This is an automated notice. Please do not reply to this email.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -1285,7 +1409,7 @@ const sendExternalLifecycleEmail = async (
                 to: recipientEmail,
                 subject,
                 html,
-                text: `Your booking (${bookingCode}) for ${roomName} on ${start.date} ${start.time}-${end.time} has been cancelled.${reasonLine ? ` Reason: ${reasonLine}` : ""}`,
+                text: `Your booking (${bookingCode}) for ${roomName}, ${slotLabel.replace(/&ndash;|&rarr;|&nbsp;/g, "-")} has been cancelled.${reasonLine ? ` Reason: ${reasonLine}.` : ""}${showRefund ? ` Refund (${refundType}) at the front desk.` : ""}`,
             });
         }
     } catch (err) {
@@ -1312,81 +1436,69 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
             return res.status(422).json({ message: "No valid email address on this booking." });
         }
 
-        // Build date/time strings from stored start/end
-        const start = booking.start ? dateTimeParts(new Date(booking.start)) : { date: "", time: "" };
-        const end = booking.end ? dateTimeParts(new Date(booking.end)) : { date: "", time: "" };
+        // Friendly 12-hour slot label (handles multi-day date ranges).
+        const startDate = booking.start ? new Date(booking.start) : null;
+        const endDate = booking.end ? new Date(booking.end) : null;
+        const slotLabel = emailSlotLabel(startDate, endDate);
         const room = booking.roomId && typeof booking.roomId === "object" ? (booking.roomId as any) : null;
         const roomName = booking.roomName || room?.name || "Meeting Room";
         const clientName = booking.bookedForName || booking.bookedByName || "Guest";
+        const pricingBlock = emailPricingBlock(booking);
+        const paidNow = isBookingPaid(booking);
 
-        // Format currency
-        const fmt = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        const totalAmount = Number((booking as any).totalAmount || 0);
-        const paymentStatus = totalAmount > 0
-            ? ((booking as any).paymentStatus === "Paid" ? `Paid — ${fmt(totalAmount)}` : `Due — ${fmt(totalAmount)}`)
-            : "No charge";
-
-        const subject = `Meeting Room Booking Confirmation — ${roomName} on ${start.date}`;
+        const subject = `Meeting Room Booking Confirmation — ${roomName} on ${startDate ? emailDateParts(startDate).day : ""}`;
 
         const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f8fafc;font-family:${EMAIL_FONT};">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);font-family:${EMAIL_FONT};">
         <!-- Header -->
         <tr><td style="background:#2563EB;padding:32px 40px;">
-          <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.3px;">Booking Confirmed ✓</p>
-          <p style="margin:8px 0 0;font-size:13px;color:#bfdbfe;">Your meeting room has been reserved</p>
+          <p style="margin:0;font-size:22px;font-weight:600;color:#ffffff;letter-spacing:-0.3px;font-family:${EMAIL_FONT};">Booking Confirmed &#10003;</p>
+          <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#bfdbfe;font-family:${EMAIL_FONT};">Your meeting room has been reserved</p>
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:32px 40px;">
-          <p style="margin:0 0 24px;font-size:15px;color:#334155;">Hi <strong>${clientName}</strong>, your booking is confirmed. Here are the details:</p>
+          <p style="margin:0 0 24px;font-size:15px;font-weight:500;color:#334155;font-family:${EMAIL_FONT};">Hi <strong>${clientName}</strong>, your booking is confirmed. Here are the details:</p>
 
           <!-- Booking ID banner: quote this at the front desk to verify the booking -->
           <table width="100%" cellpadding="0" cellspacing="0" style="border:2px dashed #2563EB;border-radius:12px;background:#eff6ff;margin-bottom:24px;">
             <tr><td style="padding:16px 20px;text-align:center;">
-              <p style="margin:0;font-size:10px;font-weight:900;color:#2563EB;text-transform:uppercase;letter-spacing:0.1em;">Your Booking ID</p>
-              <p style="margin:6px 0 0;font-size:22px;font-weight:900;color:#0f172a;letter-spacing:1px;">${booking.bookingCode || String(booking._id)}</p>
-              <p style="margin:6px 0 0;font-size:11px;color:#64748b;">Show this ID at the front desk when you arrive to verify your booking.</p>
+              <p style="margin:0;font-size:10px;font-weight:600;color:#2563EB;text-transform:uppercase;letter-spacing:0.1em;font-family:${EMAIL_FONT};">Your Booking ID</p>
+              <p style="margin:6px 0 0;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:1px;font-family:${EMAIL_FONT};">${booking.bookingCode || String(booking._id)}</p>
+              <p style="margin:6px 0 0;font-size:11px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Show this ID at the front desk when you arrive to verify your booking.</p>
             </td></tr>
           </table>
 
           <!-- Details table -->
           <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
-            <tr style="background:#f1f5f9;">
-              <td style="padding:12px 16px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Detail</td>
-              <td style="padding:12px 16px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Info</td>
-            </tr>
             <tr style="border-top:1px solid #f1f5f9;">
-              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Meeting Room</td>
-              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${roomName}</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Meeting Room</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${roomName}</td>
             </tr>
             <tr style="background:#f8fafc;border-top:1px solid #f1f5f9;">
-              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Date</td>
-              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.date}</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Schedule</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${slotLabel}</td>
             </tr>
             <tr style="border-top:1px solid #f1f5f9;">
-              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Time</td>
-              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.time} – ${end.time}</td>
-            </tr>
-            <tr style="background:#f8fafc;border-top:1px solid #f1f5f9;">
-              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Purpose</td>
-              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${(booking as any).purpose || "—"}</td>
-            </tr>
-            <tr style="border-top:1px solid #f1f5f9;">
-              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Payment</td>
-              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#2563eb;">${paymentStatus}</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Purpose</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${(booking as any).purpose || "—"}</td>
             </tr>
           </table>
 
-          <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">If you have any questions please contact us directly. We look forward to seeing you!</p>
+          ${pricingBlock}
+
+          ${!paidNow ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #fde68a;border-radius:12px;background:#fffbeb;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:500;color:#b45309;font-family:${EMAIL_FONT};">Payment is pending. Please pay the amount due at the front desk when you arrive to confirm your entry.</td></tr></table>` : ""}
+
+          <p style="margin:0;font-size:13px;font-weight:500;color:#94a3b8;line-height:1.6;font-family:${EMAIL_FONT};">If you have any questions please contact us directly. We look forward to seeing you!</p>
         </td></tr>
         <!-- Footer -->
         <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:11px;color:#94a3b8;">This is an automated confirmation. Please do not reply to this email.</p>
+          <p style="margin:0;font-size:11px;font-weight:500;color:#94a3b8;font-family:${EMAIL_FONT};">This is an automated confirmation. Please do not reply to this email.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -1395,7 +1507,7 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
 </html>`;
 
         const { sendMail } = await import("../config/mailer.js");
-        await sendMail({ to: recipientEmail, subject, html, text: `Booking confirmed: ${roomName} on ${start.date} from ${start.time} to ${end.time}. Booking ID: ${booking.bookingCode || String(booking._id)} (show this at the front desk to verify). Payment: ${paymentStatus}.` });
+        await sendMail({ to: recipientEmail, subject, html, text: `Booking confirmed: ${roomName}, ${slotLabel.replace(/&ndash;|&rarr;|&nbsp;/g, "-")}. Booking ID: ${booking.bookingCode || String(booking._id)} (show this at the front desk to verify). Total: ${emailCurrency(Number(booking.totalAmount || 0))} (${paidNow ? "Paid" : "Unpaid — due at front desk"}).` });
 
         return res.status(200).json({ success: true, message: "Confirmation email sent." });
     } catch (err: any) {

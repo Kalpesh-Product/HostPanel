@@ -16,6 +16,8 @@ import AiChat from "../components/AiChat";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import { queryClient } from "../main";
+import usePageTour from "../tours/usePageTour";
+import PageGuideButton from "../tours/PageGuideButton";
 
 const MainLayout = () => {
   const { auth } = useAuth();
@@ -26,6 +28,7 @@ const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
+  const { isTourAvailable, startCurrentTour } = usePageTour();
 
   const { data: notifications = [], isLoading: isLoadingNotifications, refetch: refetchNotifications } = useQuery({
     queryKey: ["notifications"],
@@ -125,7 +128,7 @@ const MainLayout = () => {
               style: { width: 250 },
             }}
           >
-            <div className="py-2">
+            <div className="py-2" data-tour="sidebar">
               {isTenantRoute ? (
                 <TenantSidebar
                   drawerOpen={mobileOpen}
@@ -140,14 +143,14 @@ const MainLayout = () => {
             </div>
           </Drawer>
         ) : (
-          <aside className="bg-white">
+          <aside className="bg-white" data-tour="sidebar">
             {isTenantRoute ? <TenantSidebar /> : <Sidebar />}
           </aside>
         )}
 
         <div className="w-full min-w-0">
           <main className="w-full bg-[#F7F8FA] p-3 flex flex-col gap-2">
-            <div className="p-4 rounded-t-md bg-white">
+            <div className="p-4 rounded-t-md bg-white" data-tour="breadcrumb">
               <BreadCrumbComponent />
             </div>
             <div
@@ -155,8 +158,9 @@ const MainLayout = () => {
               className="bg-white h-[80vh] overflow-y-auto flex flex-col justify-between min-w-0"
             >
               <ScrollToTop />
-              <div key={outletKey} className="w-full min-w-0">
+              <div key={outletKey} className="w-full min-w-0" data-tour="page-content">
                 <Outlet />
+                <PageGuideButton available={isTourAvailable} onStart={startCurrentTour} />
               </div>
 
               <div ref={dummyRef} className="h-1 w-1 bg-red-500 text-red-500" />

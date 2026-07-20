@@ -12,6 +12,10 @@ import {
   updateManagedWorkspace,
   updateWorkspaceSettings,
 } from "../controllers/workspaceControllers.js";
+import {
+  getTourProgress,
+  saveTourProgress,
+} from "../controllers/tourControllers.js";
 
 const router = Router();
 
@@ -25,5 +29,7 @@ router.get("/module-access-map", getWorkspaceModuleAccessMap);
 router.post("/dev/backfill-modules", backfillWorkspaceModules);
 router.patch("/settings", updateWorkspaceSettings);
 router.get("/host-company", getCurrentHostCompanyIdentity);
+router.get("/tour-progress", getTourProgress);
+router.patch("/tour-progress/:tourKey", saveTourProgress);
 
 export default router;

@@ -1297,12 +1297,17 @@ function ExternalBookingDialog({
       const start = `${bookingForm.date}T${bookingForm.startTime}:00+05:30`;
       const end = `${bookingForm.endDate || bookingForm.date}T${bookingForm.endTime}:00+05:30`;
 
-      await createMeetingRoomBooking({
+      const createResponse = await createMeetingRoomBooking({
         bookingType: 'External',
         roomId,
         roomName: room.name,
         bookedByName: selectedClient.name,
         bookedForName: selectedClient.name,
+        // Client contact — needed for the confirmation email recipient and so
+        // the booking detail view can show the client's phone/email/company.
+        bookedByEmail: selectedClient.email || '',
+        bookedByPhone: selectedClient.phone || '',
+        clientCompany: selectedClient.company || '',
         externalClientId: selectedClient._id,
         start,
         end,
@@ -1315,10 +1320,22 @@ function ExternalBookingDialog({
         discountType: bookingForm.discountType,
         discountValue: Number(bookingForm.discountValue) || 0,
         paymentMode: bookingForm.paymentMode,
-        paymentStatus: 'Paid',
+        // UPI is always paid (evidence required); Cash can be marked unpaid.
+        paymentStatus: bookingForm.paymentMode === 'Cash' ? (bookingForm.paymentStatus || 'Paid') : 'Paid',
         transactionId: bookingForm.transactionId || '',
         paymentProof: bookingForm.paymentProofFile,
       } as any);
+
+      // Email the client their booking confirmation (best-effort).
+      const createdBookingId = String(
+        (createResponse as any)?.booking?._id
+        || (createResponse as any)?.data?.booking?._id
+        || (createResponse as any)?.booking?.recordId
+        || '',
+      ).trim();
+      if (createdBookingId) {
+        try { await sendExternalBookingConfirmationEmail(createdBookingId); } catch { /* non-blocking */ }
+      }
 
       await onSuccess();
       handleClose();
@@ -1913,9 +1930,27 @@ function ExternalBookingDialog({
                       <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
                         Payment Status
                       </label>
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-emerald-700">
-                        {bookingForm.paymentMode === 'Cash' ? 'Paid · Cash' : bookingForm.paymentMode ? `Paid · ${bookingForm.paymentMode}` : 'Select payment mode'}
-                      </div>
+                      {bookingForm.paymentMode === 'Cash' ? (
+                        <div className="grid grid-cols-2 gap-1.5 bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
+                          {[['Paid', 'Mark Paid'], ['Pending Payment', 'Mark Unpaid']].map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setBookingForm((f) => ({ ...f, paymentStatus: value }))}
+                              className={`py-2 rounded-xl text-[11px] font-pmedium uppercase tracking-widest transition-all ${bookingForm.paymentStatus === value ? (value === 'Paid' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-amber-500 text-white shadow-sm') : 'text-[#0F172A] hover:bg-slate-200/70'}`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-emerald-700">
+                          {bookingForm.paymentMode ? `Paid · ${bookingForm.paymentMode}` : 'Select payment mode'}
+                        </div>
+                      )}
+                      {bookingForm.paymentMode === 'Cash' && bookingForm.paymentStatus !== 'Paid' && (
+                        <p className="mt-1.5 text-[10px] font-medium text-slate-400">Amount stays due — the client is emailed to pay at the front desk before entry.</p>
+                      )}
                     </div>
 
                     <div>
@@ -5475,7 +5510,19 @@ export function MeetingRoomsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                           <div>
                             <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Client Name</p>
-                            <p className="text-[12px] font-pmedium text-slate-900">{getExternalClientName(viewingBooking) || '—'}</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientName || getExternalClientName(viewingBooking) || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Company</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientCompany || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Phone</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientPhone || (viewingBooking as any).bookedByPhone || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Email</p>
+                            <p className="text-[12px] font-pmedium text-slate-900 break-all">{(viewingBooking as any).clientEmail || (viewingBooking as any).bookedByEmail || '—'}</p>
                           </div>
                           {(viewingBooking as any).paymentMode && (
                             <div>
@@ -6180,6 +6227,11 @@ export function MeetingRoomsPage() {
                               </button>
                             ))}
                           </div>
+                        </div>
+                      )}
+                      {hasDiff && diff < 0 && (
+                        <div className="pt-2 border-t border-amber-100">
+                          <p className="text-[11px] font-pmedium text-emerald-700 flex items-center gap-1.5"><CreditCard size={12} /> Refund {formatCurrency(Math.abs(diff))} to the client from the front desk. The client is emailed this refund note.</p>
                         </div>
                       )}
                     </div>

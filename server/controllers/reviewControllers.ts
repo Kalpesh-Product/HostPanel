@@ -623,7 +623,24 @@ export const getReviewsByCompany = async (req, res, next) => {
   try {
     const { companyType = "", status = "", reviewScope = "" } = req.query;
     const normalizedReviewScope = sanitizeValue(reviewScope).toLowerCase();
-    const companyId = await resolveCanonicalCompanyId(req);
+    const requestedCompanyId = sanitizeValue(req.query?.companyId);
+    let companyId = await resolveCanonicalCompanyId(req);
+    if (normalizedReviewScope === "nomads") {
+      const nomadsCandidate = requestedCompanyId || companyId;
+      const linkedCompany = nomadsCandidate
+        ? await Company.findOne({
+            $or: [
+              { companyId: nomadsCandidate },
+              { linkedNomadsCompanyId: nomadsCandidate },
+            ],
+          })
+            .select("companyId linkedNomadsCompanyId")
+            .lean()
+        : null;
+      companyId = sanitizeValue(
+        linkedCompany?.linkedNomadsCompanyId || nomadsCandidate,
+      );
+    }
     const template = await resolveTemplateFromRequest(req);
     const resolvedWorkspaceId = sanitizeValue(
       req.workspaceMembership?.workspace || req.query?.workspaceId || template?.workspaceId,
@@ -642,6 +659,7 @@ export const getReviewsByCompany = async (req, res, next) => {
         params: {
           companyId,
           companyType,
+          ...(normalizedReviewScope === "nomads" ? { source: "nomad" } : {}),
           ...(status ? { status } : {}),
           ...(normalizedReviewScope !== "nomads" && resolvedWorkspaceId
             ? { workspaceId: resolvedWorkspaceId }
