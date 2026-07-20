@@ -182,9 +182,9 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
 
   return (
     <div className="flex flex-col gap-5">
-
       {/* Upgrade nudge — opens modal for Professional plan */}
       <div
+        data-tour="dashboard-plan"
         className="flex items-center gap-3 p-4 rounded-xl border-2 border-accent/30 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
         onClick={onUpgradeClick}
       >
@@ -202,21 +202,26 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
       </div>
 
       {/* Top stat cards */}
-      <WidgetSection layout={4} title="Overview" border normalCase>
+      <div data-tour="dashboard-overview">
+        <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently in`} color="#80bf01" route="/visitors/visitor-management" />
         <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} new`} color="#1E3D73" route="/company-settings/website-builder/leads" />
         <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/company-settings/organization-management" />
         <StatCard icon={Eye} label="All-Time Visitors" value={visitorStats.totalCount} sub="Total logged visitors" color="#7c3aed" route="/visitors/visitor-management" />
-      </WidgetSection>
+        </WidgetSection>
+      </div>
 
       {/* Quick links */}
-      <WidgetSection layout={3} title="Quick Links" border normalCase>
-        {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
-      </WidgetSection>
+      <div data-tour="dashboard-quick-links">
+        <WidgetSection layout={3} title="Quick Links" border normalCase>
+          {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
+        </WidgetSection>
+      </div>
 
       {/* Recent leads + Lead status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
+        <div data-tour="dashboard-recent-leads">
+          <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
           {recentLeads.length > 0 ? (
             recentLeads.map((l: any, i: number) => (
               <RecentItem
@@ -231,21 +236,25 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
           ) : (
             <p className="text-content text-gray-400 text-center py-6">No leads yet — publish your website to start receiving leads.</p>
           )}
-        </SectionCard>
+          </SectionCard>
+        </div>
 
-        <DonutWidget
-          title="Lead Status"
-          series={leadDonutSeries}
-          labels={leadDonutLabels}
-          colors={leadDonutColors}
-          centerLabel="Leads"
-          emptyText="No leads yet"
-        />
+        <div data-tour="dashboard-lead-status">
+          <DonutWidget
+            title="Lead Status"
+            series={leadDonutSeries}
+            labels={leadDonutLabels}
+            colors={leadDonutColors}
+            centerLabel="Leads"
+            emptyText="No leads yet"
+          />
+        </div>
       </div>
 
       {/* Recent visitors + Visitor types */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
+        <div data-tour="dashboard-recent-visitors">
+          <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
           {recentVisitors.length > 0 ? (
             recentVisitors.map((v: any, i: number) => {
               const status = String(v.status || "").toLowerCase();
@@ -263,20 +272,23 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
           ) : (
             <p className="text-content text-gray-400 text-center py-6">No visitors logged yet.</p>
           )}
-        </SectionCard>
+          </SectionCard>
+        </div>
 
-        <DonutWidget
-          title="Visitor Types"
-          series={visitorTypeDonut.series}
-          labels={visitorTypeDonut.labels}
-          colors={visitorTypeDonut.colors}
-          centerLabel="Visitors"
-          emptyText="No visitor data yet"
-        />
+        <div data-tour="dashboard-visitor-types">
+          <DonutWidget
+            title="Visitor Types"
+            series={visitorTypeDonut.series}
+            labels={visitorTypeDonut.labels}
+            colors={visitorTypeDonut.colors}
+            centerLabel="Visitors"
+            emptyText="No visitor data yet"
+          />
+        </div>
       </div>
 
       {/* Monthly visitor bar chart */}
-      <div className="border-default border-borderGray rounded-xl overflow-hidden">
+      <div data-tour="dashboard-visitor-trend" className="border-default border-borderGray rounded-xl overflow-hidden">
         <div className="p-4 border-b-2 border-borderGray uppercase">
           <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Monthly Visitor Trend (FY)</span>
         </div>

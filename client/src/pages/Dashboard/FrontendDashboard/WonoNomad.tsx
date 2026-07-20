@@ -23,21 +23,27 @@ const WonoNomad = () => {
 
           {/* CARDS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card
-              icon={<MdOutlineTravelExplore />}
-              title="Nomad Listings"
-              route="/company-settings/nomad-listings"
-            />
-            <Card
-              icon={<MdOutlineRateReview />}
-              title="Nomads Reviews"
-              route="/company-settings/reviews"
-            />
-            <Card
-              icon={<ContactRound />}
-              title="Nomads Leads"
-              route="/company-settings/nomads-leads"
-            />
+            <div data-tour="wono-nomad-listings">
+              <Card
+                icon={<MdOutlineTravelExplore />}
+                title="Nomad Listings"
+                route="/company-settings/nomad-listings"
+              />
+            </div>
+            <div data-tour="wono-nomad-reviews">
+              <Card
+                icon={<MdOutlineRateReview />}
+                title="Nomads Reviews"
+                route="/company-settings/reviews"
+              />
+            </div>
+            <div data-tour="wono-nomad-leads">
+              <Card
+                icon={<ContactRound />}
+                title="Nomads Leads"
+                route="/company-settings/nomads-leads"
+              />
+            </div>
           </div>
         </div>
       </PageFrame>

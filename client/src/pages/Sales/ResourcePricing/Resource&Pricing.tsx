@@ -5,6 +5,8 @@ import { createPricingPackage, deletePricingPackage, getPricingPackages, updateP
 import { toast } from 'sonner';
 import { AlertTriangle, Building2,View, CheckCircle2, ChevronDown, Clock, Download, Edit2, Eye, FileDown, FileSpreadsheet, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
+import useDashboardAccess from '../../../hooks/useDashboardAccess';
+import { canExportReports } from '../../../utils/workspacePlanAccess';
 import useAxiosPrivate from '../../../hooks/useAxiosPrivate';
 import { formatTime12h } from '../../../utils/time';
 import { createReport } from '../../../services/reports';
@@ -640,6 +642,8 @@ export default function PricingPackagesPage() {
   const [floorMode, setFloorMode] = useState('select');
   const [wingMode, setWingMode] = useState('select');
   const currentUser = useFreshCurrentUser();
+  const { plan } = useDashboardAccess();
+  const showReportExports = canExportReports(plan);
   const navigate = useNavigate();
 
   const currentUserName = useMemo(
@@ -1642,7 +1646,9 @@ export default function PricingPackagesPage() {
 
               </>
             ) : null}
-            <button
+            {showReportExports && (
+              <>
+                <button
                                 type="button"
                                 // onClick={handleExportPDF}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
@@ -1656,7 +1662,8 @@ export default function PricingPackagesPage() {
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
-            
+              </>
+            )}
           </div>
         </div>
 
@@ -2167,7 +2174,7 @@ export default function PricingPackagesPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {isViewingPackage ? (
+                  {isViewingPackage && showReportExports ? (
                     <>
                       <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-10 h-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 hover:bg-red-50 transition-colors" title="Download PDF"><FileDown size={16} /></button>
                       <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-10 h-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Download Excel"><FileSpreadsheet size={16} /></button>

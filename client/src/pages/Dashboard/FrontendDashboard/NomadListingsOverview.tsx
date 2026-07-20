@@ -117,7 +117,7 @@ export default function NomadListingsOverview() {
 
           {/* REQUEST BANNER */}
           {!isLinkedToExistingCompany && !!listings.length && (
-            <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-blue-200 bg-blue-50">
+            <div data-tour="nomad-request-banner" className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-blue-200 bg-blue-50">
               <div className="font-pmedium text-gray-700">
                 {requestSent ? (
                   <>Your request is pending review by our team.</>
@@ -139,7 +139,7 @@ export default function NomadListingsOverview() {
           )}
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
+          <div data-tour="nomad-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Listings</p>
@@ -200,7 +200,7 @@ export default function NomadListingsOverview() {
             <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
               {/* Toolbar */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="nomad-status-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {["all", "active", "inactive"].map((key) => (
                     <button
                       key={key}
@@ -222,7 +222,7 @@ export default function NomadListingsOverview() {
                       ? `${totalListings} listings added · Unlimited plan`
                       : `${totalListings}/${limit} listings added · ${remaining} left`}
                   </div>
-                  <div className="relative flex-1 min-w-[180px]">
+                  <div data-tour="nomad-search" className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text"
@@ -233,6 +233,7 @@ export default function NomadListingsOverview() {
                     />
                   </div>
                   <button
+                    data-tour="nomad-add-listing"
                     type="button"
                     onClick={handleAddClick}
                     aria-disabled={isAtLimit}
@@ -249,7 +250,7 @@ export default function NomadListingsOverview() {
 
               {/* Table */}
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left min-w-[700px]">
+                <table data-tour="nomad-table" className="w-full text-left min-w-[700px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Sr No</th>

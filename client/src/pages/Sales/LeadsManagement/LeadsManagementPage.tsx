@@ -9,8 +9,10 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
+import useDashboardAccess from "../../../hooks/useDashboardAccess";
+import { canExportReports } from "../../../utils/workspacePlanAccess";
 import { createReport } from "../../../services/reports";
-import { getSalesTourLeads, getWebsiteLeads } from "../../../services/sales-leads";
+import { getSalesTourLeads, getWebsiteLeads, updateWebsiteLeadHostStatus } from "../../../services/sales-leads";
 import { getUnitTourLeads } from "../../../services/visitors";
 import { downloadReportFile } from "../../../utils/report-download";
 import PageFrame from "../../../components/Pages/PageFrame";
@@ -162,6 +164,8 @@ export default function LeadsManagementPage() {
   const [isWebsiteLoading, setIsWebsiteLoading] = useState(false);
   const [websiteError, setWebsiteError] = useState("");
   const currentUser = useFreshCurrentUser();
+  const { plan } = useDashboardAccess();
+  const showReportExports = canExportReports(plan);
   const navigate = useNavigate();
 
   const currentUserName = useMemo(
@@ -190,7 +194,7 @@ export default function LeadsManagementPage() {
       setWebsiteLeadStages((current) => {
         const nextStages = { ...current };
         nextLeads.forEach((lead) => {
-          if (!nextStages[lead._id]) nextStages[lead._id] = lead.status || "Pending";
+          if (!nextStages[lead._id]) nextStages[lead._id] = lead.hostPanelStatus || "Pending";
         });
         return nextStages;
       });
@@ -290,29 +294,27 @@ export default function LeadsManagementPage() {
   }, [normalizedLeads]);
 
   const normalizedWebsiteLeads = useMemo(
-    () => websiteLeads.map((lead) => ({ ...lead, status: websiteLeadStages[lead._id] || lead.status || "Pending" })),
+    () => websiteLeads.map((lead) => ({ ...lead, hostPanelStatus: websiteLeadStages[lead._id] || lead.hostPanelStatus || "Pending" })),
     [websiteLeads, websiteLeadStages],
   );
 
   const websiteLeadStats = useMemo(() => {
     const total = normalizedWebsiteLeads.length;
-    const pending = normalizedWebsiteLeads.filter((l) => l.status === "Pending").length;
-    const contacted = normalizedWebsiteLeads.filter((l) => l.status === "Contacted").length;
-    const closed = normalizedWebsiteLeads.filter((l) => l.status === "Closed").length;
+    const pending = normalizedWebsiteLeads.filter((l) => l.hostPanelStatus === "Pending").length;
+    const closed = normalizedWebsiteLeads.filter((l) => l.hostPanelStatus === "Closed").length;
     return [
-      { label: "Total Website Leads", value: total, icon: Target },
+      { label: "All Website & Nomad Leads", value: total, icon: Target },
       { label: "Pending", value: pending, icon: Sparkles },
-      { label: "Contacted", value: contacted, icon: BadgeCheck },
       { label: "Closed", value: closed, icon: CheckCircle2 },
     ];
   }, [normalizedWebsiteLeads]);
 
-  const WEBSITE_STATUSES = ["Pending", "Contacted", "Closed", "Rejected"];
+  const WEBSITE_STATUSES = ["Pending", "Closed"];
 
   const visibleWebsiteLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return normalizedWebsiteLeads.filter((lead) => {
-      const matchesStage = stageFilter === "All" || lead.status === stageFilter;
+      const matchesStage = stageFilter === "All" || lead.hostPanelStatus === stageFilter;
       const matchesQuery = !query || [lead.fullName, lead.mobileNumber, lead.email, lead.source, lead.vertical, lead.productType, lead.companyName]
         .filter(Boolean).some((v) => String(v).toLowerCase().includes(query));
       return matchesStage && matchesQuery;
@@ -336,13 +338,24 @@ export default function LeadsManagementPage() {
     setLeadStages((current) => ({ ...current, [leadId]: nextStage }));
   };
 
-  const handleUpdateWebsiteLeadStatus = (leadId, nextStatus) => {
+  const handleUpdateWebsiteLeadStatus = async (leadId, nextStatus) => {
     setWebsiteLeadStages((current) => ({ ...current, [leadId]: nextStatus }));
+    try {
+      await updateWebsiteLeadHostStatus(leadId, nextStatus);
+      toast.success("HostPanel lead status updated");
+    } catch (updateError) {
+      setWebsiteLeadStages((current) => {
+        const next = { ...current };
+        delete next[leadId];
+        return next;
+      });
+      toast.error(updateError?.response?.data?.message || "Unable to update lead status");
+    }
   };
 
   const selectedWebsiteLead = useMemo(
-    () => websiteLeads.find((l) => l._id === selectedWebsiteLeadId) || null,
-    [websiteLeads, selectedWebsiteLeadId],
+    () => normalizedWebsiteLeads.find((l) => l._id === selectedWebsiteLeadId) || null,
+    [normalizedWebsiteLeads, selectedWebsiteLeadId],
   );
 
   const handleExportReport = async (format = "PDF") => {
@@ -391,16 +404,20 @@ export default function LeadsManagementPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
-            <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export leads as PDF"
-              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-              <FileDown size={16} className="text-red-500" aria-hidden="true" />
-              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-            </button>
-            <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export leads as Excel"
-              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-              <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
-              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-            </button>
+            {showReportExports && (
+              <>
+                <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export leads as PDF"
+                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                  <FileDown size={16} className="text-red-500" aria-hidden="true" />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                </button>
+                <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export leads as Excel"
+                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                  <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                </button>
+              </>
+            )}
             {/* <button
               type="button"
               onClick={mainTab === "website-leads" ? loadWebsiteLeads : loadLeads}
@@ -433,7 +450,7 @@ export default function LeadsManagementPage() {
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
         {mainTab === "unit-tour" ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
             <div className="min-w-0">
               <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Leads</p>
@@ -467,7 +484,7 @@ export default function LeadsManagementPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
             <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Website Leads</p>
+              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">All Website & Nomad Leads</p>
               <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[0]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16}/></div>
@@ -479,17 +496,10 @@ export default function LeadsManagementPage() {
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16}/></div>
           </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Contacted</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[2]?.value ?? 0}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><BadgeCheck size={16}/></div>
-          </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
             <div className="min-w-0">
               <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[3]?.value ?? 0}</p>
+              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[2]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>
           </div>
@@ -656,8 +666,7 @@ export default function LeadsManagementPage() {
                     Pending: "bg-amber-50 text-amber-700 border-amber-100",
                     Contacted: "bg-blue-50 text-blue-700 border-blue-100",
                     Closed: "bg-emerald-50 text-emerald-700 border-emerald-100",
-                    Rejected: "bg-rose-50 text-rose-700 border-rose-100",
-                  }[lead.status] || "bg-slate-50 text-slate-600 border-slate-200";
+                  }[lead.hostPanelStatus] || "bg-slate-50 text-slate-600 border-slate-200";
                   return (
                     <tr key={lead._id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
@@ -686,7 +695,7 @@ export default function LeadsManagementPage() {
                       </td>
                       <td className="px-5 py-4">
                         <select
-                          value={lead.status}
+                          value={lead.hostPanelStatus}
                           onChange={(e) => handleUpdateWebsiteLeadStatus(lead._id, e.target.value)}
                           className={`rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider cursor-pointer outline-none focus:ring-2 focus:ring-[#2563EB]/20 ${websiteStageStyle}`}
                         >
@@ -868,7 +877,7 @@ export default function LeadsManagementPage() {
                 <div className="min-w-0">
                   <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{selectedWebsiteLead.fullName}</h2>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className={statusPillClass(selectedWebsiteLead.status)}>{selectedWebsiteLead.status}</span>
+                    <span className={statusPillClass(selectedWebsiteLead.hostPanelStatus || "Pending")}>{selectedWebsiteLead.hostPanelStatus || "Pending"}</span>
                     {(() => {
                       // Show productType as primary category; fall back to vertical only if productType is absent or same as "co-working" default
                       const pt = (selectedWebsiteLead.productType || "").trim();
@@ -1012,12 +1021,14 @@ export default function LeadsManagementPage() {
 
             {/* Footer */}
             <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0 flex gap-2.5">
-              <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Rejected"); setSelectedWebsiteLeadId(null); }}
-                className="flex-1 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[12px] hover:bg-red-50 transition-colors shadow-sm flex items-center justify-center gap-1.5"
-              ><XCircle size={14} /> Reject Lead</button>
-              <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Closed"); setSelectedWebsiteLeadId(null); }}
-                className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
-              ><CheckCircle2 size={14} /> Close Lead</button>
+              <button type="button" onClick={() => setSelectedWebsiteLeadId(null)}
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-100 transition-colors shadow-sm"
+              >Close</button>
+              {(selectedWebsiteLead.hostPanelStatus || "Pending") !== "Closed" && (
+                <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Closed"); setSelectedWebsiteLeadId(null); }}
+                  className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
+                ><CheckCircle2 size={14} /> Close Lead</button>
+              )}
             </div>
 
           </div>

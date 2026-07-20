@@ -62,6 +62,7 @@ export default function WorkspaceSwitcher() {
 
   return (
     <div
+      data-tour="workspace-switcher"
       style={{ width: `${switcherWidthCh}ch` }}
       className="flex items-center gap-2 rounded-[16px] border border-white/80 bg-white/60 px-2.5 py-2 sm:px-3 shadow-[0_2px_8px_rgba(15,23,42,0.03)]"
     >

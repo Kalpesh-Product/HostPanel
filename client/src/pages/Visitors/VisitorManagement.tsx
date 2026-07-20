@@ -124,6 +124,9 @@ function getDefaultVisitorForm() {
     discountType: 'amount',
     discountValue: '',
     paymentMode: '',
+    // For Cash walk-ins the front desk marks whether the amount was actually
+    // collected now ('paid') or is still owed ('unpaid'). GPay is always paid.
+    paymentSettled: 'paid',
     transactionId: '',
     paymentProofFile: null,
     bookingId: '',
@@ -802,19 +805,29 @@ function normalizeVerifiedBooking(booking) {
   if (!booking) return null;
 
   const id = String(booking.bookingCode || booking.id || '').trim().toUpperCase();
+  const endDate = booking.endDate || booking.date || '';
+  const isMultiDay = Boolean(endDate) && endDate !== booking.date;
+  const amountDue = Number(booking.totalAmount || booking.amountDue || 0);
+  const rawPaymentStatus = String(booking.paymentStatus || '').trim();
+  // Paid when the payment status says so (Paid / collected / not required) or
+  // there's nothing to collect. Everything else with money owed is unpaid.
+  const isPaid = /paid|collected|not.?required|complete/i.test(rawPaymentStatus) || amountDue <= 0;
+  const paymentStatus = isPaid ? (rawPaymentStatus || 'Paid') : (rawPaymentStatus || 'Pending Payment');
   return {
     id,
     recordId: String(booking.recordId || booking._id || booking.id || booking.bookingCode || id || '').trim(),
     resource: booking.roomName || booking.resource || 'Meeting Room',
-    date: booking.date ? formatWalkInDateLabel(booking.date, booking.date) : booking.date || '',
+    date: booking.date ? formatWalkInDateLabel(booking.date, isMultiDay ? endDate : booking.date) : booking.date || '',
     time: booking.time || `${formatTimeLabel(booking.startTime)} - ${formatTimeLabel(booking.endTime)}`,
-    bookedBy: booking.bookedByName || booking.bookedBy || '',
+    bookedBy: booking.clientName || booking.bookedByName || booking.bookedBy || '',
     host: booking.hostName || '',
     company: booking.clientCompany || booking.company || booking.bookingSource || 'Frontdesk',
-    phone: booking.bookedByPhone || booking.phone || '',
-    email: booking.bookedByEmail || booking.email || '',
-    status: booking.paymentStatus || booking.liveStatus || booking.status || 'Booked',
-    amountDue: Number(booking.totalAmount || booking.amountDue || 0),
+    phone: booking.clientPhone || booking.bookedByPhone || booking.phone || '',
+    email: booking.clientEmail || booking.bookedByEmail || booking.email || '',
+    isPaid,
+    paymentStatus,
+    status: paymentStatus,
+    amountDue,
     discountType: booking.discountType || 'amount',
     discountValue: Number(booking.discountValue || 0),
     discountAmount: Number(booking.discountAmount || 0),
@@ -912,11 +925,11 @@ function normalizeDailyBooking(booking) {
     isExtended,
     isRescheduled,
     scheduleChangeLabel,
-    bookedBy: booking.bookedByName || booking.bookedBy || '',
+    bookedBy: booking.clientName || booking.bookedByName || booking.bookedBy || '',
     host: booking.hostName || '',
     company: booking.clientCompany || booking.company || booking.bookingSource || 'Frontdesk',
-    phone: booking.bookedByPhone || booking.phone || '',
-    email: booking.bookedByEmail || booking.email || '',
+    phone: booking.clientPhone || booking.bookedByPhone || booking.phone || '',
+    email: booking.clientEmail || booking.bookedByEmail || booking.email || '',
     status,
     paymentStatus,
     amountDue: Number(booking.totalAmount || booking.amountDue || 0),
@@ -2652,7 +2665,11 @@ export default function VisitorsManagementPage() {
         .some((candidate) => String(candidate || '').trim().toUpperCase() === normalizedId);
     const backendMatch = meetingRoomBookings.find(matchesEnteredId);
     const localMatch = upcomingBookings.find(matchesEnteredId);
-    const found = backendMatch ? normalizeVerifiedBooking(backendMatch) : localMatch;
+    // Normalize both paths through the same shape so the verify card always
+    // has isPaid / amountDue / client details, whichever source matched.
+    const found = backendMatch
+      ? normalizeVerifiedBooking(backendMatch)
+      : (localMatch ? normalizeVerifiedBooking(localMatch) : null);
     if (found) {
       setVerifiedBooking(found);
       setBookingConfirmation(null);
@@ -3182,7 +3199,8 @@ export default function VisitorsManagementPage() {
           attendees: bookingAttendees,
           seatNumber: isDeskAreaSeatBooking ? walkInSeatNumber : undefined,
           paymentMode: form.paymentMode,
-          paymentStatus: 'Paid',
+          // GPay is always paid; Cash is paid unless the front desk marked it unpaid.
+          paymentStatus: (form.paymentMode === 'Cash' && form.paymentSettled === 'unpaid') ? 'Pending Payment' : 'Paid',
           financeStatus: form.paymentMode === 'Cash' ? 'Invoice Pending' : 'Sent To Finance',
           paymentVerificationStatus: form.paymentMode === 'Cash' ? '' : 'Pending',
           transactionId: form.transactionId.trim(),
@@ -3279,25 +3297,34 @@ export default function VisitorsManagementPage() {
       return;
     }
     else if (visitorMode === 'verify_booking' && verifiedBooking) {
+      const needsPayment = !verifiedBooking.isPaid;
+      if (needsPayment && !form.paymentMode) {
+        toast.error('Select how the visitor is paying before confirming entry.');
+        return;
+      }
       try {
         const response = await updateMeetingRoomBooking(verifiedBooking.recordId || verifiedBooking.id, {
           status: 'in progress',
+          // Unpaid booking → the front desk is collecting payment now, so
+          // record it as Paid with the chosen mode. Paid bookings pass through.
+          ...(needsPayment ? { paymentStatus: 'Paid', paymentMode: form.paymentMode } : {}),
         });
         const updatedBooking = response?.data?.booking || response?.booking || null;
         if (updatedBooking) {
           syncDailyBookingState(updatedBooking);
         }
       } catch (error) {
-        alert(error.message || 'Unable to mark the meeting as in progress.');
+        toast.error(error.message || 'Unable to confirm entry for this booking.');
         return;
       }
 
       finalRecord = {
         ...finalRecord, name: verifiedBooking.bookedBy, company: verifiedBooking.company, phone: verifiedBooking.phone,
         purpose: 'Pre-booked Space', department: 'Admin', host: 'Self',
-        notes: `Booking ${verifiedBooking.id} Verified. ${verifiedBooking.status === 'Pending Payment' ? `Payment collected via ${form.paymentMode}` : 'Pre-paid'}.`
+        notes: `Booking ${verifiedBooking.id} Verified. ${needsPayment ? `Payment collected via ${form.paymentMode}` : 'Pre-paid'}.`
       };
       setLiveVisitors([finalRecord, ...liveVisitors]);
+      toast.success(needsPayment ? `Payment collected and entry confirmed for ${verifiedBooking.bookedBy}.` : `Entry confirmed for ${verifiedBooking.bookedBy}.`);
     }
 
     setIsLoggingVisitor(false);
@@ -5597,6 +5624,24 @@ export default function VisitorsManagementPage() {
                                 ))}
                               </div>
                               {visibleWalkInErrors.paymentMode ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentMode}</span> : null}
+                              {form.paymentMode === 'Cash' && (
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Received?</label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {[['paid', 'Mark Paid'], ['unpaid', 'Mark Unpaid']].map(([value, label]) => (
+                                      <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setForm({ ...form, paymentSettled: value })}
+                                        className={`rounded-lg border px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.paymentSettled === value ? (value === 'paid' ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm' : 'border-amber-500 bg-amber-500 text-white shadow-sm') : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
+                                      >
+                                        {label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <p className="text-[10px] font-medium text-slate-400">{form.paymentSettled === 'unpaid' ? 'Amount stays due — the client is emailed to pay at the front desk before entry.' : 'Amount collected now — booking is marked paid.'}</p>
+                                </div>
+                              )}
                               {normalizeText(form.paymentMode).includes('gpay') && (
                                 <div className="space-y-3">
                                   <div className="flex flex-col gap-1">
@@ -5657,17 +5702,35 @@ export default function VisitorsManagementPage() {
                               <p className="font-bold text-gray-900 text-lg mt-1">{verifiedBooking.resource}</p>
                               <p className="text-xs font-bold text-gray-500">{verifiedBooking.date} • {verifiedBooking.time}</p>
                             </div>
-                            <span className={statusPillClass(verifiedBooking.status)}>
-                              {verifiedBooking.status}
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-pmedium uppercase tracking-wider border ${verifiedBooking.isPaid ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                              {verifiedBooking.isPaid ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+                              {verifiedBooking.isPaid ? 'Paid' : 'Payment Due'}
                             </span>
                           </div>
 
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-pmedium text-gray-500 uppercase">Booked By / Primary Attendee</p>
-                            <p className="font-bold text-gray-900">{verifiedBooking.bookedBy} <span className="text-gray-400 text-xs">({verifiedBooking.company})</span></p>
+                          <div className="rounded-xl bg-slate-50 border border-slate-100 p-3.5 space-y-2.5">
+                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 flex items-center gap-1.5"><User size={11} /> Client Details</p>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                              <div>
+                                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Name</p>
+                                <p className="mt-0.5 font-bold text-gray-900 text-[13px]">{verifiedBooking.bookedBy || '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Company</p>
+                                <p className="mt-0.5 font-bold text-gray-900 text-[13px]">{verifiedBooking.company || '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Phone</p>
+                                <p className="mt-0.5 font-bold text-gray-900 text-[13px]">{verifiedBooking.phone || 'Not provided'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Email</p>
+                                <p className="mt-0.5 font-bold text-gray-900 text-[13px] break-all">{verifiedBooking.email || 'Not provided'}</p>
+                              </div>
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="grid grid-cols-3 gap-3 text-sm">
                             <div className="rounded-xl bg-gray-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Booking ID</p>
                               <p className="mt-1 font-black text-gray-900">{verifiedBooking.id}</p>
@@ -5677,21 +5740,23 @@ export default function VisitorsManagementPage() {
                               <p className="mt-1 font-black text-gray-900">{verifiedBooking.attendees || '1'}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-3">
-                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Email</p>
-                              <p className="mt-1 font-bold text-gray-900">{verifiedBooking.email || 'Not provided'}</p>
-                            </div>
-                            <div className="rounded-xl bg-gray-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Mode</p>
-                              <p className="mt-1 font-bold text-gray-900">{verifiedBooking.paymentMode || 'Not set'}</p>
+                              <p className="mt-1 font-bold text-gray-900">{verifiedBooking.paymentMode || (verifiedBooking.isPaid ? 'Pre-paid' : 'Not set')}</p>
                             </div>
                           </div>
 
-                          {verifiedBooking.status === 'Pending Payment' && (
+                          {verifiedBooking.isPaid ? (
+                            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 flex items-center gap-2.5">
+                              <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                              <p className="text-[12px] font-pmedium text-emerald-800">Payment already received{Number(verifiedBooking.amountDue) > 0 ? ` (${formatCurrency(verifiedBooking.amountDue)})` : ''}. Confirm entry to check the visitor in.</p>
+                            </div>
+                          ) : (
                             <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-3">
                               <div className="flex justify-between items-center">
-                                <span className={statusPillClass("Amount Due:")}>Amount Due:</span>
-                                <span className="text-xl font-black text-amber-600">₹{verifiedBooking.amountDue}</span>
+                                <span className="text-[11px] font-pmedium uppercase tracking-widest text-amber-700">Amount Due</span>
+                                <span className="text-xl font-black text-amber-600">{formatCurrency(verifiedBooking.amountDue)}</span>
                               </div>
+                              <p className="text-[11px] font-pmedium text-amber-700">Collect payment from the visitor, then confirm entry.</p>
                               <div className="flex gap-2">
                                 {['Cash', 'GPay (UPI)'].map(method => (
                                   <button
@@ -5735,12 +5800,12 @@ export default function VisitorsManagementPage() {
                 )}
                 {visitorMode === 'walkin_booking' && (
                   <button type="button" disabled={isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="w-full sm:flex-1 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-6 py-3 bg-[#2563EB] text-white shadow-sm shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
-                    <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
+                    <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : (form.paymentMode === 'Cash' && form.paymentSettled === 'unpaid') ? 'SAVE BOOKING (UNPAID)' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
                 {visitorMode === 'verify_booking' && (
-                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
-                    <CheckCircle2 size={18} /> {verifiedBooking?.status === 'Pending Payment' ? 'MARK PAID & CHECK IN' : 'CONFIRM ENTRY'}
+                  <button disabled={!verifiedBooking || (verifiedBooking && !verifiedBooking.isPaid && !form.paymentMode) || !visitorAccess.modes.verify_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : (verifiedBooking && !verifiedBooking.isPaid && !form.paymentMode) ? 'Select a payment method to collect the amount due first.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
+                    <CheckCircle2 size={18} /> {verifiedBooking && !verifiedBooking.isPaid ? 'COLLECT PAYMENT & CONFIRM ENTRY' : 'CONFIRM ENTRY'}
                   </button>
                 )}
               </div>
@@ -6227,6 +6292,11 @@ export default function VisitorsManagementPage() {
                                   </button>
                                 ))}
                               </div>
+                            </div>
+                          )}
+                          {hasPriceDiff && priceDiff < 0 && (
+                            <div className="pt-2 border-t border-amber-100">
+                              <p className="text-[11px] font-pmedium text-emerald-700 flex items-center gap-1.5"><CreditCard size={12} /> Refund {formatCurrency(Math.abs(priceDiff))} to the client from the front desk. The client is emailed this refund note.</p>
                             </div>
                           )}
                         </div>

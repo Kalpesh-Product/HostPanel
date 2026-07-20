@@ -4,8 +4,18 @@ import Company from "../models/Company.js";
 import WebsiteTemplate from "../models/website/WebsiteTemplate.js";
 import Workspace from "../models/Workspace.js";
 import WebsiteLead from "../models/WebsiteLead.js";
+import HostUser from "../models/HostUser.js";
 
 const sanitizeValue = (value) => String(value || "").trim();
+const NOMADS_API_BASE_URL = sanitizeValue(
+  process.env.NOMADS_API_BASE_URL ||
+    process.env.REVIEW_API_BASE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://wononomadsbe.vercel.app"
+      : "http://localhost:3000"),
+).replace(/\/+$/, "").replace(/\/api$/i, "");
+const nomadsApiUrl = (path) =>
+  `${NOMADS_API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 const isSyntheticCompanyId = (value) => sanitizeValue(value).includes("-dev-");
 const isNomadLead = (lead) => sanitizeValue(lead?.source).toLowerCase() === "nomad";
 
@@ -146,6 +156,8 @@ export const getLeads = async (req, res, next) => {
       mobileNumber: lead.mobileNumber || "",
       email: lead.email || "",
       status: lead.status || "Pending",
+      hostPanelStatus: lead.hostPanelStatus || "Pending",
+      hostPanelStatusUpdatedAt: lead.hostPanelStatusUpdatedAt || null,
       comment: lead.comment || "",
       recievedDate: lead.createdAt,
       companyName: lead.companyName || "",
@@ -159,7 +171,7 @@ export const getLeads = async (req, res, next) => {
 
     try {
       const leads = await axios.get(
-        "https://wononomadsbe.vercel.app/api/company/leads",
+        nomadsApiUrl("/api/company/leads"),
         {
           params: {
             companyId,
@@ -230,42 +242,92 @@ export const getLeads = async (req, res, next) => {
 
 export const updateLeads = async (req, res, next) => {
   try {
-    const { status = "", comment = "", leadId } = req.body;
+    const { hostPanelStatus = "", comment, leadId } = req.body || {};
+    const normalizedHostStatus = sanitizeValue(hostPanelStatus);
 
-    if ((!leadId && typeof status !== boolean) || (!leadId && !comment)) {
+    if (!leadId || (!normalizedHostStatus && typeof comment !== "string")) {
       return res.status(400).json({
         message: "Missing required fields",
       });
     }
 
-    const localLead = await WebsiteLead.findById(leadId).exec();
-    if (localLead) {
-      if (typeof status === "string" && status.trim()) {
-        localLead.status = status.trim();
-      }
-      if (typeof comment === "string") {
-        localLead.comment = comment;
-      }
-      await localLead.save();
+    if (normalizedHostStatus && !["Pending", "Closed"].includes(normalizedHostStatus)) {
+      return res.status(400).json({ message: "Invalid HostPanel lead status" });
     }
 
+    let hostWorkspaceId = sanitizeValue(
+      req.body?.workspaceId || req.workspaceMembership?.workspace,
+    );
+    if (normalizedHostStatus && !hostWorkspaceId) {
+      const hostUser = await HostUser.findById(req.user)
+        .select("primaryWorkspace workspaceId")
+        .lean();
+      hostWorkspaceId = sanitizeValue(hostUser?.primaryWorkspace || hostUser?.workspaceId);
+    }
+    if (normalizedHostStatus && !hostWorkspaceId) {
+      return res.status(400).json({ message: "A HostPanel workspace is required" });
+    }
+
+    let sharedLead = null;
     try {
       const leads = await axios.patch(
-        `https://wononomadsbe.vercel.app/api/company/update-lead`,
-        req.body
+        nomadsApiUrl("/api/company/update-lead"),
+        {
+          leadId,
+          ...(hostWorkspaceId ? { workspaceId: hostWorkspaceId } : {}),
+          ...(normalizedHostStatus ? { hostPanelStatus: normalizedHostStatus } : {}),
+          ...(typeof comment === "string" ? { comment } : {}),
+        }
       );
-
-      if (leads.status !== 200)
-        return res.status(200).json({ message: "No leads found" });
-    } catch (error) {
-      if (!localLead) {
-        throw error;
+      const upstreamLead = leads?.data?.lead;
+      if (
+        upstreamLead &&
+        (!normalizedHostStatus || upstreamLead.hostPanelStatus === normalizedHostStatus)
+      ) {
+        sharedLead = upstreamLead;
       }
+    } catch (error) {
+      return res.status(error?.response?.status || 502).json({
+        message:
+          error?.response?.data?.message ||
+          "Unable to reach the configured Nomads lead service",
+      });
+    }
+
+    if (!sharedLead) {
+      const verification = await axios.get(nomadsApiUrl("/api/company/leads"), {
+        params: { workspaceId: hostWorkspaceId, isEscalated: true },
+      });
+      const verifiedLeads = Array.isArray(verification?.data) ? verification.data : [];
+      sharedLead = verifiedLeads.find(
+        (lead) =>
+          sanitizeValue(lead?._id) === sanitizeValue(leadId) &&
+          (!normalizedHostStatus || lead?.hostPanelStatus === normalizedHostStatus),
+      );
+    }
+
+    if (!sharedLead) {
+      return res.status(502).json({
+        message: "The configured Nomads backend did not persist the HostPanel status update",
+      });
+    }
+
+    const localLead = await WebsiteLead.findById(leadId).exec();
+    if (localLead) {
+      if (normalizedHostStatus) {
+        localLead.hostPanelStatus = normalizedHostStatus;
+        localLead.hostPanelStatusUpdatedAt = new Date();
+      }
+      if (typeof comment === "string") localLead.comment = comment;
+      await localLead.save();
     }
 
     return res
       .status(200)
-      .json({ message: `Lead ${comment ? "comment" : "status"} updated` });
+      .json({
+        message: `Lead ${typeof comment === "string" && !normalizedHostStatus ? "comment" : "status"} updated`,
+        lead: sharedLead,
+      });
   } catch (error) {
     next(error);
   }
@@ -552,13 +614,14 @@ export const createWebsiteLead = async (req, res) => {
       noOfPeople: sanitizeValue(payload.noOfPeople),
       leadMeta: normalizedMeta,
       status: "Pending",
+      hostPanelStatus: "Pending",
     });
 
     // The enquiry remains Master Panel-only until staff explicitly escalate it.
     // HostPanel notifications must not fire during the initial public submission.
 
     const upstreamEndpoints = [
-      "https://wononomadsbe.vercel.app/api/leads/create-lead",
+      nomadsApiUrl("/api/leads/create-lead"),
     ];
 
     let lastError = null;

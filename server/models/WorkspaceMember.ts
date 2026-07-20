@@ -31,6 +31,22 @@ const workspaceMemberSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    tourProgress: {
+      type: Map,
+      of: new mongoose.Schema(
+        {
+          version: { type: Number, required: true, min: 1 },
+          status: {
+            type: String,
+            enum: ["completed", "skipped"],
+            required: true,
+          },
+          updatedAt: { type: Date, default: Date.now },
+        },
+        { _id: false },
+      ),
+      default: {},
+    },
     transferHistory: {
       type: [
         {

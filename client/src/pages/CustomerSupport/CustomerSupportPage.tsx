@@ -2,6 +2,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, FileDown, FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import useDashboardAccess from "../../hooks/useDashboardAccess";
+import { canExportReports } from "../../utils/workspacePlanAccess";
 import PageFrame from "../../components/Pages/PageFrame";
 import ThreeDotMenu from "../../components/ThreeDotMenu";
 import { statusPillClass } from "../../lib/status-pill";
@@ -69,6 +71,8 @@ const formatDate = (value?: string | null) => {
 
 export default function CustomerSupportPage() {
   const axios = useAxiosPrivate();
+  const { plan } = useDashboardAccess();
+  const showReportExports = canExportReports(plan);
   const [activeTab, setActiveTab] = useState<"raised" | "resolved">("raised");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
@@ -308,16 +312,20 @@ export default function CustomerSupportPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
-              <button type="button" onClick={() => handleExportIssues("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export support issues as PDF"
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                <FileDown size={16} className="text-red-500" aria-hidden="true" />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-              </button>
-              <button type="button" onClick={() => handleExportIssues("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export support issues as Excel"
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-              </button>
+              {showReportExports && (
+                <>
+                  <button type="button" onClick={() => handleExportIssues("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export support issues as PDF"
+                    className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                    <FileDown size={16} className="text-red-500" aria-hidden="true" />
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                  </button>
+                  <button type="button" onClick={() => handleExportIssues("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export support issues as Excel"
+                    className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                    <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

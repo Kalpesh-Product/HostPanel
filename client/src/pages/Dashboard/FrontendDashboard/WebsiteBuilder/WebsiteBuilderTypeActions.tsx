@@ -414,6 +414,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
             {existingWebsite ? (
               <>
                 <div
+                  data-tour="wb-create-edit"
                   role="button"
                   tabIndex={0}
                   onClick={() => {
@@ -437,6 +438,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
             ) : (
               <>
                 <div
+                  data-tour="wb-create-edit"
                   role="button"
                   tabIndex={0}
                   onClick={() => {
@@ -458,22 +460,28 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
                 </div>
               </>
             )}
-            <Card icon={<SiGoogleadsense />} title="Website Leads" route={leadsRoute} />
-            <Card icon={<MdOutlineRateReview />} title="Website Review" route={reviewsRoute} />
-            <Card 
-              icon={<MdOutlineWorkHistory />} 
-              title="Careers" 
-              route={careersRoute}
-              locked={!hasExistingWebsite}
-              lockReason="Please create your website first"
-              onClick={() => {
-                if (!hasExistingWebsite) {
-                  toast.error("Please create your website first to unlock the Careers page settings.");
-                } else {
-                  navigate(careersRoute);
-                }
-              }}
-            />
+            <div data-tour="wb-leads">
+              <Card icon={<SiGoogleadsense />} title="Website Leads" route={leadsRoute} />
+            </div>
+            <div data-tour="wb-reviews">
+              <Card icon={<MdOutlineRateReview />} title="Website Review" route={reviewsRoute} />
+            </div>
+            <div data-tour="wb-careers">
+              <Card 
+                icon={<MdOutlineWorkHistory />} 
+                title="Careers" 
+                route={careersRoute}
+                locked={!hasExistingWebsite}
+                lockReason="Please create your website first"
+                onClick={() => {
+                  if (!hasExistingWebsite) {
+                    toast.error("Please create your website first to unlock the Careers page settings.");
+                  } else {
+                    navigate(careersRoute);
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       </PageFrame>

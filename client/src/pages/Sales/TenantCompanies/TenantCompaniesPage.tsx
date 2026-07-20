@@ -27,6 +27,8 @@ import { getPricingPackages } from '../../../services/pricing-packages';
 import { getCountries, getStates, getCities } from '../../../utils/locationApi';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
+import useDashboardAccess from '../../../hooks/useDashboardAccess';
+import { canExportReports } from '../../../utils/workspacePlanAccess';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
@@ -717,6 +719,8 @@ export default function TenantCompaniesPage() {
   const [availablePackages, setAvailablePackages] = useState([]);
   const [resources, setResources] = useState([]);
   const currentUser = useFreshCurrentUser();
+  const { plan } = useDashboardAccess();
+  const showReportExports = canExportReports(plan);
   const navigate = useNavigate();
 
   const currentUserName = useMemo(
@@ -2827,7 +2831,9 @@ export default function TenantCompaniesPage() {
                               <UploadCloud size={13} /> 
                               <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                             </button>
-              <button
+              {showReportExports && (
+                <>
+                  <button
                                 type="button"
                                 // onClick={handleExportPDF}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
@@ -2841,6 +2847,8 @@ export default function TenantCompaniesPage() {
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
+                </>
+              )}
             </div>
           </div>
           <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleBulkFileSelected} className="hidden" />
@@ -4242,7 +4250,9 @@ export default function TenantCompaniesPage() {
                    </div>
                  </div>
                  <div className="flex items-center gap-2">
-                   <button
+                   {showReportExports && (
+                     <>
+                       <button
                 type="button"
                 onClick={() => handleExportCompaniesReport('PDF')}
                 disabled={Boolean(isExportingReport)}
@@ -4250,7 +4260,7 @@ export default function TenantCompaniesPage() {
                 className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
-                
+
               </button>
               <button
                 type="button"
@@ -4260,8 +4270,10 @@ export default function TenantCompaniesPage() {
                 className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
-                
+
               </button>
+                     </>
+                   )}
                    <button onClick={() => {setActiveModal(null); setSelectedTenant(null); setAgreementFiles([]);}} className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 transition-all"><X size={16}/></button>
                  </div>
               </div>

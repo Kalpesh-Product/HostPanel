@@ -1353,7 +1353,7 @@ export default function AccessGrantsPage() {
           </div>
 
           {/* 3. STAT CARDS — 5-col grid matching DESIGN.md pattern */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
+          <div data-tour="access-grants-summary" className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
             {[
               { key: 'total', label: 'Total Members', value: users.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600', Icon: Users },
               { key: 'founder', label: 'Founder', value: stats.owner, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500', iconClass: 'bg-violet-50 text-violet-600', Icon: Shield },
@@ -1384,7 +1384,7 @@ export default function AccessGrantsPage() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
               {/* LEFT: status sub-tab pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <div data-tour="access-grants-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {['All', 'Active', 'Disabled'].map((s) => (
                   <button
                     key={s}
@@ -1403,7 +1403,7 @@ export default function AccessGrantsPage() {
               {/* RIGHT: Search + Dept filter + Transfer action */}
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                 {/* Search */}
-                <div className="relative flex-1 min-w-[180px]">
+                <div data-tour="access-grants-search" className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     type="text"
@@ -1415,7 +1415,7 @@ export default function AccessGrantsPage() {
                 </div>
 
                 {/* Role dropdown filter */}
-                <div className="relative">
+                <div data-tour="access-grants-role-filter" className="relative">
                   <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
                     value={selectedRole}
@@ -1447,7 +1447,7 @@ export default function AccessGrantsPage() {
 
             {/* Table */}
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left">
+              <table data-tour="access-grants-table" className="w-full text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4 text-left">Employee ID</th>
@@ -1456,7 +1456,7 @@ export default function AccessGrantsPage() {
                     <th className="px-5 py-4 text-left">Access Role</th>
                     <th className="px-5 py-4 text-left">Department</th>
                     <th className="px-5 py-4 text-center">Status</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
+                    <th data-tour="access-grants-actions" className="px-5 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">

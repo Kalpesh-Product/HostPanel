@@ -22,6 +22,9 @@ export interface IMeetingRoomBooking extends Document {
     originalEnd?: Date;
 
     attendees: number;
+    // For shared desk-area resources (capacity > 1): which seat this booking
+    // holds. Null for single-occupancy resources (meeting rooms, cabins).
+    seatNumber?: number | null;
     purpose: string;
     department?: string;
     departmentId?: mongoose.Types.ObjectId | null;
@@ -129,6 +132,10 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
             required: true,
             min: 1,
             default: 1,
+        },
+        seatNumber: {
+            type: Number,
+            default: null,
         },
         purpose: {
             type: String,

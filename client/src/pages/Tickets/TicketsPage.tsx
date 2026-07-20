@@ -1983,7 +1983,7 @@ export function TicketsPage() {
             {/* 1. HEADER */}
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
-                <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+                <h2 data-tour="tickets-heading" className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Tickets
                 </h2>
                 <p className="text-xs font-pmedium text-slate-500 mt-1">
@@ -2003,75 +2003,75 @@ export function TicketsPage() {
             ) : null}
 
             {/* 2. MAIN TABS (pill-style matching meetings page) */}
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="tickets-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {isAdminTicketProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-assigned-dept" onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Assigned Dept {tickets.filter(t => isAdminDepartmentQueueTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t)) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t)) && t.status === 'Open').length}</span>
                     )}
                   </button>
                   {showTenantCompanyTicketsTab && (
-                    <button onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    <button data-tour="tickets-tab-tenant-company" onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                       Tenant Company
                     </button>
                   )}
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-assigned" onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
-                  <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_assigned_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-raised" onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_assigned_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : isManagerTicketProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-department" onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department
                   </button>
                   {showTenantCompanyTicketsTab && (
-                    <button onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    <button data-tour="tickets-tab-tenant-company" onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                       Tenant Company
                     </button>
                   )}
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-assigned" onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-raised" onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : isEmployeeTicketProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-department" onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department {tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-assigned" onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-raised" onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : (
                 <>
-                  <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-company" onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Company
                   </button>
                   {showTenantCompanyTicketsTab && (
-                    <button onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    <button data-tour="tickets-tab-tenant-company" onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                       Tenant Company
                     </button>
                   )}
-                  <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-assigned" onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button data-tour="tickets-tab-my-raised" onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
@@ -2079,7 +2079,7 @@ export function TicketsPage() {
             </div>
 
             {/* 3. STATS CARDS (matching meetings page exactly) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            <div data-tour="tickets-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {[
                 { key: 'total', label: 'Total Tickets', value: statsBase.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: AlertCircle, iconClass: 'bg-slate-50 text-slate-600' },
                 { key: 'open', label: 'Open (Raised)', value: statsBase.filter(t => t.status === 'Open').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: AlertTriangle, iconClass: 'bg-amber-50 text-amber-600' },
@@ -2108,10 +2108,11 @@ export function TicketsPage() {
               {/* Search + Filters + Action (matching meetings style) */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="tickets-status-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
                     <button
                       key={status}
+                      data-tour={`tickets-status-${status === 'Open' ? 'raised' : status.toLowerCase().replace(/\s+/g, '-')}`}
                       onClick={() => setStatusFilter(status)}
                       className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === status
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
@@ -2123,7 +2124,7 @@ export function TicketsPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                <div data-tour="tickets-search-filter" className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
@@ -2143,6 +2144,7 @@ export function TicketsPage() {
                     </select>
                   </div>
                   <button
+                    data-tour="tickets-raise-btn"
                     onClick={() => { setTicketForm(initialForm); setIsCreateModalOpen(true); }}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
@@ -2155,7 +2157,7 @@ export function TicketsPage() {
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
 
                 {/* Desktop Table */}
-                <table className="hidden lg:table w-full text-left">
+                <table data-tour="tickets-table" className="hidden lg:table w-full text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Ticket Details</th>
