@@ -19,6 +19,10 @@ const websiteLeadSchema = new mongoose.Schema(
     comment: { type: String, trim: true, default: "" },
     upstreamSynced: { type: Boolean, default: false },
     upstreamError: { type: String, default: "" },
+    isEscalated: { type: Boolean, default: false, index: true },
+    escalatedWorkspaceId: { type: String, trim: true, default: "", index: true },
+    escalatedHostCompanyId: { type: String, trim: true, default: "", index: true },
+    escalatedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

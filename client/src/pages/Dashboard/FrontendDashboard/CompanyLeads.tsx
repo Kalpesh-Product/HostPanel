@@ -27,7 +27,7 @@ function getInitials(value) {
   return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "LD";
 }
 
-export default function CompanyLeads() {
+export default function CompanyLeads({ leadScope = "website" }) {
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
   const axiosPrivate = useAxiosPrivate();
   const { auth } = useAuth();
@@ -40,15 +40,27 @@ export default function CompanyLeads() {
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+  const isNomadsLeads = String(leadScope).toLowerCase() === "nomads";
+  const pageTitle = isNomadsLeads ? "Nomads Leads" : "Website Leads";
+  const pageDescription = isNomadsLeads
+    ? "Enquiries received from your Wono Nomads listings."
+    : "Website enquiries received from your published site.";
+  const leadLabel = isNomadsLeads ? "Nomads lead" : "Website lead";
 
   const { data: leads = [], isPending, isError } = useQuery({
-    queryKey: ["leadCompany", companyId, workspaceId],
+    queryKey: ["leadCompany", leadScope, companyId, workspaceId],
     enabled: !!(companyId || workspaceId),
     queryFn: async () => {
-      const response = await axiosPrivate.get(`/api/leads/get-leads?companyId=${encodeURIComponent(companyId)}&workspaceId=${encodeURIComponent(workspaceId)}`, {
+      const response = await axiosPrivate.get("/api/leads/get-leads", {
+        params: { companyId, workspaceId, leadScope },
         headers: { "Cache-Control": "no-cache" },
       });
-      return Array.isArray(response?.data) ? response.data : [];
+      const rawLeads = Array.isArray(response?.data) ? response.data : [];
+      return [...rawLeads].sort((a, b) => {
+        const aDate = new Date(a.recievedDate || a.receivedDate || a.createdAt || 0).getTime();
+        const bDate = new Date(b.recievedDate || b.receivedDate || b.createdAt || 0).getTime();
+        return bDate - aDate;
+      });
     },
   });
 
@@ -59,7 +71,7 @@ export default function CompanyLeads() {
     },
     onSuccess: (data) => {
       toast.success(data.message || "Lead updated");
-      queryClient.invalidateQueries(["leadCompany"]);
+      queryClient.invalidateQueries({ queryKey: ["leadCompany"] });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Update failed");
@@ -76,12 +88,12 @@ export default function CompanyLeads() {
     const contacted = leads.filter((l) => l.status === "Contacted").length;
     const closed = leads.filter((l) => l.status === "Closed").length;
     return [
-      { label: "Total Website Leads", value: total, icon: Target },
+      { label: `Total ${pageTitle}`, value: total, icon: Target },
       { label: "Pending", value: pending, icon: Sparkles },
       { label: "Contacted", value: contacted, icon: BadgeCheck },
       { label: "Closed", value: closed, icon: CheckCircle2 },
     ];
-  }, [leads]);
+  }, [leads, pageTitle]);
 
   const visibleLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -100,24 +112,24 @@ export default function CompanyLeads() {
 
   const handleExportReport = async (format = "PDF") => {
     const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
-    if (!visibleLeads.length) { toast.error("There are no website leads to export."); return; }
+    if (!visibleLeads.length) { toast.error(`There are no ${pageTitle.toLowerCase()} to export.`); return; }
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
-        title: "Website Leads Report", department: "Sales", category: "Other", dataWindow: "Custom",
-        reportMonth: new Date().toISOString().slice(0, 7), period: "Website Leads",
-        generatedBy: auth?.user?.fullName || auth?.user?.name || "Website Team", format: reportFormat,
-        description: "Website enquiries received from the published site.", sourceType: "custom", sourceRef: "website-leads",
+        title: `${pageTitle} Report`, department: "Sales", category: "Other", dataWindow: "Custom",
+        reportMonth: new Date().toISOString().slice(0, 7), period: pageTitle,
+        generatedBy: auth?.user?.fullName || auth?.user?.name || (isNomadsLeads ? "Nomads Team" : "Website Team"), format: reportFormat,
+        description: pageDescription, sourceType: "custom", sourceRef: isNomadsLeads ? "nomads-leads" : "website-leads",
         reportRows: visibleLeads.slice(0, 100).map((lead, index) => ({
-          label: `${index + 1}. ${lead.fullName || "Website lead"}`,
-          value: [lead.mobileNumber || "No phone", lead.email || "No email", lead.source || "Website", lead.productType || lead.vertical || "No product", lead.status || "Pending", formatDateLabel(lead.recievedDate || lead.createdAt)].join(" | "),
+          label: `${index + 1}. ${lead.fullName || leadLabel}`,
+          value: [lead.mobileNumber || "No phone", lead.email || "No email", lead.source || (isNomadsLeads ? "Nomad" : "Website"), lead.productType || lead.vertical || "No product", lead.status || "Pending", formatDateLabel(lead.recievedDate || lead.receivedDate || lead.createdAt)].join(" | "),
         })),
         monthlyData: [],
       });
       if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
       toast.success(`${reportFormat} report saved to Reports.`);
       window.dispatchEvent(new Event("reports:refresh"));
-    } catch (error) { toast.error(error?.message || "Failed to export website leads report."); }
+    } catch (error) { toast.error(error?.message || `Failed to export ${pageTitle.toLowerCase()} report.`); }
     finally { setIsExportingReport(""); }
   };
 
@@ -125,7 +137,7 @@ export default function CompanyLeads() {
     return (
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
-          <WebsiteLeadsSkeleton />
+          <WebsiteLeadsSkeleton label={`Loading ${pageTitle.toLowerCase()}`} />
         </PageFrame>
       </div>
     );
@@ -142,19 +154,19 @@ export default function CompanyLeads() {
           <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Website Leads
+                {pageTitle}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Website enquiries received from your published site.
+                {pageDescription}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
-              <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export website leads as PDF"
+              <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label={`Export ${pageTitle.toLowerCase()} as PDF`}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
                 <FileDown size={16} className="text-red-500" aria-hidden="true" />
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
               </button>
-              <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export website leads as Excel"
+              <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label={`Export ${pageTitle.toLowerCase()} as Excel`}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
                 <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
@@ -166,7 +178,7 @@ export default function CompanyLeads() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Website Leads</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total {pageTitle}</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{leadStats[0]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16} /></div>
@@ -226,7 +238,7 @@ export default function CompanyLeads() {
             {visibleLeads.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center px-6 py-20 text-center">
                 <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Target size={28} /></div>
-                <p className="text-slate-400 font-semibold">No matching website leads found.</p>
+                <p className="text-slate-400 font-semibold">No matching {pageTitle.toLowerCase()} found.</p>
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
@@ -287,7 +299,7 @@ export default function CompanyLeads() {
                             </select>
                           </td>
                           <td className="px-5 py-4">
-                            <p className="text-[12px] font-pmedium text-slate-700">{formatDateLabel(lead.recievedDate || lead.createdAt)}</p>
+                            <p className="text-[12px] font-pmedium text-slate-700">{formatDateLabel(lead.recievedDate || lead.receivedDate || lead.createdAt)}</p>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
@@ -353,13 +365,14 @@ export default function CompanyLeads() {
                       </div>
                       <div>
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received On</p>
-                        <p className="text-[12px] font-pmedium text-slate-900">{formatDateLabel(selectedLead.recievedDate || selectedLead.createdAt)}</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{formatDateLabel(selectedLead.recievedDate || selectedLead.receivedDate || selectedLead.createdAt)}</p>
                       </div>
                       <div>
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received Via</p>
                         <p className="text-[12px] font-pmedium text-slate-900">
                           {(() => {
                             const s = (selectedLead.source || "").toLowerCase();
+                            if (s === "nomad" || s === "nomads") return "Wono Nomads";
                             if (s.includes("preview")) return "Website Preview";
                             if (s.includes("hosted") || s.includes("live") || s.includes("wono")) return "Hosted Website";
                             if (s.includes("direct")) return "Direct";

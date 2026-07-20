@@ -1,7 +1,7 @@
 import { MdOutlineTravelExplore, MdOutlineRateReview } from "react-icons/md";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
-import { ShieldCheck } from "lucide-react";
+import { ContactRound } from "lucide-react";
 
 const WonoNomad = () => {
   return (
@@ -30,8 +30,13 @@ const WonoNomad = () => {
             />
             <Card
               icon={<MdOutlineRateReview />}
-              title="Reviews"
+              title="Nomads Reviews"
               route="/company-settings/reviews"
+            />
+            <Card
+              icon={<ContactRound />}
+              title="Nomads Leads"
+              route="/company-settings/nomads-leads"
             />
           </div>
         </div>
