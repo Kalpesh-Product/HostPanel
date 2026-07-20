@@ -1093,7 +1093,7 @@ export function OrganizationPage() {
 
         {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-          <button onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+          <button data-tour="organization-users-tab" onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
             <Shield size={16} className="inline mr-1"/> PLATFORM USERS
           </button>
           <button
@@ -1184,7 +1184,7 @@ export function OrganizationPage() {
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
           {/* HEADER: status sub-tabs on left, search + filters + actions on right */}
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <div data-tour="organization-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {['all', 'invited', 'registered', 'pending', 'joined', 'disabled'].map((status) => (
                 <button
                   key={status}
@@ -1200,7 +1200,7 @@ export function OrganizationPage() {
               ))}
             </div>
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-              <div className="relative min-w-[180px]">
+              <div data-tour="organization-search" className="relative min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input
                   type="text" placeholder="Search platform users..."
@@ -1233,7 +1233,7 @@ export function OrganizationPage() {
                   <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" />
                 </div>
                 {isBasicPlanWorkspace && (
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                  <p data-tour="organization-basic-user-limit" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest whitespace-nowrap">
                     {activeSuperAdminCount}/{basicPlanAdditionalUserLimit} additional user added
                   </p>
                 )}
@@ -1243,6 +1243,7 @@ export function OrganizationPage() {
                   </p>
                 )}
                 <button
+                  data-tour="organization-add-user"
                   title={addUserHoverMessage}
                   onClick={() => {
                     setTeamMemberFormData({ name: '', email: '', role: isBasicPlanWorkspace ? 'super-admin' : 'manager', departments: [] });
@@ -1260,7 +1261,7 @@ export function OrganizationPage() {
 
           {/* TABLE */}
           <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left">
+          <table data-tour="organization-members-table" className="w-full text-left">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4 text-left">Employee ID</th>

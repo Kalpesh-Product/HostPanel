@@ -280,7 +280,7 @@ export default function WorkspaceSettingsPage() {
           </div>
 
           {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="unit-settings-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {summaryCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -297,7 +297,7 @@ export default function WorkspaceSettingsPage() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
           <div className="space-y-4">
-            <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            <section data-tour="unit-settings-create" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
               {/* Header row */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                 <div className="flex items-start gap-3">
@@ -312,6 +312,7 @@ export default function WorkspaceSettingsPage() {
                   </div>
                 </div>
                 <button
+                  data-tour="unit-settings-create-button"
                   type="button"
                   onClick={() => {
                     if (!canCreateWorkspace) return;
@@ -330,7 +331,7 @@ export default function WorkspaceSettingsPage() {
               </div>
 
               <div className="p-3 sm:p-4 lg:p-5">
-                <div className="rounded-3xl border border-blue-100 bg-blue-50/70 p-10">
+                <div data-tour="unit-settings-creation-details" className="rounded-3xl border border-blue-100 bg-blue-50/70 p-10">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-white/70 bg-white px-5 py-5 shadow-sm">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Prefilled business data</p>
@@ -360,7 +361,7 @@ export default function WorkspaceSettingsPage() {
               </div>
             </section>
 
-            <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+            <section data-tour="unit-settings-business-hours" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                 <div className="flex items-start gap-3">
                   <span className="rounded-2xl bg-amber-50 p-2 text-amber-600 shrink-0">
@@ -458,7 +459,7 @@ export default function WorkspaceSettingsPage() {
           </div>
 
           <aside className="space-y-4">
-            <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+            <section data-tour="unit-settings-linked-units" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
                 <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Linked Units</p>
               </div>
@@ -502,7 +503,7 @@ export default function WorkspaceSettingsPage() {
               </div>
             </section>
 
-            <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+            <section data-tour="unit-settings-creation-notes" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
                 <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Creation flow notes</p>
               </div>

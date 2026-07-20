@@ -9,6 +9,7 @@ import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useDashboardAccess from "../hooks/useDashboardAccess";
 import { getBasicPageTour } from "./basicPageTours";
 import type { BasicPageTourStep } from "./basicPageTours";
+import { getProfessionalPageTour } from "./professionalPageTours";
 
 type TourStatus = "completed" | "skipped";
 
@@ -95,7 +96,10 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
       });
     });
 
-    if (tour.id === "basic-dashboard" && guideButton) {
+    if (
+      (tour.id === "basic-dashboard" || tour.id === "professional-dashboard") &&
+      guideButton
+    ) {
       steps.push({
         element: guideButton,
         popover: {
@@ -173,10 +177,12 @@ export default function usePageTour() {
     [workspaceScope],
   );
   const currentTour = useMemo(
-    () =>
-      access.plan === "basic" && !user?.tenantRole
-        ? getBasicPageTour(location.pathname)
-        : null,
+    () => {
+      if (user?.tenantRole) return null;
+      if (access.plan === "basic") return getBasicPageTour(location.pathname);
+      if (access.plan === "professional") return getProfessionalPageTour(location.pathname);
+      return null;
+    },
     [access.plan, location.pathname, user?.tenantRole],
   );
 
@@ -187,7 +193,7 @@ export default function usePageTour() {
       return response?.data?.data?.progress || {};
     },
     enabled:
-      access.plan === "basic" &&
+      (access.plan === "basic" || access.plan === "professional") &&
       !access.isLoading &&
       !auth?.impersonation &&
       !user?.tenantRole,
@@ -222,7 +228,7 @@ export default function usePageTour() {
 
   const startCurrentTour = useCallback(
     (automatic = false, allowIntroOnly = false) => {
-      if (!currentTour || access.plan !== "basic" || auth?.impersonation) return false;
+      if (!currentTour || (access.plan !== "basic" && access.plan !== "professional") || auth?.impersonation) return false;
 
       const saved = progress[currentTour.id];
       if (automatic && saved && saved.version >= currentTour.version) return false;
@@ -284,7 +290,7 @@ export default function usePageTour() {
     if (
       access.isLoading ||
       isProgressLoading ||
-      access.plan !== "basic" ||
+      (access.plan !== "basic" && access.plan !== "professional") ||
       !currentTour ||
       auth?.impersonation
     ) return;
@@ -324,7 +330,11 @@ export default function usePageTour() {
   }, [location.pathname]);
 
   return {
-    isTourAvailable: Boolean(currentTour && access.plan === "basic" && !auth?.impersonation),
+    isTourAvailable: Boolean(
+      currentTour &&
+      (access.plan === "basic" || access.plan === "professional") &&
+      !auth?.impersonation,
+    ),
     startCurrentTour: () => startCurrentTour(false, true),
   };
 }

@@ -290,6 +290,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Upgrade nudge — opens modal for Custom plan */}
       <div
+        data-tour="professional-plan"
         className="flex items-center gap-3 p-4 rounded-xl border-2 border-blue-300/50 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
         onClick={onUpgradeClick}
       >
@@ -307,22 +308,26 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       </div>
 
       {/* Professional-plan module overview */}
-      <WidgetSection layout={3} title="Overview" border normalCase>
-        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/sales-crm/tenant-companies" />
-        <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/meetings/meeting-rooms" />
-        <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.completed} completed`} color="#059669" route="/meetings/meeting-rooms" />
-        <StatCard icon={Ticket} label="Customer Support" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/company-settings/customer-support" />
-        <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/company-settings/customer-support" />
-        <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
-      </WidgetSection>
+      <div data-tour="professional-overview">
+        <WidgetSection layout={3} title="Overview" border normalCase>
+          <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/sales-crm/tenant-companies" />
+          <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/meetings/meeting-rooms" />
+          <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.completed} completed`} color="#059669" route="/meetings/meeting-rooms" />
+          <StatCard icon={Ticket} label="Customer Support" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/company-settings/customer-support" />
+          <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/company-settings/customer-support" />
+          <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
+        </WidgetSection>
+      </div>
 
       {/* Quick links */}
-      <WidgetSection layout={4} title="Quick Links" border normalCase>
-        {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
-      </WidgetSection>
+      <div data-tour="professional-quick-links">
+        <WidgetSection layout={4} title="Quick Links" border normalCase>
+          {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
+        </WidgetSection>
+      </div>
 
       {/* Recent visitors and visitor type */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-tour="professional-visitors" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
           {recentVisitors.length > 0 ? recentVisitors.map((v: any, i: number) => (
             <RecentItem
@@ -339,7 +344,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       </div>
 
       {/* Recent bookings and booking status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-tour="professional-bookings" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/meetings/meeting-rooms">
           {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
             <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
@@ -349,7 +354,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       </div>
 
       {/* Recent tickets and ticket status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-tour="professional-tickets" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/company-settings/customer-support">
           {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
             <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
@@ -359,7 +364,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       </div>
 
       {/* Recent tenants and tenant status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-tour="professional-tenants" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/sales-crm/tenant-companies">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
@@ -383,7 +388,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Expiry alert */}
       {tenantStats.expiringSoon > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/sales-crm/tenant-companies")}>
+        <div data-tour="professional-expiry-alert" className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/sales-crm/tenant-companies")}>
           <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
           <div>
             <p className="text-content font-pmedium text-amber-800">{tenantStats.expiringSoon} tenant agreement{tenantStats.expiringSoon > 1 ? "s" : ""} expiring within 30 days</p>
@@ -394,9 +399,15 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       )}
 
       {/* Monthly operational trends */}
-      <BarWidget title="Monthly Booking Trend (FY)" chartId="pro-monthly-bookings" series={bookingsByMonth} options={bookingBarOptions} height={260} />
-      <BarWidget title="Monthly Ticket Trend (FY)" chartId="pro-monthly-tickets" series={ticketsByMonth} options={ticketBarOptions} height={260} />
-      <BarWidget title="Monthly Tenant Trend (FY)" chartId="pro-monthly-tenants" series={tenantsByMonth} options={tenantBarOptions} height={260} />
+      <div data-tour="professional-booking-trend">
+        <BarWidget title="Monthly Booking Trend (FY)" chartId="pro-monthly-bookings" series={bookingsByMonth} options={bookingBarOptions} height={260} />
+      </div>
+      <div data-tour="professional-ticket-trend">
+        <BarWidget title="Monthly Ticket Trend (FY)" chartId="pro-monthly-tickets" series={ticketsByMonth} options={ticketBarOptions} height={260} />
+      </div>
+      <div data-tour="professional-tenant-trend">
+        <BarWidget title="Monthly Tenant Trend (FY)" chartId="pro-monthly-tenants" series={tenantsByMonth} options={tenantBarOptions} height={260} />
+      </div>
 
     </div>
   );

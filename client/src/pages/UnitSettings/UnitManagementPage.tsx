@@ -688,7 +688,7 @@ export default function WorkspaceManagementPage() {
               </div>
 
               {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md) */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+              <div data-tour="unit-management-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
                 <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
                 <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
                 <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
@@ -702,7 +702,7 @@ export default function WorkspaceManagementPage() {
               {/* 3. DATA PANEL */}
               <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                 {/* Header row: inner title + filters + action */}
-                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+                <div data-tour="unit-management-controls" className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">All Units</p>
                     <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
@@ -748,6 +748,7 @@ export default function WorkspaceManagementPage() {
                     </div>
                     {/* Action button */}
                     <button
+                      data-tour="unit-management-view-data"
                       type="button"
                       onClick={() => setIsCombinedModalOpen(true)}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
@@ -764,7 +765,7 @@ export default function WorkspaceManagementPage() {
                       No units found.
                     </div>
                   ) : (
-                    <div className="grid gap-3.5">
+                    <div data-tour="unit-management-list" className="grid gap-3.5">
                       {displayedWorkspaces.map((workspace) => (
                         <article
                           key={workspace.id}
@@ -810,6 +811,7 @@ export default function WorkspaceManagementPage() {
                                 {workspace.isActiveWorkspace ? "Current Unit" : "Linked Unit"}
                               </div>
                               <button
+                                data-tour="unit-management-view-details"
                                 type="button"
                                 onClick={() => handleToggleWorkspace(workspace.id)}
                                 className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -822,6 +824,7 @@ export default function WorkspaceManagementPage() {
                                 {expandedWorkspaceId === workspace.id ? "Hide Details" : "View Details"}
                               </button>
                               <button
+                                data-tour="unit-management-edit-unit"
                                 type="button"
                                 onClick={() => handleOpenEdit(workspace)}
                                 className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50"

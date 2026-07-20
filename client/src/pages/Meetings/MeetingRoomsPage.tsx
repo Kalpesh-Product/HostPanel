@@ -4086,16 +4086,17 @@ export function MeetingRoomsPage() {
             )}
 
             {/* 2. MAIN TABS */}
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="meetings-main-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {[
-                { key: 'my_bookings', label: 'My Bookings' },
-                { key: 'internal_booking', label: 'Internal Booking' },
-                { key: 'external_booking', label: 'External Booking' },
-                { key: 'tenant_bookings', label: 'Tenant Bookings' },
+                { key: 'my_bookings', label: 'My Bookings', tour: 'meetings-tab-my-bookings' },
+                { key: 'internal_booking', label: 'Internal Booking', tour: 'meetings-tab-internal' },
+                { key: 'external_booking', label: 'External Booking', tour: 'meetings-tab-external' },
+                { key: 'tenant_bookings', label: 'Tenant Bookings', tour: 'meetings-tab-tenant' },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
+                  data-tour={tab.tour}
                   onClick={() => {
                     setMainBookingTab(tab.key as any);
                     if (tab.key === 'my_bookings') setActiveTab('my_bookings');
@@ -4110,7 +4111,7 @@ export function MeetingRoomsPage() {
             </div>
 
             {/* 3. SUMMARY CARDS (4-card grid, changes per tab) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            <div data-tour="meetings-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {meetingSummaryCards.map((card) => {
                 const Icon = card.icon;
                 const labelToneClass = card.cardClass.includes('border-l')
@@ -4134,7 +4135,7 @@ export function MeetingRoomsPage() {
               <div className="flex flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[500px]">
 
                 {/* Status, Search & Action */}
-                <div className="order-2 px-3 sm:px-4 lg:px-5 py-3 border-b border-slate-100/60 bg-slate-50/50 flex flex-col xl:flex-row xl:items-center gap-3">
+                <div data-tour="meetings-status-filter" className="order-2 px-3 sm:px-4 lg:px-5 py-3 border-b border-slate-100/60 bg-slate-50/50 flex flex-col xl:flex-row xl:items-center gap-3">
                   <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {(activeTab !== 'invites'
                     ? activeTab === 'assigned_dept_bookings'
@@ -4181,7 +4182,7 @@ export function MeetingRoomsPage() {
                   ))}
                   </div>
 
-                  <div className="relative w-full xl:w-64 shrink-0">
+                  <div data-tour="meetings-search" className="relative w-full xl:w-64 shrink-0">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                       type="text"
@@ -4192,7 +4193,7 @@ export function MeetingRoomsPage() {
                     />
                   </div>
 
-                  <div className="flex items-center shrink-0">
+                  <div data-tour="meetings-action-btn" className="flex items-center shrink-0">
                     {mainBookingTab === 'my_bookings' && (
                       <button onClick={() => openBookingDialog('room')} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
                         <Plus size={14} strokeWidth={3} /> BOOK A ROOM
@@ -4217,12 +4218,13 @@ export function MeetingRoomsPage() {
                 </div>
 
                 {/* Scope Tabs */}
-                <div className="order-1 p-1 border-b border-slate-100/60 flex bg-white shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="meetings-scope-tabs" className="order-1 p-1 border-b border-slate-100/60 flex bg-white shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {mainBookingTab === 'my_bookings' && (
                     <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
                       {isEmployeeProfile ? (
                       <>
                         <button
+                          data-tour="meetings-scope-my-bookings"
                           onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
                           className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
@@ -4231,6 +4233,7 @@ export function MeetingRoomsPage() {
                           MY BOOKINGS
                         </button>
                         <button
+                          data-tour="meetings-scope-invites"
                           onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
                           className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
@@ -4248,6 +4251,7 @@ export function MeetingRoomsPage() {
                       <>
                         {/* First tab: Company / Dept / Assigned - role-based */}
                         <button
+                          data-tour="meetings-scope-dept"
                           onClick={() => {
                             const tab = isAdminProfile
                               ? 'assigned_dept_bookings'
@@ -4264,6 +4268,7 @@ export function MeetingRoomsPage() {
                           COMPANY
                         </button>
                         <button
+                          data-tour="meetings-scope-my-bookings"
                           onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
                           className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
@@ -4272,6 +4277,7 @@ export function MeetingRoomsPage() {
                           MY BOOKINGS
                         </button>
                         <button
+                          data-tour="meetings-scope-invites"
                           onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
                           className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
@@ -4317,7 +4323,7 @@ export function MeetingRoomsPage() {
                       <>
                         {/* Desktop external table */}
                         <div className="hidden md:block overflow-x-auto">
-                          <table className="w-full text-left border-collapse">
+                          <table data-tour="meetings-table" className="w-full text-left border-collapse">
                             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                               <tr>
                                 <th className="px-5 py-4">Client Name</th>
@@ -4451,7 +4457,7 @@ export function MeetingRoomsPage() {
                     ) : (
                     <>
                     <div className="hidden md:block overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
+                      <table data-tour="meetings-table" className="w-full text-left border-collapse">
                         <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                           <tr>
                             <th className="px-5 py-4">Meeting Room</th>
@@ -4611,7 +4617,7 @@ export function MeetingRoomsPage() {
                 ) : (
                   <>
                     <div className="hidden md:block overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
+                      <table data-tour="meetings-table" className="w-full text-left border-collapse">
                         <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                           <tr>
                             <th className="px-5 py-4">Meeting Room</th>
@@ -4743,7 +4749,7 @@ export function MeetingRoomsPage() {
                 {/* Calendar Widget */}
                 <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-4 flex-grow-0">
                   <div className="mb-4">
-                    <h3 className="font-pmedium text-[14px] text-[#0F172A] mb-3">Room Availability</h3>
+                    <h3 data-tour="meetings-calendar" className="font-pmedium text-[14px] text-[#0F172A] mb-3">Room Availability</h3>
                     <div className="relative">
                       <select
                         className="w-full pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[12px] text-primary focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer transition-all shadow-sm"
