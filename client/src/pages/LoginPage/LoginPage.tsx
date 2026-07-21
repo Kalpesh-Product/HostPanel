@@ -260,8 +260,25 @@ const LoginPage = () => {
           </a>
         </div> */}
 
-            {/* Mobile Menu Button */}
-            <div className="" />
+            {/* Become a Host / Become a Nomad */}
+            <div className="flex items-center gap-6 sm:gap-10">
+              <button
+                type="button"
+                onClick={() => (window.location.href = "https://host.wono.co")}
+                className="relative pb-1 text-xs sm:text-sm text-[#0aa9ef] transition-all duration-300 group bg-transparent border-none cursor-pointer whitespace-nowrap"
+              >
+                Become A Host
+                <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-[#0aa9ef] transition-all duration-300 group-hover:w-full"></span>
+              </button>
+              <button
+                type="button"
+                onClick={() => (window.location.href = "https://nomad.wono.co")}
+                className="relative pb-1 text-xs sm:text-sm text-[#0aa9ef] transition-all duration-300 group bg-transparent border-none cursor-pointer whitespace-nowrap"
+              >
+                Become A Nomad
+                <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-[#0aa9ef] transition-all duration-300 group-hover:w-full"></span>
+              </button>
+            </div>
             {/* <div className="md:hidden">
           <div onClick={() => setDrawerOpen(true)} className="text-white">
             <MenuIcon />

@@ -17,7 +17,7 @@ const SECTION_LABELS = {
   common: "Common Modules",
   extraCommon: "Extra Common Modules",
   keyApps: "Key Apps",
-  founderCore: "Founder Core Modules",
+  founderCore: "Core Modules",
   addOns: "Add-Ons",
   departmentAccesses: "Department Accesses",
   tenantPortal: "Tenant Portal",
@@ -234,15 +234,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/company-settings/wono-nomad",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Wono Nomads" },
+      { label: "Nomad Listings" },
     ],
   },
   {
     pattern: "/company-settings/nomad-listings/add",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
-      { label: "Nomad Listings", path: "/company-settings/nomad-listings" },
+      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: "Listings", path: "/company-settings/nomad-listings" },
       { label: "Add Listing" },
     ],
   },
@@ -250,8 +250,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/company-settings/nomad-listings/:listingId",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
-      { label: "Nomad Listings", path: "/company-settings/nomad-listings" },
+      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: "Listings", path: "/company-settings/nomad-listings" },
       { label: "Edit Listing" },
     ],
   },
@@ -259,24 +259,31 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/company-settings/nomad-listings",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
-      { label: "Nomad Listings" },
+      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: "Listings" },
     ],
   },
   {
     pattern: "/company-settings/reviews",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
-      { label: "Nomads Reviews" },
+      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: "Reviews" },
     ],
   },
   {
     pattern: "/company-settings/nomads-leads",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
-      { label: "Nomads Leads" },
+      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: "Leads" },
+    ],
+  },
+  {
+    pattern: "/company-settings/all-leads",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "All Leads" },
     ],
   },
   {

@@ -96,6 +96,7 @@ import StaffViewPage from "../pages/StaffView/StaffViewPage";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import NomadsLeads from "../pages/Dashboard/FrontendDashboard/NomadsLeads";
+import AllLeads from "../pages/Dashboard/FrontendDashboard/AllLeads";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
 import AddModulesPage from "../pages/Dashboard/FrontendDashboard/AddModulesPage";
@@ -417,6 +418,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "wono-nomad",
                     element: <WonoNomad />,
+                  },
+                  {
+                    path: "all-leads",
+                    element: <AllLeads />,
                   },
                   {
                     path: "nomad-listings",

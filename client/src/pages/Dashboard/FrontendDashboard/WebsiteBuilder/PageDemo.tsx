@@ -848,6 +848,9 @@ const PageDemo = () => {
     );
     return item ? item?.enabled !== false : true;
   }, [draft?.pageNavItems, draft?.navItems]);
+  // Per-section show/hide toggles set in the builder (Home/About cards, product page
+  // hero/inclusions). Unset === enabled, matching the "on by default" toggle behavior.
+  const isSectionEnabled = (key: string) => draft?.sectionOverrides?.[key] !== false;
   const productsPageEnabled = useMemo(() => {
     const sourceNavItems = Array.isArray(draft?.pageNavItems)
       ? draft.pageNavItems
@@ -910,20 +913,24 @@ const PageDemo = () => {
         ? draft.productDropdownPages
         : [];
       if (dropdownPages.length > 0) {
-        return dropdownPages.map((item: any, index: number) => ({
-          ...item,
-          cardImage: resolveCardImage(item, index),
-        }));
+        return dropdownPages
+          .filter((item: any) => item?.enabled !== false)
+          .map((item: any, index: number) => ({
+            ...item,
+            cardImage: resolveCardImage(item, index),
+          }));
       }
 
       const serializedPages = Array.isArray(draft?.productPages)
         ? draft.productPages
         : [];
       if (serializedPages.length > 0) {
-        return serializedPages.map((item: any, index: number) => ({
-          ...item,
-          cardImage: resolveCardImage(item, index),
-        }));
+        return serializedPages
+          .filter((item: any) => item?.enabled !== false)
+          .map((item: any, index: number) => ({
+            ...item,
+            cardImage: resolveCardImage(item, index),
+          }));
       }
 
       // No product pages configured (older websites): build cards directly from the
@@ -1281,7 +1288,7 @@ const PageDemo = () => {
   const aboutIntroBlocks = getNonEmptyTextList(
     draft?.aboutPageIntro,
     draft?.aboutPageOverview,
-    ...aboutBlocks,
+    ...aboutBlocks.map((block: any) => (typeof block === "string" ? block : block?.text)),
   );
   const showWriteReview = draft?.testimonialsEnableWriteReview !== false;
   const founders = Array.isArray(draft?.founders) ? draft.founders.filter((f: any) => String(f?.name || "").trim()) : [];
@@ -1880,6 +1887,7 @@ const PageDemo = () => {
       {currentSection === "home" ? (
         <>
           {/* Hero section: uses draft.title, draft.subTitle, and heroImages from the saved template. */}
+          {isSectionEnabled("home_hero") ? (
           <section id="home" className="relative h-[62svh] min-h-[420px] md:h-[84vh] md:min-h-[640px]">
             <div className="absolute inset-0 overflow-hidden bg-[#242424]">
               {showHeroCarousel ? (
@@ -1935,9 +1943,10 @@ const PageDemo = () => {
               </>
             ) : null}
           </section>
+          ) : null}
 
           {/* About summary section: compact intro pulled from about text fields. */}
-          {aboutPageEnabled ? (
+          {aboutPageEnabled && isSectionEnabled("home_about") ? (
             <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
               <div className={`${CONTENT_WRAP} text-center`}>
                 <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
@@ -1962,7 +1971,7 @@ const PageDemo = () => {
           ) : null}
 
           {/* Products section: home-page product cards that link into product detail routes. */}
-          {productsPageEnabled ? (
+          {productsPageEnabled && isSectionEnabled("home_products") ? (
             <section id="products" className={SECTION_BLOCK}>
               <div className={CONTENT_WRAP}>
                 <LinedHeading title="Our Products" />
@@ -2010,12 +2019,12 @@ const PageDemo = () => {
           ) : null}
 
           {/* Inclusions section: home-page amenities grid */}
-          {Array.isArray(draft?.inclusions) && draft.inclusions.length > 0 ? (
+          {Array.isArray(draft?.inclusions) && draft.inclusions.length > 0 && isSectionEnabled("home_inclusions") ? (
             <InclusionsSection inclusions={draft.inclusions} />
           ) : null}
 
           {/* Gallery preview section: first six images on home, full gallery on the gallery page. */}
-          {galleryPageEnabled ? (
+          {galleryPageEnabled && isSectionEnabled("home_gallery") ? (
             <section id="gallery" className={SECTION_BLOCK}>
               <div className={CONTENT_WRAP}>
                 <LinedHeading title={draft?.galleryTitle || "Gallery"} />
@@ -2049,6 +2058,7 @@ const PageDemo = () => {
           ) : null}
 
           {/* Testimonials preview section: merged draft testimonials and approved public reviews. */}
+          {isSectionEnabled("home_testimonials") ? (
           <section id="testimonials" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
               <LinedHeading title={draft?.testimonialTitle || "Testimonials"} />
@@ -2127,9 +2137,10 @@ const PageDemo = () => {
               ) : null}
             </div>
           </section>
+          ) : null}
 
           {/* Contact summary section: map iframe and shared contact card. */}
-          {contactPageEnabled ? (
+          {contactPageEnabled && isSectionEnabled("home_contact") ? (
             <section id="contact" className={SECTION_BLOCK}>
               <div className={CONTENT_WRAP}>
                 <LinedHeading title={draft?.contactTitle || "Contact"} />
@@ -2190,9 +2201,9 @@ const PageDemo = () => {
               )}
             </div>
             {aboutNarrativeBlocks.length ? (
-              <div className="mt-10 grid grid-cols-1 gap-5 md:mt-14 md:grid-cols-2">
+              <div className="mt-10 grid grid-cols-1 gap-5 md:mt-14">
                 {aboutNarrativeBlocks.map((item) => (
-                  <article key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left md:p-6">
+                  <article key={item.title} className="p-4 text-center md:p-6">
                     <h3 className="text-[20px] font-semibold text-[#f7e53f] md:text-[24px]">{item.title}</h3>
                     <p className="mt-3 font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.6] text-white/90 md:text-[17px]">
                       {item.body}
@@ -2202,7 +2213,7 @@ const PageDemo = () => {
               </div>
             ) : null}
 
-            {founders.length ? (
+            {founders.length && isSectionEnabled("about_founders") ? (
               <div className="mt-14 space-y-16">
                 <h3 className="text-center text-[22px] font-semibold text-[#f7e53f] md:text-[28px]">
                   Our Founders
@@ -2251,13 +2262,11 @@ const PageDemo = () => {
               </div>
             ) : null}
 
-            {aboutPageImageCards.length ? (
+            {aboutPageImageCards.length && isSectionEnabled("about_team") ? (
               <div className="mt-10 md:mt-14">
-                {draft?.aboutPageTeamHeading ? (
-                  <h3 className="mb-6 text-center text-[22px] font-semibold text-[#f7e53f] md:text-[28px]">
-                    {draft.aboutPageTeamHeading}
-                  </h3>
-                ) : null}
+                <h3 className="mb-6 text-center text-[22px] font-semibold text-[#f7e53f] md:text-[28px]">
+                  {draft?.aboutPageTeamHeading || "Our Team"}
+                </h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {aboutPageImageCards.map((card: any, idx: number) => (
                     <article key={`about-card-${idx}`} className="overflow-hidden rounded-2xl bg-[#111111] text-white shadow-sm">
@@ -2431,10 +2440,10 @@ const PageDemo = () => {
                   </div>
                 </div>
               </section>
-              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 ? (
+              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 && selectedProductPage?.inclusionsEnabled !== false ? (
                 <InclusionsSection inclusions={selectedProductPage.inclusions} title={`${String(selectedProductPage?.heading || selectedProductPage?.name || "Product").trim()} Inclusions`} />
               ) : null}
-              <FaqAccordion faqs={Array.isArray(draft?.faqs) ? draft.faqs : []} />
+              {selectedProductPage?.faqEnabled !== false ? <FaqAccordion faqs={Array.isArray(draft?.faqs) ? draft.faqs : []} /> : null}
               </>
             );
           })() : null}
@@ -2443,6 +2452,7 @@ const PageDemo = () => {
           {!selectedDetailItem && selectedProductPage ? (
             <>
               {/* Full-bleed hero â€º stretches edge to edge, no side or top margins */}
+              {selectedProductPage?.heroEnabled !== false ? (
               <section
                 className="relative h-[62svh] min-h-[450px] overflow-hidden bg-[#1f1f1f] md:h-[84vh] md:min-h-[550px]"
               >
@@ -2495,6 +2505,7 @@ const PageDemo = () => {
                   </>
                 ) : null}
               </section>
+              ) : null}
 
               {/* Our Products content below the hero */}
               <section className="px-4 pb-8 pt-8 md:px-6 md:pb-12 md:pt-10">
@@ -2598,10 +2609,10 @@ const PageDemo = () => {
                 )}
                 </div>
               </section>
-              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 ? (
+              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 && selectedProductPage?.inclusionsEnabled !== false ? (
                 <InclusionsSection inclusions={selectedProductPage.inclusions} title={`${String(selectedProductPage?.heading || selectedProductPage?.name || "Product").trim()} Inclusions`} />
               ) : null}
-              <FaqAccordion faqs={Array.isArray(draft?.faqs) ? draft.faqs : []} />
+              {selectedProductPage?.faqEnabled !== false ? <FaqAccordion faqs={Array.isArray(draft?.faqs) ? draft.faqs : []} /> : null}
             </>
             ) : !selectedDetailItem ? (
               <section className={SECTION_BLOCK}>
@@ -3345,6 +3356,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* Shared footer: shown on every section so hosted and local preview stay consistent. */}
+      {isSectionEnabled("home_footer") ? (
       <footer className={`mt- border-t border-slate-300 bg-[#ffffff] ${FOOTER_TEXT}`}>
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-8 text-center md:grid-cols-[1.35fr_1fr_1fr_1fr] md:text-left">
           <div>
@@ -3424,6 +3436,7 @@ const PageDemo = () => {
           {footerCopyrightText ? footerCopyrightText : null}
         </div>
       </footer>
+      ) : null}
 
       {/* Shared overlays: review form, lead form, success toast, and gallery viewer. */}
       {reviewModalOpen ? (

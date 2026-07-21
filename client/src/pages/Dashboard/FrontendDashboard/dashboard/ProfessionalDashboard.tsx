@@ -271,7 +271,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     String(status || "Pending").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   const quickLinks: QuickLinkItem[] = [
-    { icon: Map, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
+    { icon: Map, label: "Nomads Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
     { icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/company-settings/website-builder", color: "#7c3aed" },
     { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/sales-crm/tenant-companies", color: "#1E3D73" },
     { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/meetings/meeting-rooms", color: "#2563EB" },

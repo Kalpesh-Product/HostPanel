@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Aperture, Boxes, CircleDot, Diamond, Hexagon, Info, Orbit, X } from "lucide-react";
+import { Aperture, Boxes, CircleAlert, CircleDot, Diamond, Hexagon, Orbit, X } from "lucide-react";
 import { FaFacebookF, FaInstagram, FaLinkedinIn } from "react-icons/fa";
 
 // Small "i" button shown next to a form-section heading. Opens a modal that
@@ -569,9 +569,10 @@ const SectionPreviewInfo = ({ section }) => {
         type="button"
         title="See how this section looks on the website"
         onClick={() => setOpen(true)}
-        className="text-slate-400 hover:text-[#2563EB] transition-colors align-middle"
+        className="inline-flex h-6 shrink-0 items-center justify-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 align-middle text-[10px] font-pmedium leading-none text-[#2563EB] shadow-sm transition-all hover:border-blue-300 hover:bg-[#2563EB] hover:text-white"
       >
-        <Info size={14} />
+        <CircleAlert aria-hidden="true" size={12} strokeWidth={2} />
+        <span>Preview</span>
       </button>
       {open &&
         createPortal(
