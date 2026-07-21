@@ -32,8 +32,10 @@ export interface IEmployeeProfile extends Document {
     fullName: string;
     email: string;
     phone?: string;
+    gender?: string;
     dateOfBirth?: Date | null;
     currentAddress?: string;
+    permanentAddress?: string;
     country?: string;
     state?: string;
     city?: string;
@@ -170,11 +172,21 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
             trim: true,
             default: "",
         },
+        gender: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         dateOfBirth: {
             type: Date,
             default: null,
         },
         currentAddress: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        permanentAddress: {
             type: String,
             trim: true,
             default: "",

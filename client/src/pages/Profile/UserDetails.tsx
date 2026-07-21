@@ -67,12 +67,14 @@ interface EmployeeRecord {
   fullName?: string;
   email?: string;
   phone?: string;
+  gender?: string;
   department?: string;
   departments?: string[];
   role?: string;
   status?: string;
   dateOfBirth?: string;
   currentAddress?: string;
+  permanentAddress?: string;
   country?: string;
   state?: string;
   city?: string;
@@ -137,13 +139,15 @@ export default function UserDetails() {
     { label: "Full Name", value: profileName, icon: UserRound },
     { label: "Email", value: profileEmail, icon: ShieldCheck },
     { label: "Phone", value: employee?.phone || authUser?.phone || "-", icon: Phone },
+    { label: "Gender", value: employee?.gender || "-", icon: User },
     { label: "Date of Birth", value: formatDate(employee?.dateOfBirth), icon: CalendarDays },
     { label: "Current Address", value: employee?.currentAddress || "-", icon: House },
+    { label: "Permanent Address", value: employee?.permanentAddress || "-", icon: House },
     { label: "Country", value: employee?.country || "-", icon: MapPin },
     { label: "State", value: employee?.state || "-", icon: MapPin },
     { label: "City", value: employee?.city || "-", icon: Building2 },
-    { label: "Emergency Contact", value: employee?.emergencyContactName || "-", icon: Handshake },
-    { label: "Emergency Phone", value: employee?.emergencyContactPhone || "-", icon: Phone },
+    { label: "Emergency Contact Name", value: employee?.emergencyContactName || "-", icon: Handshake },
+    { label: "Emergency Contact Phone", value: employee?.emergencyContactPhone || "-", icon: Phone },
   ];
 
   const workFields = [
@@ -188,12 +192,14 @@ export default function UserDetails() {
               fullName: String(matched.fullName || matched.name || ""),
               email: String(matched.email || ""),
               phone: String(matched.phone || matched.mobile || ""),
+              gender: String(matched.gender || ""),
               department: String(matched.department || ""),
               departments: Array.isArray(matched.departments || matched.departmentNames) ? (matched.departments || matched.departmentNames).filter(Boolean).map(String) : [],
               role: String(matched.workspaceRole || matched.role || ""),
               status: String(matched.status || ""),
               dateOfBirth: String(matched.dateOfBirth || matched.dob || ""),
               currentAddress: String(matched.currentAddress || matched.address || ""),
+              permanentAddress: String(matched.permanentAddress || ""),
               country: String(matched.country || ""),
               state: String(matched.state || ""),
               city: String(matched.city || ""),
@@ -312,7 +318,7 @@ export default function UserDetails() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {personalFields.filter((f) => {
                 if (f.label === "Date of Birth" && !employee?.dateOfBirth && !hasTenantRole) return false;
-                if ((f.label === "Emergency Contact" || f.label === "Emergency Phone") && !employee?.emergencyContactName && !hasTenantRole) return false;
+                if ((f.label === "Emergency Contact Name" || f.label === "Emergency Contact Phone") && !employee?.emergencyContactName && !hasTenantRole) return false;
                 return true;
               }).map((field) => (
                 <DetailCard key={field.label} label={field.label} value={field.value} icon={field.icon} />
