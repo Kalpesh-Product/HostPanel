@@ -3982,9 +3982,24 @@ export default function VisitorsManagementPage() {
                             {isCheckedIn ? (
                               <button
                                 type="button"
-                                title="Open a walk-in booking pre-filled with this visitor's details. Completing the booking checks them out and converts them to a client."
-                                onClick={() => openBookingFromVisitor(vis)}
-                                className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[9px] font-pmedium uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap"
+                                title={
+                                  visitorAccess.modes.walkin_booking
+                                    ? "Open a walk-in booking pre-filled with this visitor's details. Completing the booking checks them out and converts them to a client."
+                                    : "Upgrade your plan to convert visitors to clients."
+                                }
+                                onClick={() => {
+                                  if (!visitorAccess.modes.walkin_booking) {
+                                    toast.error('Upgrade your plan to convert visitors to clients.');
+                                    return;
+                                  }
+                                  openBookingFromVisitor(vis);
+                                }}
+                                disabled={!visitorAccess.modes.walkin_booking}
+                                className={`px-2.5 py-1 border rounded-lg text-[9px] font-pmedium uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap ${
+                                  visitorAccess.modes.walkin_booking
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                                    : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                                }`}
                               >
                                 <UserCheck size={11} /> Convert to Client
                               </button>
