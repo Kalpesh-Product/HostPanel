@@ -7,6 +7,9 @@ import MuiModal from "./MuiModal";
 
 type PreviewType = "image" | "pdf" | "none" | "auto";
 
+const MAX_IMAGE_SIZE_MB = 1;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+
 interface UploadFileInputProps {
   value: File | null | unknown;
   onChange: (file: File | null) => void;
@@ -57,6 +60,11 @@ const UploadFileInput = ({
       const ext = getExtension(file.name);
       if (!allowedExtensions.includes(ext)) {
         alert(`Only ${allowedExtensions.join(", ")} files are allowed.`);
+        return;
+      }
+
+      if (isImage(ext) && file.size > MAX_IMAGE_SIZE_BYTES) {
+        alert(`Image size must not exceed ${MAX_IMAGE_SIZE_MB}MB.`);
         return;
       }
 

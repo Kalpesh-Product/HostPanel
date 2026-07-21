@@ -73,7 +73,7 @@ const WebsiteBuilderActionsSkeleton = () => (
     <PageFrame>
       <div className="flex flex-col gap-5">
         <Skeleton className="h-7 w-48" />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
@@ -406,11 +406,16 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
     <div className="p-4 flex flex-col gap-4">
       <PageFrame>
         <div className="flex flex-col gap-5">
-          <h2 className="text-title font-pmedium text-primary uppercase">
-            Website Builder
-          </h2>
+          <div>
+            <h2 className="text-title font-pmedium text-primary uppercase">
+              Website Builder
+            </h2>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">
+              Create, edit, and publish your company website, and manage its leads and reviews.
+            </p>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {existingWebsite ? (
               <>
                 <div

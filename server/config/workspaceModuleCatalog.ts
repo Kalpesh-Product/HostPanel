@@ -83,14 +83,14 @@ const MODULE_GROUPS = [
     sectionLabel: "Key Apps",
     items: [
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true },
-      { id: "wono-nomad", label: "Wono Nomads", route: "/company-settings/wono-nomad", implemented: true },
+      { id: "wono-nomad", label: "Nomad Listings", route: "/company-settings/wono-nomad", implemented: true },
+      { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true },
       { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
-      { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true },
     ],
   },
   {
     sectionId: "founder-core-modules",
-    sectionLabel: "Founder Core Modules",
+    sectionLabel: "Core Modules",
     items: [
       { id: "organization-management", label: "Organization Management", route: "/company-settings/organization-management", implemented: true },
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true },
@@ -201,10 +201,10 @@ export const EXTRA_COMMON_MODULE_IDS = [
 ];
 
 export const KEY_APPS_IDS = [
-  "visitor-management",
   "website-builder",
   "wono-nomad",
   "website-leads",
+  "visitor-management",
 ]
 
 // Maps a Department document's `name` (as seeded by DEFAULT_DEPARTMENTS in

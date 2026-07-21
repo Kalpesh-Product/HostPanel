@@ -175,7 +175,8 @@ const companySettingsData: NavNode[] = [
 
 const keyAppsData: NavNode[] = [
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder", disabled: false },
-  { id: "wono-nomad", label: "Wono Nomads", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
+  { id: "wono-nomad", label: "Nomad Listings", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
+  { id: "website-leads", label: "All Leads", icon: Magnet, route: "/company-settings/all-leads", disabled: false },
   { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
 ];
 
@@ -1176,6 +1177,8 @@ useEffect(() => {
     }).filter((item): item is NavNode => Boolean(item));
     let sortedItems = sortEnabledFirst(mappedItems);
     sortedItems = sortedItems.map((item) => {
+      if (item.id === "website-leads" && sectionKey === "key-apps")
+        return { ...item, label: "All Leads", icon: Magnet, route: "/company-settings/all-leads" };
       if (item.id === "website-leads")
         return { ...item, label: "Website Leads", icon: NotebookText };
       if (item.id === "resource-pricing")
@@ -1421,7 +1424,7 @@ useEffect(() => {
           })().map((section) => (
 
 
-              <div key={section.key}>
+              <div key={section.key} className={section.key === "add-ons" ? "!mt-2" : undefined}>
                 {section.key === "add-ons" ? (
                   // Add-Ons is a page now — one click opens the grouped
                   // locked-modules listing instead of expanding a tree here.
@@ -1497,7 +1500,7 @@ useEffect(() => {
         )}
 
         {isSidebarHydrated && planLabel === "basic" && (
-          <div className="space-y-1 px-1">
+          <div className="!mt-2 space-y-1 px-1">
             <NavGroup
               item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
               collapsed={collapsed}
@@ -1508,19 +1511,7 @@ useEffect(() => {
           </div>
         )}
 
-        {isSidebarHydrated && <div>
-          {!collapsed ? (
-            <div className="flex items-center justify-center px-3 mb-2">
-              <div className="h-px bg-gray-300 flex-1" />
-              <span className="text-[10px] font-pbold text-gray-500 tracking-wider px-2">General</span>
-              <div className="h-px bg-gray-300 flex-1" />
-            </div>
-          ) : (
-            <div className="px-2 pt-1 pb-2">
-              <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">GEN</div>
-              <div className="mt-2 h-px bg-gray-300" />
-            </div>
-          )}
+        {isSidebarHydrated && <div className="!mt-2">
           <div className="space-y-1">
             {generalData.map((item) => (
               <NavGroup

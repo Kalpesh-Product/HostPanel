@@ -7,10 +7,13 @@ import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
+import MuiModal from "../../components/MuiModal";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
 import AccountDeletionDangerZone from "./AccountDeletionDangerZone";
 
 const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+const MAX_LOGO_SIZE_MB = 1;
+const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 
 const CompanyProfile = () => {
   const axios = useAxiosPrivate();
@@ -21,6 +24,7 @@ const CompanyProfile = () => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
+  const [isLogoPreviewOpen, setIsLogoPreviewOpen] = useState(false);
 
 const { data: userDetails } = useQuery({
   queryKey: ["profileMeCompany"],
@@ -103,6 +107,11 @@ const { data: userDetails } = useQuery({
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (!selectedFile) return;
+    if (selectedFile.size > MAX_LOGO_SIZE_BYTES) {
+      toast.error(`Logo image must not exceed ${MAX_LOGO_SIZE_MB}MB.`);
+      event.target.value = "";
+      return;
+    }
     setFile(selectedFile);
     setPreviewUrl(URL.createObjectURL(selectedFile));
   };
@@ -276,9 +285,13 @@ const { data: userDetails } = useQuery({
             <div className="relative">
               <button
                 type="button"
-                onClick={() => document.getElementById("companyLogoUpload")?.click()}
+                onClick={() =>
+                  currentLogoUrl
+                    ? setIsLogoPreviewOpen(true)
+                    : document.getElementById("companyLogoUpload")?.click()
+                }
                 className="flex h-24 w-24 items-center justify-center rounded-[1.75rem] border-2 border-dashed border-slate-200 bg-slate-50 overflow-hidden transition hover:border-blue-300 hover:bg-blue-50"
-                title="Upload company logo"
+                title={currentLogoUrl ? "Preview company logo" : "Upload company logo"}
               >
                 {currentLogoUrl ? (
                   <img
@@ -300,6 +313,27 @@ const { data: userDetails } = useQuery({
                 className="hidden"
                 onChange={handleFileChange}
               />
+
+              <MuiModal
+                open={isLogoPreviewOpen}
+                onClose={() => setIsLogoPreviewOpen(false)}
+                title="Company Logo"
+              >
+                <div className="flex flex-col items-center gap-4">
+                  <img
+                    src={currentLogoUrl}
+                    alt="Company logo preview"
+                    className="max-h-80 w-full rounded-xl border border-slate-100 object-contain p-4"
+                  />
+                  <label
+                    htmlFor="companyLogoUpload"
+                    onClick={() => setIsLogoPreviewOpen(false)}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700"
+                  >
+                    Change Logo
+                  </label>
+                </div>
+              </MuiModal>
             </div>
 
             <div className="min-w-0 flex-1">
