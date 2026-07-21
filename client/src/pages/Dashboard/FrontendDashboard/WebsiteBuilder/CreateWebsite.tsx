@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Tooltip,
 } from "@mui/material";
 import PageFrame from "../../../../components/Pages/PageFrame";
 
@@ -820,6 +821,47 @@ const isSameCompanyTemplate = ({
   return false;
 };
 
+// Small "Show on website" switch used next to section headers. Every section is
+// enabled by default (unset === enabled); toggling off hides it from the live site
+// without deleting the content, so it can be re-enabled later.
+// Pass either `sectionKey` (stored under sectionOverrides.<key>, for singleton
+// pages like Home/About) or a full `name` (for per-item fields like a specific
+// product page's own enabled/heroEnabled/inclusionsEnabled).
+const SectionToggle = ({
+  sectionKey,
+  name,
+  control,
+}: {
+  sectionKey?: string;
+  name?: string;
+  control: any;
+}) => (
+  <Controller
+    name={name || `sectionOverrides.${sectionKey}`}
+    control={control}
+    defaultValue={true}
+    render={({ field }) => (
+      <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-2 text-xs font-medium text-slate-500">
+        <span>{field.value !== false ? "Enabled" : "Disabled"}</span>
+        <span
+          role="switch"
+          aria-checked={field.value !== false}
+          onClick={() => field.onChange(field.value === false)}
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+            field.value !== false ? "bg-accent" : "bg-slate-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              field.value !== false ? "translate-x-4" : "translate-x-0.5"
+            }`}
+          />
+        </span>
+      </label>
+    )}
+  />
+);
+
 
 const CreateWebsite = () => {
   const axios = useAxiosPrivate();
@@ -1083,6 +1125,9 @@ const CreateWebsite = () => {
 
   const values = watch();
   const pageNavItemsForVisibility = Array.isArray(values.pageNavItems) ? values.pageNavItems : [];
+  const homePageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "home",
+  );
   const partnerPageNavIndex = pageNavItemsForVisibility.findIndex(
     (item: any) => String(item?.slug || "").trim().toLowerCase() === "partner",
   );
@@ -1288,6 +1333,7 @@ const CreateWebsite = () => {
 
           reset({
             ...getValues(),
+            sectionOverrides: draftData?.sectionOverrides || found?.sectionOverrides || {},
             companyId: String(draftData?.companyId || prefillCompanyId || found?.companyId || "").trim(),
             companyName: String(draftData?.companyName || prefillCompanyName || found?.companyName || "").trim(),
             companyLogo: found?.companyLogo || null,
@@ -1298,7 +1344,9 @@ const CreateWebsite = () => {
             about:
               Array.isArray(draftData?.about) && draftData.about.length
                 ? draftData.about.map((item: any) => ({
-                    text: String(item?.text || item || "").trim(),
+                    text: typeof item === "string"
+                      ? item.trim()
+                      : String(item?.text || "").trim(),
                   }))
                 : Array.isArray(found?.about) && found.about.length
                   // Handles both old flat-string format ["text"] and new object format [{text:"..."}]
@@ -1456,6 +1504,10 @@ const CreateWebsite = () => {
                     ? draftData.products
                     : [];
               return sourceProducts
+                .filter(
+                  (product: any) =>
+                    String(product?.name || "").trim() || String(product?.type || "").trim(),
+                )
                 .map((product: any, index: number) => {
                   const name =
                     String(product?.name || product?.type || "").trim() ||
@@ -1803,9 +1855,8 @@ const CreateWebsite = () => {
   } = useFieldArray({ control, name: "careersFormFields", keyName: "fieldKey" });
   const [activeMainPageTab, setActiveMainPageTab] = useState(0);
   const [activeProductPageTab, setActiveProductPageTab] = useState(0);
-  const [selectedProductPageOption, setSelectedProductPageOption] = useState(
-    DEFAULT_PRODUCT_DROPDOWN_PAGES[0],
-  );
+  const [selectedProductPageOption, setSelectedProductPageOption] = useState("");
+  const [pendingRemoveProductPageIndex, setPendingRemoveProductPageIndex] = useState(null);
 
   const submitCreateWebsite = (values, e) => {
     // const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
@@ -1866,6 +1917,7 @@ const CreateWebsite = () => {
         subtitle: p.subtitle,
         cost: p.cost,
         description: p.description,
+        enabled: p?.enabled !== false,
         // imageIds tells the server which persisted images the user kept.
         // Only send it when every kept image resolved to an id — otherwise
         // the server would treat the unresolved ones as removals.
@@ -1956,6 +2008,7 @@ const CreateWebsite = () => {
     );
     fd.set("inclusions", JSON.stringify(values.inclusions || []));
     fd.set("faqs", JSON.stringify(values.faqs || []));
+    fd.set("sectionOverrides", JSON.stringify(values.sectionOverrides || {}));
     (values.productDropdownPages || []).forEach((item, index) => {
       appendFileIfPresent(`productPageHeroImage_${index}`, item?.heroImage);
       (item?.heroImages || []).forEach((file) => {
@@ -2045,6 +2098,7 @@ const CreateWebsite = () => {
         (values.aboutPageImageCards || []).map((card) => ({
           title: card?.title || "",
           description: card?.description || "",
+          enabled: card?.enabled !== false,
         })),
       ),
     );
@@ -2112,6 +2166,7 @@ const CreateWebsite = () => {
         title: String(card?.title || "").trim(),
         description: String(card?.description || "").trim(),
         image: getMediaUrlForPreview(card?.image),
+        enabled: card?.enabled !== false,
       })),
       productSectionTitle:
         String(formValues?.productTitle || "").trim() || "Our Products",
@@ -2120,6 +2175,7 @@ const CreateWebsite = () => {
         type: String(item?.type || "").trim(),
         cost: String(item?.cost || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
         images: (item?.files || [])
           .map((fileItem: unknown) => getMediaUrlForPreview(fileItem))
           .filter(Boolean),
@@ -2128,6 +2184,7 @@ const CreateWebsite = () => {
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
         images: (item?.images || [])
           .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
           .filter(Boolean),
@@ -2136,6 +2193,7 @@ const CreateWebsite = () => {
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
         images: (item?.images || [])
           .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
           .filter(Boolean),
@@ -2144,6 +2202,7 @@ const CreateWebsite = () => {
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
         images: (item?.images || [])
           .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
           .filter(Boolean),
@@ -2153,6 +2212,7 @@ const CreateWebsite = () => {
         price: String(item?.price || "").trim(),
         duration: String(item?.duration || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
         images: (item?.images || [])
           .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
           .filter(Boolean),
@@ -2162,6 +2222,7 @@ const CreateWebsite = () => {
         capacity: item?.capacity,
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
         images: (item?.images || [])
           .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
           .filter(Boolean),
@@ -2169,6 +2230,10 @@ const CreateWebsite = () => {
       productPages: (formValues?.productDropdownPages || []).map((item: any, index: number) => ({
         name: String(item?.name || "").trim(),
         slug: String(item?.slug || "").trim().toLowerCase(),
+        enabled: item?.enabled !== false,
+        heroEnabled: item?.heroEnabled !== false,
+        inclusionsEnabled: item?.inclusionsEnabled !== false,
+        faqEnabled: item?.faqEnabled !== false,
         heading: String(item?.homeCardHeading || item?.name || "").trim(),
         subText: String(item?.homeCardSubText || "").trim(),
         cardImage:
@@ -2190,6 +2255,10 @@ const CreateWebsite = () => {
       productDropdownPages: (formValues?.productDropdownPages || []).map((item: any, index: number) => ({
         name: String(item?.name || "").trim(),
         slug: String(item?.slug || "").trim().toLowerCase(),
+        enabled: item?.enabled !== false,
+        heroEnabled: item?.heroEnabled !== false,
+        inclusionsEnabled: item?.inclusionsEnabled !== false,
+        faqEnabled: item?.faqEnabled !== false,
         heroHeading: String(item?.heroHeading || "").trim(),
         heroSubHeading: String(item?.heroSubHeading || "").trim(),
         heroMode: String(item?.heroMode || "single").trim().toLowerCase(),
@@ -2214,11 +2283,12 @@ const CreateWebsite = () => {
         name: String(item?.name || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
         image: getMediaUrlForPreview(item?.image),
       })),
       galleryTitle: String(formValues?.galleryTitle || "Gallery").trim(),
       inclusions: Array.isArray(formValues?.inclusions) ? formValues.inclusions : [],
-      faqs: Array.isArray(formValues?.faqs) ? formValues.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim() })).filter((faq: any) => faq.question) : [],
+      faqs: Array.isArray(formValues?.faqs) ? formValues.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim(), enabled: faq?.enabled !== false })).filter((faq: any) => faq.question) : [],
       logoCarousel: {
         enabled: formValues?.logoCarousel?.enabled === true,
         title: String(formValues?.logoCarousel?.title || "").trim(),
@@ -2226,7 +2296,10 @@ const CreateWebsite = () => {
           .map((item: unknown) => getMediaUrlForPreview(item))
           .filter(Boolean),
       },
+      // Disabled gallery images are dropped from the preview payload entirely, since
+      // the live site only ever needs a flat list of URLs to display.
       gallery: (formValues?.gallery || [])
+        .filter((item: any) => item instanceof File || item?.enabled !== false)
         .map((item: unknown) => getMediaUrlForPreview(item))
         .filter(Boolean),
       testimonialTitle: String(formValues?.testimonialTitle || "Testimonials").trim(),
@@ -2721,24 +2794,99 @@ const CreateWebsite = () => {
     .trim()
     .toLowerCase();
 
+  // Jumps the editor to the Home tab's global FAQ block, since FAQs are edited
+  // once on Home but shown on every product page.
+  const goToHomeFaqSection = () => {
+    setActiveMainPageTab(homePageNavIndex >= 0 ? homePageNavIndex : 0);
+    window.setTimeout(() => {
+      document.getElementById("home-faq-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  // Predefined pages the "Select Page" dropdown offers, minus ones already added —
+  // once a page is added it drops off the list; it's removed again via the tab's "x".
   const availableProductPageOptions = Array.from(
     new Set([
       ...DEFAULT_PRODUCT_DROPDOWN_PAGES,
       ...(values?.products || [])
         .map((item) => String(item?.type || "").trim())  // use type as heading, not name
         .filter(Boolean),
-      // âœ… also include pages that are already saved in productDropdownPages
-      // so they always appear in the dropdown (e.g. when loading an existing site)
-      ...(values?.productDropdownPages || [])
-        .map((item) => String(item?.name || "").trim())
-        .filter(Boolean),
     ]),
+  ).filter(
+    (option) =>
+      !(values?.productDropdownPages || []).some(
+        (item) => String(item?.slug || "").trim().toLowerCase() === toSlug(option),
+      ),
   );
-  const selectedProductPageSlug = toSlug(selectedProductPageOption);
-  const selectedProductPageIndex = (values?.productDropdownPages || []).findIndex(
-    (item) => String(item?.slug || "").trim().toLowerCase() === selectedProductPageSlug,
-  );
-  const isSelectedProductPageAdded = selectedProductPageIndex >= 0;
+
+  const DEFAULT_PRODUCT_PAGE_INCLUSION_KEYS = [
+    "workspace","living-space","air-condition","fast-internet","cafe-dining","receptionist",
+    "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
+    "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
+    "swimming-pool","television","gas","laundry","secure","personalised",
+    "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+  ];
+
+  // Adds a product page for the given name (predefined preset or custom), then
+  // switches to it. Used by both the "Select Page" dropdown and "+ Add New Page".
+  const addProductPage = (name: string) => {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return;
+    const slug = toSlug(trimmed);
+    const existingIndex = (values?.productDropdownPages || []).findIndex(
+      (item) => String(item?.slug || "").trim().toLowerCase() === slug,
+    );
+    if (existingIndex >= 0) {
+      setActiveProductPageTab(existingIndex);
+      return;
+    }
+    appendProductPageItem({
+      name: trimmed,
+      slug,
+      enabled: true,
+      heroHeading: trimmed,
+      heroSubHeading: "",
+      heroMode: "single",
+      heroImage: null,
+      heroButtonText: "View More",
+      heroImages: [],
+      homeCardHeading: trimmed,
+      homeCardSubText: "",
+      homeCardImage: null,
+      leadEnabled: !isMenuPageSlug(slug),
+      leadFormLabel: isMenuPageSlug(slug)
+        ? "Menu Inquiry Disabled"
+        : "View More / Get Details",
+      faqs: [],
+      inclusions: DEFAULT_PRODUCT_PAGE_INCLUSION_KEYS.map((k) => ({ key: k, enabled: false })),
+    });
+    setActiveProductPageTab(productPageFields.length);
+  };
+
+  // "+ Add New Page" seeds a blank "Product N" page, incrementing past any name
+  // already in use so re-adding after a removal doesn't collide.
+  const addNewBlankProductPage = () => {
+    let n = (values?.productDropdownPages || []).length + 1;
+    let name = `Product ${n}`;
+    while (
+      (values?.productDropdownPages || []).some(
+        (item) => String(item?.slug || "").trim().toLowerCase() === toSlug(name),
+      )
+    ) {
+      n += 1;
+      name = `Product ${n}`;
+    }
+    addProductPage(name);
+  };
+
+  const removeProductPageAt = (index: number) => {
+    removeProductPageItem(index);
+    setActiveProductPageTab((prev) => {
+      if (prev > index) return prev - 1;
+      if (prev === index) return Math.max(0, index - 1);
+      return prev;
+    });
+  };
   const legacyHomeProductsEditorEnabled = Boolean(
     values?.__legacyHomeProductsEditorEnabled,
   );
@@ -2871,131 +3019,119 @@ const CreateWebsite = () => {
                     <TextField
                       select
                       size="small"
-                      label="Select / Add Page"
+                      label="Select Page"
+                      displayEmpty
                       value={selectedProductPageOption}
-                      onChange={(event) => setSelectedProductPageOption(event.target.value)}
-                      sx={{ minWidth: 180 }}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === "__new__") {
+                          addNewBlankProductPage();
+                        } else {
+                          addProductPage(value);
+                        }
+                        setSelectedProductPageOption("");
+                      }}
+                      sx={{ minWidth: 200 }}
                     >
+                      <MenuItem value="" disabled>
+                        Select Page
+                      </MenuItem>
                       {availableProductPageOptions.map((option) => (
                         <MenuItem key={option} value={option}>
-                          {(values?.productDropdownPages || []).some(
-                            (item) => String(item?.slug || "").trim().toLowerCase() === toSlug(option),
-                          )
-                            ? `${option} (Page added)`
-                            : option}
+                          {option}
                         </MenuItem>
                       ))}
+                      <MenuItem value="__new__" className="text-accent font-pmedium">
+                        + Add New Page
+                      </MenuItem>
                     </TextField>
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
-                      onClick={() => {
-                        const optionName = String(selectedProductPageOption || "").trim();
-                        if (!optionName) return;
-                        const optionSlug = toSlug(optionName);
-                        const existingIndex = (values?.productDropdownPages || []).findIndex(
-                          (item) => String(item?.slug || "").trim().toLowerCase() === optionSlug,
-                        );
-                        if (existingIndex >= 0) {
-                          removeProductPageItem(existingIndex);
-                          setActiveProductPageTab((prev) => Math.max(0, prev - 1));
-                          return;
-                        }
-                        appendProductPageItem({
-                          name: optionName,
-                          slug: optionSlug,
-                          enabled: true,
-                          heroHeading: optionName,
-                          heroSubHeading: "",
-                          heroMode: "single",
-                          heroImage: null,
-                          heroButtonText: "View More",
-                          heroImages: [],
-                          homeCardHeading: optionName,
-                          homeCardSubText: "",
-                          homeCardImage: null,
-                          leadEnabled: !isMenuPageSlug(optionSlug),
-                          leadFormLabel: isMenuPageSlug(optionSlug)
-                            ? "Menu Inquiry Disabled"
-                            : "View More / Get Details",
-                          faqs: [],
-                          inclusions: [
-                            "workspace","living-space","air-condition","fast-internet","cafe-dining","receptionist",
-                            "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
-                            "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
-                            "swimming-pool","television","gas","laundry","secure","personalised",
-                            "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
-                          ].map((k) => ({ key: k, enabled: false })),
-                        });
-                        setActiveProductPageTab(productPageFields.length);
-                      }}
-                    >
-                      {isSelectedProductPageAdded ? "- Remove Product Page" : "+ Add Product Page"}
-                    </button>
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
-                      onClick={() => {
-                        const newPageNumber = (values?.productDropdownPages || []).length + 1;
-                        const newName = `Product ${newPageNumber}`;
-                        const newSlug = toSlug(newName);
-                        appendProductPageItem({
-                          name: newName,
-                          slug: newSlug,
-                          enabled: true,
-                          heroHeading: newName,
-                          heroSubHeading: "",
-                          heroMode: "single",
-                          heroImage: null,
-                          heroButtonText: "View More",
-                          heroImages: [],
-                          homeCardHeading: newName,
-                          homeCardSubText: "",
-                          homeCardImage: null,
-                          leadEnabled: true,
-                          leadFormLabel: "View More / Get Details",
-                          faqs: [],
-                          inclusions: [
-                            "workspace","living-space","air-condition","fast-internet","cafe-dining","receptionist",
-                            "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
-                            "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
-                            "swimming-pool","television","gas","laundry","secure","personalised",
-                            "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
-                          ].map((k) => ({ key: k, enabled: false })),
-                        });
-                        setActiveProductPageTab(productPageFields.length);
-                      }}
-                    >
-                      + Add New Product Page
-                    </button>
                   </div>
                 </div>
                 <p className="mb-3 border-b border-slate-200 pb-2 text-xs text-slate-500">
-                  Use the selector to add preset pages, or click New Page to create a custom one.
+                  Pick a preset from the dropdown to add it instantly, or choose "+ Add New Page" for a custom one. Use the × on a tab to remove a page.
                 </p>
                 {productPageFields.length > 0 ? (
                   <>
                     <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
                       {productPageFields.map((item, index) => (
-                        <button
+                        <div
                           key={item.id}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setActiveProductPageTab(index)}
-                          className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") setActiveProductPageTab(index);
+                          }}
+                          className={`flex flex-1 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                             activeProductPageTab === index
                               ? "bg-[#2563EB] text-white shadow-sm"
                               : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                           }`}
                         >
-                          {watch(`productDropdownPages.${index}.name`) || `Product Page ${index + 1}`}
-                        </button>
+                          <span className="flex-1 truncate">
+                            {watch(`productDropdownPages.${index}.name`) || `Product Page ${index + 1}`}
+                          </span>
+                          <button
+                            type="button"
+                            title="Remove page"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingRemoveProductPageIndex(index);
+                            }}
+                            className={`shrink-0 rounded-full px-2 leading-none hover:bg-black/10 ${
+                              activeProductPageTab === index ? "text-white" : "text-slate-400 hover:text-red-500"
+                            }`}
+                          >
+                            ×
+                          </button>
+                        </div>
                       ))}
                     </div>
+
+                    <Dialog
+                      open={pendingRemoveProductPageIndex !== null}
+                      onClose={() => setPendingRemoveProductPageIndex(null)}
+                      fullWidth
+                      maxWidth="xs"
+                      PaperProps={{ sx: { borderRadius: 3 } }}
+                    >
+                      <DialogTitle sx={{ pb: 1 }}>
+                        <span className="text-lg font-semibold text-slate-900">Delete this page?</span>
+                      </DialogTitle>
+                      <DialogContent>
+                        <p className="text-sm text-slate-600">
+                          {pendingRemoveProductPageIndex !== null
+                            ? `"${watch(`productDropdownPages.${pendingRemoveProductPageIndex}.name`) || "This page"}" and all its content will be permanently deleted. This cannot be undone.`
+                            : ""}
+                        </p>
+                      </DialogContent>
+                      <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                        <button
+                          type="button"
+                          onClick={() => setPendingRemoveProductPageIndex(null)}
+                          className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            removeProductPageAt(pendingRemoveProductPageIndex);
+                            setPendingRemoveProductPageIndex(null);
+                          }}
+                          className="px-6 py-2.5 bg-red-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-700 transition-all"
+                        >
+                          Yes, Delete
+                        </button>
+                      </DialogActions>
+                    </Dialog>
+
                     {productPageFields[activeProductPageTab] ? (
                       <div className="mt-3 grid grid-cols-1 gap-3">
                         <div>
-                          <div className="border-b-default border-borderGray py-4">
+                          <div className="border-b-default border-borderGray py-4 flex items-center justify-between">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Product Page Details <SectionPreviewInfo section="productDetails" /></span>
+                            <SectionToggle name={`productDropdownPages.${activeProductPageTab}.enabled`} control={control} />
                           </div>
                           <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
                           <Controller
@@ -3016,8 +3152,9 @@ const CreateWebsite = () => {
                         </div>
 
                         <div>
-                          <div className="py-2 border-b-default border-borderGray">
+                          <div className="py-2 border-b-default border-borderGray flex items-center justify-between">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Product Page Hero <SectionPreviewInfo section="heroBanner" /></span>
+                            <SectionToggle name={`productDropdownPages.${activeProductPageTab}.heroEnabled`} control={control} />
                           </div>
                           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                             <Controller
@@ -3247,15 +3384,18 @@ const CreateWebsite = () => {
                                     key={`products-synced-${field.id}`}
                                     className="border-t border-borderGray pt-4 first:border-0 first:pt-0"
                                   >
-                                    <div className="mb-3 flex items-center justify-between">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
                                       <span className="font-pmedium">Product {index + 1}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeProduct(index)}
-                                        className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
-                                      >
-                                        Remove
-                                      </button>
+                                      <div className="flex items-center gap-3">
+                                        <SectionToggle name={`products.${index}.enabled`} control={control} />
+                                        <button
+                                          type="button"
+                                          onClick={() => removeProduct(index)}
+                                          className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
                                     </div>
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                       <Controller
@@ -3344,19 +3484,31 @@ const CreateWebsite = () => {
                           })()}
                         </div>
 
-                        {/* FAQ is now global — edit from the Home/Products section */}
+                        {/* FAQ content is global — edit from the Home/Products section — but each
+                            product page decides for itself whether to show that shared FAQ list. */}
                         <div>
-                          <div className="py-4 border-b-default border-borderGray">
+                          <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">FAQ Section <SectionPreviewInfo section="faq" /></span>
+                            <SectionToggle name={`productDropdownPages.${activeProductPageTab}.faqEnabled`} control={control} />
                           </div>
                           <p className="mt-3 text-xs text-slate-500">FAQs are shared across all product pages. Edit them in the <strong>FAQ</strong> section in the Home Section Cards area below.</p>
+                          <button
+                            type="button"
+                            onClick={goToHomeFaqSection}
+                            className="mt-2 text-accent text-xs font-semibold hover:underline inline-flex items-center gap-1 transition-all"
+                          >
+                            Go to Home FAQ section →
+                          </button>
                         </div>
 
                         {/* Inclusions for this product page */}
                         <div>
                           <div className="py-4 border-b-default border-borderGray flex items-center justify-between mb-3">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Inclusions Section <SectionPreviewInfo section="inclusions" /></span>
-                            <span className="text-xs text-slate-400">Toggle per amenity</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-400">Toggle per amenity</span>
+                              <SectionToggle name={`productDropdownPages.${activeProductPageTab}.inclusionsEnabled`} control={control} />
+                            </div>
                           </div>
                           <Controller
                             name={`productDropdownPages.${activeProductPageTab}.inclusions`}
@@ -3401,14 +3553,14 @@ const CreateWebsite = () => {
                               return (
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                   {ALL_KEYS.map((key) => (
-                                    <label key={key} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50">
+                                    <label key={key} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 ${isEnabled(key) ? "border-accent bg-accent/10" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
                                       <input
                                         type="checkbox"
                                         checked={isEnabled(key)}
                                         onChange={() => toggle(key)}
-                                        className="h-4 w-4 rounded border-slate-300 accent-slate-800"
+                                        className="h-4 w-4 rounded border-slate-300 accent-accent"
                                       />
-                                      <span className={`text-[11px] font-medium ${isEnabled(key) ? "text-slate-700" : "text-slate-400 line-through"}`}>
+                                      <span className={`text-[11px] font-medium ${isEnabled(key) ? "text-accent" : "text-slate-400 line-through"}`}>
                                         {ALL_LABELS[key]}
                                       </span>
                                     </label>
@@ -3567,8 +3719,9 @@ const CreateWebsite = () => {
                     )}
                   />
                   <div>
-                    <div className="py-2 border-b-default border-borderGray">
+                    <div className="py-2 border-b-default border-borderGray flex items-center justify-between">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Founders Section <SectionPreviewInfo section="founders" /></span>
+                      <SectionToggle sectionKey="about_founders" control={control} />
                     </div>
                     <p className="mt-2 text-xs text-slate-500 mb-3">
                       Each founder is shown with a large photo on one side and bio/highlights on the other — alternating left/right.
@@ -3660,8 +3813,9 @@ const CreateWebsite = () => {
                   </div>
 
                   <div>
-                    <div className="py-2 border-b-default border-borderGray">
+                    <div className="py-2 border-b-default border-borderGray flex items-center justify-between">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Our Team Section <SectionPreviewInfo section="team" /></span>
+                      <SectionToggle sectionKey="about_team" control={control} />
                     </div>
                     <div className="mt-4">
                       <Controller
@@ -3680,7 +3834,10 @@ const CreateWebsite = () => {
                     </div>
                     <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                       {aboutImageCardFields.map((field, index) => (
-                        <div key={field.id} className="border-t border-borderGray pt-4 first:border-0 first:pt-0">
+                        <div key={field.id} className="rounded-xl border border-borderGray p-4">
+                          <div className="mb-3 flex items-center justify-end">
+                            <SectionToggle name={`aboutPageImageCards.${index}.enabled`} control={control} />
+                          </div>
                           <div className="mb-4">
                             <Controller
                               name={`aboutPageImageCards.${index}.image`}
@@ -3797,6 +3954,7 @@ const CreateWebsite = () => {
                             maxFiles={40}
                             allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
                             id="gallery-page-synced"
+                            enabledToggle
                           />
                         )}
                       />
@@ -4081,60 +4239,28 @@ const CreateWebsite = () => {
               .trim()
               .toLowerCase() === "contact-us" ? (
               <div className="mt-4">
-                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Contact Hero Section <SectionPreviewInfo section="contact" /></span>
-                {contactPageNavIndex >= 0 ? (
-                  <div>
-                    <Controller
-                      name={`pageNavItems.${contactPageNavIndex}.enabled`}
-                      control={control}
-                      render={({ field }) => (
-                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={field.value !== false}
-                            onChange={(event) => field.onChange(event.target.checked)}
-                          />
-                          Show Contact Us page on website
-                        </label>
-                      )}
-                    />
-                  </div>
-                ) : null}
-                </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
-                  <Controller
-                    name="contactPageHeading"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        label="Page Heading"
-                        placeholder="Get In Touch"
-                        fullWidth
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="contactPageIntro"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        label="Page Intro"
-                        placeholder="We would love to hear from you."
-                        fullWidth
-                      />
-                    )}
-                  />
-
                   <div>
-                    <div className="py-2 border-b-default border-borderGray">
+                    <div className="flex items-center justify-between gap-3 py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">
                         Contact Details (Synced with Home)
                       </span>
+                      {contactPageNavIndex >= 0 ? (
+                        <Controller
+                          name={`pageNavItems.${contactPageNavIndex}.enabled`}
+                          control={control}
+                          render={({ field }) => (
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={field.value !== false}
+                                onChange={(event) => field.onChange(event.target.checked)}
+                              />
+                              Show Contact Us page on website
+                            </label>
+                          )}
+                        />
+                      ) : null}
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                       <Controller
@@ -4206,42 +4332,6 @@ const CreateWebsite = () => {
                     />
                   </div>
 
-                  <div>
-                    <div className="py-2 border-b-default border-borderGray">
-                      <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Contact Person (Optional) <SectionPreviewInfo section="contactPerson" /></span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <Controller
-                        name="contactPersonName"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField {...field} size="small" label="Name" fullWidth />
-                        )}
-                      />
-                      <Controller
-                        name="contactPersonRole"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField {...field} size="small" label="Role" fullWidth />
-                        )}
-                      />
-                      <Controller
-                        name="contactPersonEmail"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField {...field} size="small" label="Email" fullWidth />
-                        )}
-                      />
-                      <Controller
-                        name="contactPersonPhone"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField {...field} size="small" label="Phone" fullWidth />
-                        )}
-                      />
-                    </div>
-                  </div>
-
                   <Controller
                     name="contactInquirySuccessMessage"
                     control={control}
@@ -4269,8 +4359,9 @@ const CreateWebsite = () => {
             {/* HERO / COMPANY */}
             {activeSections.includes("hero") && (
             <div>
-              <div className="py-4 border-b-default border-borderGray">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Hero Section <SectionPreviewInfo section="hero" /></span>
+                <SectionToggle sectionKey="home_hero" control={control} />
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -4278,15 +4369,25 @@ const CreateWebsite = () => {
                   control={control}
                   rules={{ required: "Company name is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
-                      label="Company Name"
-                      fullWidth
-                      InputProps={{ readOnly: true }}
-                      helperText={errors?.companyName?.message}
-                      error={!!errors.companyName}
-                    />
+                    <Tooltip title="Company name cannot be changed" arrow>
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Company Name"
+                        fullWidth
+                        disabled
+                        sx={{
+                          "& .MuiInputBase-input.Mui-disabled": {
+                            WebkitTextFillColor: "#94a3b8",
+                          },
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "#e2e8f0",
+                          },
+                        }}
+                        helperText={errors?.companyName?.message}
+                        error={!!errors.companyName}
+                      />
+                    </Tooltip>
                   )}
                 />
 
@@ -4412,8 +4513,9 @@ const CreateWebsite = () => {
             {/* ABOUT */}
             {activeSections.includes("about") && (
             <div>
-              <div className="py-4 border-b-default border-borderGray">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Section <SectionPreviewInfo section="about" /></span>
+                <SectionToggle sectionKey="home_about" control={control} />
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -4487,23 +4589,26 @@ const CreateWebsite = () => {
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Our Products Section <SectionPreviewInfo section="products" /></span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const productsTabIndex = (values?.pageNavItems || []).findIndex(
-                      (item) =>
-                        String(item?.slug || "").trim().toLowerCase() === "products",
-                    );
-                    if (productsTabIndex >= 0) setActiveMainPageTab(productsTabIndex);
-                    document
-                      .getElementById("scrollable-content")
-                      ?.scrollTo({ top: 0, behavior: "smooth" });
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="text-[#2563EB] text-sm font-pmedium hover:underline inline-flex items-center gap-1 transition-all"
-                >
-                  Go to Products Tab →
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const productsTabIndex = (values?.pageNavItems || []).findIndex(
+                        (item) =>
+                          String(item?.slug || "").trim().toLowerCase() === "products",
+                      );
+                      if (productsTabIndex >= 0) setActiveMainPageTab(productsTabIndex);
+                      document
+                        .getElementById("scrollable-content")
+                        ?.scrollTo({ top: 0, behavior: "smooth" });
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="text-[#2563EB] text-sm font-pmedium hover:underline inline-flex items-center gap-1 transition-all"
+                  >
+                    Go to Products Tab →
+                  </button>
+                  <SectionToggle sectionKey="home_products" control={control} />
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-4 p-4">
                 <Controller
@@ -4513,7 +4618,7 @@ const CreateWebsite = () => {
                     <TextField
                       {...field}
                       size="small"
-                      label="Home Products Section Heading"
+                      label="Products Title"
                       fullWidth
                       placeholder="Our Products"
                       inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
@@ -4605,7 +4710,10 @@ const CreateWebsite = () => {
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Home Inclusions Section <SectionPreviewInfo section="inclusions" /></span>
-                <span className="text-xs text-slate-400">Shown below Our Products on home page</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-400">Shown below Our Products on home page</span>
+                  <SectionToggle sectionKey="home_inclusions" control={control} />
+                </div>
               </div>
               <div className="p-4">
               <Controller
@@ -4642,9 +4750,9 @@ const CreateWebsite = () => {
                   return (
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                       {ALL_KEYS.map((key) => (
-                        <label key={key} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50">
-                          <input type="checkbox" checked={isEnabled(key)} onChange={() => toggle(key)} className="h-4 w-4 rounded border-slate-300 accent-slate-800" />
-                          <span className={`text-[11px] font-medium ${isEnabled(key) ? "text-slate-700" : "text-slate-400 line-through"}`}>{ALL_LABELS[key]}</span>
+                        <label key={key} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 ${isEnabled(key) ? "border-accent bg-accent/10" : "border-slate-200 hover:bg-slate-50"}`}>
+                          <input type="checkbox" checked={isEnabled(key)} onChange={() => toggle(key)} className="h-4 w-4 rounded border-slate-300 accent-accent" />
+                          <span className={`text-[11px] font-medium ${isEnabled(key) ? "text-accent" : "text-slate-400 line-through"}`}>{ALL_LABELS[key]}</span>
                         </label>
                       ))}
                     </div>
@@ -4657,10 +4765,10 @@ const CreateWebsite = () => {
 
             {/* Global FAQ â€" shown on all product pages and product detail pages */}
             {productPageFields.length > 0 ? (
-            <div className="col-span-2">
+            <div className="col-span-2" id="home-faq-section">
               <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">FAQ Section <SectionPreviewInfo section="faq" /></span>
-                <span className="text-xs text-slate-400">Shown on all product &amp; detail pages · Max 10</span>
+                <span className="text-xs text-slate-400">Shared list — each product page decides for itself whether to show it. Max 10</span>
               </div>
               <div className="p-4">
               <Controller
@@ -4673,14 +4781,35 @@ const CreateWebsite = () => {
                     field.onChange(faqs.map((faq, i) => i === idx ? { ...faq, [key]: val } : faq));
                   };
                   const removeFaq = (idx: number) => field.onChange(faqs.filter((_, i) => i !== idx));
+                  const toggleFaq = (idx: number) =>
+                    field.onChange(faqs.map((faq: any, i: number) => (i === idx ? { ...faq, enabled: faq?.enabled === false } : faq)));
                   const addFaq = () => { if (faqs.length < 10) field.onChange([...faqs, { question: "", answer: "" }]); };
                   return (
                     <div className="flex flex-col gap-3">
-                      {faqs.map((faq, idx) => (
+                      {faqs.map((faq: any, idx: number) => (
                         <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-3">
                             <span className="text-xs font-semibold text-slate-500">Q{idx + 1}</span>
-                            <button type="button" onClick={() => removeFaq(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                            <div className="flex items-center gap-3">
+                              <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-medium text-slate-500">
+                                <span>{faq?.enabled !== false ? "Enabled" : "Disabled"}</span>
+                                <span
+                                  role="switch"
+                                  aria-checked={faq?.enabled !== false}
+                                  onClick={() => toggleFaq(idx)}
+                                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                                    faq?.enabled !== false ? "bg-accent" : "bg-slate-300"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                                      faq?.enabled !== false ? "translate-x-4" : "translate-x-0.5"
+                                    }`}
+                                  />
+                                </span>
+                              </label>
+                              <button type="button" onClick={() => removeFaq(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                            </div>
                           </div>
                           <TextField value={faq.question} onChange={(e) => updateFaq(idx, "question", e.target.value)} size="small" label="Question" fullWidth inputProps={{ maxLength: 200 }} />
                           <TextField value={faq.answer} onChange={(e) => updateFaq(idx, "answer", e.target.value)} size="small" label="Answer" fullWidth multiline minRows={2} inputProps={{ maxLength: 500 }} />
@@ -4893,8 +5022,9 @@ const CreateWebsite = () => {
             {/* GALLERY */}
             {activeSections.includes("gallery") && (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Section <SectionPreviewInfo section="gallery" /></span>
+                <SectionToggle sectionKey="home_gallery" control={control} />
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -4927,6 +5057,7 @@ const CreateWebsite = () => {
                       maxFiles={40}
                       allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
                       id="gallery"
+                      enabledToggle
                     />
                   )}
                 />
@@ -4937,8 +5068,9 @@ const CreateWebsite = () => {
             {/* TESTIMONIALS */}
             {activeSections.includes("testimonials") && (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Testimonials Section <SectionPreviewInfo section="testimonials" /></span>
+                <SectionToggle sectionKey="home_testimonials" control={control} />
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -5123,8 +5255,9 @@ const CreateWebsite = () => {
             {/* CONTACT */}
             {activeSections.includes("contact") && (
             <div>
-              <div className="py-4 border-b-default border-borderGray">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Contact Section <SectionPreviewInfo section="contact" /></span>
+                <SectionToggle sectionKey="home_contact" control={control} />
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -5261,8 +5394,9 @@ const CreateWebsite = () => {
             {/* FOOTER */}
             {activeSections.includes("footer") && (
             <div>
-              <div className="py-4 border-b-default border-borderGray">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Footer Section <SectionPreviewInfo section="footer" /></span>
+                <SectionToggle sectionKey="home_footer" control={control} />
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller

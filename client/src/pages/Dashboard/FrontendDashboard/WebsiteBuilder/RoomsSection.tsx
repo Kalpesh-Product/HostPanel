@@ -2,6 +2,7 @@
 import { Controller, useFieldArray } from "react-hook-form";
 import { TextField } from "@mui/material";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
+import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
 
 const RoomsSection = ({
   control,
@@ -25,15 +26,18 @@ const RoomsSection = ({
       <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4">
         {fields.map((field, index) => (
           <div key={field.id} className="rounded-xl border border-borderGray p-4 mb-3">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 gap-3">
               <span className="font-pmedium">{itemLabel} #{index + 1}</span>
-              <button
-                type="button"
-                onClick={() => remove(index)}
-                className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
-              >
-                Remove
-              </button>
+              <div className="flex items-center gap-3">
+                <EnabledSwitch name={`${fieldName}.${index}.enabled`} control={control} />
+                <button
+                  type="button"
+                  onClick={() => remove(index)}
+                  className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TextField

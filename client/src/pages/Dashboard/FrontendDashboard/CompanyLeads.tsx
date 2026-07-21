@@ -44,17 +44,39 @@ export default function CompanyLeads({ leadScope = "website" }) {
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+  const isAllLeads = String(leadScope).toLowerCase() === "all";
   const isNomadsLeads = String(leadScope).toLowerCase() === "nomads";
-  const pageTitle = isNomadsLeads ? "Nomads Leads" : "Website Leads";
-  const pageDescription = isNomadsLeads
-    ? "Enquiries received from your Wono Nomads listings."
+  const pageTitle = isAllLeads ? "All Leads" : isNomadsLeads ? "Leads" : "Website Leads";
+  const pageDescription = isAllLeads
+    ? "All website and nomads leads in one place."
+    : isNomadsLeads
+    ? "Enquiries received from your Nomads Listings."
     : "Website enquiries received from your published site.";
-  const leadLabel = isNomadsLeads ? "Nomads lead" : "Website lead";
+  const leadLabel = isAllLeads ? "Lead" : isNomadsLeads ? "Nomads lead" : "Website lead";
 
   const { data: leads = [], isPending, isError } = useQuery({
     queryKey: ["leadCompany", leadScope, companyId, workspaceId],
     enabled: !!(companyId || workspaceId),
     queryFn: async () => {
+      if (isAllLeads) {
+        const [websiteRes, nomadsRes] = await Promise.all([
+          axiosPrivate.get("/api/leads/get-leads", {
+            params: { companyId, workspaceId, leadScope: "website" },
+            headers: { "Cache-Control": "no-cache" },
+          }),
+          axiosPrivate.get("/api/leads/get-leads", {
+            params: { companyId, workspaceId, leadScope: "nomads" },
+            headers: { "Cache-Control": "no-cache" },
+          }),
+        ]);
+        const websiteLeads = (Array.isArray(websiteRes?.data) ? websiteRes.data : []).map((l) => ({ ...l, _leadType: "Website" }));
+        const nomadsLeads = (Array.isArray(nomadsRes?.data) ? nomadsRes.data : []).map((l) => ({ ...l, _leadType: "Nomads" }));
+        return [...websiteLeads, ...nomadsLeads].sort((a, b) => {
+          const aDate = new Date(a.recievedDate || a.receivedDate || a.createdAt || 0).getTime();
+          const bDate = new Date(b.recievedDate || b.receivedDate || b.createdAt || 0).getTime();
+          return bDate - aDate;
+        });
+      }
       const response = await axiosPrivate.get("/api/leads/get-leads", {
         params: { companyId, workspaceId, leadScope },
         headers: { "Cache-Control": "no-cache" },
@@ -101,7 +123,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
     const query = searchQuery.trim().toLowerCase();
     return leads.filter((lead) => {
       const matchesStage = stageFilter === "All" || (lead.hostPanelStatus || "Pending") === stageFilter;
-      const matchesQuery = !query || [lead.fullName, lead.mobileNumber, lead.email, lead.source, lead.vertical, lead.productType, lead.companyName]
+      const matchesQuery = !query || [lead.fullName, lead.mobileNumber, lead.email, lead.source, lead.vertical, lead.productType, lead.companyName, lead._leadType]
         .filter(Boolean).some((v) => String(v).toLowerCase().includes(query));
       return matchesStage && matchesQuery;
     });
@@ -276,7 +298,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
                               <p className="flex items-center gap-1.5"><Mail size={11} className="text-slate-400" /> {lead.email || "Not shared"}</p>
                             </div>
                           </td>
-                          <td className="px-5 py-4"><span className="text-[12px] font-pmedium text-slate-700">{lead.source || "Website"}</span></td>
+                          <td className="px-5 py-4"><span className="text-[12px] font-pmedium text-slate-700">{lead._leadType || lead.source || "Website"}</span></td>
                           <td className="px-5 py-4">
                             {(() => {
                               const pt = (lead.productType || "").trim();
@@ -368,9 +390,9 @@ export default function CompanyLeads({ leadScope = "website" }) {
                       <div>
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Received Via</p>
                         <p className="text-[12px] font-pmedium text-slate-900">
-                          {(() => {
+                          {selectedLead._leadType || (() => {
                             const s = (selectedLead.source || "").toLowerCase();
-                            if (s === "nomad" || s === "nomads") return "Wono Nomads";
+                            if (s === "nomad" || s === "nomads") return "Nomads Listings";
                             if (s.includes("preview")) return "Website Preview";
                             if (s.includes("hosted") || s.includes("live") || s.includes("wono")) return "Hosted Website";
                             if (s.includes("direct")) return "Direct";

@@ -45,20 +45,20 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   {
     id: "basic-wono-nomad",
     version: 1,
-    title: "Wono Nomads",
+    title: "Nomads Listings",
     description: "Your hub for managing co-working and co-living presence across the Nomads network. Each card opens a different area — listings, reviews, or leads.",
     steps: [
-      { selector: '[data-tour="wono-nomad-listings"]', title: "Nomad Listings", description: "View and manage your co-working and co-living space listings. Create new listings, edit existing ones, and track their active or inactive status across the Nomads network." },
-      { selector: '[data-tour="wono-nomad-reviews"]', title: "Nomads Reviews", description: "See customer reviews submitted through your Nomads listings. Monitor feedback, check ratings, and follow up with guests who left reviews." },
-      { selector: '[data-tour="wono-nomad-leads"]', title: "Nomads Leads", description: "Track enquiries and interest from Nomads visitors. Review lead details, contact information, and follow up to convert them into bookings or partnerships." },
+      { selector: '[data-tour="wono-nomad-listings"]', title: "Listings", description: "View and manage your co-working and co-living space listings. Create new listings, edit existing ones, and track their active or inactive status across the Nomads network." },
+      { selector: '[data-tour="wono-nomad-reviews"]', title: "Reviews", description: "See customer reviews submitted through your Nomads listings. Monitor feedback, check ratings, and follow up with guests who left reviews." },
+      { selector: '[data-tour="wono-nomad-leads"]', title: "Leads", description: "Track enquiries and interest from Nomads visitors. Review lead details, contact information, and follow up to convert them into bookings or partnerships." },
     ],
     matches: (path) => /^\/(company-settings|dashboard)\/wono-nomad\/?$/.test(path),
   },
   {
     id: "basic-nomad-listings",
     version: 1,
-    title: "Nomad Listings",
-    description: "Manage your co-working and co-living space listings across Wono Nomads. Create listings, track their status, and keep your workspace presence up to date.",
+    title: "Listings",
+    description: "Manage your co-working and co-living space listings across Nomads Listings. Create listings, track their status, and keep your workspace presence up to date.",
     recordsDescription: "Each listing shows your workspace name, type, city, publication status, and creation date.",
     steps: [
       { selector: '[data-tour="nomad-summary"]', title: "Listing counts at a glance", description: "These four cards show Total Listings, Active (live on Nomads), Inactive (hidden or paused), and Listings Left (how many more you can create under your plan limit)." },
@@ -260,10 +260,10 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   {
     id: "basic-wono-nomad",
     version: 1,
-    title: "WoNo Nomads",
-    description: "Manage how your workspace is presented to the WoNo Nomads audience and open your listing tools.",
+    title: "Nomads Listings",
+    description: "Manage how your workspace is presented to the Nomads Listings audience and open your listing tools.",
     steps: [
-      { text: "Nomad Listings", exactText: true, title: "Nomad listings", description: "Opens your public workspace listings. From there you can add a listing, edit its details, and check the Basic-plan listing limit." },
+      { text: "Listings", exactText: true, title: "Listings", description: "Opens your public workspace listings. From there you can add a listing, edit its details, and check the Basic-plan listing limit." },
       { text: "Reviews", exactText: true, title: "Nomad reviews", description: "Opens reviews connected to the Nomads presence so you can inspect the feedback associated with the workspace." },
     ],
     matches: exact("/company-settings/wono-nomad"),
@@ -374,7 +374,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to see new activity and updates that may need your attention." },
       { selector: '[data-tour="dashboard-plan"]', title: "Your Basic plan", description: "This banner confirms the active plan. Selecting it opens the upgrade options where Professional features such as meeting rooms, tickets, and Sales modules can be reviewed." },
       { selector: '[data-tour="dashboard-overview"]', title: "Overview and direct shortcuts", description: "These cards combine live totals with navigation. Visitors Today and All-Time Visitors open Visitor Management, Website Leads opens website enquiries, and Active Members opens Organization Management." },
-      { selector: '[data-tour="dashboard-quick-links"]', title: "Quick Links to common pages", description: "Select a shortcut to open Nomad Listings, Website Builder, Website Leads, Visitor Management, Organization, or Access Grants directly." },
+      { selector: '[data-tour="dashboard-quick-links"]', title: "Quick Links to common pages", description: "Select a shortcut to open Listings, Website Builder, Website Leads, Visitor Management, Organization, or Access Grants directly." },
       { selector: '[data-tour="dashboard-recent-leads"]', title: "Recent Leads", description: "This list shows the newest website enquiries and their current stage. View all opens the complete Website Leads page for search, filtering, details, and follow-up actions." },
       { selector: '[data-tour="dashboard-lead-status"]', title: "Lead Status", description: "This chart summarizes how many leads are new and how many have been contacted, helping you see the current follow-up workload at a glance." },
       { selector: '[data-tour="dashboard-recent-visitors"]', title: "Recent Visitors", description: "This list shows the latest visitor activity and check-in state. View all opens Visitor Management where the complete visitor workflow is available." },
@@ -414,7 +414,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     description: "This is the home for your Basic-plan company tools. Open a module card to manage that part of the workspace.",
     steps: [
       { text: "Website Builder", exactText: true, title: "Website Builder", description: "Opens website creation and its connected leads, review, and careers functionality." },
-      { text: "Wono Nomads", exactText: true, title: "WoNo Nomads", description: "Opens Nomads listings and reviews used to manage the workspace’s public marketplace presence." },
+      { text: "Nomads Listings", exactText: true, title: "Nomads Listings", description: "Opens Nomads listings and reviews used to manage the workspace’s public marketplace presence." },
       { text: "Organization Management", exactText: true, title: "Organization Management", description: "Opens workspace member invitations, access state, roles, and Basic-plan user limits." },
       { text: "Access Grants", exactText: true, title: "Access Grants", description: "Opens member role and module-access controls for authorized workspace administrators." },
       { text: "Customer Support", exactText: true, title: "Customer Support", description: "Opens the support workspace where issues can be raised, tracked, viewed, and exported." },

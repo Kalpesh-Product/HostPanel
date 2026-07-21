@@ -397,7 +397,7 @@ export default function CustomerSupportPage() {
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${statusFilter === status
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === status
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                         : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                       }`}

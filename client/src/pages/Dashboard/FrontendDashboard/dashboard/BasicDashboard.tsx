@@ -168,7 +168,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
 
   // ── Quick links ────────────────────────────────────────────────────────────
   const quickLinks: QuickLinkItem[] = [
-    { icon: Map, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
+    { icon: Map, label: "Nomads Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
     { icon: Globe, label: "Website Builder", description: "Build & publish your site", route: "/company-settings/website-builder", color: "#7c3aed" },
     { icon: FileText, label: "Website Leads", description: "Manage incoming leads", route: "/company-settings/website-builder/leads", color: "#1E3D73" },
     { icon: Eye, label: "Visitor Management", description: "Log & track visitors", route: "/visitors/visitor-management", color: "#80bf01" },

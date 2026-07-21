@@ -165,7 +165,7 @@ const SECTION_TITLES: Record<SectionType, string> = {
   "extra-common-modules": "Extra Common Modules",
   "key-apps": "Key Apps",
   "profile": "Profile",
-  "founder-core-modules": "Founder Core Modules",
+  "founder-core-modules": "Core Modules",
   "department-accesses": "Department Accesses",
   "add-ons": "Add-Ons",
 };
@@ -321,9 +321,9 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     sectionLabel: "Key Apps",
     items: [
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true, unlockedInWorkspace: true },
-      { id: "wono-nomad", label: "Wono Nomads", route: "/company-settings/wono-nomad", implemented: true, unlockedInWorkspace: true },
+      { id: "wono-nomad", label: "Nomad Listings", route: "/company-settings/wono-nomad", implemented: true, unlockedInWorkspace: true },
+      { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true, unlockedInWorkspace: true },
       { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true, unlockedInWorkspace: true },
-      { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "profile": {
@@ -340,7 +340,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
   },
   "founder-core-modules": {
     sectionId: "founder-core-modules",
-    sectionLabel: "Founder Core Modules",
+    sectionLabel: "Core Modules",
     items: [
       { id: "organization-management", label: "Organization Management", route: "/company-settings/organization-management", implemented: true, unlockedInWorkspace: true },
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true, unlockedInWorkspace: true },
@@ -1015,6 +1015,8 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       : itemsWithAttendance;
     const remappedItems = filteredItems.map((item) => {
       const itemId = String(item?.id || "").trim();
+      if (itemId === "website-leads" && sectionId === "key-apps")
+        return { ...item, label: "All Leads", route: "/company-settings/all-leads" };
       if (itemId === "website-leads")
         return { ...item, label: "Website Leads", route: "/company-settings/website-builder/leads" };
       if (itemId === "resource-pricing")
