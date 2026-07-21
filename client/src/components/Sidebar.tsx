@@ -485,7 +485,7 @@ const NavItem = ({
         )}
         {!collapsed && (
           <span
-            className={`${forceSmall ? "text-[10px]" : "text-[12px]"} truncate ${forceBold ? "font-pbold" : "font-pmedium"} uppercase`}
+            className={`${forceSmall ? "text-[10px]" : "text-[12px]"} truncate ${forceBold ? "font-pbold" : "font-pmedium"}`}
           >
             {label}
           </span>
