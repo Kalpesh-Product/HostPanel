@@ -22,6 +22,16 @@ export const updateEmployeeRecord = async (employeeId: string, payload: Record<s
   return axiosPrivate.patch(`/api/hr/employees/${employeeId}`, payload);
 };
 
+export const updateMyEmployeeProfile = async (payload: Record<string, any>) => {
+  return axiosPrivate.patch("/api/hr/my-profile", payload);
+};
+
+export const updateMyProfilePicture = async (formData: FormData) => {
+  return axiosPrivate.patch("/api/hr/my-profile/avatar", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
 export const toggleEmployeeStatus = async (employeeId: string) => {
   return axiosPrivate.patch(`/api/hr/employees/${employeeId}/toggle-status`);
 };

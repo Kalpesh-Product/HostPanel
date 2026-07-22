@@ -6,6 +6,8 @@ import {
   getCurrentWorkspace,
   toggleEmployeeProfileStatus,
   updateEmployeeProfile,
+  updateOwnEmployeeProfile,
+  updateOwnProfilePicture,
 } from "../services/core/hr.service.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 
@@ -59,6 +61,39 @@ export const updateEmployeeRecord = async (req, res, next) => {
       success: true,
       data: employee,
       message: "Employee record updated successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMyEmployeeProfile = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const employee = await updateOwnEmployeeProfile(workspace, req.user, req.body || {});
+    return res.status(200).json({
+      success: true,
+      data: employee,
+      message: "Profile updated successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMyProfilePicture = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image file provided." });
+    }
+    const employee = await updateOwnProfilePicture(workspace, req.user, req.file);
+    return res.status(200).json({
+      success: true,
+      data: employee,
+      message: "Profile picture updated successfully.",
     });
   } catch (error) {
     next(error);
