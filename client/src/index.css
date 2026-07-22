@@ -1,3 +1,22 @@
+/* Local Poppins faces used by sidebar navigation labels: 500 for the
+   default row, 600 for the active/selected row. Both weights are
+   registered under one family so switching between them renders the
+   real SemiBold glyphs instead of a browser-synthesized bold. */
+@font-face {
+  font-family: "Poppins";
+  src: url("../src/assets/WONO_images/img/font/Poppins-Medium.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Poppins";
+  src: url("../src/assets/WONO_images/img/font/Poppins-SemiBold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
