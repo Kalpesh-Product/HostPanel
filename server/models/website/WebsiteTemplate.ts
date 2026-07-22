@@ -18,8 +18,14 @@ const templateSchema = new mongoose.Schema(
       url: { type: String },
     },
     companyName: { type: String, required: true },
+    // Sparse+unique so the DB itself rejects a second document for the same
+    // company even under a race (two near-simultaneous creates both passing
+    // an application-level "does this exist yet" check) — sparse skips docs
+    // that have no companyId yet (legacy rows / pre-company drafts).
     companyId: {
       type: String,
+      unique: true,
+      sparse: true,
       // required: true
     },
     workspaceId: {

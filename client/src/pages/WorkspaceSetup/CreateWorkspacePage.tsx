@@ -173,7 +173,6 @@ const CreateWorkspacePage: React.FC = () => {
   );
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
   const businessTypeDropdownRef = useRef<HTMLDivElement | null>(null);
-  const [usedVerticals, setUsedVerticals] = useState<string[]>([]);
   const [workspaceNameStatus, setWorkspaceNameStatus] = useState<
     "idle" | "checking" | "available" | "taken"
   >("idle");
@@ -223,9 +222,6 @@ const CreateWorkspacePage: React.FC = () => {
   ];
 
   const toggleBusinessType = (type: string) => {
-    if (isAdditionalWorkspaceMode && usedVerticals.includes(type) && !businessTypes.includes(type)) {
-      return;
-    }
     setBusinessTypes((prev) =>
       prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type],
     );
@@ -363,41 +359,6 @@ const CreateWorkspacePage: React.FC = () => {
     selectedCountryOption?.isoCode,
     selectedStateOption?.isoCode,
   ]);
-
-  useEffect(() => {
-    if (!isAdditionalWorkspaceMode) {
-      setUsedVerticals([]);
-      return;
-    }
-    let active = true;
-    const loadUsedVerticals = async () => {
-      try {
-        const response = await axiosPrivate.get("/api/workspaces/management");
-        const workspaces = Array.isArray(response?.data?.data?.workspaces)
-          ? response.data.data.workspaces
-          : [];
-        const verticals = new Set<string>();
-        for (const workspace of workspaces) {
-          const values = String(workspace?.businessType || "")
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean);
-          for (const value of values) {
-            verticals.add(value);
-          }
-        }
-        if (active) {
-          setUsedVerticals(Array.from(verticals));
-        }
-      } catch {
-        if (active) setUsedVerticals([]);
-      }
-    };
-    void loadUsedVerticals();
-    return () => {
-      active = false;
-    };
-  }, [axiosPrivate, isAdditionalWorkspaceMode]);
 
   useEffect(() => {
     const normalized = workspaceName.trim();
@@ -813,29 +774,20 @@ const CreateWorkspacePage: React.FC = () => {
                 {isBusinessTypeOpen && (
                   <div className="absolute z-20 mt-1 w-full rounded-xl border border-[#d2d9e5] bg-white shadow-lg p-3 max-h-52 overflow-auto">
                     <div className="grid grid-cols-1 gap-y-2">
-                      {allBusinessTypes.map((type) => {
-                        const isLockedVertical =
-                          isAdditionalWorkspaceMode &&
-                          usedVerticals.includes(type) &&
-                          !businessTypes.includes(type);
-                        return (
-                          <label
-                            key={type}
-                            className={`inline-flex items-center gap-2 text-[13px] ${
-                              isLockedVertical ? "text-[#9aa6b9]" : "text-[#334155] cursor-pointer"
-                            } select-none`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={businessTypes.includes(type)}
-                              disabled={isLockedVertical}
-                              onChange={() => toggleBusinessType(type)}
-                              className="h-3.5 w-3.5 accent-[#7d9de8]"
-                            />
-                            <span>{type}{isLockedVertical ? " (already used)" : ""}</span>
-                          </label>
-                        );
-                      })}
+                      {allBusinessTypes.map((type) => (
+                        <label
+                          key={type}
+                          className="inline-flex items-center gap-2 text-[13px] text-[#334155] cursor-pointer select-none"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={businessTypes.includes(type)}
+                            onChange={() => toggleBusinessType(type)}
+                            className="h-3.5 w-3.5 accent-[#7d9de8]"
+                          />
+                          <span>{type}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
                 )}
