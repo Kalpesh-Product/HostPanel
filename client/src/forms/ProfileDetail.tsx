@@ -19,10 +19,18 @@ export const PersonalDetails = ({ formData, handleChange, isEditable }) => {
       <div className="grid lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-1 gap-4">
         <TextField
           size="small"
-          disabled={!isEditable}
+          disabled
           label="Name"
           value={formData.name || ""}
-          onChange={(e) => handleChange("name", e.target.value)}
+          fullWidth
+          required
+        />
+
+        <TextField
+          size="small"
+          disabled
+          label="Email"
+          value={formData.email || ""}
           fullWidth
           required
         />
@@ -41,12 +49,12 @@ export const PersonalDetails = ({ formData, handleChange, isEditable }) => {
           </MenuItem>
           <MenuItem value="Male">Male</MenuItem>
           <MenuItem value="Female">Female</MenuItem>
+          <MenuItem value="Other">Other</MenuItem>
         </TextField>
 
         <DesktopDatePicker
           label="Date of Birth"
           disabled={!isEditable}
-          // inputFormat="DD/MM/YYYY"
           slotProps={{ textField: { size: "small" } }}
           value={formData.dob}
           onChange={(newValue) => handleChange("dob", newValue)}
@@ -65,6 +73,42 @@ export const PersonalDetails = ({ formData, handleChange, isEditable }) => {
           label="Mother's Name"
           value={formData.motherName || ""}
           onChange={(e) => handleChange("motherName", e.target.value)}
+          fullWidth
+        />
+        <TextField
+          size="small"
+          disabled={!isEditable}
+          label="Current Address"
+          value={formData.currentAddress || ""}
+          onChange={(e) => handleChange("currentAddress", e.target.value)}
+          fullWidth
+          multiline
+          rows={2}
+        />
+        <TextField
+          size="small"
+          disabled={!isEditable}
+          label="Permanent Address"
+          value={formData.permanentAddress || ""}
+          onChange={(e) => handleChange("permanentAddress", e.target.value)}
+          fullWidth
+          multiline
+          rows={2}
+        />
+        <TextField
+          size="small"
+          disabled={!isEditable}
+          label="Emergency Contact Name"
+          value={formData.emergencyContactName || ""}
+          onChange={(e) => handleChange("emergencyContactName", e.target.value)}
+          fullWidth
+        />
+        <TextField
+          size="small"
+          disabled={!isEditable}
+          label="Emergency Contact Phone"
+          value={formData.emergencyContactPhone || ""}
+          onChange={(e) => handleChange("emergencyContactPhone", e.target.value)}
           fullWidth
         />
       </div>

@@ -322,7 +322,21 @@ const buildTemplateLookupByCompanyAndVertical = (searchKey, vertical) => {
   return { searchKey: normalizedSearchKey };
 };
 
-const buildStrictTemplateLookupByCompanyAndVertical = (searchKey, vertical) => {
+// A company only ever owns one WebsiteTemplate (there's no per-vertical field
+// on the schema), so once a companyId exists it is the only safe match key —
+// two differently-named companies can normalize to the same searchKey (e.g.
+// "Acme Hub" and "Acme-Hub Downtown" both -> "acmehub"/"acme"), which used to
+// make a brand-new company silently reuse (and overwrite) another company's
+// site. Only fall back to searchKey when we don't have a companyId yet.
+const buildStrictTemplateLookupByCompanyAndVertical = (
+  searchKey,
+  vertical,
+  companyId,
+) => {
+  const normalizedCompanyId = String(companyId || "").trim();
+  if (normalizedCompanyId) {
+    return { companyId: normalizedCompanyId };
+  }
   const normalizedSearchKey = String(searchKey || "").trim().toLowerCase();
   return { searchKey: normalizedSearchKey };
 };
@@ -337,12 +351,22 @@ const deductWorkspaceCreditOnSuccess = async ({ workspaceId, companyId } = {}) =
   const normalizedCompanyId = String(companyId || "").trim();
   if (!normalizedWorkspaceId && !normalizedCompanyId) return;
 
-  const lookupClauses = [];
-  if (normalizedWorkspaceId) lookupClauses.push({ workspaceId: normalizedWorkspaceId });
-  if (normalizedCompanyId) lookupClauses.push({ companyId: normalizedCompanyId });
+  // The schema's own unique index is the *compound* pair {companyId,
+  // workspaceId} — matching on $or of the two fields independently (the old
+  // behavior) means a company can inherit and increment a totally unrelated
+  // company's credit usage just because one of the two ids happens to
+  // collide (seen in this data: several docs reuse the same value for both
+  // fields). Require both together when both are known; only fall back to a
+  // single-field match when just one identifier is actually available.
+  const lookupFilter =
+    normalizedWorkspaceId && normalizedCompanyId
+      ? { workspaceId: normalizedWorkspaceId, companyId: normalizedCompanyId }
+      : normalizedWorkspaceId
+        ? { workspaceId: normalizedWorkspaceId }
+        : { companyId: normalizedCompanyId };
 
   return await WorkspaceSubscription.findOneAndUpdate(
-    { $or: lookupClauses },
+    lookupFilter,
     {
       $setOnInsert: {
         workspaceId: normalizedWorkspaceId || normalizedCompanyId || undefined,
@@ -530,7 +554,11 @@ export const saveTemplateDraft = async (req, res) => {
         ];
 
     let template = await WebsiteTemplate.findOne(
-      buildStrictTemplateLookupByCompanyAndVertical(searchKey, vertical),
+      buildStrictTemplateLookupByCompanyAndVertical(
+        searchKey,
+        vertical,
+        req.body?.companyId,
+      ),
     );
 
     if (!template) {
@@ -1207,6 +1235,15 @@ export const saveTemplateDraft = async (req, res) => {
       template: serializeWebsiteTemplateForClient(template),
     });
   } catch (error) {
+    // A concurrent request for the same company can race past the
+    // findOne-then-create check above; the companyId unique index catches
+    // that at the DB level and surfaces here as an E11000 error.
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        message:
+          "A website draft for this company was just saved by another request. Please reload and try again.",
+      });
+    }
     return res.status(500).json({ message: error.message || "Failed to save website draft" });
   }
 };
@@ -1472,7 +1509,11 @@ export const createTemplate = async (req, res, next) => {
     }
 
     let template = await WebsiteTemplate.findOne(
-      buildStrictTemplateLookupByCompanyAndVertical(searchKey, vertical),
+      buildStrictTemplateLookupByCompanyAndVertical(
+        searchKey,
+        vertical,
+        req.body?.companyId,
+      ),
     );
 
     const canPromoteExistingDraft =
@@ -2189,6 +2230,12 @@ export const createTemplate = async (req, res, next) => {
       .status(201)
       .json({ message: "Template created", template: serializeWebsiteTemplateForClient(savedTemplate) });
   } catch (error) {
+    // See saveTemplateDraft for why this can happen under a race.
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        message: "Template for this company already exists",
+      });
+    }
     next(error);
   }
 };
@@ -2304,7 +2351,20 @@ export const getTemplates = async (req, res) => {
       );
     }
 
-    if (!candidates.length) {
+    // Only a request with none of the scoping identifiers at all is a
+    // genuine "list every template" request. If workspaceId/companyId/
+    // businessName/companyName were given but matched nothing, that means
+    // this specific company has no template yet — returning the entire
+    // collection here (as this used to) let the caller land on and edit a
+    // totally unrelated company's website by accident (e.g. whichever
+    // template happens to be oldest).
+    const hadScopingParam =
+      Boolean(workspaceId) ||
+      Boolean(normalizedCompanyId) ||
+      Boolean(normalizedBusinessName) ||
+      Boolean(normalizedCompanyName);
+
+    if (!candidates.length && !hadScopingParam) {
       appendUnique(await WebsiteTemplate.find({ isActive: true }).lean().exec());
     }
 
@@ -2550,11 +2610,21 @@ export const editTemplate = async (req, res, next) => {
 
     await assertWebsiteEditLock(searchKey, req.body?.editorSessionId);
 
+    // Prefer companyId/workspaceId when the edit request carries one — a
+    // searchKey-only lookup trusts client-computed text with no cross-check,
+    // so a stale/wrong searchKey (or a genuine collision) can silently land
+    // an edit on a totally different company's document and overwrite it.
+    const editLookupCompanyId = String(req.body?.companyId || "").trim();
+    const editLookupWorkspaceId = String(req.body?.workspaceId || "").trim();
     const template = await WebsiteTemplate.findOne(
-      buildTemplateLookupByCompanyAndVertical(
-        searchKey,
-        normalizedVertical || req.body?.vertical || req.body?.verticalType,
-      ),
+      editLookupCompanyId
+        ? { companyId: editLookupCompanyId }
+        : editLookupWorkspaceId
+          ? { workspaceId: editLookupWorkspaceId }
+          : buildTemplateLookupByCompanyAndVertical(
+              searchKey,
+              normalizedVertical || req.body?.vertical || req.body?.verticalType,
+            ),
     );
     if (!template) {
       return res.status(404).json({ message: "Template not found" });

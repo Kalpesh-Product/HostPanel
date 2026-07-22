@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import {
   ChevronDown,
-  ChevronRight,
+  ChevronUp,
   CheckCircle2,
   LayoutDashboard,
   Settings,
@@ -103,7 +103,6 @@ interface NavItemProps {
   forceBold?: boolean;
   forceSmall?: boolean;
   tooltip?: string;
-  noTopMargin?: boolean;
 }
 
 interface WorkspaceSetupState {
@@ -454,45 +453,36 @@ const NavItem = ({
   forceBold,
   forceSmall,
   tooltip,
-  noTopMargin,
 }: NavItemProps) => {
-  // Collapsed module buttons (top-level with no depth offset) use rounded-md;
-  // expanded submenu items use rounded-full pill shape.
-  const isTopLevel = depth === 0;
-  // Collapsed icon-only buttons get rounded-md; everything else (hover + active) gets rounded-full
-  const shapeClass = (collapsed && isTopLevel) ? "rounded-md" : "rounded-full";
-
   return (
     <button
       type="button"
       title={tooltip || (disabled ? (disabledTitle) : "")}
-      className={`w-full flex items-center justify-between py-2.5 px-3 ${noTopMargin ? "mt-0 mb-1.5" : "my-1.5"} select-none ${shapeClass} transition-colors ${
-        isActive
-          ? "bg-gray-200 text-gray-900"
-          : "text-gray-700 hover:bg-gray-200"
+      className={`group relative flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left transition-all hover:bg-white ${
+        isActive ? "bg-white text-black shadow-sm" : "text-black/80"
       } ${isRed ? "text-red-500 hover:text-red-600" : ""} ${
         locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"
       }`}
       style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
       onClick={onClick}
     >
-      <span className="flex items-center gap-3 min-w-0">
-        {Icon && (
-          <Icon
-            size={collapsed || isTopLevel ? 16 : 15}
-            className={isRed ? "text-red-500" : "text-gray-500"}
-          />
-        )}
-        {!collapsed && (
-          <span
-            className={`${forceSmall ? "text-[10px]" : "text-[12px]"} truncate ${forceBold ? "font-pbold" : "font-pmedium"}`}
-          >
-            {label}
-          </span>
-        )}
-      </span>
-      {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
-      {!collapsed && locked && !hasChildren && <Lock size={12} className="text-gray-400" />}
+      {Icon && (
+        <Icon
+          size={18}
+          className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
+        />
+      )}
+      {!collapsed && (
+        <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
+          {label}
+        </span>
+      )}
+      {!collapsed && hasChildren && (
+        isOpen
+          ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
+          : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
+      )}
+      {!collapsed && locked && !hasChildren && <Lock size={12} className="ml-auto shrink-0 text-black/40" />}
     </button>
   );
 };
@@ -504,10 +494,9 @@ interface NavGroupProps {
   pathname: string;
   onNavigate: (item: NavNode, sectionKey?: string) => void;
   sectionKey?: string;
-  noTopMargin?: boolean;
 }
 
-const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey, noTopMargin }: NavGroupProps) => {
+const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey }: NavGroupProps) => {
   const [isOpen, setIsOpen] = useState(item.defaultOpen !== false);
   const hasChildren = Boolean(item.children?.length);
   const isActive = (() => {
@@ -545,7 +534,6 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
         forceBold={hasChildren}
         forceSmall={!hasChildren && depth > 0}
         tooltip={collapsed ? item.label : undefined}
-        noTopMargin={noTopMargin}
       />
       {hasChildren && isOpen && !collapsed && (
         <div className="mt-1 flex flex-col gap-1">
@@ -1273,11 +1261,11 @@ useEffect(() => {
   return (
     <div
       className={`${collapsed ? "w-16" : "w-64"
-        } h-[90vh] bg-[#f1f5f9] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
+        } h-[90vh] bg-[#efefef] flex flex-col border-r border-black/10 overflow-hidden transition-all duration-300`}
     >
       <div className="px-4 py-3 flex justify-center">
         {isSidebarHydrated ? (
-          <span className="text-[10px] font-pmedium tracking-wider text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">
+          <span className="text-[10px] font-semibold tracking-wide text-black/70 bg-white px-3 py-1 rounded-full uppercase">
             {collapsed ? planLabel[0].toUpperCase() : `Plan - ${planLabel}`}
           </span>
         ) : (
@@ -1288,7 +1276,7 @@ useEffect(() => {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
+      <div className="flex-1 overflow-y-auto pb-3 space-y-0 hideScrollBar">
         {!isSidebarHydrated ? (
           <SidebarLoadingSkeleton collapsed={collapsed} />
         ) : (
@@ -1424,106 +1412,106 @@ useEffect(() => {
           })().map((section) => (
 
 
-              <div key={section.key} className={section.key === "add-ons" ? "!mt-2" : undefined}>
-                {section.key === "add-ons" ? (
-                  // Add-Ons is a page now — one click opens the grouped
-                  // locked-modules listing instead of expanding a tree here.
-                  <NavGroup
-                    item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
-                    collapsed={collapsed}
-                    pathname={location.pathname}
-                    onNavigate={onNavigate}
-                    sectionKey="add-ons"
-                    noTopMargin
-                  />
-                ) : !collapsed ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenSections((current) => ({
-                          ...current,
-                          [section.key]: !(
-                            current?.[section.key] ??
-                            isSectionOpenByDefault(section.key)
-                          ),
-                        }))
-                      }
-                      className="w-full mb-2 px-3 flex items-center justify-between text-left"
-                    >
-                      <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
-                        {section.title}
-                      </span>
-                      {openSections?.[section.key] ?? isSectionOpenByDefault(section.key) ? (
-                        <ChevronDown size={14} className="text-gray-400" />
-                      ) : (
-                        <ChevronRight size={14} className="text-gray-400" />
-                      )}
-                    </button>
-                    {(openSections?.[section.key] ?? isSectionOpenByDefault(section.key)) ? (
-                      <div className="space-y-1">
-                        {section.items.map((item) => (
-                          <NavGroup
-                            key={`${section.key}-${item.id}`}
-                            item={item}
-                            collapsed={collapsed}
-                            pathname={location.pathname}
-                            onNavigate={onNavigate}
-                            sectionKey={section.key}
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-                  </>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="px-2 pt-1 pb-2">
-                      <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">
+              <div key={section.key} className="px-4 pt-3">
+                <div className="border-t border-black/10 pt-2">
+                  {section.key === "add-ons" ? (
+                    // Add-Ons is a page now — one click opens the grouped
+                    // locked-modules listing instead of expanding a tree here.
+                    <NavGroup
+                      item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
+                      collapsed={collapsed}
+                      pathname={location.pathname}
+                      onNavigate={onNavigate}
+                      sectionKey="add-ons"
+                    />
+                  ) : !collapsed ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenSections((current) => ({
+                            ...current,
+                            [section.key]: !(
+                              current?.[section.key] ??
+                              isSectionOpenByDefault(section.key)
+                            ),
+                          }))
+                        }
+                        className="flex w-full items-center justify-between text-left font-['Poppins'] text-xs font-semibold uppercase tracking-wide text-black/80"
+                      >
+                        <span>{section.title}</span>
+                        {openSections?.[section.key] ?? isSectionOpenByDefault(section.key) ? (
+                          <ChevronUp size={16} className="shrink-0" />
+                        ) : (
+                          <ChevronDown size={16} className="shrink-0" />
+                        )}
+                      </button>
+                      {(openSections?.[section.key] ?? isSectionOpenByDefault(section.key)) ? (
+                        <div className="space-y-1">
+                          {section.items.map((item) => (
+                            <NavGroup
+                              key={`${section.key}-${item.id}`}
+                              item={item}
+                              collapsed={collapsed}
+                              pathname={location.pathname}
+                              onNavigate={onNavigate}
+                              sectionKey={section.key}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-pbold tracking-wide text-black/80 uppercase text-center">
                         {SECTION_ABBR[section.key] || section.title.slice(0, 3).toUpperCase()}
                       </div>
-                      <div className="mt-2 h-px bg-gray-300" />
+                      {section.items.map((item) => (
+                        <NavGroup
+                          key={`${section.key}-${item.id}`}
+                          item={item}
+                          collapsed={collapsed}
+                          pathname={location.pathname}
+                          onNavigate={onNavigate}
+                          sectionKey={section.key}
+                        />
+                      ))}
                     </div>
-                    {section.items.map((item) => (
-                      <NavGroup
-                        key={`${section.key}-${item.id}`}
-                        item={item}
-                        collapsed={collapsed}
-                        pathname={location.pathname}
-                        onNavigate={onNavigate}
-                        sectionKey={section.key}
-                      />
-                    ))}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))
         )}
 
         {isSidebarHydrated && planLabel === "basic" && (
-          <div className="!mt-2 space-y-1 px-1">
-            <NavGroup
-              item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
-              collapsed={collapsed}
-              pathname={location.pathname}
-              onNavigate={onNavigate}
-              sectionKey="add-ons"
-            />
-          </div>
-        )}
-
-        {isSidebarHydrated && <div className="!mt-2">
-          <div className="space-y-1">
-            {generalData.map((item) => (
+          <div className="px-4 pt-3">
+            <div className="border-t border-black/10 pt-2 space-y-1">
               <NavGroup
-                key={item.id}
-                item={item}
+                item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
                 collapsed={collapsed}
                 pathname={location.pathname}
                 onNavigate={onNavigate}
+                sectionKey="add-ons"
               />
-            ))}
+            </div>
           </div>
-        </div>}
+        )}
+
+        {isSidebarHydrated && (
+          <div className="px-4 pt-3">
+            <div className="border-t border-black/10 pt-2 space-y-1">
+              {generalData.map((item) => (
+                <NavGroup
+                  key={item.id}
+                  item={item}
+                  collapsed={collapsed}
+                  pathname={location.pathname}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* <div className="p-4 border-t border-gray-200 hover:bg-gray-200 cursor-pointer transition-colors mt-auto">

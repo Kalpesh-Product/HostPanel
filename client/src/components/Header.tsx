@@ -250,10 +250,10 @@ const Header = ({
       <div className="flex w-full justify-between gap-x-6 items-center py-2">
         <div>
           <div>
-            <div className="w-60 flex justify-between items-center gap-16 h-full ">
+            <div className={`flex justify-between items-center h-full transition-all duration-100 ${isSidebarOpen ? "w-60 gap-16" : "w-16 gap-0"}`}>
               <img
                 onClick={() => navigate("/company-settings")}
-                className="max-w-[70%] h-12 object-contain cursor-pointer"
+                className={`h-12 object-contain cursor-pointer transition-all duration-100 ${isSidebarOpen ? "max-w-[70%]" : "max-w-[36px] mx-auto"}`}
                 src={headerLogoUrl}
                 alt="logo"
               />
@@ -262,7 +262,7 @@ const Header = ({
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                   className="p-2 text-gray-500 text-xl"
                 >
-                  {isSidebarOpen ? <GiHamburgerMenu /> : <IoIosArrowForward />}
+                  {isSidebarOpen ? <GiHamburgerMenu /> : <GiHamburgerMenu />}
                 </button>
               )}
             </div>
