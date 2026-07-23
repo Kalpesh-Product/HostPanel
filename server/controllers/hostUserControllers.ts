@@ -219,32 +219,41 @@ export const getMyProfile = async (req, res) => {
       });
     }
 
-    let workspace = null;
-    if (user.primaryWorkspace) {
-      workspace = await Workspace.findById(user.primaryWorkspace).lean().exec();
+    let workspaceMembership = await resolveActiveWorkspaceMembership(user);
+    let workspace = workspaceMembership?.workspace || null;
+
+    if (workspace && typeof workspace !== "string") {
+      // already populated by resolveActiveWorkspaceMembership
+    } else if (workspace && typeof workspace === "string") {
+      workspace = await Workspace.findById(workspace).lean().exec();
     }
 
     if (!workspace) {
-      workspace = await Workspace.findOne({ owner: user._id, isActive: true })
-        .sort({ createdAt: -1 })
-        .lean()
-        .exec();
+      if (user.primaryWorkspace) {
+        workspace = await Workspace.findById(user.primaryWorkspace).lean().exec();
+      }
+
+      if (!workspace) {
+        workspace = await Workspace.findOne({ owner: user._id, isActive: true })
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec();
+      }
+
+      if (!workspace) {
+        const membershipWorkspace = await WorkspaceMember.findOne({
+          user: user._id,
+          isActive: true,
+        })
+          .sort({ isPrimary: -1, createdAt: 1 })
+          .populate("workspace")
+          .lean()
+          .exec();
+        workspace = membershipWorkspace?.workspace || null;
+      }
     }
 
-    if (!workspace) {
-      const membershipWorkspace = await WorkspaceMember.findOne({
-        user: user._id,
-        isActive: true,
-      })
-        .sort({ isPrimary: -1, createdAt: 1 })
-        .populate("workspace")
-        .lean()
-        .exec();
-      workspace = membershipWorkspace?.workspace || null;
-    }
-
-    let workspaceMembership = null;
-    if (workspace?._id) {
+    if (!workspaceMembership && workspace?._id) {
       workspaceMembership = await WorkspaceMember.findOne({
         user: user._id,
         isActive: true,
@@ -255,10 +264,6 @@ export const getMyProfile = async (req, res) => {
         .populate("departments")
         .lean()
         .exec();
-    }
-
-    if (!workspaceMembership) {
-      workspaceMembership = await resolveActiveWorkspaceMembership(user);
     }
 
     // Fetch linked EmployeeProfile for jobTitle

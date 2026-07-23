@@ -223,27 +223,58 @@ const Header = ({
     return role.includes("founder");
   });
 
-  const roleLabelMap: Record<string, string> = {
-    owner: "Founder",
-    founder: "Founder",
-    "founder-&-ceo": "Founder",
-    "co-founder-&-coo": "Founder",
-    "co-founder": "Founder",
-    "master-admin": "Founder",
-    "super-admin": "Super Admin",
-    admin: departmentName ? `${departmentName} Admin` : "Department Admin",
-    manager: departmentName ? `${departmentName} Manager` : "Department Manager",
-    employee: departmentName ? `${departmentName} Employee` : "Employee",
-    "tenant-manager": "Tenant Manager",
-    "tenant-employee": "Tenant Employee",
+  const formatRoleLabel = (role: string, dept: string) => {
+    const normalized = String(role || "").trim().toLowerCase().replace(/_/g, "-");
+
+    const fixedLabels: Record<string, string> = {
+      owner: "Founder",
+      founder: "Founder",
+      "founder-&-ceo": "Founder",
+      "co-founder-&-coo": "Founder",
+      "co-founder": "Founder",
+      "master-admin": "Founder",
+      "super-admin": "Super Admin",
+      "tenant-manager": "Tenant Manager",
+      "tenant-employee": "Tenant Employee",
+    };
+
+    if (fixedLabels[normalized]) return fixedLabels[normalized];
+
+    const roleParts = normalized.split("-");
+    const roleType = roleParts.pop() || "";
+    const roleDepartment = roleParts
+      .map((part) =>
+        part.toUpperCase() === "HR"
+          ? "HR"
+          : part.toUpperCase() === "IT"
+            ? "IT"
+            : part.charAt(0).toUpperCase() + part.slice(1),
+      )
+      .join(" ");
+
+    if (["admin", "manager", "employee"].includes(roleType)) {
+      const department = dept || roleDepartment;
+      return department
+        ? `${department} ${roleType.charAt(0).toUpperCase() + roleType.slice(1)}`
+        : roleType.charAt(0).toUpperCase() + roleType.slice(1);
+    }
+
+    return normalized
+      ? normalized
+          .split("-")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ")
+      : "";
   };
+
   const tenantRoleFromAuth = auth?.user?.tenantRole || '';
-  const headerRoleLabel = (isFounderRole && !hasTenantRole) || (isFounderByFlag && !hasTenantRole) || (hasFounderPermission && !hasTenantRole)
-    ? "Founder"
-    : roleLabelMap[normalizedRole];
   const roleLabel = hasTenantRole
-    ? (tenantRoleFromAuth === "tenant-manager" ? "Tenant Manager" : "Tenant Employee")
-    : (headerRoleLabel || "Team Member");
+    ? tenantRoleFromAuth === "tenant-manager"
+      ? "Tenant Manager"
+      : "Tenant Employee"
+    : isFounderRole || isFounderByFlag || hasFounderPermission
+      ? "Founder"
+      : formatRoleLabel(normalizedRole, departmentName);
 
   return (
     <>
@@ -301,7 +332,7 @@ const Header = ({
                   {auth?.user?.name?.split(" ")[0] || ""}
                 </h1>
                 <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  {roleLabel}
+                  {roleLabel || "\u2014"}
                 </p>
               </div>
             )}
