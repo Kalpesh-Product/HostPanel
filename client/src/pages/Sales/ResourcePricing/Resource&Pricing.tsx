@@ -13,6 +13,8 @@ import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { ResourcePricingSkeleton } from '../../../components/ui/SalesPageSkeletons';
+import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
 
 const resourceStatusOptions = ['Active', 'Under Maintenance', 'Disabled'];
 const packageStatusOptions = ['Active', 'Disabled'];
@@ -36,8 +38,8 @@ const areaCapacityOptions = {
   cabin_desk: [4, 6, 8, 10],
 };
 
-function formatCurrency(value = 0) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
+function formatCurrency(value = 0, currency = 'INR') {
+  return formatWorkspaceCurrency(Number(value || 0), currency, { maximumFractionDigits: 2 });
 }
 
 function formatDate(value) {
@@ -443,7 +445,7 @@ function normalizePackage(entry = {}) {
   };
 }
 
-function buildResourceExportRows(resource = {}) {
+function buildResourceExportRows(resource = {}, currency = 'INR') {
   return [
     { label: 'Resource Name', value: resource.name || '-' },
     { label: 'Resource Code', value: resource.resourceCode || resource.recordId || resource.id || '-' },
@@ -452,8 +454,8 @@ function buildResourceExportRows(resource = {}) {
     { label: 'Floor', value: resource.floor || '--' },
     { label: 'Wing', value: resource.wing || '--' },
     { label: 'Capacity', value: String(resource.capacity || 0) },
-    { label: 'Price Per Hour', value: resource.pricePerHour ? formatCurrency(resource.pricePerHour) : '--' },
-    { label: 'Price Per Day', value: resource.pricePerDay ? formatCurrency(resource.pricePerDay) : '--' },
+    { label: 'Price Per Hour', value: resource.pricePerHour ? formatCurrency(resource.pricePerHour, currency) : '--' },
+    { label: 'Price Per Day', value: resource.pricePerDay ? formatCurrency(resource.pricePerDay, currency) : '--' },
     { label: 'Credits', value: String(getResourceCreditValue(resource)) },
     { label: 'Credit Summary', value: getResourceCreditSummary(resource) },
     { label: 'Status', value: resource.status || 'Active' },
@@ -461,7 +463,7 @@ function buildResourceExportRows(resource = {}) {
   ];
 }
 
-function buildPackageExportRows(pkg = {}) {
+function buildPackageExportRows(pkg = {}, currency = 'INR') {
   const isTenantPackage = pkg.category === 'Tenant';
   const locationMappings = Array.isArray(pkg.locationMappings) ? pkg.locationMappings : [];
   const locationLabels = Array.from(new Set(locationMappings.map((mapping) => getTenantResourceLocation(mapping)).filter(Boolean)));
@@ -474,7 +476,7 @@ function buildPackageExportRows(pkg = {}) {
     { label: 'Description', value: pkg.description || '--' },
     { label: 'Recommended', value: pkg.isRecommended ? 'Yes' : 'No' },
     { label: 'Duration', value: durationLabel(pkg.durationMonths) },
-    { label: 'Contract Value', value: formatCurrency(pkg.price || pkg.totalContractValue || 0) },
+    { label: 'Contract Value', value: formatCurrency(pkg.price || pkg.totalContractValue || 0, currency) },
     { label: 'Monthly Credits', value: String(pkg.monthlyCredits || pkg.creditsIncluded || 0) },
   ];
 
@@ -486,10 +488,10 @@ function buildPackageExportRows(pkg = {}) {
       { label: 'Cabin Desks', value: String(pkg.cabinDesks || 0) },
       { label: 'Total Seats', value: String(pkg.totalSeats || pkg.seatsIncluded || 0) },
       { label: 'Credits Per Seat', value: String(pkg.creditsPerSeat || 0) },
-      { label: 'Open Desk Rate / Day', value: pkg.ratePerOpenDesk ? formatCurrency(pkg.ratePerOpenDesk) : '--' },
-      { label: 'Cabin Desk Rate / Day', value: pkg.ratePerCabinDesk ? formatCurrency(pkg.ratePerCabinDesk) : '--' },
-      { label: 'Monthly Rent', value: formatCurrency(pkg.monthlyRate || pkg.monthlyRent || 0) },
-      { label: 'Total Contract Value', value: formatCurrency(pkg.totalContractValue || pkg.price || 0) },
+      { label: 'Open Desk Rate / Day', value: pkg.ratePerOpenDesk ? formatCurrency(pkg.ratePerOpenDesk, currency) : '--' },
+      { label: 'Cabin Desk Rate / Day', value: pkg.ratePerCabinDesk ? formatCurrency(pkg.ratePerCabinDesk, currency) : '--' },
+      { label: 'Monthly Rent', value: formatCurrency(pkg.monthlyRate || pkg.monthlyRent || 0, currency) },
+      { label: 'Total Contract Value', value: formatCurrency(pkg.totalContractValue || pkg.price || 0, currency) },
       { label: 'Selected Blocks', value: locationLabels.length > 0 ? locationLabels.join(', ') : 'Unassigned' },
       { label: 'Assigned Tenant Company', value: pkg.assignedTenantCompanyName || 'Unassigned' },
     );
@@ -506,7 +508,7 @@ function buildPackageExportRows(pkg = {}) {
   return rows;
 }
 
-function buildPackagesExportRows(items = [], scopeLabel = 'Packages', filters = {}) {
+function buildPackagesExportRows(items = [], scopeLabel = 'Packages', filters = {}, currency = 'INR') {
   const rows = [
     { label: 'Total Items', value: String(items.length || 0) },
     { label: 'Scope', value: scopeLabel },
@@ -520,7 +522,7 @@ function buildPackagesExportRows(items = [], scopeLabel = 'Packages', filters = 
         item.category ? `Category: ${item.category}` : '',
         item.status ? `Status: ${item.status}` : '',
         item.durationMonths ? `Duration: ${durationLabel(item.durationMonths)}` : '',
-        item.category === 'Tenant' ? `Contract: ${formatCurrency(item.price || 0)}` : `Price: ${formatCurrency(item.price || 0)}`,
+        item.category === 'Tenant' ? `Contract: ${formatCurrency(item.price || 0, currency)}` : `Price: ${formatCurrency(item.price || 0, currency)}`,
         item.category === 'Tenant' ? `Monthly Credits: ${item.monthlyCredits || item.creditsIncluded || 0}` : `Credits: ${item.creditsIncluded || 0}`,
       ].filter(Boolean).join(' | '),
     });
@@ -529,7 +531,7 @@ function buildPackagesExportRows(items = [], scopeLabel = 'Packages', filters = 
   return rows;
 }
 
-function buildResourcesExportRows(items = [], scopeLabel = 'Resources', filters = {}) {
+function buildResourcesExportRows(items = [], scopeLabel = 'Resources', filters = {}, currency = 'INR') {
   const rows = [
     { label: 'Total Items', value: String(items.length || 0) },
     { label: 'Scope', value: scopeLabel },
@@ -545,8 +547,8 @@ function buildResourcesExportRows(items = [], scopeLabel = 'Resources', filters 
         item.inventoryMode && isDeskCategory(item.resourceCategory) ? `Inventory: ${getInventoryModeLabel(item.inventoryMode)}` : '',
         item.floor ? `Floor: ${item.floor}` : '',
         item.wing ? `Wing: ${item.wing}` : '',
-        item.pricePerHour > 0 ? `Hourly: ${formatCurrency(item.pricePerHour)}` : '',
-        item.pricePerDay > 0 ? `Daily: ${formatCurrency(item.pricePerDay)}` : '',
+        item.pricePerHour > 0 ? `Hourly: ${formatCurrency(item.pricePerHour, currency)}` : '',
+        item.pricePerDay > 0 ? `Daily: ${formatCurrency(item.pricePerDay, currency)}` : '',
         `Credits: ${getResourceCreditValue(item)}`,
       ].filter(Boolean).join(' | '),
     });
@@ -626,6 +628,8 @@ export default function PricingPackagesPage() {
     status: 'Active',
   });
   const axiosPrivate = useAxiosPrivate();
+  const workspacePreferences = useWorkspacePreferences();
+  const formatCurrency = (value = 0) => formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
   const [bookingHours, setBookingHours] = useState({ start: '09:00', end: '22:00' });
   const [isHoursModalOpen, setIsHoursModalOpen] = useState(false);
   const [hoursForm, setHoursForm] = useState({ start: '09:00', end: '22:00' });
@@ -1515,8 +1519,8 @@ export default function PricingPackagesPage() {
           floorFilter: resourceFloorFilter,
           wingFilter: resourceWingFilter,
           statusFilter: resourceStatusFilter,
-        })
-        : buildPackagesExportRows(sourceItems, scopeLabel, { searchQuery });
+        }, workspacePreferences.currency)
+        : buildPackagesExportRows(sourceItems, scopeLabel, { searchQuery }, workspacePreferences.currency);
 
       const response = await createReport({
         title: `Sales ${scopeLabel}`,
@@ -1568,7 +1572,7 @@ export default function PricingPackagesPage() {
         description: `${item.name || 'Package'} pricing and configuration summary.`,
         sourceType: 'custom',
         sourceRef: String(item.recordId || item.id || item.packageCode || item.name || '').trim(),
-        reportRows: buildPackageExportRows(item),
+        reportRows: buildPackageExportRows(item, workspacePreferences.currency),
         monthlyData: [],
       });
 

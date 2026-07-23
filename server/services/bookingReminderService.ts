@@ -1,21 +1,18 @@
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
+import {
+    DEFAULT_WORKSPACE_TIMEZONE,
+    getZonedDateKey,
+    getZonedTime,
+    normalizeTimeZone,
+} from "../utils/workspaceLocalization.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 const REMINDER_LEAD_MINUTES = 30;
 
-const istParts = (date: Date) => {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-    }).formatToParts(date);
-    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return { date: `${values.year}-${values.month}-${values.day}`, time: `${values.hour}:${values.minute}` };
-};
+const workspaceParts = (date: Date, timezone = DEFAULT_WORKSPACE_TIMEZONE) => ({
+    date: getZonedDateKey(date, timezone),
+    time: getZonedTime(date, timezone),
+});
 
 const sendReminderEmail = async (booking: any) => {
     const recipientEmail = String(booking.bookedByEmail || "").trim();
@@ -24,8 +21,9 @@ const sendReminderEmail = async (booking: any) => {
     const clientName = booking.bookedForName || booking.bookedByName || "Guest";
     const roomName = booking.roomName || "Meeting Room";
     const bookingCode = booking.bookingCode || String(booking._id);
-    const start = booking.start ? istParts(new Date(booking.start)) : { date: "", time: "" };
-    const end = booking.end ? istParts(new Date(booking.end)) : { date: "", time: "" };
+    const timezone = normalizeTimeZone(booking.timezone);
+    const start = booking.start ? workspaceParts(new Date(booking.start), timezone) : { date: "", time: "" };
+    const end = booking.end ? workspaceParts(new Date(booking.end), timezone) : { date: "", time: "" };
 
     const subject = `Reminder — your booking in ${roomName} starts at ${start.time}`;
     const html = `

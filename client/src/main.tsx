@@ -1,5 +1,6 @@
 import ReactDOM from "react-dom/client";
 import "./index.css";
+import "./sweetalert.css";
 import App from "./App";
 import "grapesjs/dist/css/grapes.min.css";
 import "react-date-range/dist/styles.css";

@@ -12,6 +12,7 @@ import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import Footer from "../../components/Footer";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
+import { showSuccessAlert } from "../../utils/alerts";
 import { switchWorkspaceSession } from "../../services/workspace-session";
 import {
   clearInviteOnboardingState,
@@ -113,9 +114,7 @@ const PlanCard = ({
       type="button"
       onClick={onAction}
       disabled={actionDisabled}
-      className={`w-full h-11 rounded-full ${
-        actionLabel.toLowerCase().includes("upgrade") ? "text-[20px]" : "text-[16px]"
-      } font-bold border transition-colors disabled:opacity-60 disabled:cursor-not-allowed`}
+      className="w-full h-11 rounded-full text-[16px] font-bold border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       style={
         useNeutralButton
           ? {
@@ -145,7 +144,7 @@ const PlanCard = ({
         <button
           type="button"
           onClick={onSecondaryAction}
-        className="mt-3 h-11 rounded-full text-[20px] font-bold border transition-colors bg-[#dce3ed] text-[#0f1b35] border-[#d2dbe8]"
+        className="mt-3 h-11 rounded-full text-[16px] font-bold border transition-colors bg-[#dce3ed] text-[#0f1b35] border-[#d2dbe8]"
         >
           {secondaryActionLabel}
         </button>
@@ -175,7 +174,6 @@ const FinalizeSetupPage: React.FC = () => {
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(initialSelectedPlan);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [upgradeRequestState, setUpgradeRequestState] = useState<UpgradeRequestState | null>(
@@ -195,6 +193,8 @@ const FinalizeSetupPage: React.FC = () => {
     { label: "Country", value: workspaceDetails.country },
     { label: "State", value: workspaceDetails.state },
     { label: "City", value: workspaceDetails.city },
+    { label: "Timezone", value: workspaceDetails.timezone },
+    { label: "Currency", value: workspaceDetails.currency },
     { label: "Address", value: workspaceDetails.address },
     {
       label: "Type of Vertical",
@@ -527,11 +527,10 @@ const FinalizeSetupPage: React.FC = () => {
             }
           : prevState.user,
       }));
-      toast.success(response.data?.message || "Unit created successfully.");
-      setShowSuccessPopup(true);
-      setTimeout(() => {
-        navigate("/dashboard", { replace: true });
-      }, 5000);
+      await showSuccessAlert(
+        response.data?.message || "Business location created successfully. Redirecting to dashboard...",
+      );
+      navigate("/dashboard", { replace: true });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to complete unit setup.");
     } finally {
@@ -604,7 +603,7 @@ const FinalizeSetupPage: React.FC = () => {
                 actionLabel="Current Plan"
                 onAction={() => {}}
                 isSelected={true}
-                minHeightClass="min-h-[500px]"
+                minHeightClass="min-h-[500px] h-full"
                 useNeutralButton={true}
                 onSecondaryAction={
                   !isAdditionalWorkspaceMode && upgradePlanOptions.length
@@ -625,21 +624,21 @@ const FinalizeSetupPage: React.FC = () => {
             </div>
 
             <div className="min-w-0 self-stretch">
-              <div className="rounded-[38px] bg-[#eef2f7] p-5 md:p-5 flex h-full min-h-[500px] flex-col shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
-              <p className="text-[16px] font-bold text-[#111b33] mb-2 text-center mt-2">
+              <div className="rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex h-full min-h-[500px] flex-col shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
+              <p className="text-[16px] font-bold text-[#111b33] mb-1 text-center mt-1">
                 Business Location Details
               </p>
-              <p className="text-[11px] font-bold text-[#233552] mb-4 text-center">
+              <p className="text-[11px] font-bold text-[#233552] mb-3 text-center">
                 Plan Selected : {selectedPlan.toUpperCase()}
               </p>
-              <div className="grid grid-cols-1 auto-rows-auto gap-y-3.5 flex-1 content-start">
+              <div className="grid grid-cols-1 auto-rows-auto gap-y-2 flex-1 content-between">
                 {workspaceRows.length ? (
                   workspaceRows.map((row) => (
                     <div
                       key={row.label}
                       className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3.5 py-3"
                     >
-                      <p className="text-[11.5px] text-[#4f627d] break-words">
+                      <p className="text-[12.5px] text-[#4f627d] break-words">
                         <span className="font-bold text-[#1f3553] text-[12px]">{row.label}:</span>{" "}
                         <span className="font-semibold text-[#1f3553]">
                           {row.value}
@@ -754,25 +753,6 @@ const FinalizeSetupPage: React.FC = () => {
           </div>
         </div>
       , document.body) : null}
-
-      {showSuccessPopup ? (
-        <div className="fixed inset-0 z-[60] pointer-events-none flex items-center justify-center px-4 backdrop-blur-[6px]">
-          <div className="w-full max-w-xl rounded-[24px] border border-[#d9e6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] shadow-[0_16px_50px_rgba(23,73,182,0.14)] px-5 md:px-8 py-7 md:py-8 text-center">
-            <div className="w-12 h-12 md:w-14 md:h-14 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-4">
-              <CheckCircle2 className="text-[#2d67f0]" size={28} strokeWidth={2.5} />
-            </div>
-            <h2 className="text-[24px] md:text-[30px] leading-tight font-pmedium text-[#102a56] mb-2">
-              Thank You
-            </h2>
-            <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">
-              Business location created successfully. Redirecting to dashboard...
-            </p>
-            <p className="mt-4 text-[12px] text-[#6b7fa7] font-medium">
-              Redirecting in a few seconds...
-            </p>
-          </div>
-        </div>
-      ) : null}
 
       <Footer />
     </div>

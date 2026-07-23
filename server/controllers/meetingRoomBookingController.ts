@@ -11,6 +11,21 @@ import { Client } from "../models/Client.js";
 import Workspace from "../models/Workspace.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import { createNotification } from "../utils/notify.js";
+import {
+    DEFAULT_WORKSPACE_CURRENCY,
+    DEFAULT_WORKSPACE_TIMEZONE,
+    formatWorkspaceCurrency,
+    getZonedDateKey,
+    getZonedTime,
+    normalizeCurrency,
+    normalizeTimeZone,
+    parseWorkspaceDateTime,
+} from "../utils/workspaceLocalization.js";
+import {
+    normalizeBillingConfig,
+    resolvePaymentMethod,
+    type WorkspaceBillingConfig,
+} from "../utils/workspaceBilling.js";
 
 interface AuthenticatedRequest extends Request {
     user?: string;
@@ -36,32 +51,44 @@ function toMinutes(time: string): number {
     return (h || 0) * 60 + (m || 0);
 }
 
-async function getWorkspaceBusinessHours(workspaceId: string): Promise<{ startMinutes: number; endMinutes: number }> {
+type WorkspaceLocalization = {
+    timezone: string;
+    currency: string;
+    startMinutes: number;
+    endMinutes: number;
+    billing: WorkspaceBillingConfig;
+};
+
+async function getWorkspaceLocalization(workspaceId: string): Promise<WorkspaceLocalization> {
     try {
-        const workspace = await Workspace.findById(workspaceId).select("preferences.businessHours").lean();
-        const bh = workspace?.preferences?.businessHours;
-        if (bh?.start && bh?.end) {
-            return { startMinutes: toMinutes(bh.start), endMinutes: toMinutes(bh.end) };
-        }
+        const workspace = await Workspace.findById(workspaceId)
+            .select("countryCode state preferences.timezone preferences.currency preferences.businessHours preferences.billing")
+            .lean();
+        const preferences = workspace?.preferences;
+        const businessHours = preferences?.businessHours;
+        const currency = normalizeCurrency(preferences?.currency);
+        return {
+            timezone: normalizeTimeZone(preferences?.timezone),
+            currency,
+            startMinutes: businessHours?.start ? toMinutes(businessHours.start) : BOOKING_DAY_START_MINUTES,
+            endMinutes: businessHours?.end ? toMinutes(businessHours.end) : BOOKING_DAY_END_MINUTES,
+            billing: normalizeBillingConfig(preferences?.billing, workspace?.countryCode || (currency === "INR" ? "IN" : ""), workspace?.state),
+        };
     } catch {
-        // fall through to defaults
+        return {
+            timezone: DEFAULT_WORKSPACE_TIMEZONE,
+            currency: DEFAULT_WORKSPACE_CURRENCY,
+            startMinutes: BOOKING_DAY_START_MINUTES,
+            endMinutes: BOOKING_DAY_END_MINUTES,
+            billing: normalizeBillingConfig(undefined, "IN"),
+        };
     }
-    return { startMinutes: BOOKING_DAY_START_MINUTES, endMinutes: BOOKING_DAY_END_MINUTES };
 }
 
-const dateTimeParts = (date: Date) => {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-    }).formatToParts(new Date(date));
-    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return { date: `${values.year}-${values.month}-${values.day}`, time: `${values.hour}:${values.minute}` };
-};
+const dateTimeParts = (date: Date, timezone = DEFAULT_WORKSPACE_TIMEZONE) => ({
+    date: getZonedDateKey(new Date(date), timezone),
+    time: getZonedTime(new Date(date), timezone),
+});
 
 // ── Email formatting helpers ────────────────────────────────────────────────
 // Emails use a friendly date + 12-hour IST time (the app's 24h/ISO internal
@@ -69,33 +96,70 @@ const dateTimeParts = (date: Date) => {
 // safe fallback since email clients can't load the local Poppins TTF.
 const EMAIL_FONT = "'Poppins','Segoe UI',Arial,sans-serif";
 
-const emailDateParts = (date: Date) => {
-    const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }).format(new Date(date));
-    const time = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(date));
-    const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date));
+const emailDateParts = (date: Date, timezone = DEFAULT_WORKSPACE_TIMEZONE) => {
+    const day = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, day: "2-digit", month: "short", year: "numeric" }).format(new Date(date));
+    const time = new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(date));
+    const dayKey = getZonedDateKey(new Date(date), timezone);
     return { day, time, dayKey };
 };
 
 // Same-day: "20 Jul 2026, 10:00 AM – 12:00 PM"
 // Multi-day: "20 Jul 2026, 10:00 AM  →  22 Jul 2026, 12:00 PM"
-const emailSlotLabel = (start?: Date | null, end?: Date | null) => {
+const emailSlotLabel = (start?: Date | null, end?: Date | null, timezone = DEFAULT_WORKSPACE_TIMEZONE) => {
     if (!start || !end) return "—";
-    const s = emailDateParts(start);
-    const e = emailDateParts(end);
+    const s = emailDateParts(start, timezone);
+    const e = emailDateParts(end, timezone);
     return s.dayKey === e.dayKey
         ? `${s.day}, ${s.time} &ndash; ${e.time}`
         : `${s.day}, ${s.time} &nbsp;&rarr;&nbsp; ${e.day}, ${e.time}`;
 };
 
-const emailCurrency = (n: number) => `&#8377;${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const emailCurrency = (n: number, currency = DEFAULT_WORKSPACE_CURRENCY) =>
+    formatWorkspaceCurrency(Number(n || 0), currency, "en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const computeDiscountAmount = (booking: any) => {
-    const base = Number(booking.baseAmount || 0);
+    const base = Number(booking.subtotalBeforeDiscount ?? booking.baseAmount ?? 0);
     const discountValue = Number(booking.discountValue || 0);
     if (discountValue <= 0 || base <= 0) return 0;
     return String(booking.discountType) === "percent"
         ? Math.round(base * (Math.min(discountValue, 100) / 100) * 100) / 100
         : Math.min(discountValue, base);
+};
+
+const calculateExternalPricingSnapshot = (body: any, billing: WorkspaceBillingConfig) => {
+    const subtotalBeforeDiscount = Math.max(0, Number(body?.subtotalBeforeDiscount ?? body?.baseAmount ?? 0) || 0);
+    const discountType = String(body?.discountType) === "percent" ? "percent" : "flat";
+    const discountValue = Math.max(0, Number(body?.discountValue || 0) || 0);
+    const rawDiscount = discountType === "percent"
+        ? subtotalBeforeDiscount * (Math.min(discountValue, 100) / 100)
+        : discountValue;
+    const discountAmount = Math.round(Math.min(rawDiscount, subtotalBeforeDiscount) * 100) / 100;
+    const taxableBaseAfterDiscount = Math.round(Math.max(subtotalBeforeDiscount - discountAmount, 0) * 100) / 100;
+    const tax = billing.tax;
+    const taxRatePercent = tax.enabled ? Math.min(100, Math.max(0, Number(tax.ratePercent || 0))) : 0;
+    const rawTaxAmount = !tax.enabled || taxRatePercent <= 0
+        ? 0
+        : tax.priceIncludesTax
+            ? taxableBaseAfterDiscount * (taxRatePercent / (100 + taxRatePercent))
+            : taxableBaseAfterDiscount * (taxRatePercent / 100);
+    const taxAmount = Math.round(rawTaxAmount * 100) / 100;
+    const totalAmount = Math.round((tax.priceIncludesTax
+        ? taxableBaseAfterDiscount
+        : taxableBaseAfterDiscount + taxAmount) * 100) / 100;
+
+    return {
+        subtotalBeforeDiscount,
+        discountType,
+        discountValue,
+        discountAmount,
+        taxableBaseAfterDiscount,
+        baseAmount: subtotalBeforeDiscount,
+        gstAmount: taxAmount,
+        totalAmount,
+        taxLabel: tax.label || "Tax",
+        taxRatePercent,
+        priceIncludesTax: Boolean(tax.priceIncludesTax),
+    };
 };
 
 const isBookingPaid = (booking: any) => {
@@ -106,12 +170,16 @@ const isBookingPaid = (booking: any) => {
 // A pricing breakdown table (base, discount, GST, total) plus the payment
 // status. Returns "" only when there is genuinely nothing to charge.
 const emailPricingBlock = (booking: any) => {
-    const base = Number(booking.baseAmount || 0);
+    const currency = normalizeCurrency(booking?.currency);
+    const base = Number(booking.subtotalBeforeDiscount ?? booking.baseAmount ?? 0);
     const gst = Number(booking.gstAmount || 0);
     const total = Number(booking.totalAmount || 0);
     if (total <= 0 && base <= 0) return "";
-    const discountAmount = computeDiscountAmount(booking);
+    const discountAmount = Number(booking.discountAmount ?? computeDiscountAmount(booking));
     const discountLabel = String(booking.discountType) === "percent" ? `Discount (${Number(booking.discountValue || 0)}%)` : "Discount";
+    const taxLabel = String(booking.taxLabel || "GST").trim();
+    const taxRatePercent = Number(booking.taxRatePercent ?? (gst > 0 ? 18 : 0));
+    const taxDisplayLabel = `${taxLabel}${taxRatePercent > 0 ? ` (${taxRatePercent}%)` : ""}`;
     const paid = isBookingPaid(booking);
     const paymentMode = String(booking.paymentMode || "").trim();
 
@@ -124,20 +192,22 @@ const emailPricingBlock = (booking: any) => {
     return `
       <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;font-family:${EMAIL_FONT};">Pricing Breakdown</p>
       <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
-        ${row("Base Amount", emailCurrency(base))}
-        ${discountAmount > 0 ? row(discountLabel, `&minus; ${emailCurrency(discountAmount)}`, { color: "#059669", bg: "#f0fdf4" }) : ""}
-        ${row("GST (18%)", emailCurrency(gst))}
-        ${row("Total", emailCurrency(total), { color: "#2563eb", strong: true, bg: "#f8fafc" })}
+        ${row("Base Amount", emailCurrency(base, currency))}
+        ${discountAmount > 0 ? row(discountLabel, `&minus; ${emailCurrency(discountAmount, currency)}`, { color: "#059669", bg: "#f0fdf4" }) : ""}
+        ${gst > 0 || taxRatePercent > 0 ? row(taxDisplayLabel, emailCurrency(gst, currency)) : ""}
+        ${row("Total", emailCurrency(total, currency), { color: "#2563eb", strong: true, bg: "#f8fafc" })}
         ${row("Payment Status", paid ? "PAID" : "UNPAID &mdash; DUE", { color: paid ? "#059669" : "#d97706", strong: true, bg: paid ? "#f0fdf4" : "#fffbeb" })}
         ${paymentMode ? row("Payment Mode", paymentMode) : ""}
       </table>`;
 };
 
 const transformBooking = (booking: any, currentUserId?: string) => {
+    const timezone = normalizeTimeZone(booking?.timezone);
+    const currency = normalizeCurrency(booking?.currency);
     const room = booking.roomId && typeof booking.roomId === "object" ? booking.roomId : null;
     const owner = booking.ownerId && typeof booking.ownerId === "object" ? booking.ownerId : null;
-    const start = booking.start ? dateTimeParts(booking.start) : { date: "", time: "" };
-    const end = booking.end ? dateTimeParts(booking.end) : { date: "", time: "" };
+    const start = booking.start ? dateTimeParts(booking.start, timezone) : { date: "", time: "" };
+    const end = booking.end ? dateTimeParts(booking.end, timezone) : { date: "", time: "" };
     const ownerId = String(owner?._id || booking.ownerId || "");
     const bookedByUserId = String(booking.bookedByUserId || "");
     // bookedForName: stored at creation time for on-behalf bookings (owner != booker).
@@ -156,8 +226,8 @@ const transformBooking = (booking: any, currentUserId?: string) => {
         (originalStartDate.getTime() !== new Date(booking.start).getTime() ||
             originalEndDate.getTime() !== new Date(booking.end).getTime())
     );
-    const previousStartParts = hasScheduleChanged && originalStartDate ? dateTimeParts(originalStartDate) : null;
-    const previousEndParts = hasScheduleChanged && originalEndDate ? dateTimeParts(originalEndDate) : null;
+    const previousStartParts = hasScheduleChanged && originalStartDate ? dateTimeParts(originalStartDate, timezone) : null;
+    const previousEndParts = hasScheduleChanged && originalEndDate ? dateTimeParts(originalEndDate, timezone) : null;
 
     // externalClientId is populated on list fetches so the booking detail view
     // can show the client's contact details (which aren't stored on the
@@ -169,6 +239,13 @@ const transformBooking = (booking: any, currentUserId?: string) => {
 
     return {
         ...booking,
+        timezone,
+        currency,
+        taxLabel: String(booking.taxLabel || (Number(booking.gstAmount || 0) > 0 ? "GST" : "Tax")),
+        taxRatePercent: Number(booking.taxRatePercent ?? (Number(booking.gstAmount || 0) > 0 ? 18 : 0)),
+        priceIncludesTax: Boolean(booking.priceIncludesTax),
+        paymentMethodCode: String(booking.paymentMethodCode || booking.paymentMode || "").trim().toLowerCase(),
+        paymentMethodLabel: String(booking.paymentMethodLabel || booking.paymentMode || "").trim(),
         recordId: String(booking._id || booking.id || ""),
         id: String(booking._id || booking.id || ""),
         date: start.date,
@@ -208,31 +285,27 @@ const transformBooking = (booking: any, currentUserId?: string) => {
     };
 };
 
-const INDIA_TIME_OFFSET = "+05:30";
-
 /**
- * Meeting-room forms submit an India-local wall time such as
- * `2026-07-16T13:00:00`. JavaScript otherwise interprets that value in the
- * server's own timezone (UTC on Vercel), shifting it by +5:30 when displayed
- * back in India. Attach the IST offset to timezone-less inputs while leaving
- * real ISO instants (`Z` / explicit offsets) and Date values untouched.
+ * Parse a local business-location wall time without depending on the Node/Vercel
+ * process timezone. ISO values with an explicit offset remain supported.
  */
-export const parseMeetingRoomDateTime = (value: any): Date => {
-    if (value instanceof Date) return new Date(value.getTime());
-    if (typeof value !== "string") return new Date(value);
+export const parseMeetingRoomDateTime = (
+    value: any,
+    timezone = DEFAULT_WORKSPACE_TIMEZONE,
+): Date => parseWorkspaceDateTime(value, timezone);
 
-    const normalized = value.trim();
-    const hasExplicitTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
-    const isLocalDateTime = /^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(normalized);
-    return new Date(isLocalDateTime && !hasExplicitTimeZone ? `${normalized}${INDIA_TIME_OFFSET}` : normalized);
-};
-
-const parseDateRange = (start: any, end: any, dayStartMinutes?: number, dayEndMinutes?: number) => {
-    const parsedStart = parseMeetingRoomDateTime(start);
-    const parsedEnd = parseMeetingRoomDateTime(end);
+const parseDateRange = (
+    start: any,
+    end: any,
+    dayStartMinutes?: number,
+    dayEndMinutes?: number,
+    timezone = DEFAULT_WORKSPACE_TIMEZONE,
+) => {
+    const parsedStart = parseMeetingRoomDateTime(start, timezone);
+    const parsedEnd = parseMeetingRoomDateTime(end, timezone);
     if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime()) || parsedEnd <= parsedStart) return null;
-    const startParts = dateTimeParts(parsedStart);
-    const endParts = dateTimeParts(parsedEnd);
+    const startParts = dateTimeParts(parsedStart, timezone);
+    const endParts = dateTimeParts(parsedEnd, timezone);
     const toMinutes = (time: string) => {
         const [hours, minutes] = time.split(":").map(Number);
         return hours * 60 + minutes;
@@ -269,18 +342,22 @@ const parseDateRange = (start: any, end: any, dayStartMinutes?: number, dayEndMi
  * - range: parseDateRange(start, end) when both are present; otherwise built
  *   from date + startTime + endTime. Null when neither shape yields a valid range.
  */
-export const normalizeCreateBookingInput = (body: any = {}, businessHours?: { startMinutes: number; endMinutes: number }) => {
+export const normalizeCreateBookingInput = (
+    body: any = {},
+    businessHours?: { startMinutes: number; endMinutes: number },
+    timezone = DEFAULT_WORKSPACE_TIMEZONE,
+) => {
     const roomIdCandidate = getValidObjectId(body?.roomId);
     const roomNameCandidate = typeof body?.roomName === "string" ? body.roomName.trim() : "";
 
     let range = null;
     if (body?.start != null && body?.end != null) {
-        range = parseDateRange(body.start, body.end, businessHours?.startMinutes, businessHours?.endMinutes);
+        range = parseDateRange(body.start, body.end, businessHours?.startMinutes, businessHours?.endMinutes, timezone);
     } else if (body?.date && body?.startTime && body?.endTime) {
         // endDate lets a multi-day booking end on a different calendar date
         // than it started; defaults to the same day when omitted.
         const endDateCandidate = typeof body?.endDate === "string" && body.endDate.trim() ? body.endDate.trim() : body.date;
-        range = parseDateRange(`${body.date}T${body.startTime}:00`, `${endDateCandidate}T${body.endTime}:00`, businessHours?.startMinutes, businessHours?.endMinutes);
+        range = parseDateRange(`${body.date}T${body.startTime}:00`, `${endDateCandidate}T${body.endTime}:00`, businessHours?.startMinutes, businessHours?.endMinutes, timezone);
     }
 
     return { roomIdCandidate, roomNameCandidate, range };
@@ -554,8 +631,12 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
     try {
         const workspaceId = workspaceIdFor(req);
         const { purpose, attendees, inviteeUserIds = [] } = req.body;
-        const businessHours = await getWorkspaceBusinessHours(workspaceId);
-        const { roomIdCandidate, roomNameCandidate, range } = normalizeCreateBookingInput(req.body, businessHours);
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
+        const { roomIdCandidate, roomNameCandidate, range } = normalizeCreateBookingInput(
+            req.body,
+            workspaceLocalization,
+            workspaceLocalization.timezone,
+        );
         if (!workspaceId || !req.user) return res.status(401).json({ message: "An active workspace is required" });
         if ((!roomIdCandidate && !roomNameCandidate) || !purpose?.trim() || !range) return res.status(400).json({ message: "Room, valid start/end times, and purpose are required" });
 
@@ -578,24 +659,27 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             const {
                 bookedForName: extBookedForName = "",
                 externalClientId,
-                baseAmount,
-                gstAmount,
-                totalAmount,
-                discountType = "flat",
-                discountValue = 0,
                 paymentMode,
                 paymentStatus = "Pending",
                 transactionId = "",
             } = req.body;
 
-            const normalizedPaymentMode = String(paymentMode || "").trim();
-            const isOnlinePayment = normalizedPaymentMode !== "" && normalizedPaymentMode.toLowerCase() !== "cash";
-            if (isOnlinePayment && !String(transactionId || "").trim()) {
-                return res.status(400).json({ message: "Transaction / UTR number is required for GPay payments." });
+            const paymentMethod = resolvePaymentMethod(workspaceLocalization.billing, paymentMode);
+            if (!paymentMethod) {
+                return res.status(400).json({
+                    message: "Select a payment method enabled for this workspace.",
+                    allowedPaymentMethods: workspaceLocalization.billing.paymentMethods,
+                });
             }
-            if (isOnlinePayment && !req.file) {
-                return res.status(400).json({ message: "Payment screenshot is required for GPay payments." });
+            const normalizedTransactionId = String(transactionId || "").trim();
+            if (paymentMethod.requiresReference && !normalizedTransactionId) {
+                return res.status(400).json({ message: `Payment reference is required for ${paymentMethod.label}.` });
             }
+            if (paymentMethod.requiresProof && !req.file) {
+                return res.status(400).json({ message: `Payment proof is required for ${paymentMethod.label}.` });
+            }
+            const pricingSnapshot = calculateExternalPricingSnapshot(req.body, workspaceLocalization.billing);
+            const isCashPayment = paymentMethod.code === "cash";
 
             let paymentProofUrl = "";
             if (req.file) {
@@ -632,6 +716,8 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 roomId,
                 roomName: room.name,
                 bookingType: "External",
+                timezone: workspaceLocalization.timezone,
+                currency: workspaceLocalization.currency,
                 ownerId: req.user,
                 bookedByUserId: req.user,
                 bookedByName: resolveBookedByName(req.body, extHostUser),
@@ -646,17 +732,16 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 seatNumber: extSeatNumber,
                 purpose: purpose.trim(),
                 bookingNotes: req.body.bookingNotes || "",
-                baseAmount: Number(baseAmount) || 0,
-                gstAmount: Number(gstAmount) || 0,
-                totalAmount: Number(totalAmount) || 0,
-                discountType,
-                discountValue: Number(discountValue) || 0,
-                paymentMode: normalizedPaymentMode,
-                // Online payments (proof required) are always Paid. Cash honors
-                // the front desk's Paid/Unpaid choice so an unpaid booking can
-                // be collected later at verify-booking.
-                paymentStatus: isOnlinePayment ? "Paid" : (String(paymentStatus || "").trim() || "Paid"),
-                transactionId: String(transactionId || "").trim(),
+                ...pricingSnapshot,
+                paymentMode: paymentMethod.label,
+                paymentMethodCode: paymentMethod.code,
+                paymentMethodLabel: paymentMethod.label,
+                paymentRequiresReference: paymentMethod.requiresReference,
+                paymentRequiresProof: paymentMethod.requiresProof,
+                // Non-cash methods are collected at booking time. Cash can be
+                // marked unpaid so the amount remains due at the front desk.
+                paymentStatus: isCashPayment ? (String(paymentStatus || "").trim() || "Paid") : "Paid",
+                transactionId: normalizedTransactionId,
                 paymentProofUrl,
                 status: "confirmed",
             });
@@ -664,7 +749,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             // 5. Update the Client record if externalClientId present
             if (externalClientId && getValidObjectId(externalClientId)) {
                 await Client.findByIdAndUpdate(externalClientId, {
-                    $inc: { bookingCount: 1, totalBookedAmount: Number(totalAmount) || 0 },
+                    $inc: { bookingCount: 1, totalBookedAmount: pricingSnapshot.totalAmount },
                     $set: { lastBookingId: extBooking._id, lastBookingAt: extBooking.start },
                 });
             }
@@ -739,6 +824,8 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             attendees: attendeeCount,
             bookingCredits,
             bookingType: req.body.bookingType || "Internal",
+            timezone: workspaceLocalization.timezone,
+            currency: workspaceLocalization.currency,
             department: req.body.department,
             departmentId: req.body.departmentId && mongoose.Types.ObjectId.isValid(req.body.departmentId) ? new mongoose.Types.ObjectId(String(req.body.departmentId)) : null,
             invites,
@@ -746,8 +833,8 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         });
 
         // Send confirmation notification to the booker
-        const bookerStartParts = dateTimeParts(range.start);
-        const bookerEndParts = dateTimeParts(range.end);
+        const bookerStartParts = dateTimeParts(range.start, workspaceLocalization.timezone);
+        const bookerEndParts = dateTimeParts(range.end, workspaceLocalization.timezone);
         createNotification({
             workspaceId,
             recipientUserId: String(resolvedOwnerId),
@@ -780,8 +867,8 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                         tenantCompany.creditsUsed = newCreditsUsed;
                         await tenantCompany.save();
 
-                        const startParts = dateTimeParts(range.start);
-                        const endParts = dateTimeParts(range.end);
+                        const startParts = dateTimeParts(range.start, workspaceLocalization.timezone);
+                        const endParts = dateTimeParts(range.end, workspaceLocalization.timezone);
                         await TenantCreditLedger.create({
                             tenantCompanyId: tenantCompany._id,
                             workspaceId,
@@ -809,8 +896,8 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
 
         // Notify invitees about the meeting room booking
         if (invites && invites.length > 0) {
-            const startParts = dateTimeParts(range.start);
-            const endParts = dateTimeParts(range.end);
+            const startParts = dateTimeParts(range.start, workspaceLocalization.timezone);
+            const endParts = dateTimeParts(range.end, workspaceLocalization.timezone);
             const inviterName = hostUser?.name || "Someone";
 
             for (const invite of invites) {
@@ -848,8 +935,8 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 isActive: true,
             }).select("user role").populate("role", "name").lean();
 
-            const startParts = dateTimeParts(range.start);
-            const endParts = dateTimeParts(range.end);
+            const startParts = dateTimeParts(range.start, workspaceLocalization.timezone);
+            const endParts = dateTimeParts(range.end, workspaceLocalization.timezone);
             const adminIds = workspaceMembers
                 .filter((m: any) => ["founder", "super_admin", "admin"].includes(String(m.role?.name || "").toLowerCase()))
                 .map((m: any) => String(m.user))
@@ -916,8 +1003,15 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         const workspaceId = workspaceIdFor(req);
         const booking: any = await MeetingRoomBooking.findOne({ _id: id, workspaceId });
         if (!booking) return res.status(404).json({ message: "Booking not found" });
-        const businessHours = await getWorkspaceBusinessHours(workspaceId);
-        const range = parseDateRange(req.body.start || booking.start, req.body.end || booking.end, businessHours.startMinutes, businessHours.endMinutes);
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
+        const bookingTimezone = normalizeTimeZone(booking.timezone || workspaceLocalization.timezone);
+        const range = parseDateRange(
+            req.body.start || booking.start,
+            req.body.end || booking.end,
+            workspaceLocalization.startMinutes,
+            workspaceLocalization.endMinutes,
+            bookingTimezone,
+        );
         if (!range) return res.status(400).json({ message: "Valid start and end times are required" });
         if (await findOverlap(booking.roomId, range.start, range.end, id, booking.seatNumber)) return res.status(409).json({ message: booking.seatNumber ? "This seat is already booked for the selected time slot" : "Room is already booked for the selected time slot" });
 
@@ -951,6 +1045,8 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         const previousTotal = Number(booking.totalAmount || 0);
         booking.start = range.start;
         booking.end = range.end;
+        booking.timezone = bookingTimezone;
+        booking.currency = normalizeCurrency(booking.currency || workspaceLocalization.currency);
         if (req.body.scheduleChangeType) booking.scheduleChangeType = req.body.scheduleChangeType;
         if (req.body.extensionAmount !== undefined) booking.extensionAmount = req.body.extensionAmount;
         if (req.body.baseAmount !== undefined) booking.baseAmount = req.body.baseAmount;
@@ -1035,8 +1131,8 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
 
         // Notify invitees of schedule change
-        const updateStartParts = dateTimeParts(range.start);
-        const updateEndParts = dateTimeParts(range.end);
+        const updateStartParts = dateTimeParts(range.start, workspaceLocalization.timezone);
+        const updateEndParts = dateTimeParts(range.end, workspaceLocalization.timezone);
         const existingInvitees = (booking.invites || [])
             .filter((inv: any) => inv.invitedUserId && String(inv.invitedUserId) !== String(req.user) && inv.status !== "rejected");
         for (const inv of existingInvitees) {
@@ -1312,8 +1408,9 @@ const sendExternalLifecycleEmail = async (
         const bookingCode = booking.bookingCode || String(booking._id);
         const startDate = booking.start ? new Date(booking.start) : null;
         const endDate = booking.end ? new Date(booking.end) : null;
-        const slotLabel = emailSlotLabel(startDate, endDate);
-        const dayLabel = startDate ? emailDateParts(startDate).day : "";
+        const timezone = normalizeTimeZone(booking.timezone);
+        const slotLabel = emailSlotLabel(startDate, endDate, timezone);
+        const dayLabel = startDate ? emailDateParts(startDate, timezone).day : "";
         const paid = isBookingPaid(booking);
 
         const { sendMail } = await import("../config/mailer.js");
@@ -1325,7 +1422,7 @@ const sendExternalLifecycleEmail = async (
             </tr>`;
 
         if (kind === "rescheduled") {
-            const prevSlot = emailSlotLabel(extra.previousStart || null, extra.previousEnd || null);
+            const prevSlot = emailSlotLabel(extra.previousStart || null, extra.previousEnd || null, timezone);
             const newTotal = Number(booking.totalAmount || 0);
             const prevTotal = Number(extra.previousTotal ?? newTotal);
             const diff = Math.round((newTotal - prevTotal) * 100) / 100;
@@ -1350,9 +1447,9 @@ const sendExternalLifecycleEmail = async (
           </table>
           ${emailPricingBlock(booking)}
           ${diff > 0
-                ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #fecaca;border-radius:12px;background:#fef2f2;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#b91c1c;font-family:${EMAIL_FONT};">Additional ${emailCurrency(diff)} is due for the new slot &mdash; please pay this at the front desk.</td></tr></table>`
+                ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #fecaca;border-radius:12px;background:#fef2f2;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#b91c1c;font-family:${EMAIL_FONT};">Additional ${emailCurrency(diff, booking.currency)} is due for the new slot &mdash; please pay this at the front desk.</td></tr></table>`
                 : diff < 0
-                    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#047857;font-family:${EMAIL_FONT};">A refund of ${emailCurrency(Math.abs(diff))} is due for the shorter slot &mdash; please collect this from the front desk.</td></tr></table>`
+                    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#047857;font-family:${EMAIL_FONT};">A refund of ${emailCurrency(Math.abs(diff), booking.currency)} is due for the shorter slot &mdash; please collect this from the front desk.</td></tr></table>`
                     : ""}
           <p style="margin:0;font-size:13px;font-weight:500;color:#94a3b8;line-height:1.6;font-family:${EMAIL_FONT};">If this change doesn't work for you, please contact us directly.</p>
         </td></tr>
@@ -1367,7 +1464,7 @@ const sendExternalLifecycleEmail = async (
                 to: recipientEmail,
                 subject,
                 html,
-                text: `Your booking (${bookingCode}) for ${roomName} has been rescheduled. New schedule: ${slotLabel.replace(/&ndash;|&rarr;|&nbsp;/g, "-")}. Total: ${emailCurrency(newTotal)} (${paid ? "Paid" : "Unpaid"}).${diff > 0 ? ` Additional ${emailCurrency(diff)} due at the front desk.` : diff < 0 ? ` Refund of ${emailCurrency(Math.abs(diff))} at the front desk.` : ""}`,
+                text: `Your booking (${bookingCode}) for ${roomName} has been rescheduled. New schedule: ${slotLabel.replace(/&ndash;|&rarr;|&nbsp;/g, "-")}. Total: ${emailCurrency(newTotal, booking.currency)} (${paid ? "Paid" : "Unpaid"}).${diff > 0 ? ` Additional ${emailCurrency(diff, booking.currency)} due at the front desk.` : diff < 0 ? ` Refund of ${emailCurrency(Math.abs(diff), booking.currency)} at the front desk.` : ""}`,
             });
         } else {
             const subject = `Booking Cancelled — ${roomName} on ${dayLabel}`;
@@ -1392,7 +1489,7 @@ const sendExternalLifecycleEmail = async (
           <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
             ${row("Meeting Room", roomName)}
             ${row("Was Scheduled For", slotLabel, { bg: "#f8fafc" })}
-            ${total > 0 ? row("Amount", `${emailCurrency(total)} (${paid ? "Paid" : "Unpaid"})`) : ""}
+            ${total > 0 ? row("Amount", `${emailCurrency(total, currency)} (${paid ? "Paid" : "Unpaid"})`) : ""}
             ${reasonLine ? row("Reason", reasonLine, { bg: "#f8fafc" }) : ""}
           </table>
           ${showRefund ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:600;color:#047857;font-family:${EMAIL_FONT};">Refund (${refundType}) is due for this cancellation &mdash; please collect it from the front desk.</td></tr></table>` : ""}
@@ -1439,7 +1536,8 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
         // Friendly 12-hour slot label (handles multi-day date ranges).
         const startDate = booking.start ? new Date(booking.start) : null;
         const endDate = booking.end ? new Date(booking.end) : null;
-        const slotLabel = emailSlotLabel(startDate, endDate);
+        const timezone = normalizeTimeZone(booking.timezone);
+        const slotLabel = emailSlotLabel(startDate, endDate, timezone);
         const room = booking.roomId && typeof booking.roomId === "object" ? (booking.roomId as any) : null;
         const roomName = booking.roomName || room?.name || "Meeting Room";
         const clientName = booking.bookedForName || booking.bookedByName || "Guest";

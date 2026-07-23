@@ -849,25 +849,25 @@ const BreadCrumbComponent = () => {
       <Breadcrumbs
         separator=">"
         aria-label="breadcrumb"
-        sx={{
-          "& .MuiBreadcrumbs-ol": {
-            fontSize: "1rem !important",
-            color: "#1E3D73",
-            fontFamily: "Poppins-SemiBold, sans-serif",
-          },
-          "& .MuiBreadcrumbs-li": {
-            fontSize: "0.9rem !important",
-          },
-          "& .MuiBreadcrumbs-li .MuiTypography-root": {
-            fontSize: "0.9rem !important",
-            color: "#1E3D73 !important",
-            fontFamily: "Poppins-SemiBold, sans-serif !important",
-          },
-          "& .MuiBreadcrumbs-separator": {
-            margin: "0 1rem",
-            fontFamily: "Poppins-SemiBold, sans-serif",
-          },
-        }}
+        // sx={{
+        //   "& .MuiBreadcrumbs-ol": {
+        //     fontSize: "1rem !important",
+        //     color: "#1E3D73",
+        //     fontFamily: "Poppins-SemiBold, sans-serif",
+        //   },
+        //   "& .MuiBreadcrumbs-li": {
+        //     fontSize: "0.9rem !important",
+        //   },
+        //   "& .MuiBreadcrumbs-li .MuiTypography-root": {
+        //     fontSize: "0.9rem !important",
+        //     color: "#1E3D73 !important",
+        //     fontFamily: "Poppins-SemiBold, sans-serif !important",
+        //   },
+        //   "& .MuiBreadcrumbs-separator": {
+        //     margin: "0 1rem",
+        //     fontFamily: "Poppins-SemiBold, sans-serif",
+        //   },
+        // }}
       >
         {breadcrumbsToRender}
       </Breadcrumbs>

@@ -13,7 +13,14 @@ import {
   EXTRA_COMMON_MODULE_IDS,
 } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
+import { normalizeBillingConfig } from "../utils/workspaceBilling.js";
 import { recalcResourceDailyPricesForWorkspace } from "../services/resourceService.js";
+import {
+  isValidCurrency,
+  isValidTimeZone,
+  normalizeCurrency,
+  normalizeTimeZone,
+} from "../utils/workspaceLocalization.js";
 
 const _getRoleName = (role: any) => {
   if (!role) return "";
@@ -113,6 +120,25 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       workspaceDetails.businessName || "",
     ).trim();
     const normalizedBrandName = String(workspaceDetails.brandName || "").trim();
+    const requestedTimeZone = String(workspaceDetails.timezone || "").trim();
+    const requestedCurrency = String(workspaceDetails.currency || "").trim().toUpperCase();
+    const requestedCountryCode = String(workspaceDetails.countryCode || "").trim().toUpperCase();
+    const requestedBilling = normalizeBillingConfig(
+      workspaceDetails.billing,
+      requestedCountryCode,
+      workspaceDetails.state,
+    );
+
+    if (!requestedTimeZone || !isValidTimeZone(requestedTimeZone)) {
+      return res.status(400).json({
+        message: "Select a valid timezone for this business location.",
+      });
+    }
+    if (!requestedCurrency || !isValidCurrency(requestedCurrency)) {
+      return res.status(400).json({
+        message: "Select a valid ISO currency for this business location.",
+      });
+    }
 
     if (!normalizedWorkspaceName || !normalizedBusinessName) {
       return res.status(400).json({
@@ -185,11 +211,21 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       businessName: normalizedBusinessName,
       brandName: normalizedBrandName,
       country: String(workspaceDetails.country || "").trim(),
+      countryCode: requestedCountryCode,
       state: String(workspaceDetails.state || "").trim(),
       city: String(workspaceDetails.city || "").trim(),
       address: String(workspaceDetails.address || "").trim(),
       businessTypes: normalizedBusinessTypes,
       selectedPlan,
+      preferences: {
+        timezone: requestedTimeZone,
+        currency: requestedCurrency,
+        dateFormat: "DD MMM YYYY",
+        timeFormat: "12h",
+        weekStartsOn: "monday",
+        businessHours: { start: "09:00", end: "22:00" },
+        billing: requestedBilling,
+      },
       enabledModuleIds: finalEnabledModuleIds,
       modules: finalWorkspaceModules,
       isSetupComplete: true,
@@ -637,6 +673,7 @@ export const getWorkspaceSettings = async (req, res, next) => {
     }
 
     const preferences = workspace.preferences || {};
+    const billing = normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state);
     const branding = workspace.branding || {};
     return res.status(200).json({
       message: "Workspace settings loaded successfully.",
@@ -664,6 +701,7 @@ export const getWorkspaceSettings = async (req, res, next) => {
               start: preferences.businessHours?.start || "09:00",
               end: preferences.businessHours?.end || "22:00",
             },
+            billing,
           },
           branding: {
             primaryColor: branding.primaryColor || "#2563EB",
@@ -798,6 +836,25 @@ export const updateWorkspaceSettings = async (req, res, next) => {
     const preferences = payload.preferences || {};
     const branding = payload.branding || {};
 
+    if (preferences.timezone !== undefined && !isValidTimeZone(preferences.timezone)) {
+      return res.status(400).json({ message: "A valid IANA timezone is required." });
+    }
+    if (preferences.currency !== undefined && !isValidCurrency(preferences.currency)) {
+      return res.status(400).json({ message: "A valid ISO currency is required." });
+    }
+    const normalizedPreferences = {
+      ...preferences,
+      ...(preferences.timezone !== undefined
+        ? { timezone: normalizeTimeZone(preferences.timezone) }
+        : {}),
+      ...(preferences.currency !== undefined
+        ? { currency: normalizeCurrency(preferences.currency) }
+        : {}),
+      ...(preferences.billing !== undefined
+        ? { billing: normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state) }
+        : {}),
+    };
+
     // Recalc on every save that includes businessHours (not only on change):
     // it is idempotent, and it lets a plain re-save heal resources whose daily
     // price was stored under a different span (e.g. the old hourly × 24 formula).
@@ -816,13 +873,16 @@ export const updateWorkspaceSettings = async (req, res, next) => {
     }
     workspace.preferences = {
       ...(workspace.preferences?.toObject?.() || workspace.preferences || {}),
-      ...preferences,
+      ...normalizedPreferences,
       businessHours: {
         ...(workspace.preferences?.businessHours?.toObject?.() ||
           workspace.preferences?.businessHours ||
           {}),
         ...(preferences.businessHours || {}),
       },
+      billing: preferences.billing !== undefined
+        ? normalizedPreferences.billing
+        : (workspace.preferences?.billing?.toObject?.() || workspace.preferences?.billing),
     };
     workspace.branding = {
       ...(workspace.branding?.toObject?.() || workspace.branding || {}),

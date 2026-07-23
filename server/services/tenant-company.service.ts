@@ -12,6 +12,7 @@ import TenantEmployee from "../models/TenantEmployee.js";
 import TenantCreditRequest from "../models/TenantCreditRequest.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import TenantAgreementDocument from "../models/TenantAgreementDocument.js";
+import { Resource } from "../models/Resource.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
 const TENANT_COMPANIES_ADMIN_MODULE = "tenant-companies-admin";
@@ -469,11 +470,15 @@ function formatPricingPackage(pkg) {
 async function formatTenantCompany(company) {
   if (!company) return null;
 
-  const [employees, creditRequests, agreementDocuments, creditHistory] = await Promise.all([
+  const [employees, creditRequests, agreementDocuments, creditHistory, assignedResources] = await Promise.all([
     TenantEmployee.find({ tenantCompanyId: company._id }).lean().exec(),
     TenantCreditRequest.find({ tenantCompanyId: company._id }).sort({ requestedAt: -1 }).lean().exec(),
     TenantAgreementDocument.find({ tenantCompanyId: company._id }).sort({ uploadedAt: -1 }).lean().exec(),
     TenantCreditLedger.find({ tenantCompanyId: company._id }).sort({ date: -1 }).lean().exec(),
+    Resource.find({
+      workspaceId: company.workspaceId,
+      assignedTenantCompanyId: company._id,
+    }).sort({ floor: 1, wing: 1, name: 1 }).lean().exec(),
   ]);
 
   const managerEmployee = company.managerEmployeeId
@@ -489,6 +494,64 @@ async function formatTenantCompany(company) {
   const combinedCreditHistory = [...purchaseCreditHistory, ...usageCreditHistory].sort(
     (left, right) => new Date(right.dateAt || right.date || 0).getTime() - new Date(left.dateAt || left.date || 0).getTime()
   );
+  const packageDetails = company.packageDetails?.toObject
+    ? company.packageDetails.toObject()
+    : { ...(company.packageDetails || {}) };
+  const locationMappings = Array.isArray(packageDetails.locationMappings)
+    ? packageDetails.locationMappings.map((mapping) => ({
+        ...(mapping?.toObject ? mapping.toObject() : mapping),
+        floor: normalizeText(mapping?.floor),
+        wing: normalizeText(mapping?.wing),
+        locationCode: normalizeText(mapping?.locationCode),
+        label: normalizeText(mapping?.label),
+        resourceCode: normalizeText(mapping?.resourceCode),
+        resourceCategory: normalizeText(mapping?.resourceCategory),
+        inventoryMode: normalizeText(mapping?.inventoryMode),
+        seatType: normalizeText(mapping?.seatType) || "mixed",
+        seatsAllocated: Number(mapping?.seatsAllocated || 0),
+      }))
+    : [];
+  const assignedResourceLabels = assignedResources
+    .map((resource) => normalizeText(
+      resource.location || [resource.floor, resource.wing].filter(Boolean).join(" ") || resource.name || resource.resourceCode,
+    ))
+    .filter(Boolean);
+  const packageLocationLabels = [...new Set(
+    (locationMappings.length > 0
+      ? locationMappings.map((mapping) => mapping.label || mapping.locationCode || [mapping.floor, mapping.wing].filter(Boolean).join(" "))
+      : assignedResourceLabels
+    ).map(normalizeText).filter(Boolean),
+  )];
+  const assignedSeats = [...new Set(
+    assignedResources.map((resource) => normalizeText(resource.name || resource.resourceCode)).filter(Boolean),
+  )];
+  const mappedFloor = locationMappings.find((mapping) => mapping.floor)?.floor || "";
+  const resourceFloor = assignedResources.find((resource) => normalizeText(resource.floor))?.floor || "";
+  const primaryFloor = normalizeText(company.space?.floor || mappedFloor || resourceFloor);
+  const openDesks = assignedResources
+    .filter((r) => r.type === "Open Desk")
+    .reduce((sum, r) => sum + Number(r.capacity || 1), 0);
+  const cabinDesks = assignedResources
+    .filter((r) => r.type === "Cabin Desk")
+    .reduce((sum, r) => sum + Number(r.capacity || 1), 0);
+  const totalSeats = openDesks + cabinDesks;
+  const existingSeats = Array.isArray(company.space?.seats) ? company.space.seats : [];
+  const space = {
+    ...(company.space?.toObject ? company.space.toObject() : company.space || {}),
+    floor: primaryFloor,
+    primaryFloor,
+    seats: existingSeats.length > 0 ? existingSeats : assignedSeats,
+    assignedDate: company.space?.assignedDate || assignedResources.find((resource) => resource.assignedAt)?.assignedAt || null,
+  };
+  const spaceAssigned = {
+    area: primaryFloor,
+    primaryFloor,
+    locationLabels: packageLocationLabels,
+    assignedSeats: space.seats,
+    openDesks,
+    cabinDesks,
+    totalSeats,
+  };
 
   return {
     recordId: company._id,
@@ -535,14 +598,16 @@ async function formatTenantCompany(company) {
     billingDetails: company.billingDetails || {},
     invoiceDetails: company.invoiceDetails || {},
     pocDetails: company.pocDetails || {},
-    packageDetails: company.packageDetails || {},
+    packageDetails: { ...packageDetails, locationMappings },
+    packageLocationLabels,
     creditConfiguration: company.creditConfiguration || {},
     addOnCredits: {
       ...(company.addOnCredits || {}),
       purchasedCredits,
       remainingCredits: creditsRemaining,
     },
-    space: company.space || { floor: "", seats: [], assignedDate: null },
+    spaceAssigned,
+    space,
     employees: employees || [],
     creditRequests: creditRequests || [],
     creditRequestSummary: {
@@ -729,6 +794,19 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       monthlyTotalCredits: Math.max(0, Number(input.packageDetails?.monthlyTotalCredits || 0)),
       creditResetCycle: normalizeText(input.packageDetails?.creditResetCycle || "Monthly") || "Monthly",
       creditUsageTracking: normalizeText(input.packageDetails?.creditUsageTracking || ""),
+      locationMappings: Array.isArray(input.packageDetails?.locationMappings)
+        ? input.packageDetails.locationMappings.map((mapping) => ({
+            floor: normalizeText(mapping?.floor),
+            wing: normalizeText(mapping?.wing),
+            locationCode: normalizeText(mapping?.locationCode),
+            label: normalizeText(mapping?.label),
+            resourceCode: normalizeText(mapping?.resourceCode),
+            resourceCategory: normalizeText(mapping?.resourceCategory),
+            inventoryMode: normalizeText(mapping?.inventoryMode),
+            seatType: normalizeText(mapping?.seatType) || "mixed",
+            seatsAllocated: Math.max(0, Number(mapping?.seatsAllocated || 0)),
+          }))
+        : [],
     },
     creditConfiguration: {
       monthlyTotalCredits: Math.max(0, Number(input.creditConfiguration?.monthlyTotalCredits || 0)),

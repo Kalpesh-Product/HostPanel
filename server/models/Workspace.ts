@@ -36,6 +36,12 @@ const workspaceSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    countryCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 2,
+    },
     state: {
       type: String,
       trim: true,
@@ -88,6 +94,28 @@ const workspaceSchema = new mongoose.Schema(
       businessHours: {
         start: { type: String, default: "09:00" },
         end: { type: String, default: "22:00" },
+      },
+      billing: {
+        tax: {
+          enabled: { type: Boolean, default: true },
+          label: { type: String, default: "GST", trim: true, maxlength: 40 },
+          ratePercent: { type: Number, default: 18, min: 0, max: 100 },
+          priceIncludesTax: { type: Boolean, default: false },
+        },
+        paymentMethods: {
+          type: [{
+            code: { type: String, required: true, trim: true, lowercase: true },
+            label: { type: String, required: true, trim: true, maxlength: 80 },
+            requiresReference: { type: Boolean, default: false },
+            requiresProof: { type: Boolean, default: false },
+          }],
+          default: () => [
+            { code: "cash", label: "Cash", requiresReference: false, requiresProof: false },
+            { code: "card", label: "Card", requiresReference: false, requiresProof: false },
+            { code: "bank_transfer", label: "Bank Transfer", requiresReference: true, requiresProof: true },
+            { code: "upi", label: "UPI", requiresReference: true, requiresProof: true },
+          ],
+        },
       },
     },
     branding: {

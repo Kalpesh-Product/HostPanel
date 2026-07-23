@@ -66,15 +66,13 @@ function bookingStyle(s) {
 }
 
 function getCabinDesksCount(tenant: any) {
-  const cd = tenant?.companyDetails || {};
-  const pd = tenant?.packageDetails || {};
-  return Number(cd?.cabinDesks ?? pd?.cabinDesks ?? 0);
+  const sa = tenant?.spaceAssigned || {};
+  return Number(sa?.cabinDesks ?? tenant?.companyDetails?.cabinDesks ?? tenant?.packageDetails?.cabinDesks ?? 0);
 }
 
 function getOpenDesksCount(tenant: any) {
-  const cd = tenant?.companyDetails || {};
-  const pd = tenant?.packageDetails || {};
-  return Number(cd?.openDesks ?? pd?.openDesks ?? 0);
+  const sa = tenant?.spaceAssigned || {};
+  return Number(sa?.openDesks ?? tenant?.companyDetails?.openDesks ?? tenant?.packageDetails?.openDesks ?? 0);
 }
 
 function getDeskLabels(prefix: string, count: number) {
@@ -378,9 +376,9 @@ export default function TenantCompanyDetailPage() {
                       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Plan Type</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.planType || tenant.packageName || 'N/A'}</p></div>
                       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Package</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.packageName || tenant.packageDetails?.packageName || 'N/A'}</p></div>
                       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p><p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(ca)}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(tenant.packageDetails?.totalSeats || 0)}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.spaceAssigned?.openDesks || tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.spaceAssigned?.cabinDesks || tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0}</p></div>
                     </div>
                   </div>
 
@@ -724,17 +722,17 @@ export default function TenantCompanyDetailPage() {
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <LayoutGrid className="mb-1 text-blue-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Open Desks</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0)}</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.spaceAssigned?.openDesks || tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Building2 className="mb-1 text-purple-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Cabin Desks</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0)}</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.spaceAssigned?.cabinDesks || tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Users className="mb-1 text-sky-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Total Seats</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.packageDetails?.totalSeats || 0)}</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p>
                   </div>
                 </div>
 
@@ -831,7 +829,7 @@ export default function TenantCompanyDetailPage() {
                       <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-orange-600">{tenant.companyDetails?.buildingName || tenant.space?.floor || 'Area'}</p>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-orange-700 shadow-sm">{tenant.space.seats.length} seats</span>
+                          {/* <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-orange-700 shadow-sm">{tenant.space.seats.length} seats</span> */}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {tenant.space.seats.map((s, i) => (

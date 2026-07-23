@@ -30,6 +30,8 @@ import { extractDepartmentLabel, normalizeDepartmentKey, normalizeRoleValue } fr
 import { formatTime12h } from '@/utils/time';
 import { AttendanceSkeleton } from '@/components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { getWorkspaceDateKey } from '@/lib/workspaceLocalization';
 
 /* ── Types ── */
 interface AttendanceRecord {
@@ -110,18 +112,11 @@ interface TeamMemberAttendance {
 }
 
 /* ── Helpers ── */
-const getLocalDateString = (date: Date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const getLocalDateString = (date: Date = new Date(), timeZone?: string) =>
+  getWorkspaceDateKey(date, timeZone);
 
-const getLocalMonthKey = (date: Date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
-};
+const getLocalMonthKey = (date: Date = new Date(), timeZone?: string) =>
+  getWorkspaceDateKey(date, timeZone).slice(0, 7);
 
 const monthOptions = () => {
   const options: { label: string; value: string }[] = [];
@@ -252,6 +247,7 @@ const DEFAULT_STATS: AttendanceStats = {
 
 /* ── Component ── */
 export function AttendancePage() {
+  const workspacePreferences = useWorkspacePreferences();
   const currentUser = getStoredUser();
   const actingContext = getStoredActingManagerContext(currentUser);
   const isActingManagerView = Boolean(actingContext?.departmentName);
@@ -288,7 +284,7 @@ export function AttendancePage() {
   /* ── Clock State ── */
   const [clockStatus, setClockStatus] = useState<'checked_out' | 'checked_in' | 'on_break'>('checked_out');
   const [clockTime, setClockTime] = useState<Date | null>(null);
-  const [todayDate, setTodayDate] = useState(() => getLocalDateString());
+  const [todayDate, setTodayDate] = useState(() => getLocalDateString(new Date(), workspacePreferences.timezone));
   const [captureOpenedAt, setCaptureOpenedAt] = useState<Date | null>(null);
   const [isClockLoading, setIsClockLoading] = useState(false);
   const [showClockModal, setShowClockModal] = useState(false);
@@ -308,7 +304,7 @@ export function AttendancePage() {
   const [subTab, setSubTab] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(() => getLocalMonthKey(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState(() => getLocalMonthKey(new Date(), workspacePreferences.timezone));
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -434,26 +430,18 @@ export function AttendancePage() {
   }, [selectedMonth]);
 
   useEffect(() => {
-    const syncTodayDate = () => setTodayDate(getLocalDateString());
-    syncTodayDate();
-
-    let timeoutId = window.setTimeout(() => {
-      syncTodayDate();
-    }, 1000);
-
-    const scheduleNextMidnight = () => {
-      const now = new Date();
-      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
-      timeoutId = window.setTimeout(() => {
-        syncTodayDate();
-        scheduleNextMidnight();
-      }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+    const syncWorkspaceCalendar = () => {
+      const nextDate = getLocalDateString(new Date(), workspacePreferences.timezone);
+      setTodayDate(nextDate);
     };
+    syncWorkspaceCalendar();
+    const intervalId = window.setInterval(syncWorkspaceCalendar, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, [workspacePreferences.timezone]);
 
-    window.clearTimeout(timeoutId);
-    scheduleNextMidnight();
-    return () => window.clearTimeout(timeoutId);
-  }, []);
+  useEffect(() => {
+    setSelectedMonth(getLocalMonthKey(new Date(), workspacePreferences.timezone));
+  }, [workspacePreferences.timezone]);
 
   useEffect(() => {
     if (isTodayCompleted) {

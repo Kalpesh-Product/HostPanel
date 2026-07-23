@@ -8,6 +8,13 @@ import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
+import {
+  DEFAULT_WORKSPACE_TIMEZONE,
+  getZonedDateKey,
+  getZonedDateTimeParts,
+  normalizeTimeZone,
+  parseWorkspaceDateTime,
+} from "../utils/workspaceLocalization.js";
 
 const DEFAULT_WORK_HOUR_START = 9;
 const DEFAULT_LATE_MINUTES = 30;
@@ -15,39 +22,38 @@ const HALF_DAY_MINUTES = 4 * 60;
 
 const toId = (value = "") => String(value || "").trim();
 
-const getLocalDate = (value = new Date()) => {
-  const date = new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const getLocalDate = (value = new Date(), timezone = DEFAULT_WORKSPACE_TIMEZONE) => {
+  const dateKey = getZonedDateKey(value, timezone);
+  return parseWorkspaceDateTime(`${dateKey}T00:00:00`, timezone);
 };
 
-const toDateKey = (value = new Date()) => {
-  const date = getLocalDate(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const toDateKey = (value = new Date(), timezone = DEFAULT_WORKSPACE_TIMEZONE) =>
+  getZonedDateKey(value, timezone);
 
 const toMonthBounds = (monthKey = "") => {
-  const normalized = String(monthKey || "").trim();
-  const now = new Date();
-  const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const [yearStr, monthStr] = (normalized || fallbackMonthKey).split("-");
+  const nowKey = getZonedDateKey(new Date(), DEFAULT_WORKSPACE_TIMEZONE);
+  const fallbackMonthKey = nowKey.slice(0, 7);
+  const normalized = /^\d{4}-\d{2}$/.test(String(monthKey || "").trim())
+    ? String(monthKey).trim()
+    : fallbackMonthKey;
+  const [yearStr, monthStr] = normalized.split("-");
   const year = Number.parseInt(yearStr, 10);
   const month = Number.parseInt(monthStr, 10) - 1;
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  const start = new Date(Date.UTC(year, month, 1));
+  const end = new Date(Date.UTC(year, month + 1, 0));
   return { start, end, monthKey: `${year}-${String(month + 1).padStart(2, "0")}` };
 };
 
-const toTimeLabel = (value) => {
+const toTimeLabel = (value, timezone = DEFAULT_WORKSPACE_TIMEZONE) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString("en-US", {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: normalizeTimeZone(timezone),
     hour: "2-digit",
     minute: "2-digit",
-  });
+    hour12: true,
+  }).format(date);
 };
 
 const toDateLabel = (value) => {
@@ -556,6 +562,7 @@ const computeWorkedSeconds = (record, fallbackEnd = null) => {
 
 const formatRecordForFrontend = async (record, membership = null) => {
   const plain = record?.toObject ? record.toObject() : { ...record };
+  const timezone = normalizeTimeZone(plain?.timezone);
   const departments = await getDepartmentNamesForMembership(membership || plain?.__membership || {});
   const attendanceDate = plain?.attendanceDate || plain?.dateKey || null;
   const correctedCheckIn = plain?.correctionRequest?.requestedCheckInAt || null;
@@ -581,8 +588,8 @@ const formatRecordForFrontend = async (record, membership = null) => {
     employeeRole,
     department: plain?.department?.name || plain?.departmentLabel || departments[0] || "General",
     date: plain?.dateKey || toDateLabel(attendanceDate),
-    checkIn: toTimeLabel(effectiveCheckIn),
-    checkOut: toTimeLabel(effectiveCheckOut),
+    checkIn: toTimeLabel(effectiveCheckIn, timezone),
+    checkOut: toTimeLabel(effectiveCheckOut, timezone),
     status: getStatusLabel(plain?.status || "absent"),
     source: plain?.mode || "office",
     checkInLocation: plain?.checkInLocation || "",
@@ -599,8 +606,8 @@ const formatRecordForFrontend = async (record, membership = null) => {
     earlyMinutes: 0,
     breaks: Array.isArray(plain?.breakLogs)
       ? plain.breakLogs.map((entry) => ({
-        startTime: toTimeLabel(entry?.startAt),
-        endTime: toTimeLabel(entry?.endAt),
+        startTime: toTimeLabel(entry?.startAt, timezone),
+        endTime: toTimeLabel(entry?.endAt, timezone),
         duration: Math.round((Number(entry?.durationSeconds) || 0) / 60),
         type: "break",
       }))
@@ -611,10 +618,10 @@ const formatRecordForFrontend = async (record, membership = null) => {
         status: plain.correctionRequest.status || "pending",
         reason: plain.correctionRequest.reason || "",
         type: "correction",
-        originalCheckIn: toTimeLabel(plain.correctionRequest.originalCheckInAt || plain.checkInAt),
-        originalCheckOut: toTimeLabel(plain.correctionRequest.originalCheckOutAt || plain.checkOutAt),
-        requestedCheckIn: toTimeLabel(plain.correctionRequest.requestedCheckInAt || plain.checkInAt),
-        requestedCheckOut: toTimeLabel(plain.correctionRequest.requestedCheckOutAt || plain.checkOutAt),
+        originalCheckIn: toTimeLabel(plain.correctionRequest.originalCheckInAt || plain.checkInAt, timezone),
+        originalCheckOut: toTimeLabel(plain.correctionRequest.originalCheckOutAt || plain.checkOutAt, timezone),
+        requestedCheckIn: toTimeLabel(plain.correctionRequest.requestedCheckInAt || plain.checkInAt, timezone),
+        requestedCheckOut: toTimeLabel(plain.correctionRequest.requestedCheckOutAt || plain.checkOutAt, timezone),
         actionedBy: plain.correctionRequest.reviewedByName || "",
         rejectionReason: plain.correctionRequest.reviewedReason || "",
       }
@@ -636,8 +643,8 @@ const getMonthDateKeys = (monthKey = "") => {
   const keys = [];
   const cursor = new Date(start);
   while (cursor <= end) {
-    keys.push(toDateKey(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+    keys.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return { keys, start, end, monthKey: normalizedMonthKey };
 };
@@ -751,8 +758,9 @@ const saveSelfie = async (workspaceId, userId, action, file, dateKey) => {
 
 const getTodayRecord = async (workspace, userId) => {
   const workspaceId = workspace?._id;
-  const dateKey = toDateKey();
-  const attendanceDate = getLocalDate();
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const dateKey = toDateKey(new Date(), timezone);
+  const attendanceDate = getLocalDate(new Date(), timezone);
   let record = await Attendance.findOne({
     workspaceId,
     employeeUserId: userId,
@@ -777,6 +785,7 @@ const getTodayRecord = async (workspace, userId) => {
       department: departmentId || null,
       attendanceDate,
       dateKey,
+      timezone,
       mode: "office",
       status: "absent",
       checkInAt: null,
@@ -804,9 +813,10 @@ const recalculateAfterCorrection = (record) => {
   const grossSeconds = Math.max(0, Math.floor((checkOutAt.getTime() - checkInAt.getTime()) / 1000));
   const breakSeconds = Math.max(0, Number(record.breakSeconds) || 0);
   record.workedSeconds = Math.max(0, grossSeconds - breakSeconds);
+  const localCheckIn = getZonedDateTimeParts(checkInAt, normalizeTimeZone(record.timezone));
   record.status = record.workedSeconds <= HALF_DAY_MINUTES * 60
     ? "half_day"
-    : (checkInAt.getHours() > DEFAULT_WORK_HOUR_START || (checkInAt.getHours() === DEFAULT_WORK_HOUR_START && checkInAt.getMinutes() > DEFAULT_LATE_MINUTES))
+    : (localCheckIn.hour > DEFAULT_WORK_HOUR_START || (localCheckIn.hour === DEFAULT_WORK_HOUR_START && localCheckIn.minute > DEFAULT_LATE_MINUTES))
       ? "present_late"
       : "present";
 };
@@ -827,7 +837,11 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
     throw error;
   }
 
-  const now = new Date(input?.timestamp || new Date());
+  // The server timestamp is authoritative. Its absolute UTC instant is safe on
+  // Vercel; workspace-local calendar calculations use the saved IANA timezone.
+  const now = new Date();
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const localNow = getZonedDateTimeParts(now, timezone);
   const selfie = await saveSelfie(workspace._id, user._id, "check_in", selfieFile, record.dateKey);
 
   record.employeeName = user.name || record.employeeName || "";
@@ -848,7 +862,8 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   record.breakSeconds = 0;
   record.workedSeconds = 0;
   record.breakLogs = [];
-  record.status = now.getHours() > DEFAULT_WORK_HOUR_START || (now.getHours() === DEFAULT_WORK_HOUR_START && now.getMinutes() > DEFAULT_LATE_MINUTES)
+  record.timezone = timezone;
+  record.status = localNow.hour > DEFAULT_WORK_HOUR_START || (localNow.hour === DEFAULT_WORK_HOUR_START && localNow.minute > DEFAULT_LATE_MINUTES)
     ? "present_late"
     : "present";
   await record.save();

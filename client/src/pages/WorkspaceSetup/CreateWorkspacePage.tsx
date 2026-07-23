@@ -9,11 +9,19 @@ import { toast } from "sonner";
 import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
+import { getCountryBillingDefaults } from "../../lib/workspaceBilling";
+
+interface CountryTimeZoneOption {
+  zoneName: string;
+  gmtOffsetName?: string;
+}
 
 interface CountryOption {
   name: string;
   isoCode: string;
   flag: string;
+  currency: string;
+  timezones: CountryTimeZoneOption[];
 }
 
 interface StateOption {
@@ -150,6 +158,12 @@ const CreateWorkspacePage: React.FC = () => {
   const [city, setCity] = useState(
     location.state?.workspaceDetails?.city || activeInviteOnboarding?.city || "",
   );
+  const [timezone, setTimezone] = useState(
+    String(initialWorkspaceDetails.timezone || "").trim(),
+  );
+  const [currency, setCurrency] = useState(
+    String(initialWorkspaceDetails.currency || "").trim().toUpperCase(),
+  );
   const [address, setAddress] = useState(
     location.state?.workspaceDetails?.address || "",
   );
@@ -182,6 +196,16 @@ const CreateWorkspacePage: React.FC = () => {
   const isAdditionalWorkspaceMode = Boolean(location.state?.additionalWorkspaceMode);
   const selectedCountryOption =
     countries.find((item) => item.name === country) || null;
+  const timezoneOptions = Array.from(
+    new Map(
+      (selectedCountryOption?.timezones || [])
+        .filter((item) => item?.zoneName)
+        .map((item) => [item.zoneName, item]),
+    ).values(),
+  );
+  const currencyOptions = Array.from(
+    new Set(countries.map((item) => item.currency).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b));
   const selectedStateOption =
     states.find((item) => item.name === stateName) || null;
   const hasLockedInviteCountry = Boolean(normalizedInviteCountry);
@@ -239,6 +263,8 @@ const CreateWorkspacePage: React.FC = () => {
     country.trim(),
     stateName.trim(),
     city.trim(),
+    timezone.trim(),
+    currency.trim(),
     address.trim(),
   ].every(Boolean) &&
     businessTypes.length > 0 &&
@@ -252,9 +278,16 @@ const CreateWorkspacePage: React.FC = () => {
         setIsCountriesLoading(true);
         const result = Country.getAllCountries()
           .map((item) => ({
-          name: item.name,
-          isoCode: item.isoCode,
-          flag: item.flag,
+            name: item.name,
+            isoCode: item.isoCode,
+            flag: item.flag,
+            currency: String(item.currency || "").trim().toUpperCase(),
+            timezones: Array.isArray(item.timezones)
+              ? item.timezones.map((entry) => ({
+                  zoneName: String(entry.zoneName || "").trim(),
+                  gmtOffsetName: String(entry.gmtOffsetName || "").trim(),
+                }))
+              : [],
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
         if (active) setCountries(result);
@@ -273,6 +306,25 @@ const CreateWorkspacePage: React.FC = () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedCountryOption) {
+      setTimezone("");
+      setCurrency("");
+      return;
+    }
+
+    const availableZones = selectedCountryOption.timezones
+      .map((item) => item.zoneName)
+      .filter(Boolean);
+    const shouldResetForCountry = country !== initialCountryValue;
+    if (shouldResetForCountry || !availableZones.includes(timezone)) {
+      setTimezone(availableZones[0] || "UTC");
+    }
+    if (shouldResetForCountry || !currency) {
+      setCurrency(selectedCountryOption.currency || "USD");
+    }
+  }, [country, currency, initialCountryValue, selectedCountryOption, timezone]);
 
   useEffect(() => {
     let active = true;
@@ -496,8 +548,12 @@ const CreateWorkspacePage: React.FC = () => {
                     businessName,
                     brandName,
                     country,
+                    countryCode: selectedCountryOption?.isoCode || "",
                     state: stateName,
                     city,
+                    timezone,
+                    currency,
+                    billing: getCountryBillingDefaults(selectedCountryOption?.isoCode || "", stateName),
                     address,
                     businessTypes,
                   },
@@ -792,6 +848,51 @@ const CreateWorkspacePage: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
+            <div className="flex flex-col">
+              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                Timezone
+              </label>
+              <select
+                value={timezone}
+                onChange={(event) => setTimezone(event.target.value)}
+                disabled={!country}
+                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5]"
+              >
+                <option value="">Select timezone</option>
+                {timezoneOptions.map((item) => (
+                  <option key={item.zoneName} value={item.zoneName}>
+                    {item.zoneName}{item.gmtOffsetName ? ` (${item.gmtOffsetName})` : ""}
+                  </option>
+                ))}
+                {!timezoneOptions.length && country ? <option value="UTC">UTC</option> : null}
+              </select>
+              <p className="mt-1 text-[11px] text-[#7b8ba3]">
+                Used for bookings, attendance, reminders, and reports regardless of the server timezone.
+              </p>
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                Currency
+              </label>
+              <select
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value)}
+                disabled={!country}
+                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5]"
+              >
+                <option value="">Select currency</option>
+                {currencyOptions.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-[#7b8ba3]">
+                Defaults from the selected country and can be confirmed by the founder.
+              </p>
             </div>
           </div>
 
