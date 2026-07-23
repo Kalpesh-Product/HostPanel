@@ -130,10 +130,15 @@ const MyProfile = ({ handleClose, pageTitle }) => {
 
   const [personalDetails, setPersonalDetails] = useState({
     name: "",
+    email: "",
     gender: "",
     dob: null,
     fatherName: "",
     motherName: "",
+    currentAddress: "",
+    permanentAddress: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
   });
 
   const [workDetails, setWorkDetails] = useState({
@@ -236,10 +241,15 @@ const MyProfile = ({ handleClose, pageTitle }) => {
 
         setPersonalDetails({
           name: `${user.firstName} ${user.lastName}`.trim(),
+          email: user.email || "",
           gender: user.gender || "",
           dob: user.dob ? dayjs(user.dob, "DD/MM/YYYY") : null,
           fatherName: "", // Not present in API response
           motherName: "", // Not present in API response
+          currentAddress: user.currentAddress || "",
+          permanentAddress: user.permanentAddress || "",
+          emergencyContactName: user.emergencyContactName || "",
+          emergencyContactPhone: user.emergencyContactPhone || "",
         });
 
         setWorkDetails({

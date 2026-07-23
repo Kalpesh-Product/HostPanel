@@ -8,6 +8,7 @@ import Department from "../../models/Department.js";
 import EmployeeProfile from "../../models/EmployeeProfile.js";
 import { Role } from "../../models/Role.js";
 import { formatEmployeeId } from "../../utils/employee-id.js";
+import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../../config/s3config.js";
 
 const SYSTEM_ROLE_NAMES = new Set(["founder", "owner", "super_admin", "admin", "manager", "employee"]);
 const EMPLOYEE_COUNTER_COLLECTION = "counters";
@@ -279,8 +280,12 @@ const mapEmployeeProfileToResponse = async (profileDoc: any) => {
     fullName: String(profile.fullName || ""),
     name: String(profile.fullName || ""),
     email: String(profile.email || ""),
+    profilePictureUrl: String(profile?.profilePicture?.url || ""),
     phone: String(profile.phone || ""),
+    gender: String(profile.gender || ""),
+    dateOfBirth: profile.dateOfBirth || null,
     currentAddress: String(profile.currentAddress || ""),
+    permanentAddress: String(profile.permanentAddress || ""),
     country: String(profile.country || ""),
     state: String(profile.state || ""),
     city: String(profile.city || ""),
@@ -459,10 +464,12 @@ const ensureEmployeeProfileForMember = async ({
     fullName: normalizeText(resolvedUser?.name || profile?.fullName || ""),
     email,
     phone: normalizeText(resolvedUser?.phone || profile?.phone || ""),
+    gender: normalizeText(profile?.gender || ""),
     jobTitle: normalizeText(profile?.jobTitle || roleDoc?.name || resolvedUser?.designation || "Employee") || "Employee",
     jobCode: normalizeText(profile?.jobCode || ""),
     departments: departmentData.ids,
     workLocation: normalizeText(profile?.workLocation || ""),
+    permanentAddress: normalizeText(profile?.permanentAddress || ""),
     country: normalizeText(profile?.country || resolvedUser?.country || ""),
     state: normalizeText(profile?.state || resolvedUser?.state || ""),
     city: normalizeText(profile?.city || resolvedUser?.city || ""),
@@ -719,8 +726,10 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     fullName,
     email,
     phone: normalizeText(payload?.phone || profile?.phone || ""),
+    gender: normalizeText(payload?.gender || profile?.gender || ""),
     dateOfBirth: payload?.dateOfBirth || profile?.dateOfBirth || null,
     currentAddress: normalizeText(payload?.currentAddress || profile?.currentAddress || ""),
+    permanentAddress: normalizeText(payload?.permanentAddress || profile?.permanentAddress || ""),
     country: normalizeText(payload?.country || profile?.country || ""),
     state: normalizeText(payload?.state || profile?.state || ""),
     city: normalizeText(payload?.city || profile?.city || ""),
@@ -847,6 +856,97 @@ const toggleEmployeeProfileStatus = async (workspace: any, employeeId: string) =
   );
 };
 
+const SELF_EDITABLE_PROFILE_FIELDS = [
+  "phone",
+  "gender",
+  "dateOfBirth",
+  "currentAddress",
+  "permanentAddress",
+  "country",
+  "state",
+  "city",
+  "emergencyContactName",
+  "emergencyContactPhone",
+];
+
+const findOwnEmployeeProfile = async (workspace: any, userId: string) => {
+  if (!workspace?._id) {
+    throw Object.assign(new Error("Workspace not found."), { statusCode: 404 });
+  }
+
+  const user = await HostUser.findById(userId).select("email").lean().exec();
+
+  const profile = await EmployeeProfile.findOne({
+    workspaceId: workspace._id,
+    $or: [
+      { linkedUserId: userId },
+      ...(user?.email ? [{ email: normalizeEmail(user.email) }] : []),
+    ],
+  }).exec();
+
+  if (!profile) {
+    throw Object.assign(new Error("Employee record not found."), { statusCode: 404 });
+  }
+
+  return profile;
+};
+
+const respondWithSavedProfile = async (profileId: any) => {
+  const savedEmployee = await EmployeeProfile.findById(profileId)
+    .populate("workspaceRole")
+    .populate("departments")
+    .populate("linkedUserId", "name email inviteStatus isActive")
+    .lean()
+    .exec();
+
+  return mapEmployeeProfileToResponse(savedEmployee);
+};
+
+const updateOwnEmployeeProfile = async (workspace: any, userId: string, payload: any) => {
+  const profile = await findOwnEmployeeProfile(workspace, userId);
+
+  for (const field of SELF_EDITABLE_PROFILE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(payload || {}, field)) continue;
+    if (field === "dateOfBirth") {
+      profile.dateOfBirth = payload.dateOfBirth ? new Date(payload.dateOfBirth) : null;
+    } else {
+      profile.set(field, normalizeText(payload[field]));
+    }
+  }
+  profile.updatedBy = userId;
+  await profile.save();
+
+  return respondWithSavedProfile(profile._id);
+};
+
+const updateOwnProfilePicture = async (workspace: any, userId: string, file: any) => {
+  const profile = await findOwnEmployeeProfile(workspace, userId);
+
+  const safeFileName = String(file?.originalname || "avatar")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]/g, "");
+  const route = `employee-avatars/${workspace._id}/${profile._id}-${Date.now()}-${safeFileName}`;
+  const uploaded = await uploadFileToS3(route, file);
+
+  const previousUrl = profile?.profilePicture?.url;
+  profile.profilePicture = { url: uploaded.url, publicId: uploaded.id };
+  profile.updatedBy = userId;
+  await profile.save();
+
+  // Keep the linked HostUser's avatar (shown in the global header/nav) in sync
+  // with the EmployeeProfile picture, since they're the same upload.
+  await HostUser.findByIdAndUpdate(userId, {
+    profilePicture: { url: uploaded.url, id: uploaded.id },
+  }).exec();
+
+  if (previousUrl) {
+    await deleteFileFromS3ByUrl(previousUrl).catch(() => {});
+  }
+
+  return respondWithSavedProfile(profile._id);
+};
+
 export {
   ensureEmployeeProfileForMember,
   ensureEmployeeProfilesForWorkspace,
@@ -854,6 +954,8 @@ export {
   buildDocumentsVaultPayload,
   createOrUpdateEmployeeProfile,
   updateEmployeeProfile,
+  updateOwnEmployeeProfile,
+  updateOwnProfilePicture,
   toggleEmployeeProfileStatus,
   mapEmployeeProfileToResponse,
   normalizeRoleForDisplay,

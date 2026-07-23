@@ -9,8 +9,8 @@ const getFirstDayOfNextMonthUtc = () => {
 };
 
 const websiteCreditsSchema = new mongoose.Schema({
-  companyId: { type: String, unique: true, sparse: true },
-  workspaceId: { type: String, unique: true, sparse: true },
+  companyId: { type: String },
+  workspaceId: { type: String },
   plan: {
     type: String,
     // "basic" replaces "static-free" (same 5 credits); the legacy value stays
@@ -27,6 +27,14 @@ const websiteCreditsSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
+
+// One credit pool per company *per workspace* (matches the rest of the data
+// model — e.g. a company with multiple workspace units), not one pool per
+// company globally. Previously companyId and workspaceId were each unique on
+// their own, which — combined with how much id reuse exists in this data —
+// caused a brand-new company to silently inherit and increment an unrelated
+// company's existing credits doc just because one of the two ids collided.
+websiteCreditsSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true });
 
 // Monthly limit is plan-based: professional 8, custom 12, basic (and the
 // legacy "static-free" label) the base 5. creditsLimit is kept in sync by

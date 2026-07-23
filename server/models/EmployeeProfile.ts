@@ -23,6 +23,11 @@ export interface IEmployeeDocument {
     uploadedAt: Date;
 }
 
+export interface IEmployeeProfilePicture {
+    url: string;
+    publicId: string;
+}
+
 export interface IEmployeeProfile extends Document {
     workspaceId: mongoose.Types.ObjectId;
     linkedUserId?: mongoose.Types.ObjectId | null;
@@ -31,9 +36,12 @@ export interface IEmployeeProfile extends Document {
     employeeSequence?: number;
     fullName: string;
     email: string;
+    profilePicture?: IEmployeeProfilePicture | null;
     phone?: string;
+    gender?: string;
     dateOfBirth?: Date | null;
     currentAddress?: string;
+    permanentAddress?: string;
     country?: string;
     state?: string;
     city?: string;
@@ -165,7 +173,19 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
             maxlength: 160,
             index: true,
         },
+        profilePicture: {
+            type: {
+                url: { type: String, trim: true, default: "" },
+                publicId: { type: String, trim: true, default: "" },
+            },
+            default: null,
+        },
         phone: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        gender: {
             type: String,
             trim: true,
             default: "",
@@ -175,6 +195,11 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
             default: null,
         },
         currentAddress: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        permanentAddress: {
             type: String,
             trim: true,
             default: "",

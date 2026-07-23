@@ -92,6 +92,13 @@ const hostUserSchema = new mongoose.Schema(
     profileImage: {
       type: String,
     },
+    profilePicture: {
+      type: {
+        url: { type: String, trim: true, default: "" },
+        id: { type: String, trim: true, default: "" },
+      },
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,

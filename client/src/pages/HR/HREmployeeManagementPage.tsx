@@ -30,8 +30,8 @@ import { uploadEmployeeDocuments } from "@/services/hr";
 /* ───────────────────────────── Types ───────────────────────────── */
 
 interface EmployeeFormState {
-  fullName: string; dateOfBirth: string; email: string; phone: string;
-  currentAddress: string; country: string; state: string; city: string;
+  fullName: string; dateOfBirth: string; email: string; phone: string; gender: string;
+  currentAddress: string; permanentAddress: string; country: string; state: string; city: string;
   emergencyContactName: string; emergencyContactPhone: string;
   jobTitle: string; jobCode: string; departments: string[]; role: string;
   managerUserId: string; workLocation: string; workMode: string; employmentType: string;
@@ -46,9 +46,9 @@ interface EmployeeFormState {
 
 interface Employee {
   id: string; employeeNumber: string; name: string; fullName: string; email: string;
-  phone: string; department: string; departments: string[]; role: string; rawRole: string;
+  phone: string; gender: string; department: string; departments: string[]; role: string; rawRole: string;
   status: string; statusKey: string; dateOfBirth: string; dateOfBirthValue: string;
-  currentAddress: string; country: string; state: string; city: string;
+  currentAddress: string; permanentAddress: string; country: string; state: string; city: string;
   emergencyContactName: string; emergencyContactPhone: string;
   joiningDate: string; joiningDateValue: string; lastLogin: string; title: string;
   jobTitle: string; jobCode: string; employmentType: string; internshipDurationMonths: string;
@@ -305,8 +305,8 @@ function normalizeBankNameOption(value: string): string {
 
 function createEmployeeFormState(): EmployeeFormState {
   return {
-    fullName: "", dateOfBirth: "", email: "", phone: "",
-    currentAddress: "", country: "", state: "", city: "", emergencyContactName: "", emergencyContactPhone: "",
+    fullName: "", dateOfBirth: "", email: "", phone: "", gender: "",
+    currentAddress: "", permanentAddress: "", country: "", state: "", city: "", emergencyContactName: "", emergencyContactPhone: "",
     jobTitle: "", jobCode: "", departments: [], role: "",
     managerUserId: "", workLocation: "", workMode: "hybrid", employmentType: "full-time",
     internshipIsUnpaid: false, internshipDurationMonths: "6", internshipEndDate: "",
@@ -350,12 +350,14 @@ function mapEmployeeToUi(employee: Record<string, unknown> = {}): Employee {
     name, fullName: name,
     email: String(employee.email || ""),
     phone: String(employee.phone || employee.mobile || ""),
+    gender: String(employee.gender || ""),
     department: departmentDisplay,
     departments, role, rawRole,
     status: getStatusInfo(statusKey).label,
     statusKey,
     dateOfBirth: dateOfBirthVal, dateOfBirthValue: dateOfBirthVal,
     currentAddress: String(employee.currentAddress || employee.address || ""),
+    permanentAddress: String(employee.permanentAddress || ""),
     country: String(employee.country || ""),
     state: String(employee.state || ""),
     city: String(employee.city || ""),
@@ -464,6 +466,7 @@ function buildEmployeeReportRows(employee: Record<string, unknown>): Array<{ lab
     { label: "Full Name", value: String((employee.fullName || employee.name || "") as string) },
     { label: "Email", value: String(employee.email || "-") },
     { label: "Phone", value: String(employee.phone || "-") },
+    { label: "Gender", value: String(employee.gender || "-") },
     { label: "Emergency Contact Name", value: String(employee.emergencyContactName || "-") },
     { label: "Emergency Contact Phone", value: String(employee.emergencyContactPhone || "-") },
     { label: "Department", value: formatDepartmentDisplay(roleLabel, departments, roleLabel === "Admin" ? "Assigned Departments" : "-") },
@@ -476,6 +479,7 @@ function buildEmployeeReportRows(employee: Record<string, unknown>): Array<{ lab
     { label: "Joining Date", value: String(employee.joiningDate || "-") },
     { label: "Date of Birth", value: String(employee.dateOfBirth || employee.dob || "-") },
     { label: "Current Address", value: String(employee.currentAddress || employee.address || "-") },
+    { label: "Permanent Address", value: String(employee.permanentAddress || "-") },
     { label: "Country", value: String(employee.country || "-") },
     { label: "State", value: String(employee.state || "-") },
     { label: "City", value: String(employee.city || "-") },
@@ -1222,8 +1226,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     setEditFormSubmitting(false);
     setEditForm({
       fullName: employee.fullName || employee.name, dateOfBirth: employee.dateOfBirthValue,
-      email: employee.email, phone: employee.phone,
-      currentAddress: employee.currentAddress,
+      email: employee.email, phone: employee.phone, gender: employee.gender || "",
+      currentAddress: employee.currentAddress, permanentAddress: employee.permanentAddress || "",
       country: (employee as Record<string, string>)?.country || "",
       state: (employee as Record<string, string>)?.state || "",
       city: (employee as Record<string, string>)?.city || "",
@@ -1631,7 +1635,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const departments = filterValidDepartments(selectedDepartments);
     return {
       fullName: form.fullName, dateOfBirth: form.dateOfBirth || null,
-      email: form.email, phone: form.phone, currentAddress: form.currentAddress,
+      email: form.email, phone: form.phone, gender: form.gender, currentAddress: form.currentAddress,
+      permanentAddress: form.permanentAddress,
       country: form.country,
       state: form.state,
       city: form.city,
@@ -1820,6 +1825,19 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       {addFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{addFormErrors.phone}</span>}
                     </div>
                     <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender</label>
+                      <select
+                        value={addForm.gender}
+                        onChange={(e) => handleAddFieldChange("gender", e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                       <input
                         type="date"
@@ -1856,6 +1874,16 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
                         rows={2}
                         placeholder="Enter address"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
+                      <textarea
+                        value={addForm.permanentAddress}
+                        onChange={(e) => handleAddFieldChange("permanentAddress", e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
+                        rows={2}
+                        placeholder="Enter permanent address"
                       />
                     </div>
                   </div>
@@ -2576,7 +2604,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <div className="p-6 max-h-[60vh] overflow-y-auto">
               {viewTab === "personal" && (
                 <div className="grid grid-cols-2 gap-4">
-                  {employeeViewRows.slice(0, 12).map((row) => (
+                  {employeeViewRows.slice(0, 14).map((row) => (
                     <div key={row.label} className="flex flex-col gap-0.5">
                       <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">{row.label}</span>
                       <span className="text-[12px] font-semibold text-slate-800">{row.value}</span>
@@ -2663,12 +2691,25 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {editFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{editFormErrors.phone}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender</label>
+                    <select value={editForm.gender} onChange={(e) => setEditForm((p) => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                     <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((p) => ({ ...p, dateOfBirth: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
                     <input type="text" value={editForm.currentAddress} onChange={(e) => setEditForm((p) => ({ ...p, currentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  </div>
+                  <div className="flex flex-col gap-1 md:col-span-2">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
+                    <input type="text" value={editForm.permanentAddress} onChange={(e) => setEditForm((p) => ({ ...p, permanentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
@@ -2972,6 +3013,19 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {addFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{addFormErrors.phone}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender</label>
+                    <select
+                      value={addForm.gender}
+                      onChange={(e) => handleAddFieldChange("gender", e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                     <input
                       type="date"
@@ -2988,6 +3042,16 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       onChange={(e) => handleAddFieldChange("currentAddress", e.target.value)}
                       className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                       placeholder="Enter current address"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 md:col-span-2">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
+                    <input
+                      type="text"
+                      value={addForm.permanentAddress}
+                      onChange={(e) => handleAddFieldChange("permanentAddress", e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      placeholder="Enter permanent address"
                     />
                   </div>
                   <div className="flex flex-col gap-1">

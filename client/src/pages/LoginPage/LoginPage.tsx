@@ -272,7 +272,7 @@ const LoginPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => (window.location.href = "https://nomad.wono.co")}
+                onClick={() => (window.location.href = "https://wono.co")}
                 className="relative pb-1 text-xs sm:text-sm text-[#0aa9ef] transition-all duration-300 group bg-transparent border-none cursor-pointer whitespace-nowrap"
               >
                 Become A Nomad
