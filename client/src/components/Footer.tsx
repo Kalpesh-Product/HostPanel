@@ -104,7 +104,7 @@ const HostFooter = () => {
               src={logo}
               className="w-36 cursor-pointer mb-4 mx-auto lg:mx-0"
               alt="logo"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              onClick={() => window.open("https://wono.co", "_blank")}
             />
             <p className="text-sm leading-6">
               WONOCO PRIVATE LIMITED - SINGAPORE
