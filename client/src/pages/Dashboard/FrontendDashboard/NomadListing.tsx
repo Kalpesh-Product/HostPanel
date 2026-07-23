@@ -236,7 +236,7 @@ const NomadListing = () => {
         <form
           ref={formRef}
           encType="multipart/form-data"
-          onSubmit={handleSubmit(onSubmit, () => onSubmit(getValues()))}
+          onSubmit={handleSubmit(onSubmit)}
           className="md:grid grid-cols-2 gap-4"
         >
           {/* Product Name */}
@@ -427,9 +427,9 @@ const NomadListing = () => {
               )}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          {/* <div className="mb-4 md:mb-0"> */}
             {/* Latitude */}
-            <Controller
+            {/* <Controller
               name="latitude"
               control={control}
               rules={{
@@ -448,11 +448,11 @@ const NomadListing = () => {
                   fullWidth
                 />
               )}
-            />
-          </div>
-          <div className="mb-4 md:mb-0">
+            /> */}
+          {/* </div> */}
+          {/* <div className="mb-4 md:mb-0"> */}
             {/* Longitude */}
-            <Controller
+            {/* <Controller
               name="longitude"
               control={control}
               rules={{
@@ -471,8 +471,8 @@ const NomadListing = () => {
                   fullWidth
                 />
               )}
-            />
-          </div>
+            /> */}
+          {/* </div> */}
           <div className="mb-4 md:mb-0">
             {/* About */}
             <Controller
@@ -659,7 +659,11 @@ const NomadListing = () => {
             </button>
             <button
               type="button"
-              onClick={resetFormToEmpty}
+              onClick={() => {
+                if (window.confirm("All entered data will be reset. Are you sure you want to continue?")) {
+                  resetFormToEmpty();
+                }
+              }}
               className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
             >
               Reset
