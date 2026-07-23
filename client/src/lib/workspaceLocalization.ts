@@ -61,3 +61,19 @@ export function formatWorkspaceCurrency(
     ...options,
   }).format(Number.isFinite(amount) ? amount : 0);
 }
+
+// Returns just the currency symbol for the given ISO currency (e.g. "₹",
+// "$", "£", "AED"), for use in field labels and prefixes.
+export function getWorkspaceCurrencySymbol(currency?: string): string {
+  const normalized = normalizeWorkspaceCurrency(currency);
+  try {
+    const parts = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: normalized,
+      maximumFractionDigits: 0,
+    }).formatToParts(0);
+    return parts.find((part) => part.type === "currency")?.value || normalized;
+  } catch {
+    return normalized;
+  }
+}

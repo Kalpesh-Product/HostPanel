@@ -22,6 +22,7 @@ import {
     parseWorkspaceDateTime,
 } from "../utils/workspaceLocalization.js";
 import {
+    getCountryBillingDefaults,
     normalizeBillingConfig,
     resolvePaymentMethod,
     type WorkspaceBillingConfig,
@@ -62,17 +63,23 @@ type WorkspaceLocalization = {
 async function getWorkspaceLocalization(workspaceId: string): Promise<WorkspaceLocalization> {
     try {
         const workspace = await Workspace.findById(workspaceId)
-            .select("countryCode state preferences.timezone preferences.currency preferences.businessHours preferences.billing")
+            .select("countryCode state billingCustomized preferences.timezone preferences.currency preferences.businessHours preferences.billing")
             .lean();
         const preferences = workspace?.preferences;
         const businessHours = preferences?.businessHours;
         const currency = normalizeCurrency(preferences?.currency);
+        const fallbackCountry = workspace?.countryCode || (currency === "INR" ? "IN" : "");
+        // Country/state drive tax + payment methods unless the founder has
+        // explicitly customized billing for this location.
+        const billing = workspace?.billingCustomized
+            ? normalizeBillingConfig(preferences?.billing, fallbackCountry, workspace?.state)
+            : getCountryBillingDefaults(fallbackCountry, workspace?.state);
         return {
             timezone: normalizeTimeZone(preferences?.timezone),
             currency,
             startMinutes: businessHours?.start ? toMinutes(businessHours.start) : BOOKING_DAY_START_MINUTES,
             endMinutes: businessHours?.end ? toMinutes(businessHours.end) : BOOKING_DAY_END_MINUTES,
-            billing: normalizeBillingConfig(preferences?.billing, workspace?.countryCode || (currency === "INR" ? "IN" : ""), workspace?.state),
+            billing,
         };
     } catch {
         return {

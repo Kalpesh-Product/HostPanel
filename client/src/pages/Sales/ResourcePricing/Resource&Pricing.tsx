@@ -14,7 +14,7 @@ import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { ResourcePricingSkeleton } from '../../../components/ui/SalesPageSkeletons';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
-import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
+import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '../../../lib/workspaceLocalization';
 
 const resourceStatusOptions = ['Active', 'Under Maintenance', 'Disabled'];
 const packageStatusOptions = ['Active', 'Disabled'];
@@ -630,6 +630,7 @@ export default function PricingPackagesPage() {
   const axiosPrivate = useAxiosPrivate();
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = (value = 0) => formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
+  const currencySymbol = getWorkspaceCurrencySymbol(workspacePreferences.currency);
   const [bookingHours, setBookingHours] = useState({ start: '09:00', end: '22:00' });
   const [isHoursModalOpen, setIsHoursModalOpen] = useState(false);
   const [hoursForm, setHoursForm] = useState({ start: '09:00', end: '22:00' });
@@ -2392,7 +2393,7 @@ export default function PricingPackagesPage() {
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour (&#8377;)</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour ({currencySymbol})</label>
                           <input type="number" min="0" required placeholder="e.g. 100" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
@@ -2402,7 +2403,7 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day (&#8377;)</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day ({currencySymbol})</label>
                           <input type="number" min="0" required placeholder="e.g. 1000" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
@@ -2617,7 +2618,7 @@ export default function PricingPackagesPage() {
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour (&#8377;)</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour ({currencySymbol})</label>
                           <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
@@ -2627,7 +2628,7 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day (&#8377;)</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day ({currencySymbol})</label>
                           <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
@@ -3163,7 +3164,7 @@ export default function PricingPackagesPage() {
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price (₹) *</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price ({currencySymbol}) *</label>
                           <input
                             required
                             type="number"
