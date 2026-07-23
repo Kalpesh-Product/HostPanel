@@ -33,11 +33,12 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer, Lock, Home, UserCheck
+  Download, Printer, Lock, Home, UserCheck, FileSpreadsheet, FileDown
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
+import { exportRowsAsCsv, exportRowsAsPdf } from '../../utils/exportTable';
 
 function formatTimeLabel(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) return '';
@@ -1756,6 +1757,88 @@ export default function VisitorsManagementPage() {
     converted: clientRows.filter((client) => normalizeText(client.source) === 'visitor-conversion'),
   }), [clientRows]);
   const selectedClientRows = clientCollections[clientSourceTab] || clientCollections.all;
+
+  const HISTORY_EXPORT_COLUMNS = [
+    { header: 'Badge ID', key: 'badgeNo' },
+    { header: 'Date', key: 'date' },
+    { header: 'Visitor Name', key: 'name' },
+    { header: 'Company', key: 'company' },
+    { header: 'Purpose', key: 'purpose' },
+    { header: 'Host', key: 'host' },
+    { header: 'Check In', key: 'checkIn' },
+    { header: 'Check Out', key: 'checkOut' },
+    { header: 'Status', key: 'status' },
+  ];
+
+  const CLIENT_EXPORT_COLUMNS = [
+    { header: 'Client Name', key: 'name' },
+    { header: 'Company', key: 'company' },
+    { header: 'Phone', key: 'phone' },
+    { header: 'Email', key: 'email' },
+    { header: 'Source', key: 'sourceLabel' },
+    { header: 'Bookings', key: 'bookingCount' },
+    { header: 'Total Value', key: 'totalValueLabel' },
+  ];
+
+  const BOOKING_EXPORT_COLUMNS = [
+    { header: 'Booking ID', key: 'id' },
+    { header: 'Client', key: 'bookedBy' },
+    { header: 'Company', key: 'company' },
+    { header: 'Meeting Room', key: 'resource' },
+    { header: 'Date', key: 'dateLabel' },
+    { header: 'Time', key: 'time' },
+    { header: 'Payment Status', key: 'paymentStatus' },
+    { header: 'Amount', key: 'totalValueLabel' },
+    { header: 'Status', key: 'status' },
+  ];
+
+  const handleExportHistory = (format) => {
+    if (displayedHistory.length === 0) {
+      toast.error('No visitor history to export for this period.');
+      return;
+    }
+    const filenameBase = `Visitor-History_${historyMonth}-${historyYear}`.replace(/\s+/g, '-');
+    if (format === 'pdf') {
+      exportRowsAsPdf(filenameBase, `Visitor History — ${historyMonth} ${historyYear}`, HISTORY_EXPORT_COLUMNS, displayedHistory);
+    } else {
+      exportRowsAsCsv(filenameBase, HISTORY_EXPORT_COLUMNS, displayedHistory);
+    }
+  };
+
+  const handleExportClients = (format) => {
+    if (selectedClientRows.length === 0) {
+      toast.error('No booking clients to export.');
+      return;
+    }
+    const rows = selectedClientRows.map((client) => ({
+      ...client,
+      sourceLabel: normalizeText(client.source) === 'visitor-conversion' ? 'Converted' : 'Walk-in',
+      totalValueLabel: formatCurrency(client.totalBookedAmount || 0),
+    }));
+    const filenameBase = `Booking-Clients_${clientSourceTab}`;
+    if (format === 'pdf') {
+      exportRowsAsPdf(filenameBase, 'Booking Clients Report', CLIENT_EXPORT_COLUMNS, rows);
+    } else {
+      exportRowsAsCsv(filenameBase, CLIENT_EXPORT_COLUMNS, rows);
+    }
+  };
+
+  const handleExportBookings = (format) => {
+    if (selectedBookingList.length === 0) {
+      toast.error('No bookings to export for this status.');
+      return;
+    }
+    const rows = selectedBookingList.map((bkg) => ({
+      ...bkg,
+      totalValueLabel: formatCurrency(bkg.totalAmount || bkg.amountDue || 0),
+    }));
+    const filenameBase = `Meeting-Room-Bookings_${bookingStatusTab}`;
+    if (format === 'pdf') {
+      exportRowsAsPdf(filenameBase, 'Meeting Room Bookings Report', BOOKING_EXPORT_COLUMNS, rows);
+    } else {
+      exportRowsAsCsv(filenameBase, BOOKING_EXPORT_COLUMNS, rows);
+    }
+  };
 
   const selectedBookingClient = useMemo(
     () => bookingClients.find((client) => String(client.id || client.recordId || client._id || '') === String(form.clientId || '')) || null,
@@ -3909,6 +3992,34 @@ export default function VisitorsManagementPage() {
                 <div className="relative flex-1 min-w-[160px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
+                </div>
+              )}
+              {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeTab === 'history') handleExportHistory('pdf');
+                      else if (activeTab === 'bookings') handleExportBookings('pdf');
+                      else handleExportClients('pdf');
+                    }}
+                    title="Export PDF"
+                    className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <FileDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeTab === 'history') handleExportHistory('csv');
+                      else if (activeTab === 'bookings') handleExportBookings('csv');
+                      else handleExportClients('csv');
+                    }}
+                    title="Export CSV"
+                    className="px-4 py-2.5 bg-white text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <FileSpreadsheet size={14} />
+                  </button>
                 </div>
               )}
               <button

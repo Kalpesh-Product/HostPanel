@@ -161,8 +161,8 @@ const LoginPage = () => {
               ...(loginUser || {}),
               ...profileUser,
               workspaceMembership: {
-                ...(loginUser?.workspaceMembership || {}),
                 ...(profileUser?.workspaceMembership || {}),
+                ...(loginUser?.workspaceMembership || {}),
               },
               logo: profileUser?.logo ?? null,
             };

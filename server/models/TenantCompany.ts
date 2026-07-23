@@ -86,6 +86,21 @@ const tenantPocDetailsSchema = new Schema(
   { _id: false },
 );
 
+const tenantPackageLocationMappingSchema = new Schema(
+  {
+    floor: { type: String, default: "", trim: true, maxlength: 60 },
+    wing: { type: String, default: "", trim: true, maxlength: 20 },
+    locationCode: { type: String, default: "", trim: true, maxlength: 120 },
+    label: { type: String, default: "", trim: true, maxlength: 160 },
+    resourceCode: { type: String, default: "", trim: true, maxlength: 120 },
+    resourceCategory: { type: String, default: "", trim: true, maxlength: 120 },
+    inventoryMode: { type: String, default: "", trim: true, maxlength: 40 },
+    seatType: { type: String, default: "mixed", trim: true, maxlength: 40 },
+    seatsAllocated: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false },
+);
+
 const tenantPackageDetailsSchema = new Schema(
   {
     packageName: { type: String, default: "", trim: true, maxlength: 120 },
@@ -99,6 +114,7 @@ const tenantPackageDetailsSchema = new Schema(
     monthlyTotalCredits: { type: Number, default: 0, min: 0 },
     creditResetCycle: { type: String, default: "Monthly", trim: true, maxlength: 40 },
     creditUsageTracking: { type: String, default: "", trim: true, maxlength: 240 },
+    locationMappings: { type: [tenantPackageLocationMappingSchema], default: [] },
   },
   { _id: false },
 );
