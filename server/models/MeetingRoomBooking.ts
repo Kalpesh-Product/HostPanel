@@ -15,6 +15,8 @@ export interface IMeetingRoomBooking extends Document {
     bookedForName?: string;
 
     bookingType: "Internal" | "External" | "Tenant";
+    timezone: string;
+    currency: string;
 
     start: Date;
     end: Date;
@@ -42,12 +44,22 @@ export interface IMeetingRoomBooking extends Document {
     bookedByTenantCompanyName?: string;
 
     bookingCredits: number;
+    subtotalBeforeDiscount: number;
+    discountAmount: number;
+    taxableBaseAfterDiscount: number;
     baseAmount: number;
     gstAmount: number;
     totalAmount: number;
+    taxLabel?: string;
+    taxRatePercent?: number;
+    priceIncludesTax?: boolean;
 
     paymentStatus: string;
     paymentMode?: string;
+    paymentMethodCode?: string;
+    paymentMethodLabel?: string;
+    paymentRequiresReference?: boolean;
+    paymentRequiresProof?: boolean;
     transactionId?: string;
     paymentProofUrl?: string;
 
@@ -113,6 +125,8 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
             enum: ["Internal", "External", "Tenant"],
             default: "Internal",
         },
+        timezone: { type: String, required: true, default: "Asia/Kolkata", trim: true },
+        currency: { type: String, required: true, default: "INR", trim: true, uppercase: true },
 
         start: {
             type: Date,
@@ -174,12 +188,22 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
         bookedForName: { type: String, trim: true, default: "" },
 
         bookingCredits: { type: Number, default: 0, min: 0 },
+        subtotalBeforeDiscount: { type: Number, default: 0, min: 0 },
+        discountAmount: { type: Number, default: 0, min: 0 },
+        taxableBaseAfterDiscount: { type: Number, default: 0, min: 0 },
         baseAmount: { type: Number, default: 0, min: 0 },
         gstAmount: { type: Number, default: 0, min: 0 },
         totalAmount: { type: Number, default: 0, min: 0 },
+        taxLabel: { type: String, trim: true, default: "Tax", maxlength: 40 },
+        taxRatePercent: { type: Number, default: 0, min: 0, max: 100 },
+        priceIncludesTax: { type: Boolean, default: false },
 
         paymentStatus: { type: String, default: "Pending" },
         paymentMode: { type: String, trim: true, default: "" },
+        paymentMethodCode: { type: String, trim: true, lowercase: true, default: "" },
+        paymentMethodLabel: { type: String, trim: true, default: "", maxlength: 80 },
+        paymentRequiresReference: { type: Boolean, default: false },
+        paymentRequiresProof: { type: Boolean, default: false },
         transactionId: String,
         paymentProofUrl: String,
 

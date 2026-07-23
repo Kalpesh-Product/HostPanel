@@ -7,12 +7,14 @@ import {
   Building2,
   ClipboardList,
   Clock,
+  CreditCard,
   ListChecks,
   Loader2,
   LockKeyhole,
   MapPin,
   PanelsTopLeft,
   Plus,
+  ReceiptText,
   Save,
   Users,
 } from "lucide-react";
@@ -21,6 +23,12 @@ import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import { getWorkspaceManagementOverview } from "../../services/unit-management";
 import { getWorkspaceSettings, updateWorkspaceSettings } from "../../services/unit-settings";
+import {
+  PAYMENT_METHOD_CATALOG,
+  getCountryBillingDefaults,
+  normalizeBillingConfig,
+  type WorkspaceBillingConfig,
+} from "../../lib/workspaceBilling";
 
 type WorkspaceItem = {
   id: string;
@@ -76,6 +84,9 @@ export default function WorkspaceSettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [businessStart, setBusinessStart] = useState("09:00");
   const [businessEnd, setBusinessEnd] = useState("22:00");
+  const [workspaceTimezone, setWorkspaceTimezone] = useState("Asia/Kolkata");
+  const [workspaceCurrency, setWorkspaceCurrency] = useState("INR");
+  const [billing, setBilling] = useState<WorkspaceBillingConfig>(() => getCountryBillingDefaults("IN"));
   const [isSavingHours, setIsSavingHours] = useState(false);
 
   useEffect(() => {
@@ -97,10 +108,14 @@ export default function WorkspaceSettingsPage() {
     (async () => {
       try {
         const res = await getWorkspaceSettings(axiosPrivate);
-        const bh = res?.data?.data?.settings?.preferences?.businessHours;
-        if (mounted && bh) {
-          setBusinessStart(bh.start || "09:00");
-          setBusinessEnd(bh.end || "22:00");
+        const preferences = res?.data?.data?.settings?.preferences;
+        const bh = preferences?.businessHours;
+        if (mounted && preferences) {
+          setBusinessStart(bh?.start || "09:00");
+          setBusinessEnd(bh?.end || "22:00");
+          setWorkspaceTimezone(preferences.timezone || "Asia/Kolkata");
+          setWorkspaceCurrency(preferences.currency || "INR");
+          setBilling(normalizeBillingConfig(preferences.billing));
         }
       } catch {
         // keep defaults
@@ -213,6 +228,8 @@ export default function WorkspaceSettingsPage() {
             country: "",
             state: "",
             city: "",
+            timezone: "",
+            currency: "",
             address: "",
             businessTypes: [],
           },
@@ -223,6 +240,19 @@ export default function WorkspaceSettingsPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const togglePaymentMethod = (code: string) => {
+    if (code === "cash") return;
+    setBilling((current) => {
+      const exists = current.paymentMethods.some((method) => method.code === code);
+      return {
+        ...current,
+        paymentMethods: exists
+          ? current.paymentMethods.filter((method) => method.code !== code)
+          : [...current.paymentMethods, PAYMENT_METHOD_CATALOG[code]].filter(Boolean),
+      };
+    });
   };
 
   const saveBusinessHours = async () => {
@@ -241,16 +271,17 @@ export default function WorkspaceSettingsPage() {
           workspaceName: activeWorkspace?.workspaceName || "",
         },
         preferences: {
-          timezone: "Asia/Kolkata",
-          currency: "INR",
+          timezone: workspaceTimezone,
+          currency: workspaceCurrency,
           dateFormat: "DD MMM YYYY",
           timeFormat: "12h",
           weekStartsOn: "monday",
           businessHours: { start: businessStart, end: businessEnd },
+          billing,
         },
         branding: { primaryColor: "#2563EB" },
       });
-      toast.success("Business hours updated successfully.");
+      toast.success("Business hours and billing preferences updated successfully.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to update business hours.");
     } finally {
@@ -408,6 +439,101 @@ export default function WorkspaceSettingsPage() {
                 <p className="mt-3 text-[10px] font-medium text-slate-400">
                   Current: {businessStart ? (() => { const [h, m] = businessStart.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'} – {businessEnd ? (() => { const [h, m] = businessEnd.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'}
                 </p>
+              </div>
+            </section>
+
+            <section data-tour="unit-settings-billing" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex items-start gap-3 bg-slate-50/50">
+                <span className="rounded-2xl bg-emerald-50 p-2 text-emerald-600 shrink-0">
+                  <ReceiptText className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax & Payment Preferences</p>
+                  <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
+                    These location-level rules drive external and walk-in booking totals, payment evidence, details, and emails.
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 sm:p-4 lg:p-5 space-y-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <span>
+                      <span className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Apply tax</span>
+                      <span className="text-[10px] text-slate-400">Disable for tax-free or externally handled locations.</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={billing.tax.enabled}
+                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, enabled: event.target.checked } }))}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <span>
+                      <span className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Prices include tax</span>
+                      <span className="text-[10px] text-slate-400">Extract tax from the entered price instead of adding it.</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={billing.tax.priceIncludesTax}
+                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, priceIncludesTax: event.target.checked } }))}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax label</span>
+                    <input
+                      type="text"
+                      maxLength={40}
+                      value={billing.tax.label}
+                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, label: event.target.value } }))}
+                      placeholder="VAT, GST, Sales Tax..."
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax rate (%)</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={billing.tax.ratePercent}
+                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, ratePercent: Math.min(100, Math.max(0, Number(event.target.value) || 0)) } }))}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    />
+                  </label>
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <CreditCard size={14} className="text-[#2563EB]" />
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted payment methods</p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {Object.values(PAYMENT_METHOD_CATALOG).map((method) => {
+                      const checked = billing.paymentMethods.some((entry) => entry.code === method.code);
+                      return (
+                        <label key={method.code} className={`flex items-start gap-3 rounded-xl border px-3 py-3 transition ${checked ? 'border-blue-200 bg-blue-50/60' : 'border-slate-200 bg-white'} ${method.code === 'cash' ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={method.code === "cash"}
+                            onChange={() => togglePaymentMethod(method.code)}
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
+                          />
+                          <span>
+                            <span className="block text-[11px] font-pmedium text-slate-800">{method.label}</span>
+                            <span className="text-[9px] font-medium text-slate-400">
+                              {method.requiresReference ? 'Reference required' : 'No reference required'} · {method.requiresProof ? 'Proof required' : 'No proof required'}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-400">Cash remains available as the universal fallback. Local methods are preselected when a new location is created.</p>
+                </div>
               </div>
             </section>
 

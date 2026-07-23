@@ -10,6 +10,8 @@ import { getMeetingRoomBookings, createMeetingRoomBooking } from '@/services/mee
 import { getMyTenantCompany } from '@/services/tenant-companies';
 import { getResources } from '@/services/resources';
 import useBusinessHours from '@/hooks/useBusinessHours';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { getWorkspaceDateKey, getWorkspaceTime } from '@/lib/workspaceLocalization';
 
 const ROOM_TYPE_OPTIONS = ['All', 'Meeting Room', 'Conference Room'];
 const BOOKING_SLOT_STEP_MINUTES = 5;
@@ -408,8 +410,9 @@ export default function TenantMeetingRoomBookingPage() {
     () => inviteeOptions.filter((employee) => !employee.status || employee.status === 'Active'),
     [inviteeOptions],
   );
-  const todayValue = getTodayInputValue();
-  const currentTimeValue = getCurrentTimeInputValue();
+  const workspacePreferences = useWorkspacePreferences();
+  const todayValue = getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
+  const currentTimeValue = getWorkspaceTime(new Date(), workspacePreferences.timezone);
   const roundedCurrentTimeValue = roundUpToStepTime(currentTimeValue);
   const businessHours = useBusinessHours();
   const startTimeOptions = useMemo(
@@ -503,8 +506,8 @@ export default function TenantMeetingRoomBookingPage() {
       b.status !== 'cancelled' && b.status !== 'canceled');
 
     let cursor = businessHours.startMinutes;
-    if (selectedDateKey === getTodayInputValue()) {
-      const nowMinutes = timeToMinutes(roundUpToStepTime(getCurrentTimeInputValue()));
+    if (selectedDateKey === getWorkspaceDateKey(new Date(), workspacePreferences.timezone)) {
+      const nowMinutes = timeToMinutes(roundUpToStepTime(getWorkspaceTime(new Date(), workspacePreferences.timezone)));
       if (nowMinutes !== null) cursor = Math.max(cursor, nowMinutes);
     }
     cursor = Math.ceil(cursor / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES;
@@ -526,7 +529,7 @@ export default function TenantMeetingRoomBookingPage() {
       }
     }
     return slots;
-  }, [bookingForm.date, bookingForm.endTime, bookingForm.startTime, businessHours.startMinutes, businessHours.endMinutes, normalizedBookings, selectedRoom, selectedRoomConflictBookings.length]);
+  }, [bookingForm.date, bookingForm.endTime, bookingForm.startTime, businessHours.startMinutes, businessHours.endMinutes, normalizedBookings, selectedRoom, selectedRoomConflictBookings.length, workspacePreferences.timezone]);
 
   const selectedRoomCreditEstimate = useMemo(() => {
     if (!selectedRoom) return 0;
@@ -617,8 +620,8 @@ export default function TenantMeetingRoomBookingPage() {
     try {
       await createMeetingRoomBooking({
         roomId: selectedRoom.recordId,
-        start: `${bookingForm.date}T${bookingForm.startTime}:00+05:30`,
-        end: `${bookingForm.date}T${bookingForm.endTime}:00+05:30`,
+        start: `${bookingForm.date}T${bookingForm.startTime}:00`,
+        end: `${bookingForm.date}T${bookingForm.endTime}:00`,
         purpose: bookingForm.purpose.trim(),
         attendees: Number(bookingForm.attendees || 1),
         inviteeUserIds: selectedInviteeIds,

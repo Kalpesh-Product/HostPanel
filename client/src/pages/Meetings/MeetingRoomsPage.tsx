@@ -39,6 +39,12 @@ import {
 import { validateEmail, validatePhone, computeExternalPricing, computeExternalPricingMultiDay, computeBusinessHoursDuration, hasSlotConflict, computeAvailableSlots, timeToMinutes as helpersTimeToMinutes } from './externalBookingHelpers';
 import { statusPillClass } from '../../lib/status-pill';
 import useBusinessHours from '../../hooks/useBusinessHours';
+import useWorkspacePreferences from '../../hooks/useWorkspacePreferences';
+import {
+  DEFAULT_WORKSPACE_TIMEZONE,
+  formatWorkspaceCurrency,
+} from '../../lib/workspaceLocalization';
+import { getPaymentMethod, getTaxDisplayLabel } from '../../lib/workspaceBilling';
 
 
 interface StoredUser {
@@ -122,6 +128,13 @@ interface Booking {
   baseAmount?: number;
   gstAmount?: number;
   totalAmount?: number;
+  taxLabel?: string;
+  taxRatePercent?: number;
+  priceIncludesTax?: boolean;
+  paymentMethodCode?: string;
+  paymentMethodLabel?: string;
+  paymentRequiresReference?: boolean;
+  paymentRequiresProof?: boolean;
   bookingCredits?: number;
   isMe?: boolean;
   isInvitedMeeting?: boolean;
@@ -374,7 +387,7 @@ function statusBadge(status?: string) {
   return 'bg-slate-50 text-slate-700 border-slate-200';
 }
 
-function getMeetingTimeZoneDateParts(value?: any) {
+function getMeetingTimeZoneDateParts(value?: any, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) {
     return null;
   }
@@ -385,7 +398,7 @@ function getMeetingTimeZoneDateParts(value?: any) {
   }
 
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -403,14 +416,14 @@ function getMeetingTimeZoneDateParts(value?: any) {
   };
 }
 
-function getMeetingClockParts(now: Date = new Date()) {
+function getMeetingClockParts(now: Date = new Date(), timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   const date = now instanceof Date ? now : new Date(now);
   if (Number.isNaN(date.getTime())) {
     return null;
   }
 
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -487,13 +500,14 @@ function getBookingTimeValidation(
   dayStartMinutes: number = DEFAULT_BOOKING_DAY_START_MINUTES,
   dayEndMinutes: number = DEFAULT_BOOKING_DAY_END_MINUTES,
   endDateValue: any = dateValue,
+  timeZone: string = DEFAULT_WORKSPACE_TIMEZONE,
 ) {
   if (!dateValue || !startTimeValue) {
     return { valid: true, reason: '' };
   }
 
-  const bookingDateParts = getMeetingTimeZoneDateParts(dateValue);
-  const currentClock = getMeetingClockParts();
+  const bookingDateParts = getMeetingTimeZoneDateParts(dateValue, timeZone);
+  const currentClock = getMeetingClockParts(new Date(), timeZone);
   const startMinutes = timeToMinutes(startTimeValue);
 
   if (!bookingDateParts || !currentClock || startMinutes === null) {
@@ -527,7 +541,7 @@ function getBookingTimeValidation(
       return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
     }
 
-    const endDateParts = getMeetingTimeZoneDateParts(endDateValue || dateValue);
+    const endDateParts = getMeetingTimeZoneDateParts(endDateValue || dateValue, timeZone);
     const endDateKey = endDateParts ? `${endDateParts.year}-${endDateParts.month}-${endDateParts.day}` : bookingDateKey;
 
     if (endDateKey < bookingDateKey) {
@@ -630,6 +644,13 @@ function normalizeBooking(booking: any, currentUserId: string): Booking {
     baseAmount: Number(booking.baseAmount || 0),
     gstAmount: Number(booking.gstAmount || 0),
     totalAmount: Number(booking.totalAmount || 0),
+    taxLabel: booking.taxLabel || (Number(booking.gstAmount || 0) > 0 ? 'GST' : 'Tax'),
+    taxRatePercent: Number(booking.taxRatePercent ?? (Number(booking.gstAmount || 0) > 0 ? 18 : 0)),
+    priceIncludesTax: Boolean(booking.priceIncludesTax),
+    paymentMethodCode: booking.paymentMethodCode || '',
+    paymentMethodLabel: booking.paymentMethodLabel || booking.paymentMode || '',
+    paymentRequiresReference: Boolean(booking.paymentRequiresReference),
+    paymentRequiresProof: Boolean(booking.paymentRequiresProof),
     isMe: Boolean(booking.isMe),
     isInvitedMeeting: Boolean(booking.isInvitedMeeting || currentInvite),
     currentInviteStatus: booking.currentInviteStatus || currentInvite?.status || null,
@@ -1086,6 +1107,9 @@ function ExternalBookingDialog({
   onSuccess,
 }: ExternalBookingDialogProps) {
   const businessHours = useBusinessHours();
+  const workspacePreferences = useWorkspacePreferences();
+  const paymentMethods = workspacePreferences.billing.paymentMethods;
+  const taxConfig = workspacePreferences.billing.tax;
   const BOOKING_DAY_START = businessHours.start;
   const BOOKING_DAY_END = businessHours.end;
   const BOOKING_DAY_START_MINUTES = businessHours.startMinutes;
@@ -1123,6 +1147,10 @@ function ExternalBookingDialog({
     discountValue: '',
   });
   const [bookingErrors, setBookingErrors] = useState<Record<string, string>>({});
+  const selectedPaymentMethod = useMemo(
+    () => getPaymentMethod(workspacePreferences.billing, bookingForm.paymentMode),
+    [bookingForm.paymentMode, workspacePreferences.billing],
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -1166,6 +1194,7 @@ function ExternalBookingDialog({
       bookingForm.discountValue,
       BOOKING_DAY_START_MINUTES,
       BOOKING_DAY_END_MINUTES,
+      taxConfig,
     );
   }, [
     selectedResource,
@@ -1177,6 +1206,7 @@ function ExternalBookingDialog({
     bookingForm.discountValue,
     BOOKING_DAY_START_MINUTES,
     BOOKING_DAY_END_MINUTES,
+    taxConfig,
   ]);
 
   // Discount validation — runs whenever discount inputs or base price change
@@ -1263,12 +1293,12 @@ function ExternalBookingDialog({
     if (!bookingForm.startTime) errors.startTime = 'Start time is required.';
     if (!bookingForm.endTime) errors.endTime = 'End time is required.';
     if (!bookingForm.purpose.trim()) errors.purpose = 'Purpose is required.';
-    if (!bookingForm.paymentMode) errors.paymentMode = 'Please select a payment mode.';
-    if (bookingForm.paymentMode !== 'Cash' && !bookingForm.transactionId.trim()) errors.transactionId = 'Transaction / UTR number is required.';
-    if (bookingForm.paymentMode !== 'Cash' && !bookingForm.paymentProofFile) errors.paymentProofFile = 'Upload the GPay payment screenshot.';
+    if (!bookingForm.paymentMode || !selectedPaymentMethod) errors.paymentMode = 'Please select an enabled payment method.';
+    if (selectedPaymentMethod?.requiresReference && !bookingForm.transactionId.trim()) errors.transactionId = `Payment reference is required for ${selectedPaymentMethod.label}.`;
+    if (selectedPaymentMethod?.requiresProof && !bookingForm.paymentProofFile) errors.paymentProofFile = `Upload payment proof for ${selectedPaymentMethod.label}.`;
 
     // Time validation
-    const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, bookingForm.endDate || bookingForm.date);
+    const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, bookingForm.endDate || bookingForm.date, workspacePreferences.timezone);
     if (!timeValidation.valid) {
       if (timeValidation.reason.includes('date')) errors.date = timeValidation.reason;
       else if (timeValidation.reason.includes('time') || timeValidation.reason.includes('passed')) errors.startTime = timeValidation.reason;
@@ -1294,8 +1324,8 @@ function ExternalBookingDialog({
       if (!room) throw new Error('Selected resource not found. Please reselect.');
 
       const roomId = String(room._id ?? room.id ?? '');
-      const start = `${bookingForm.date}T${bookingForm.startTime}:00+05:30`;
-      const end = `${bookingForm.endDate || bookingForm.date}T${bookingForm.endTime}:00+05:30`;
+      const start = `${bookingForm.date}T${bookingForm.startTime}:00`;
+      const end = `${bookingForm.endDate || bookingForm.date}T${bookingForm.endTime}:00`;
 
       const createResponse = await createMeetingRoomBooking({
         bookingType: 'External',
@@ -1314,14 +1344,14 @@ function ExternalBookingDialog({
         attendees: 1,
         purpose: bookingForm.purpose.trim(),
         bookingNotes: bookingForm.notes.trim() || '',
+        subtotalBeforeDiscount: externalPricing.basePriceRaw,
         baseAmount: externalPricing.basePriceRaw,
         gstAmount: externalPricing.gstAmount,
         totalAmount: externalPricing.totalAmount,
         discountType: bookingForm.discountType,
         discountValue: Number(bookingForm.discountValue) || 0,
-        paymentMode: bookingForm.paymentMode,
-        // UPI is always paid (evidence required); Cash can be marked unpaid.
-        paymentStatus: bookingForm.paymentMode === 'Cash' ? (bookingForm.paymentStatus || 'Paid') : 'Paid',
+        paymentMode: selectedPaymentMethod?.code || bookingForm.paymentMode,
+        paymentStatus: selectedPaymentMethod?.code === 'cash' ? (bookingForm.paymentStatus || 'Paid') : 'Paid',
         transactionId: bookingForm.transactionId || '',
         paymentProof: bookingForm.paymentProofFile,
       } as any);
@@ -1571,7 +1601,7 @@ function ExternalBookingDialog({
                       {selectedResource && (
                         <p className="text-xs text-slate-500">
                           {selectedResource.pricePerHour > 0
-                            ? `₹${selectedResource.pricePerHour}/hr`
+                            ? `${formatWorkspaceCurrency(selectedResource.pricePerHour, workspacePreferences.currency, { maximumFractionDigits: 2 })}/hr`
                             : 'No hourly rate set'}
                         </p>
                       )}
@@ -1588,7 +1618,7 @@ function ExternalBookingDialog({
                         value={bookingForm.date}
                         min={(() => {
                           const parts = new Intl.DateTimeFormat('en-GB', {
-                            timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+                            timeZone: workspacePreferences.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
                           }).formatToParts(new Date());
                           const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
                           return `${p.year}-${p.month}-${p.day}`;
@@ -1653,7 +1683,7 @@ function ExternalBookingDialog({
                         {(() => {
                           const todayIST = (() => {
                             const parts = new Intl.DateTimeFormat('en-GB', {
-                              timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+                              timeZone: workspacePreferences.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
                             }).formatToParts(new Date());
                             const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
                             return `${p.year}-${p.month}-${p.day}`;
@@ -1661,7 +1691,7 @@ function ExternalBookingDialog({
                           const isToday = bookingForm.date === todayIST;
                           if (isToday) {
                             const nowParts = new Intl.DateTimeFormat('en-GB', {
-                              timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false,
+                              timeZone: workspacePreferences.timezone, hour: '2-digit', minute: '2-digit', hour12: false,
                             }).formatToParts(new Date());
                             const np = Object.fromEntries(nowParts.map((x) => [x.type, x.value]));
                             const nowMinutes = Number(np.hour) * 60 + Number(np.minute);
@@ -1749,7 +1779,7 @@ function ExternalBookingDialog({
                           }
                           const todayIST = (() => {
                             const parts = new Intl.DateTimeFormat('en-GB', {
-                              timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+                              timeZone: workspacePreferences.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
                             }).formatToParts(new Date());
                             const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
                             return `${p.year}-${p.month}-${p.day}`;
@@ -1758,7 +1788,7 @@ function ExternalBookingDialog({
                           const nowFloorMinutes = (() => {
                             if (!isBookingToday) return BOOKING_DAY_START_MINUTES;
                             const nowParts = new Intl.DateTimeFormat('en-GB', {
-                              timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false,
+                              timeZone: workspacePreferences.timezone, hour: '2-digit', minute: '2-digit', hour12: false,
                             }).formatToParts(new Date());
                             const np = Object.fromEntries(nowParts.map((x) => [x.type, x.value]));
                             const nowMinutes = Number(np.hour) * 60 + Number(np.minute);
@@ -1899,24 +1929,24 @@ function ExternalBookingDialog({
                         Payment Mode <span className="text-red-500">*</span>
                       </label>
                       <div className="flex flex-wrap gap-1.5 bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
-                        {(['Cash', 'UPI'] as const).map((mode) => (
+                        {paymentMethods.map((method) => (
                           <button
-                            key={mode}
+                            key={method.code}
                             type="button"
                             onClick={() => setBookingForm((f) => ({
                               ...f,
-                              paymentMode: mode,
+                              paymentMode: method.code,
                               paymentStatus: 'Paid',
-                              transactionId: mode === 'Cash' ? '' : f.transactionId,
-                              paymentProofFile: mode === 'Cash' ? null : f.paymentProofFile,
+                              transactionId: method.requiresReference ? f.transactionId : '',
+                              paymentProofFile: method.requiresProof ? f.paymentProofFile : null,
                             }))}
-                            className={`flex-1 py-2 rounded-xl text-[11px] font-pmedium uppercase tracking-widest transition-all
-                              ${bookingForm.paymentMode === mode
+                            className={`flex-1 min-w-[120px] py-2 rounded-xl text-[11px] font-pmedium uppercase tracking-widest transition-all
+                              ${bookingForm.paymentMode === method.code
                                 ? 'bg-[#2563EB] text-white shadow-sm'
                                 : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}
                             `}
                           >
-                            {mode}
+                            {method.label}
                           </button>
                         ))}
                       </div>
@@ -1930,7 +1960,7 @@ function ExternalBookingDialog({
                       <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
                         Payment Status
                       </label>
-                      {bookingForm.paymentMode === 'Cash' ? (
+                      {selectedPaymentMethod?.code === 'cash' ? (
                         <div className="grid grid-cols-2 gap-1.5 bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
                           {[['Paid', 'Mark Paid'], ['Pending Payment', 'Mark Unpaid']].map(([value, label]) => (
                             <button
@@ -1948,16 +1978,16 @@ function ExternalBookingDialog({
                           {bookingForm.paymentMode ? `Paid · ${bookingForm.paymentMode}` : 'Select payment mode'}
                         </div>
                       )}
-                      {bookingForm.paymentMode === 'Cash' && bookingForm.paymentStatus !== 'Paid' && (
+                      {selectedPaymentMethod?.code === 'cash' && bookingForm.paymentStatus !== 'Paid' && (
                         <p className="mt-1.5 text-[10px] font-medium text-slate-400">Amount stays due — the client is emailed to pay at the front desk before entry.</p>
                       )}
                     </div>
 
                     <div>
-                      {bookingForm.paymentMode !== 'Cash' && bookingForm.paymentMode ? (
+                      {selectedPaymentMethod?.requiresReference ? (
                         <>
                           <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
-                            Transaction / UTR Number <span className="text-red-500">*</span>
+                            Payment Reference <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -1966,7 +1996,7 @@ function ExternalBookingDialog({
                             onChange={(e) =>
                               setBookingForm((f) => ({ ...f, transactionId: e.target.value }))
                             }
-                            placeholder="e.g. UPI ref / cheque no."
+                            placeholder={`Enter ${selectedPaymentMethod?.label || 'payment'} reference`}
                             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
                           />
                           {bookingErrors.transactionId && <p className="mt-1 text-[11px] font-pmedium text-red-500">{bookingErrors.transactionId}</p>}
@@ -1977,10 +2007,10 @@ function ExternalBookingDialog({
                       )}
                     </div>
 
-                    {bookingForm.paymentMode !== 'Cash' && bookingForm.paymentMode && (
+                    {selectedPaymentMethod?.requiresProof && (
                       <div className="sm:col-span-2">
                         <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
-                          Payment Screenshot <span className="text-red-500">*</span>
+                          Payment Proof <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="file"
@@ -2011,7 +2041,7 @@ function ExternalBookingDialog({
                                   : 'text-[#0F172A] hover:bg-slate-200/70'}
                               `}
                             >
-                              {t === 'flat' ? '₹' : '%'}
+                              {t === 'flat' ? workspacePreferences.currency : '%'}
                             </button>
                           ))}
                         </div>
@@ -2056,26 +2086,28 @@ function ExternalBookingDialog({
                         {/* Base Price */}
                         <div className="flex justify-between items-center text-[13px]">
                           <span className="text-slate-600 font-pmedium">Base Price</span>
-                          <span className="font-pmedium text-slate-900">₹{externalPricing.basePriceRaw.toFixed(2)}</span>
+                          <span className="font-pmedium text-slate-900">{formatWorkspaceCurrency(externalPricing.basePriceRaw, workspacePreferences.currency, { minimumFractionDigits: 2 })}</span>
                         </div>
                         {/* Discount line — only shown when non-zero */}
                         {externalPricing.discountAmount > 0 && (
                           <div className="flex justify-between items-center text-[13px]">
                             <span className="text-slate-600 font-pmedium">Discount</span>
-                            <span className="font-pmedium text-emerald-600">−₹{externalPricing.discountAmount.toFixed(2)}</span>
+                            <span className="font-pmedium text-emerald-600">−{formatWorkspaceCurrency(externalPricing.discountAmount, workspacePreferences.currency, { minimumFractionDigits: 2 })}</span>
                           </div>
                         )}
-                        {/* GST */}
-                        <div className="flex justify-between items-center text-[13px]">
-                          <span className="text-slate-600 font-pmedium">GST (18%)</span>
-                          <span className="font-pmedium text-slate-900">₹{externalPricing.gstAmount.toFixed(2)}</span>
-                        </div>
+                        {/* Location-configured tax */}
+                        {(taxConfig.enabled || externalPricing.gstAmount > 0) && (
+                          <div className="flex justify-between items-center text-[13px]">
+                            <span className="text-slate-600 font-pmedium">{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>
+                            <span className="font-pmedium text-slate-900">{formatWorkspaceCurrency(externalPricing.gstAmount, workspacePreferences.currency, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
                         {/* Divider */}
                         <div className="h-px bg-blue-200/60 my-0.5" />
                         {/* Total */}
                         <div className="flex justify-between items-center">
                           <span className="text-[14px] font-pmedium text-[#0F172A] uppercase tracking-wider">Total</span>
-                          <span className="text-[16px] font-pmedium text-[#2563EB]">₹{externalPricing.totalAmount.toFixed(2)}</span>
+                          <span className="text-[16px] font-pmedium text-[#2563EB]">{formatWorkspaceCurrency(externalPricing.totalAmount, workspacePreferences.currency, { minimumFractionDigits: 2 })}</span>
                         </div>
                         {/* No rate note */}
                         {externalPricing.noRateSet && selectedResource && (
@@ -2111,6 +2143,9 @@ function ExternalBookingDialog({
                   !bookingForm.endTime ||
                   !bookingForm.purpose.trim() ||
                   !bookingForm.paymentMode ||
+                  !selectedPaymentMethod ||
+                  (selectedPaymentMethod?.requiresReference && !bookingForm.transactionId.trim()) ||
+                  (selectedPaymentMethod?.requiresProof && !bookingForm.paymentProofFile) ||
                   (bookingForm.resourceName && bookingForm.date && bookingForm.startTime && bookingForm.endTime
                     ? hasSlotConflict(allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime)
                     : false) ||
@@ -2132,6 +2167,9 @@ function ExternalBookingDialog({
 export function MeetingRoomsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const businessHours = useBusinessHours();
+  const workspacePreferences = useWorkspacePreferences();
+  const paymentMethods = workspacePreferences.billing.paymentMethods;
+  const taxConfig = workspacePreferences.billing.tax;
   const BOOKING_DAY_START = businessHours.start;
   const BOOKING_DAY_END = businessHours.end;
   const BOOKING_DAY_START_MINUTES = businessHours.startMinutes;
@@ -2375,7 +2413,7 @@ export function MeetingRoomsPage() {
   const [cancelReason, setCancelReason] = useState<string>('');
   const [cancelRefundType, setCancelRefundType] = useState<string>('Full Refund');
   const [showRescheduleConfirm, setShowRescheduleConfirm] = useState<boolean>(false);
-  const [reschedulePaymentMode, setReschedulePaymentMode] = useState<string>('Cash');
+  const [reschedulePaymentMode, setReschedulePaymentMode] = useState<string>('cash');
   const [showRejectInviteDialog, setShowRejectInviteDialog] = useState<boolean>(false);
   const [inviteToReject, setInviteToReject] = useState<Invite | null>(null);
   const [inviteRejectReason, setInviteRejectReason] = useState<string>('');
@@ -2845,9 +2883,13 @@ export function MeetingRoomsPage() {
   // --------- MISSING FORM STATES ---------
   const [externalBookingForm, setExternalBookingForm] = useState({
     name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '',
-    startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash',
+    startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'cash',
     transactionId: '', paymentProofFile: null as File | null, discountType: 'amount', discountValue: '', notes: '',
   });
+  const selectedExternalPaymentMethod = useMemo(
+    () => getPaymentMethod(workspacePreferences.billing, externalBookingForm.paymentMode),
+    [externalBookingForm.paymentMode, workspacePreferences.billing],
+  );
   const [isSavingExternalBooking, setIsSavingExternalBooking] = useState(false);
   // Live client search state
   const [extClientSearch, setExtClientSearch] = useState('');
@@ -2942,7 +2984,12 @@ export function MeetingRoomsPage() {
       
     const discountAmount = Math.min(Math.max(discountAmountRaw, 0), subtotalBeforeDiscount);
     const taxableBaseAfterDiscount = Math.max(subtotalBeforeDiscount - discountAmount, 0);
-    const gst = taxableBaseAfterDiscount * 0.18;
+    const taxRate = taxConfig.enabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+    const gst = taxRate <= 0
+      ? 0
+      : taxConfig.priceIncludesTax
+        ? taxableBaseAfterDiscount * (taxRate / (1 + taxRate))
+        : taxableBaseAfterDiscount * taxRate;
 
     return {
       subtotalBeforeDiscount,
@@ -2951,9 +2998,9 @@ export function MeetingRoomsPage() {
       discountAmount,
       taxableBaseAfterDiscount,
       gst,
-      total: taxableBaseAfterDiscount + gst,
+      total: taxConfig.priceIncludesTax ? taxableBaseAfterDiscount : taxableBaseAfterDiscount + gst,
     };
-  }, [externalBookingForm.roomName, externalBookingForm.startTime, externalBookingForm.endTime, externalBookingForm.discountType, externalBookingForm.discountValue, roomCatalog]);
+  }, [externalBookingForm.roomName, externalBookingForm.startTime, externalBookingForm.endTime, externalBookingForm.discountType, externalBookingForm.discountValue, roomCatalog, taxConfig]);
 
   // --------- CALENDAR STATE ---------
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -2977,10 +3024,11 @@ export function MeetingRoomsPage() {
   }, [selectedCalendarDateKey]);
 
   // --------- FORMATTING HELPERS ---------
-  const formatCurrency = (amount?: number | null) => {
-    const value = Number(amount || 0);
-    return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-  };
+  const formatCurrency = (amount?: number | null) =>
+    formatWorkspaceCurrency(Number(amount || 0), workspacePreferences.currency, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
 
   const getExternalPaymentLabel = (booking: any) => {
     const status = String(booking?.paymentStatus || 'Pending');
@@ -3021,7 +3069,7 @@ export function MeetingRoomsPage() {
 
   const buildBookingDateTime = (date?: string, time?: string) => {
     if (!date || !time) return '';
-    return `${date}T${time}:00+05:30`;
+    return `${date}T${time}:00`;
   };
 
   const selectedRoom = (roomName?: string) => {
@@ -3088,8 +3136,8 @@ export function MeetingRoomsPage() {
 
   // --------- BOOKING TIME VALIDATION ---------
   const bookingTimeValidation = useMemo(() => {
-    return getBookingTimeValidation(newBooking.date, newBooking.startTime, newBooking.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
-  }, [newBooking.date, newBooking.startTime, newBooking.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
+    return getBookingTimeValidation(newBooking.date, newBooking.startTime, newBooking.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, newBooking.date, workspacePreferences.timezone);
+  }, [newBooking.date, newBooking.startTime, newBooking.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const bookingStatus = useMemo(() => {
     if (!newBooking.roomName || !newBooking.date || !newBooking.startTime || !newBooking.endTime) return 'pending';
@@ -3114,8 +3162,8 @@ export function MeetingRoomsPage() {
 
   // --------- INTERNAL BOOKING AVAILABILITY ---------
   const internalBookingTimeValidation = useMemo(() => {
-    return getBookingTimeValidation(internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
-  }, [internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
+    return getBookingTimeValidation(internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, internalBookingForm.date, workspacePreferences.timezone);
+  }, [internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const internalBookingAvailability = useMemo(() => {
     if (!internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime) return 'pending';
@@ -3140,8 +3188,8 @@ export function MeetingRoomsPage() {
 
   // --------- RESCHEDULE TIME VALIDATION ---------
   const rescheduleTimeValidation = useMemo(() => {
-    return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, (rescheduleData as any).endDate || rescheduleData.date);
-  }, [rescheduleData.date, (rescheduleData as any).endDate, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
+    return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, (rescheduleData as any).endDate || rescheduleData.date, workspacePreferences.timezone);
+  }, [rescheduleData.date, (rescheduleData as any).endDate, rescheduleData.startTime, rescheduleData.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const rescheduleIsMultiDay = Boolean((rescheduleData as any).endDate) && (rescheduleData as any).endDate !== rescheduleData.date;
 
@@ -3189,8 +3237,13 @@ export function MeetingRoomsPage() {
     const roomType = getMeetingRoomTypeFromName(extendBooking.roomName) as keyof typeof MEETING_ROOM_EXTENSION_RATES;
     const ratePerHour = MEETING_ROOM_EXTENSION_RATES[roomType] || 500;
     const extensionAmount = Math.round((ratePerHour / 60) * extraMinutes);
-    const gst = Math.round(extensionAmount * 0.18);
-    const extensionTotal = extensionAmount + gst;
+    const extensionTaxRate = taxConfig.enabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+    const gst = Math.round((extensionTaxRate <= 0
+      ? 0
+      : taxConfig.priceIncludesTax
+        ? extensionAmount * (extensionTaxRate / (1 + extensionTaxRate))
+        : extensionAmount * extensionTaxRate));
+    const extensionTotal = taxConfig.priceIncludesTax ? extensionAmount : extensionAmount + gst;
     const nextTotalAmount = (extendBooking.totalAmount || 0) + extensionTotal;
 
     // Tenant bookings are billed in credits, not currency.
@@ -3239,7 +3292,7 @@ export function MeetingRoomsPage() {
       creditsToDeduct,
       remainingCredits,
     };
-  }, [extendBooking, extendForm.extraMinutes, allBookings, roomCatalog, tenantCompanies]);
+  }, [extendBooking, extendForm.extraMinutes, allBookings, roomCatalog, tenantCompanies, taxConfig]);
 
   // --------- SCOPED BOOKINGS (for summary cards) ---------
   const scopedBookings = useMemo(() => {
@@ -3609,7 +3662,7 @@ export function MeetingRoomsPage() {
         const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
         const pricePerHour = Number(room?.pricePerHour || 0);
         if (pricePerHour > 0) {
-          const newPricing = computeExternalPricingMultiDay(pricePerHour, rescheduleData.date, rescheduleData.startTime, rescheduleEndDate, rescheduleData.endTime, 'flat', 0, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+          const newPricing = computeExternalPricingMultiDay(pricePerHour, rescheduleData.date, rescheduleData.startTime, rescheduleEndDate, rescheduleData.endTime, 'flat', 0, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, taxConfig);
           externalPricingUpdate = {
             baseAmount: newPricing.basePriceRaw,
             gstAmount: newPricing.gstAmount,
@@ -3617,7 +3670,7 @@ export function MeetingRoomsPage() {
           };
           // Extra amount due → record how the frontdesk collected it.
           if (newPricing.totalAmount - Number(rescheduleData.totalAmount || 0) > 0.5) {
-            externalPricingUpdate.paymentMode = reschedulePaymentMode || 'Cash';
+            externalPricingUpdate.paymentMode = reschedulePaymentMode || 'cash';
             externalPricingUpdate.paymentStatus = 'Paid';
           }
         }
@@ -3843,8 +3896,9 @@ export function MeetingRoomsPage() {
     if (!externalBookingForm.endTime) return setErrorMessage('End time is required.');
     const externalTimeValidation = getBookingTimeValidation(externalBookingForm.date, externalBookingForm.startTime, externalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
     if (!externalTimeValidation.valid) return setErrorMessage(externalTimeValidation.reason);
-    if (externalBookingForm.paymentMode !== 'Cash' && !externalBookingForm.transactionId.trim()) return setErrorMessage('Transaction / UTR number is required for GPay payments.');
-    if (externalBookingForm.paymentMode !== 'Cash' && !externalBookingForm.paymentProofFile) return setErrorMessage('Upload the GPay payment screenshot.');
+    if (!selectedExternalPaymentMethod) return setErrorMessage('Select a payment method enabled for this workspace.');
+    if (selectedExternalPaymentMethod.requiresReference && !externalBookingForm.transactionId.trim()) return setErrorMessage(`Payment reference is required for ${selectedExternalPaymentMethod.label}.`);
+    if (selectedExternalPaymentMethod.requiresProof && !externalBookingForm.paymentProofFile) return setErrorMessage(`Upload payment proof for ${selectedExternalPaymentMethod.label}.`);
     setIsSavingExternalBooking(true);
     setErrorMessage('');
     try {
@@ -3862,7 +3916,7 @@ export function MeetingRoomsPage() {
         endTime: externalBookingForm.endTime,
         attendees: externalBookingForm.attendees,
         purpose: externalBookingForm.purpose || 'External Booking',
-        paymentMode: externalBookingForm.paymentMode,
+        paymentMode: selectedExternalPaymentMethod.code,
         paymentStatus: 'Paid',
         transactionId: externalBookingForm.transactionId,
         paymentProof: externalBookingForm.paymentProofFile,
@@ -3888,7 +3942,7 @@ export function MeetingRoomsPage() {
       }
 
       setShowExternalBookingDialog(false);
-      setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash', transactionId: '', paymentProofFile: null, discountType: 'amount', discountValue: '', notes: '' });
+      setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'cash', transactionId: '', paymentProofFile: null, discountType: 'amount', discountValue: '', notes: '' });
       setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null);
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create external booking.');
@@ -5583,7 +5637,7 @@ export function MeetingRoomsPage() {
                                 )}
                                 {Number(viewingBooking.gstAmount || 0) > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-slate-500 font-pmedium">GST (18%)</span>
+                                    <span className="text-slate-500 font-pmedium">{String(viewingBooking.taxLabel || 'Tax')}{Number(viewingBooking.taxRatePercent || 0) > 0 ? ` (${Number(viewingBooking.taxRatePercent)}%)` : ''}</span>
                                     <span className="font-pmedium text-[#0F172A]">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
                                   </div>
                                 )}
@@ -6183,8 +6237,8 @@ export function MeetingRoomsPage() {
                   const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
                   const pricePerHour = Number(room?.pricePerHour || 0);
                   const rescheduleEndDate = (rescheduleData as any).endDate || rescheduleData.date;
-                  const origPricing = computeExternalPricing(pricePerHour, (rescheduleData as any).originalStartTime || rescheduleData.startTime, (rescheduleData as any).originalEndTime || rescheduleData.endTime, 'flat', 0);
-                  const newPricing = computeExternalPricingMultiDay(pricePerHour, rescheduleData.date, rescheduleData.startTime, rescheduleEndDate, rescheduleData.endTime, 'flat', 0, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+                  const origPricing = computeExternalPricing(pricePerHour, (rescheduleData as any).originalStartTime || rescheduleData.startTime, (rescheduleData as any).originalEndTime || rescheduleData.endTime, 'flat', 0, taxConfig);
+                  const newPricing = computeExternalPricingMultiDay(pricePerHour, rescheduleData.date, rescheduleData.startTime, rescheduleEndDate, rescheduleData.endTime, 'flat', 0, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, taxConfig);
                   const origTotal = Number(rescheduleData.totalAmount || origPricing.totalAmount || 0);
                   const newTotal = newPricing.totalAmount;
                   const diff = newTotal - origTotal;
@@ -6216,20 +6270,20 @@ export function MeetingRoomsPage() {
                         </div>
                       </div>
                       {pricePerHour > 0 && (
-                        <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr · GST included</p>
+                        <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr · {taxConfig.enabled ? `${getTaxDisplayLabel(taxConfig)} ${taxConfig.priceIncludesTax ? 'included' : 'applied'}` : 'No tax'}</p>
                       )}
                       {hasDiff && diff > 0 && (
                         <div className="pt-2 border-t border-amber-100">
                           <p className="text-[10px] font-pmedium text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Collect Extra Payment ({formatCurrency(diff)})</p>
                           <div className="flex gap-2">
-                            {['Cash', 'GPay (UPI)'].map((mode) => (
+                            {paymentMethods.filter((method) => !method.requiresReference && !method.requiresProof).map((method) => (
                               <button
-                                key={mode}
+                                key={method.code}
                                 type="button"
-                                onClick={() => setReschedulePaymentMode(mode)}
-                                className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${reschedulePaymentMode === mode ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'}`}
+                                onClick={() => setReschedulePaymentMode(method.code)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${reschedulePaymentMode === method.code ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'}`}
                               >
-                                {mode}
+                                {method.label}
                               </button>
                             ))}
                           </div>
@@ -6620,10 +6674,12 @@ export function MeetingRoomsPage() {
                               <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Taxable Amount</span>
                               <span className="text-[12px] font-pmedium text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">GST (18%)</span>
-                              <span className="text-[12px] font-pmedium text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.gst) : 'Pending'}</span>
-                            </div>
+                            {(taxConfig.enabled || externalWalkInPricing.gst > 0) && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>
+                                <span className="text-[12px] font-pmedium text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.gst) : 'Pending'}</span>
+                              </div>
+                            )}
                             <div className="h-px w-full bg-slate-200/80 my-1" />
                             <div className="flex items-center justify-between">
                               <span className="text-[13px] font-pmedium text-[#0F172A] uppercase tracking-widest">Total Due</span>
@@ -6644,32 +6700,36 @@ export function MeetingRoomsPage() {
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {['Cash', 'GPay (UPI)'].map(mode => (
-                      <button key={mode} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, paymentMode: mode, transactionId: mode === 'Cash' ? '' : f.transactionId, paymentProofFile: mode === 'Cash' ? null : f.paymentProofFile }))}
-                        className={`py-3.5 rounded-2xl border text-[11px] font-pmedium uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === mode ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB]/50'}`}>
-                        {mode}
+                    {paymentMethods.map(method => (
+                      <button key={method.code} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, paymentMode: method.code, transactionId: method.requiresReference ? f.transactionId : '', paymentProofFile: method.requiresProof ? f.paymentProofFile : null }))}
+                        className={`py-3.5 rounded-2xl border text-[11px] font-pmedium uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === method.code ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB]/50'}`}>
+                        {method.label}
                       </button>
                     ))}
                   </div>
-                  {externalBookingForm.paymentMode !== 'Cash' && (
+                  {(selectedExternalPaymentMethod?.requiresReference || selectedExternalPaymentMethod?.requiresProof) && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Transaction / UTR Number *</label>
-                        <input type="text" placeholder="Enter GPay reference" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Screenshot *</label>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          onChange={e => setExternalBookingForm(f => ({ ...f, paymentProofFile: e.target.files?.[0] || null }))}
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-pmedium text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[10px] file:font-pmedium file:uppercase file:text-blue-700"
-                        />
-                      </div>
+                      {selectedExternalPaymentMethod.requiresReference && (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Reference *</label>
+                          <input type="text" placeholder={`Enter ${selectedExternalPaymentMethod.label} reference`} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} />
+                        </div>
+                      )}
+                      {selectedExternalPaymentMethod.requiresProof && (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Proof *</label>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={e => setExternalBookingForm(f => ({ ...f, paymentProofFile: e.target.files?.[0] || null }))}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-pmedium text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[10px] file:font-pmedium file:uppercase file:text-blue-700"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-emerald-700">
-                    {externalBookingForm.paymentMode === 'Cash' ? 'Payment Status · Paid as Cash' : 'Payment Status · Paid via GPay'}
+                    {selectedExternalPaymentMethod ? `Payment Status · Paid via ${selectedExternalPaymentMethod.label}` : 'Select a payment method'}
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
@@ -6679,7 +6739,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime || (externalBookingForm.paymentMode !== 'Cash' && (!externalBookingForm.transactionId.trim() || !externalBookingForm.paymentProofFile))} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-pmedium text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime || !selectedExternalPaymentMethod || (selectedExternalPaymentMethod.requiresReference && !externalBookingForm.transactionId.trim()) || (selectedExternalPaymentMethod.requiresProof && !externalBookingForm.paymentProofFile)} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-pmedium text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingExternalBooking ? 'Confirming...' : 'Collect Payment & Confirm'}
                 </button>
               </div>

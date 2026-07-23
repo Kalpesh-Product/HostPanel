@@ -17,6 +17,7 @@ import {
 } from "../utils/resolveMembership.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 import logAuthEvent from "../utils/authActivityLog.js";
+import { renderNotificationEmail } from "../utils/emailTemplates.js";
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).+$/;
 
@@ -1012,14 +1013,19 @@ export const startRegisterWithOtp = async (req, res, next) => {
 
     await sendMail({
       to: inviteEmail,
-      subject: "WONO Registration OTP",
-      html: `
-      <p>Hi ${inviteName},</p>
-      <p>Your OTP for registration is:</p>
-      <h2>${otp}</h2>
-      <p>This OTP expires in 10 minutes.</p>
-      <p>If you didn't request this, please ignore this email.</p>
-      `,
+      subject: "Verify Your WONO Account",
+      html: renderNotificationEmail({
+        heroTitle: "Verify Your WONO Account",
+        heroSubtitle:
+          "Use the verification code below to continue your account activation.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${inviteName},</p>
+          <p class="email-text" style="margin:0;">Use the verification code below to verify your email address and continue your WONO account activation.</p>
+        `,
+        otpCode: { code: otp, expiryMinutes: 10 },
+        noteHtml:
+          "For your security, never share this verification code with anyone.<br/>WONO will never ask you to share your OTP, password, or account credentials.<br/><br/><b>Didn't request this verification?</b> You can safely ignore this email.",
+      }),
     });
 
     res.status(200).json({
@@ -1042,6 +1048,84 @@ export const startRegisterWithOtp = async (req, res, next) => {
     next(error);
   }
 };
+
+const buildSetupJourneyStep = ({ state, number, label }) => {
+  const icon =
+    state === "done"
+      ? `<span style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:50%;background:#e5f4fd;color:#0BA9EF;font-size:11px;text-align:center;vertical-align:middle;">&#10003;</span>`
+      : state === "current"
+        ? `<span style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:50%;background:#0BA9EF;vertical-align:middle;"></span>`
+        : state === "pending"
+          ? `<span style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:50%;background:#eef2f8;color:#8a93a3;font-size:11px;font-weight:600;text-align:center;vertical-align:middle;">${number}</span>`
+          : "";
+
+  const textColor =
+    state === "done"
+      ? "#123a75"
+      : state === "current"
+        ? "#0BA9EF"
+        : state === "final"
+          ? "#123a75"
+          : "#8a93a3";
+  const textWeight = state === "pending" ? 400 : state === "final" ? 700 : 600;
+
+  return `
+    <tr>
+      <td style="padding:6px 0;text-align:center;">
+        ${icon}
+        <span style="margin-left:${icon ? "8px" : "0"};font-weight:${textWeight};color:${textColor};vertical-align:middle;">${label}</span>
+      </td>
+    </tr>`;
+};
+
+const buildSetupJourneyArrow = () =>
+  `<tr><td style="text-align:center;color:#8a93a3;font-size:14px;padding:0 0 2px;">&#8595;</td></tr>`;
+
+const buildAccountReadyEmailBody = ({ email, loginUrl }) => `
+  <tr>
+    <td style="padding:24px 32px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-detail-bg" style="border-radius:10px;border-width:1px;border-style:solid;">
+        <tr>
+          <td style="padding:18px 24px;text-align:center;">
+            <p class="email-subtext" style="margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">Account Status</p>
+            <p class="email-heading" style="margin:0 0 8px;font-size:20px;font-weight:700;">&#10003; Activated</p>
+            <p class="email-subtext" style="margin:0;font-size:12px;">Your email has been verified and your WONO account is ready to use.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:28px 32px 4px;text-align:center;">
+      <p style="margin:0 0 12px;font-size:12px;font-weight:600;letter-spacing:0.5px;color:#0BA9EF;text-transform:uppercase;">Get Started</p>
+      <a href="${loginUrl}" style="display:inline-block;background:#0BA9EF;color:#ffffff;font-weight:600;font-size:14px;text-decoration:none;padding:13px 32px;border-radius:8px;">Login to WONO</a>
+      <p class="email-subtext" style="margin:12px 0 0;font-size:12px;">Log in using your registered email address and password.</p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:12px 32px 0;text-align:center;">
+      <p class="email-label" style="margin:0 0 4px;font-size:12px;">Registered Email</p>
+      <p class="email-value" style="margin:0;font-weight:600;font-size:14px;">${email}</p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:28px 32px 4px;">
+      <p style="margin:0 0 12px;font-size:12px;font-weight:600;letter-spacing:0.5px;color:#0BA9EF;text-transform:uppercase;text-align:center;">Your Setup Journey</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;">
+        ${buildSetupJourneyStep({ state: "done", label: "Account Verification" })}
+        ${buildSetupJourneyArrow()}
+        ${buildSetupJourneyStep({ state: "done", label: "Account Created" })}
+        ${buildSetupJourneyArrow()}
+        ${buildSetupJourneyStep({ state: "current", label: "Login to WONO" })}
+        ${buildSetupJourneyArrow()}
+        ${buildSetupJourneyStep({ state: "pending", number: 1, label: "Create Business Location" })}
+        ${buildSetupJourneyArrow()}
+        ${buildSetupJourneyStep({ state: "pending", number: 2, label: "Finalize Your Setup" })}
+        ${buildSetupJourneyArrow()}
+        ${buildSetupJourneyStep({ state: "final", label: "WONO Dashboard" })}
+      </table>
+    </td>
+  </tr>`;
 
 export const verifyRegisterOtpAndComplete = async (req, res, next) => {
   try {
@@ -1154,6 +1238,26 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
     }
 
     await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+
+    try {
+      const loginUrl = `${resolveHostPanelFrontendUrl()}/`;
+      await sendMail({
+        to: inviteEmail,
+        subject: "Your WONO Account Is Ready",
+        html: renderNotificationEmail({
+          heroTitle: "Your WONO Account Is Ready",
+          heroSubtitle: "Your account has been created successfully.",
+          greetingHtml: `
+            <p style="margin:0 0 4px;">Hello ${payloadName},</p>
+            <p class="email-text" style="margin:0;">Thank you for completing your verification. Your WONO account has been successfully created and you can now log in to continue setting up your new business location.</p>
+            <p class="email-text" style="margin:8px 0 0;">It only takes two quick steps before you reach your dashboard.</p>
+          `,
+          bodyHtml: buildAccountReadyEmailBody({ email: inviteEmail, loginUrl }),
+        }),
+      });
+    } catch (emailError) {
+      console.error("Failed to send account-ready email:", emailError?.message);
+    }
 
     return res.status(200).json({
       message: "Registration completed successfully. You can now sign in.",

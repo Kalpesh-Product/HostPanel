@@ -36,7 +36,8 @@ export interface IAttendance extends Document {
     employeeRole: mongoose.Types.ObjectId;
     department?: mongoose.Types.ObjectId | null;
     attendanceDate: Date;
-    dateKey: string; // YYYY-MM-DD
+    dateKey: string; // YYYY-MM-DD in timezone
+    timezone: string;
     mode: "office" | "wfh";
     status: "present" | "present_late" | "wfh" | "on_break" | "shortfall" | "half_day" | "absent" | "overtime" | "sunday_off";
     checkInAt?: Date | null;
@@ -152,6 +153,7 @@ const attendanceSchema = new Schema<IAttendance>(
             match: /^\d{4}-\d{2}-\d{2}$/,
             index: true,
         },
+        timezone: { type: String, required: true, default: "Asia/Kolkata", trim: true },
         mode: {
             type: String,
             enum: ["office", "wfh"],

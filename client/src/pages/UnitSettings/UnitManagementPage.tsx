@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
+  ArrowLeftRight,
   ChevronDown,
   ChevronUp,
   BarChart3,
@@ -28,6 +29,7 @@ import {
   getWorkspaceManagementOverview,
   updateManagedWorkspace,
 } from "../../services/unit-management";
+import { switchWorkspaceSession } from "../../services/workspace-session";
 import PageFrame from "../../components/Pages/PageFrame";
 
 // Type definitions
@@ -88,6 +90,10 @@ function MetricCard({ icon: Icon, label, value, tone = "blue" }) {
     emerald: "bg-emerald-50 text-emerald-600",
     amber: "bg-amber-50 text-amber-600",
     violet: "bg-violet-50 text-violet-600",
+    rose: "bg-rose-50 text-rose-600",
+    cyan: "bg-cyan-50 text-cyan-600",
+    orange: "bg-orange-50 text-orange-600",
+    indigo: "bg-indigo-50 text-indigo-600",
     slate: "bg-slate-50 text-slate-600",
   }[tone];
 
@@ -96,6 +102,10 @@ function MetricCard({ icon: Icon, label, value, tone = "blue" }) {
     emerald: "border-l-4 border-l-emerald-500",
     amber: "border-l-4 border-l-amber-500",
     violet: "border-l-4 border-l-violet-500",
+    rose: "border-l-4 border-l-rose-500",
+    cyan: "border-l-4 border-l-cyan-500",
+    orange: "border-l-4 border-l-orange-500",
+    indigo: "border-l-4 border-l-indigo-500",
     slate: "",
   }[tone];
 
@@ -273,10 +283,10 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
             <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments || 0} tone="emerald" />
             <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets || 0} tone="amber" />
             <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks || 0} tone="violet" />
-            <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="blue" />
-            <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="emerald" />
-            <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="amber" />
-            <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="violet" />
+            <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
+            <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
+            <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
+            <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
           </div>
 
           <div className="mt-5 rounded-2xl border border-slate-100 bg-white/80 backdrop-blur-md p-3.5">
@@ -434,7 +444,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
 }
 
 export default function WorkspaceManagementPage() {
-  const { auth } = useAuth();
+  const { auth, setAuth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
   const currentUser = getStoredUser();
@@ -461,6 +471,7 @@ export default function WorkspaceManagementPage() {
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isCombinedModalOpen, setIsCombinedModalOpen] = useState(false);
+  const [switchingWorkspaceId, setSwitchingWorkspaceId] = useState("");
 
   useEffect(() => {
     if (isWorkspaceManagementLocked) {
@@ -628,6 +639,39 @@ export default function WorkspaceManagementPage() {
     });
   }
 
+  async function handleSwitchWorkspace(workspace) {
+    if (!workspace?.id || workspace.isActiveWorkspace || switchingWorkspaceId) {
+      return;
+    }
+    try {
+      setSwitchingWorkspaceId(workspace.id);
+      const response = await switchWorkspaceSession(axiosPrivate, workspace.id);
+      const switchedWorkspaceId = String(response?.data?.data?.activeWorkspaceId || workspace.id);
+      const nextAccessible = Array.isArray(response?.data?.data?.accessibleWorkspaces)
+        ? response.data.data.accessibleWorkspaces
+        : undefined;
+      setAuth((prev) => ({
+        ...prev,
+        user: prev.user
+          ? {
+              ...(prev.user as Record<string, unknown>),
+              primaryWorkspace: switchedWorkspaceId,
+              ...(nextAccessible ? { accessibleWorkspaces: nextAccessible } : {}),
+            }
+          : prev.user,
+      }));
+      toast.success(`Switched to ${workspace.workspaceName || "unit"}.`);
+      // Full reload so this page's overview, the header switcher, and every
+      // other "which unit am I in" read across the app pick up the new
+      // active workspace consistently, same as the header switcher does by
+      // navigating to a fresh page.
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Unable to switch unit.");
+      setSwitchingWorkspaceId("");
+    }
+  }
+
   async function handleSaveEdit(event) {
     event.preventDefault();
     if (!editingWorkspace?.id) {
@@ -693,10 +737,10 @@ export default function WorkspaceManagementPage() {
                 <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
                 <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
                 <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks} tone="violet" />
-                <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="blue" />
-                <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="emerald" />
-                <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="amber" />
-                <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="violet" />
+                <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
+                <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
+                <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
+                <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
               </div>
 
               {/* 3. DATA PANEL */}
@@ -832,6 +876,22 @@ export default function WorkspaceManagementPage() {
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit Unit
                               </button>
+                              {!workspace.isActiveWorkspace ? (
+                                <button
+                                  data-tour="unit-management-switch-unit"
+                                  type="button"
+                                  onClick={() => handleSwitchWorkspace(workspace)}
+                                  disabled={Boolean(switchingWorkspaceId)}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-[12px] font-pmedium text-[#2563EB] shadow-sm transition hover:bg-blue-100 disabled:opacity-60"
+                                >
+                                  {switchingWorkspaceId === workspace.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                                  )}
+                                  {switchingWorkspaceId === workspace.id ? "Switching..." : "Switch"}
+                                </button>
+                              ) : null}
                             </div>
                           </div>
 
@@ -840,10 +900,10 @@ export default function WorkspaceManagementPage() {
                             <MetricCard icon={Briefcase} label="Departments" value={workspace.metrics.totalDepartments} tone="emerald" />
                             <MetricCard icon={Ticket} label="Tickets" value={workspace.metrics.totalTickets} tone="amber" />
                             <MetricCard icon={CheckCircle2} label="Tasks" value={workspace.metrics.totalTasks} tone="violet" />
-                            <MetricCard icon={Package} label="Assets" value={workspace.metrics.totalAssets || 0} tone="blue" />
-                            <MetricCard icon={Boxes} label="Inventory" value={workspace.metrics.totalInventory || 0} tone="emerald" />
-                            <MetricCard icon={CalendarDays} label="Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="amber" />
-                            <MetricCard icon={BarChart3} label="Performance" value={`${workspace.metrics.performance?.overallScore || 0}%`} tone="violet" />
+                            <MetricCard icon={Package} label="Assets" value={workspace.metrics.totalAssets || 0} tone="rose" />
+                            <MetricCard icon={Boxes} label="Inventory" value={workspace.metrics.totalInventory || 0} tone="cyan" />
+                            <MetricCard icon={CalendarDays} label="Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="orange" />
+                            <MetricCard icon={BarChart3} label="Performance" value={`${workspace.metrics.performance?.overallScore || 0}%`} tone="indigo" />
                           </div>
 
                           {expandedWorkspaceId === workspace.id ? (

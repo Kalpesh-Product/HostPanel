@@ -64,7 +64,7 @@ export default function WorkspaceSwitcher() {
     <div
       data-tour="workspace-switcher"
       style={{ width: `${switcherWidthCh}ch` }}
-      className="flex items-center gap-2 rounded-[16px] border border-white/80 bg-white/60 px-2.5 py-2 sm:px-3 shadow-[0_2px_8px_rgba(15,23,42,0.03)]"
+      className="flex items-center gap-2 rounded-[16px] border border-white/80 bg-white/60 px-2.5 py-2 sm:px-3 shadow-[0_4px_14px_rgba(15,23,42,0.10)]"
     >
       <Building2 className="h-4 w-4 shrink-0 text-slate-500" />
       <select

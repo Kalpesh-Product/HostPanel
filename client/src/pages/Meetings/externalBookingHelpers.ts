@@ -235,7 +235,24 @@ export function computeBusinessHoursDuration(
   return ((dailyEnd - dailyStart) * dayCount) / 60;
 }
 
-function applyDiscountAndGst(basePriceRaw: number, discountType: 'flat' | 'percent', discountValue: number | string): ExternalPricingResult {
+export type ExternalTaxConfig = {
+  enabled?: boolean;
+  ratePercent?: number;
+  priceIncludesTax?: boolean;
+};
+
+const DEFAULT_TAX_CONFIG: Required<ExternalTaxConfig> = {
+  enabled: true,
+  ratePercent: 18,
+  priceIncludesTax: false,
+};
+
+function applyDiscountAndTax(
+  basePriceRaw: number,
+  discountType: 'flat' | 'percent',
+  discountValue: number | string,
+  taxConfig: ExternalTaxConfig = DEFAULT_TAX_CONFIG,
+): ExternalPricingResult {
   const rawDiscountInput = Number(discountValue) || 0;
   let discountAmount = 0;
 
@@ -250,8 +267,16 @@ function applyDiscountAndGst(basePriceRaw: number, discountType: 'flat' | 'perce
   }
 
   const discountedBase = Math.max(basePriceRaw - discountAmount, 0);
-  const gstAmount = Math.round(discountedBase * 0.18 * 100) / 100;
-  const totalAmount = Math.round((discountedBase + gstAmount) * 100) / 100;
+  const enabled = taxConfig.enabled !== false;
+  const ratePercent = enabled ? Math.min(100, Math.max(0, Number(taxConfig.ratePercent ?? 18) || 0)) : 0;
+  const priceIncludesTax = Boolean(taxConfig.priceIncludesTax);
+  const taxAmount = !enabled || ratePercent <= 0
+    ? 0
+    : priceIncludesTax
+      ? discountedBase * (ratePercent / (100 + ratePercent))
+      : discountedBase * (ratePercent / 100);
+  const gstAmount = Math.round(taxAmount * 100) / 100;
+  const totalAmount = Math.round((priceIncludesTax ? discountedBase : discountedBase + gstAmount) * 100) / 100;
 
   return { basePriceRaw, discountAmount, gstAmount, totalAmount, noRateSet: false };
 }
@@ -271,6 +296,7 @@ export function computeExternalPricingMultiDay(
   discountValue: number | string,
   dayStartMinutes?: number,
   dayEndMinutes?: number,
+  taxConfig?: ExternalTaxConfig,
 ): ExternalPricingResult {
   const priceNum = Number(pricePerHour ?? 0);
   const noRateSet = pricePerHour === 0 || pricePerHour === null || pricePerHour === undefined;
@@ -285,7 +311,7 @@ export function computeExternalPricingMultiDay(
   }
 
   const basePriceRaw = Math.round(priceNum * durationHours * 100) / 100;
-  return applyDiscountAndGst(basePriceRaw, discountType, discountValue);
+  return applyDiscountAndTax(basePriceRaw, discountType, discountValue, taxConfig);
 }
 
 /**
@@ -310,6 +336,7 @@ export function computeExternalPricing(
   endTime: string,
   discountType: 'flat' | 'percent',
   discountValue: number | string,
+  taxConfig?: ExternalTaxConfig,
 ): ExternalPricingResult {
   const priceNum = Number(pricePerHour ?? 0);
   const noRateSet = pricePerHour === 0 || pricePerHour === null || pricePerHour === undefined;
@@ -327,25 +354,5 @@ export function computeExternalPricing(
 
   const durationHours = (endMinutes - startMinutes) / 60;
   const basePriceRaw = Math.round(priceNum * durationHours * 100) / 100;
-
-  // Discount
-  const rawDiscountInput = Number(discountValue) || 0;
-  let discountAmount = 0;
-
-  if (rawDiscountInput > 0) {
-    if (discountType === 'percent') {
-      const pct = Math.min(Math.max(rawDiscountInput, 0), 100);
-      discountAmount = Math.round(basePriceRaw * (pct / 100) * 100) / 100;
-    } else {
-      // flat
-      discountAmount = Math.min(Math.max(rawDiscountInput, 0), basePriceRaw);
-      discountAmount = Math.round(discountAmount * 100) / 100;
-    }
-  }
-
-  const discountedBase = Math.max(basePriceRaw - discountAmount, 0);
-  const gstAmount = Math.round(discountedBase * 0.18 * 100) / 100;
-  const totalAmount = Math.round((discountedBase + gstAmount) * 100) / 100;
-
-  return { basePriceRaw, discountAmount, gstAmount, totalAmount, noRateSet };
+  return applyDiscountAndTax(basePriceRaw, discountType, discountValue, taxConfig);
 }

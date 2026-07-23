@@ -3,6 +3,12 @@ import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
 import useBusinessHours from '../../hooks/useBusinessHours';
+import useWorkspacePreferences from '../../hooks/useWorkspacePreferences';
+import {
+  DEFAULT_WORKSPACE_TIMEZONE,
+  getWorkspaceDateKey,
+} from '../../lib/workspaceLocalization';
+import { getPaymentMethod, getTaxDisplayLabel } from '../../lib/workspaceBilling';
 
 import {
   createVisitorLog,
@@ -33,7 +39,7 @@ import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
 
-function formatTimeLabel(value) {
+function formatTimeLabel(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) return '';
 
   const timeOnlyMatch = String(value).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
@@ -52,16 +58,16 @@ function formatTimeLabel(value) {
       : new Date(String(value).includes('T') ? String(value) : `1970-01-01T${value}`);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleTimeString('en-IN', {
-    timeZone: 'Asia/Kolkata',
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
   });
 }
 
-function getWorkspaceClockMinutes(value = new Date()) {
+function getWorkspaceClockMinutes(value = new Date(), timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -142,7 +148,6 @@ const DEFAULT_WALK_IN_WORKING_START = 9 * 60;
 const DEFAULT_WALK_IN_WORKING_END = 22 * 60;
 const WALK_IN_SLOT_STEP = 5;
 const WALK_IN_MIN_DURATION_MINUTES = 30;
-const WALK_IN_GST_RATE = 0.18;
 const MEETING_ROOM_CLEANUP_BUFFER_MINUTES = 5;
 
 function normalizeText(value) {
@@ -170,12 +175,14 @@ function hasMeaningfulTimeValue(value) {
   return !['--:--', '-', 'n/a', 'na', 'none', 'null'].includes(text.toLowerCase());
 }
 
-function formatDateKey(value) {
+function formatDateKey(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) return '';
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}(?:$|T)/.test(raw) && !raw.includes('T')) return raw.slice(0, 10);
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Kolkata',
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -184,12 +191,12 @@ function formatDateKey(value) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function formatDisplayDate(value) {
+function formatDisplayDate(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) return '';
   const date = new Date(value);
   if (!Number.isNaN(date.getTime())) {
     return date.toLocaleDateString('en-US', {
-      timeZone: 'Asia/Kolkata',
+      timeZone,
       month: 'short',
       day: '2-digit',
       year: 'numeric',
@@ -198,7 +205,7 @@ function formatDisplayDate(value) {
   const fallback = new Date(`${value}T12:00:00`);
   if (Number.isNaN(fallback.getTime())) return String(value);
   return fallback.toLocaleDateString('en-US', {
-    timeZone: 'Asia/Kolkata',
+    timeZone,
     month: 'short',
     day: '2-digit',
     year: 'numeric',
@@ -492,9 +499,11 @@ function getWalkInValidationErrors(form = {}, options = {}) {
   if (options.isDeskAreaSeatBooking && !String(form.seatNumber || '').trim()) {
     errors.seatNumber = requiredMessage;
   }
-  if (normalizeText(form.paymentMode).includes('gpay')) {
-    if (!String(form.transactionId || '').trim()) errors.transactionId = requiredMessage;
-    if (!form.paymentProofFile) errors.paymentProofFile = 'Upload the payment screenshot.';
+  if (options.paymentMethod?.requiresReference && !String(form.transactionId || '').trim()) {
+    errors.transactionId = `${options.paymentMethod.label} reference is required.`;
+  }
+  if (options.paymentMethod?.requiresProof && !form.paymentProofFile) {
+    errors.paymentProofFile = `Upload payment proof for ${options.paymentMethod.label}.`;
   }
   if (!options.availability?.available) {
     errors.availability = options.availability?.reason || 'Please choose an available slot.';
@@ -941,6 +950,11 @@ function normalizeDailyBooking(booking) {
     taxableBaseAfterDiscount: Number(booking.taxableBaseAfterDiscount || booking.baseAmount || 0),
     baseAmount: Number(booking.baseAmount || 0),
     gstAmount: Number(booking.gstAmount || 0),
+    taxLabel: booking.taxLabel || (Number(booking.gstAmount || 0) > 0 ? 'GST' : 'Tax'),
+    taxRatePercent: Number(booking.taxRatePercent ?? (Number(booking.gstAmount || 0) > 0 ? 18 : 0)),
+    priceIncludesTax: Boolean(booking.priceIncludesTax),
+    paymentMethodCode: booking.paymentMethodCode || '',
+    paymentMethodLabel: booking.paymentMethodLabel || booking.paymentMode || '',
     extensionAmount: Number(booking.extensionAmount || 0),
     originalTotalAmount: Math.max(Number(booking.totalAmount || booking.amountDue || 0) - Number(booking.extensionAmount || 0), 0),
     paymentMode: booking.paymentMode || '',
@@ -1013,6 +1027,9 @@ export default function VisitorsManagementPage() {
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const businessHours = useBusinessHours();
+  const workspacePreferences = useWorkspacePreferences();
+  const paymentMethods = workspacePreferences.billing.paymentMethods;
+  const taxConfig = workspacePreferences.billing.tax;
   const WALK_IN_WORKING_START = businessHours.startMinutes;
   const WALK_IN_WORKING_END = businessHours.endMinutes;
   const isReadOnlySession = Boolean(auth?.impersonation);
@@ -1228,10 +1245,14 @@ export default function VisitorsManagementPage() {
   const [meetingRoomOverviewError, setMeetingRoomOverviewError] = useState('');
 
   const [form, setForm] = useState(getDefaultVisitorForm());
+  const selectedPaymentMethod = useMemo(
+    () => getPaymentMethod(workspacePreferences.billing, form.paymentMode),
+    [form.paymentMode, workspacePreferences.billing],
+  );
 
   const [cancelForm, setCancelForm] = useState({ reason: '', refundType: 'Full Refund' });
-  const [rescheduleForm, setRescheduleForm] = useState({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' });
-  const [extendForm, setExtendForm] = useState({ newEndTime: '', paymentMode: 'Cash' });
+  const [rescheduleForm, setRescheduleForm] = useState({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'cash' });
+  const [extendForm, setExtendForm] = useState({ newEndTime: '', paymentMode: 'cash' });
   const [verifiedBooking, setVerifiedBooking] = useState(null);
 
   const frontdeskProfile = useMemo(() => {
@@ -1484,7 +1505,11 @@ export default function VisitorsManagementPage() {
     };
   }, [workspaceId]);
 
-  const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val) => new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: workspacePreferences.currency,
+    maximumFractionDigits: 2,
+  }).format(Number(val || 0));
 
   const timeToDecimal = (t) => {
     if (!t) return 0;
@@ -1522,10 +1547,15 @@ export default function VisitorsManagementPage() {
     const rate = getWalkInRate(matchedRoom || extendingBooking).hourly;
 
     const basePrice = extraHours * rate;
-    const gst = basePrice * 0.18;
+    const taxRate = taxConfig.enabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+    const gst = taxRate <= 0
+      ? 0
+      : taxConfig.priceIncludesTax
+        ? basePrice * (taxRate / (1 + taxRate))
+        : basePrice * taxRate;
 
-    return { base: basePrice, gst, total: basePrice + gst, extraHours };
-  }, [extendingBooking, extendForm]);
+    return { base: basePrice, gst, total: taxConfig.priceIncludesTax ? basePrice : basePrice + gst, extraHours };
+  }, [extendingBooking, extendForm, taxConfig]);
 
   const historyPeriods = useMemo(() => {
     const periods = new Map();
@@ -1605,7 +1635,7 @@ export default function VisitorsManagementPage() {
   );
 
   const dailyBookings = useMemo(() => {
-    const todayKey = formatDateKey(new Date());
+    const todayKey = getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
     const query = searchQuery.trim().toLowerCase();
 
     return upcomingBookings
@@ -1636,7 +1666,7 @@ export default function VisitorsManagementPage() {
         const rightValue = `${right.date || ''} ${right.time || ''}`;
         return rightValue.localeCompare(leftValue);
       });
-  }, [searchQuery, upcomingBookings]);
+  }, [searchQuery, upcomingBookings, workspacePreferences.timezone]);
 
   const bookingCollections = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -2037,11 +2067,11 @@ export default function VisitorsManagementPage() {
     return walkInRoomOptions.find((room) => room.name === form.resourceName) || null;
   }, [walkInRoomOptions, form.resourceName]);
   const currentRoundedTime = useMemo(
-    () => roundUpToStepTime(minutesToTime(getWorkspaceClockMinutes() + 1)),
-    [],
+    () => roundUpToStepTime(minutesToTime(getWorkspaceClockMinutes(new Date(), workspacePreferences.timezone) + 1)),
+    [workspacePreferences.timezone],
   );
   const walkInStartTimeOptions = useMemo(() => {
-    const isToday = form.startDate && formatDateKey(form.startDate) === formatDateKey(new Date());
+    const isToday = form.startDate && formatDateKey(form.startDate) === getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
     const currentMinutes = timeToMinutes(currentRoundedTime);
     const minStartMinutes = isToday && currentMinutes != null
       ? Math.max(WALK_IN_WORKING_START, currentMinutes)
@@ -2056,7 +2086,7 @@ export default function VisitorsManagementPage() {
       minutesToTime(minStartMinutes),
       minutesToTime(latestStartMinutes),
     );
-  }, [WALK_IN_WORKING_END, WALK_IN_WORKING_START, currentRoundedTime, form.startDate]);
+  }, [WALK_IN_WORKING_END, WALK_IN_WORKING_START, currentRoundedTime, form.startDate, workspacePreferences.timezone]);
   const walkInEndTimeOptions = useMemo(() => {
     const startMinutes = timeToMinutes(form.startTime);
     if (startMinutes == null) {
@@ -2213,7 +2243,12 @@ export default function VisitorsManagementPage() {
       : discountValue;
     const discountAmount = Math.min(Math.max(discountAmountRaw, 0), subtotalBeforeDiscount);
     const taxableBaseAfterDiscount = Math.max(subtotalBeforeDiscount - discountAmount, 0);
-    const gst = taxableBaseAfterDiscount * WALK_IN_GST_RATE;
+    const taxRate = taxConfig.enabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+    const gst = taxRate <= 0
+      ? 0
+      : taxConfig.priceIncludesTax
+        ? taxableBaseAfterDiscount * (taxRate / (1 + taxRate))
+        : taxableBaseAfterDiscount * taxRate;
     return {
       base: taxableBaseAfterDiscount,
       discountType,
@@ -2222,11 +2257,11 @@ export default function VisitorsManagementPage() {
       subtotalBeforeDiscount,
       taxableBaseAfterDiscount,
       gst,
-      total: taxableBaseAfterDiscount + gst,
+      total: taxConfig.priceIncludesTax ? taxableBaseAfterDiscount : taxableBaseAfterDiscount + gst,
       durationHours,
       roomRate: rate,
     };
-  }, [form.discountType, form.discountValue, form.endDate, form.endTime, form.startDate, form.startTime, selectedWalkInRoom]);
+  }, [form.discountType, form.discountValue, form.endDate, form.endTime, form.startDate, form.startTime, selectedWalkInRoom, taxConfig]);
 
   const walkInAvailability = useMemo(() => {
     const selectedType = form.spaceType || 'space';
@@ -2307,7 +2342,7 @@ export default function VisitorsManagementPage() {
       };
     }
 
-    const todayKey = formatDateKey(new Date());
+    const todayKey = getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
     if (startDateKey < todayKey || endDateKey < todayKey) {
       return {
         status: 'pending',
@@ -2465,6 +2500,7 @@ export default function VisitorsManagementPage() {
     meetingRoomCatalog,
     selectedSeatNumber,
     selectedWalkInRoom,
+    workspacePreferences.timezone,
   ]);
 
   const isCompactMode = visitorMode === 'standard' || visitorMode === 'walkin_booking' || visitorMode === 'verify_booking' || visitorMode === 'tour';
@@ -2548,7 +2584,8 @@ export default function VisitorsManagementPage() {
     attendeeCapacity,
     availability: walkInAvailability,
     isDeskAreaSeatBooking,
-  }), [attendeeCapacity, form, isDeskAreaSeatBooking, walkInAvailability]);
+    paymentMethod: selectedPaymentMethod,
+  }), [attendeeCapacity, form, isDeskAreaSeatBooking, selectedPaymentMethod, walkInAvailability]);
   const visibleWalkInErrors = useMemo(() => {
     const nextErrors = {};
     Object.entries(walkInErrors).forEach(([field, message]) => {
@@ -2783,7 +2820,7 @@ export default function VisitorsManagementPage() {
   const openBookingFromVisitor = (visitor) => {
     const visitorId = visitor?.recordId || visitor?.id || '';
     const now = new Date();
-    const roundedNowMinutes = Math.ceil((getWorkspaceClockMinutes(now) + 1) / WALK_IN_SLOT_STEP) * WALK_IN_SLOT_STEP;
+    const roundedNowMinutes = Math.ceil((getWorkspaceClockMinutes(now, workspacePreferences.timezone) + 1) / WALK_IN_SLOT_STEP) * WALK_IN_SLOT_STEP;
     const defaultStartMinutes = Math.max(WALK_IN_WORKING_START, roundedNowMinutes);
     const hasRemainingBookingWindow = defaultStartMinutes + WALK_IN_MIN_DURATION_MINUTES <= WALK_IN_WORKING_END;
     const defaultDuration = defaultStartMinutes + 60 <= WALK_IN_WORKING_END ? 60 : WALK_IN_MIN_DURATION_MINUTES;
@@ -3198,11 +3235,10 @@ export default function VisitorsManagementPage() {
           purpose: form.purpose || 'Walk-in Booking',
           attendees: bookingAttendees,
           seatNumber: isDeskAreaSeatBooking ? walkInSeatNumber : undefined,
-          paymentMode: form.paymentMode,
-          // GPay is always paid; Cash is paid unless the front desk marked it unpaid.
-          paymentStatus: (form.paymentMode === 'Cash' && form.paymentSettled === 'unpaid') ? 'Pending Payment' : 'Paid',
-          financeStatus: form.paymentMode === 'Cash' ? 'Invoice Pending' : 'Sent To Finance',
-          paymentVerificationStatus: form.paymentMode === 'Cash' ? '' : 'Pending',
+          paymentMode: selectedPaymentMethod?.code || form.paymentMode,
+          paymentStatus: (selectedPaymentMethod?.code === 'cash' && form.paymentSettled === 'unpaid') ? 'Pending Payment' : 'Paid',
+          financeStatus: selectedPaymentMethod?.code === 'cash' ? 'Invoice Pending' : 'Sent To Finance',
+          paymentVerificationStatus: selectedPaymentMethod?.code === 'cash' ? '' : 'Pending',
           transactionId: form.transactionId.trim(),
           paymentProof: form.paymentProofFile,
           discountType: walkInPricing.discountType === 'percent' ? 'percent' : 'flat',
@@ -3360,8 +3396,8 @@ export default function VisitorsManagementPage() {
       gstAmount: Number(extendingBooking?.raw?.gstAmount || extendingBooking?.gstAmount || 0),
       totalAmount: nextTotalAmount,
       paymentMode: extendForm.paymentMode,
-      paymentStatus: extendForm.paymentMode === 'Cash' ? 'Cash collected at frontdesk' : 'Payment collected at frontdesk',
-      financeStatus: extendForm.paymentMode === 'Cash' ? 'Invoice Pending' : 'Not Required',
+      paymentStatus: extendForm.paymentMode === 'cash' ? 'Cash collected at frontdesk' : 'Payment collected at frontdesk',
+      financeStatus: extendForm.paymentMode === 'cash' ? 'Invoice Pending' : 'Not Required',
     })
       .then((response) => {
         const updatedBooking = response?.data?.booking || response?.booking || null;
@@ -3524,8 +3560,13 @@ export default function VisitorsManagementPage() {
     const rescheduleDaySpan = Math.max(1, getWalkInDaySpan(rescheduleForm.newDate, rescheduleEndDate) || 1);
     const rescheduleHours = ((endMinutes - startMinutes) / 60) * rescheduleDaySpan;
     const rescheduleBase = Math.round(rescheduleHours * rescheduleRate.hourly * 100) / 100;
-    const rescheduleGst = Math.round(rescheduleBase * WALK_IN_GST_RATE * 100) / 100;
-    const rescheduleNewTotal = Math.round((rescheduleBase + rescheduleGst) * 100) / 100;
+    const rescheduleTaxRate = taxConfig.enabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+    const rescheduleGst = Math.round((rescheduleTaxRate <= 0
+      ? 0
+      : taxConfig.priceIncludesTax
+        ? rescheduleBase * (rescheduleTaxRate / (1 + rescheduleTaxRate))
+        : rescheduleBase * rescheduleTaxRate) * 100) / 100;
+    const rescheduleNewTotal = Math.round((taxConfig.priceIncludesTax ? rescheduleBase : rescheduleBase + rescheduleGst) * 100) / 100;
     const reschedulePricing = rescheduleRate.hourly > 0
       ? { baseAmount: rescheduleBase, gstAmount: rescheduleGst, totalAmount: rescheduleNewTotal }
       : {};
@@ -3533,15 +3574,15 @@ export default function VisitorsManagementPage() {
     const rescheduleOriginalTotal = Number(reschedulingBooking?.totalAmount || reschedulingBooking?.amountDue || 0);
     const hasExtraDue = rescheduleRate.hourly > 0 && rescheduleNewTotal - rescheduleOriginalTotal > 0.5;
     const reschedulePayment = hasExtraDue
-      ? { paymentMode: rescheduleForm.paymentMode || 'Cash', paymentStatus: 'Paid' }
+      ? { paymentMode: rescheduleForm.paymentMode || 'cash', paymentStatus: 'Paid' }
       : {};
 
     setShowRescheduleConfirm(false);
     setIsReschedulingBookingSaving(true);
 
     updateMeetingRoomBooking(bookingId, {
-      start: `${rescheduleForm.newDate}T${rescheduleForm.newStartTime}:00+05:30`,
-      end: `${rescheduleEndDate}T${rescheduleForm.newEndTime}:00+05:30`,
+      start: `${rescheduleForm.newDate}T${rescheduleForm.newStartTime}:00`,
+      end: `${rescheduleEndDate}T${rescheduleForm.newEndTime}:00`,
       scheduleChangeType: 'rescheduled',
       ...reschedulePricing,
       ...reschedulePayment,
@@ -5388,7 +5429,7 @@ export default function VisitorsManagementPage() {
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Start Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
-                                  min={formatDateKey(new Date())}
+                                  min={getWorkspaceDateKey(new Date(), workspacePreferences.timezone)}
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.startDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.startDate}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, startDate: true }))}
@@ -5565,7 +5606,7 @@ export default function VisitorsManagementPage() {
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-                                  Discount {form.discountType === 'percent' ? '(%)' : '(INR)'}
+                                  Discount {form.discountType === 'percent' ? '(%)' : `(${workspacePreferences.currency})`}
                                 </label>
                                 <input
                                   type="number"
@@ -5591,10 +5632,12 @@ export default function VisitorsManagementPage() {
                                 <span>Taxable amount</span>
                                 <span>{hasWalkInQuote ? formatCurrency(walkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
                               </div>
-                              <div className="flex justify-between text-[12px] font-semibold text-slate-600">
-                                <span>GST (18%)</span>
-                                <span>{hasWalkInQuote ? formatCurrency(walkInPricing.gst) : 'Pending'}</span>
-                              </div>
+                              {(taxConfig.enabled || walkInPricing.gst > 0) && (
+                                <div className="flex justify-between text-[12px] font-semibold text-slate-600">
+                                  <span>{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>
+                                  <span>{hasWalkInQuote ? formatCurrency(walkInPricing.gst) : 'Pending'}</span>
+                                </div>
+                              )}
                               <div className="flex justify-between border-t border-slate-200 pt-2 text-[14px] font-bold text-[#0F172A]">
                                 <span>Total</span>
                                 <span>{hasWalkInQuote ? formatCurrency(walkInPricing.total) : 'Pending'}</span>
@@ -5627,19 +5670,27 @@ export default function VisitorsManagementPage() {
                             <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-4">
                               <span className={statusPillClass("Payment Mode")}>Payment Mode</span>
                               <div className="grid grid-cols-2 gap-2">
-                                {['Cash', 'GPay (UPI)'].map((mode) => (
+                                {paymentMethods.map((method) => (
                                   <button
-                                    key={mode}
+                                    key={method.code}
                                     type="button"
-                                    onClick={() => { setWalkInTouched((prev) => ({ ...prev, paymentMode: true })); setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null }); }}
-                                    className={`rounded-lg border px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
+                                    onClick={() => {
+                                      setWalkInTouched((prev) => ({ ...prev, paymentMode: true }));
+                                      setForm((current) => ({
+                                        ...current,
+                                        paymentMode: method.code,
+                                        transactionId: method.requiresReference ? current.transactionId : '',
+                                        paymentProofFile: method.requiresProof ? current.paymentProofFile : null,
+                                      }));
+                                    }}
+                                    className={`rounded-lg border px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${form.paymentMode === method.code ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                   >
-                                    {mode}
+                                    {method.label}
                                   </button>
                                 ))}
                               </div>
                               {visibleWalkInErrors.paymentMode ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentMode}</span> : null}
-                              {form.paymentMode === 'Cash' && (
+                              {selectedPaymentMethod?.code === 'cash' && (
                                 <div className="space-y-2">
                                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Received?</label>
                                   <div className="grid grid-cols-2 gap-2">
@@ -5657,35 +5708,36 @@ export default function VisitorsManagementPage() {
                                   <p className="text-[10px] font-medium text-slate-400">{form.paymentSettled === 'unpaid' ? 'Amount stays due — the client is emailed to pay at the front desk before entry.' : 'Amount collected now — booking is marked paid.'}</p>
                                 </div>
                               )}
-                              {normalizeText(form.paymentMode).includes('gpay') && (
+                              {(selectedPaymentMethod?.requiresReference || selectedPaymentMethod?.requiresProof) && (
                                 <div className="space-y-3">
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Transaction Number <span className="text-red-400">*</span></label>
-                                    <input
-                                      type="text"
-                                      value={form.transactionId}
-                                      onBlur={() => setWalkInTouched((prev) => ({ ...prev, transactionId: true }))}
-                                      onChange={(e) => setForm({ ...form, transactionId: e.target.value })}
-                                      placeholder="Enter GPay reference / UTR"
-                                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.transactionId ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
-                                    />
-                                    {visibleWalkInErrors.transactionId ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.transactionId}</span> : null}
-                                  </div>
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Screenshot <span className="text-red-400">*</span></label>
-                                    <input
-                                      type="file"
-                                      accept="image/png,image/jpeg,image/jpg"
-                                      onBlur={() => setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true }))}
-                                      onChange={(e) => { setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true })); setForm({ ...form, paymentProofFile: e.target.files?.[0] || null }); }}
-                                      className={`block w-full rounded-lg border border-dashed bg-slate-50 px-3 py-2 text-[12px] text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300 ${visibleWalkInErrors.paymentProofFile ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}
-                                    />
-                                    {visibleWalkInErrors.paymentProofFile ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentProofFile}</span> : null}
-                                    {form.paymentProofFile?.name ? (
-                                      <p className="text-[10px] font-medium text-blue-700">Selected: {form.paymentProofFile.name}</p>
-                                    ) : null}
-                                    <p className="text-[10px] font-medium text-slate-500">Upload a JPG or PNG screenshot from the UPI app.</p>
-                                  </div>
+                                  {selectedPaymentMethod.requiresReference && (
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Reference <span className="text-red-400">*</span></label>
+                                      <input
+                                        type="text"
+                                        value={form.transactionId}
+                                        onBlur={() => setWalkInTouched((prev) => ({ ...prev, transactionId: true }))}
+                                        onChange={(e) => setForm({ ...form, transactionId: e.target.value })}
+                                        placeholder={`Enter ${selectedPaymentMethod.label} reference`}
+                                        className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.transactionId ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                      />
+                                      {visibleWalkInErrors.transactionId ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.transactionId}</span> : null}
+                                    </div>
+                                  )}
+                                  {selectedPaymentMethod.requiresProof && (
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Proof <span className="text-red-400">*</span></label>
+                                      <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                                        onBlur={() => setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true }))}
+                                        onChange={(e) => { setWalkInTouched((prev) => ({ ...prev, paymentProofFile: true })); setForm({ ...form, paymentProofFile: e.target.files?.[0] || null }); }}
+                                        className={`block w-full rounded-lg border border-dashed bg-slate-50 px-3 py-2 text-[12px] text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300 ${visibleWalkInErrors.paymentProofFile ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}
+                                      />
+                                      {visibleWalkInErrors.paymentProofFile ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.paymentProofFile}</span> : null}
+                                      {form.paymentProofFile?.name ? <p className="text-[10px] font-medium text-blue-700">Selected: {form.paymentProofFile.name}</p> : null}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 space-y-1">
@@ -5773,12 +5825,12 @@ export default function VisitorsManagementPage() {
                               </div>
                               <p className="text-[11px] font-pmedium text-amber-700">Collect payment from the visitor, then confirm entry.</p>
                               <div className="flex gap-2">
-                                {['Cash', 'GPay (UPI)'].map(method => (
+                                {paymentMethods.map(method => (
                                   <button
-                                    key={method} type="button" onClick={() => setForm({ ...form, paymentMode: method })}
-                                    className={`flex-1 py-2 rounded-lg text-[10px] font-pmedium transition-all border ${form.paymentMode === method ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-700'}`}
+                                    key={method.code} type="button" onClick={() => setForm({ ...form, paymentMode: method.code })}
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-pmedium transition-all border ${form.paymentMode === method.code ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-700'}`}
                                   >
-                                    {method}
+                                    {method.label}
                                   </button>
                                 ))}
                               </div>
@@ -5815,7 +5867,7 @@ export default function VisitorsManagementPage() {
                 )}
                 {visitorMode === 'walkin_booking' && (
                   <button type="button" disabled={isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="w-full sm:flex-1 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-6 py-3 bg-[#2563EB] text-white shadow-sm shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
-                    <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : (form.paymentMode === 'Cash' && form.paymentSettled === 'unpaid') ? 'SAVE BOOKING (UNPAID)' : 'COLLECT PAYMENT & CONFIRM'}
+                    <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : (selectedPaymentMethod?.code === 'cash' && form.paymentSettled === 'unpaid') ? 'SAVE BOOKING (UNPAID)' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
                 {visitorMode === 'verify_booking' && (
@@ -5965,7 +6017,7 @@ export default function VisitorsManagementPage() {
                         <span>{formatCurrency(extendPricing.base)}</span>
                       </div>
                       <div className="flex justify-between text-xs font-bold text-gray-600 mb-3 pb-3 border-b border-gray-200">
-                        <span>GST (18%)</span>
+                        <span>{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>
                         <span>{formatCurrency(extendPricing.gst)}</span>
                       </div>
                       <div className="flex justify-between text-lg font-black text-gray-900">
@@ -5977,9 +6029,9 @@ export default function VisitorsManagementPage() {
                     <div>
                       <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Collect Payment</p>
                       <div className="flex gap-2">
-                        {['Cash', 'GPay (UPI)'].map(mode => (
-                          <button key={mode} type="button" onClick={() => setExtendForm({ ...extendForm, paymentMode: mode })} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${extendForm.paymentMode === mode ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}>
-                            {mode}
+                        {paymentMethods.filter((method) => !method.requiresReference && !method.requiresProof).map(method => (
+                          <button key={method.code} type="button" onClick={() => setExtendForm({ ...extendForm, paymentMode: method.code })} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${extendForm.paymentMode === method.code ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}>
+                            {method.label}
                           </button>
                         ))}
                       </div>
@@ -6171,8 +6223,13 @@ export default function VisitorsManagementPage() {
                     const newSubtotal = hasSelection
                       ? Math.round(newDurationHours * rate.hourly * 100) / 100
                       : 0;
-                    const newGst = newSubtotal * WALK_IN_GST_RATE;
-                    const newTotal = newSubtotal + newGst;
+                    const rescheduleTaxRate = taxConfig.enabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+                    const newGst = rescheduleTaxRate <= 0
+                      ? 0
+                      : taxConfig.priceIncludesTax
+                        ? newSubtotal * (rescheduleTaxRate / (1 + rescheduleTaxRate))
+                        : newSubtotal * rescheduleTaxRate;
+                    const newTotal = taxConfig.priceIncludesTax ? newSubtotal : newSubtotal + newGst;
                     const origTotal = Number(reschedulingBooking?.totalAmount || reschedulingBooking?.amountDue || 0);
                     const priceDiff = newTotal - origTotal;
                     const hasPriceDiff = Math.abs(priceDiff) > 0.5;
@@ -6290,20 +6347,20 @@ export default function VisitorsManagementPage() {
                             </div>
                           </div>
                           {rate.hourly > 0 && (
-                            <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(rate.hourly)}/hr · GST included</p>
+                            <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(rate.hourly)}/hr · {taxConfig.enabled ? `${getTaxDisplayLabel(taxConfig)} ${taxConfig.priceIncludesTax ? 'included' : 'applied'}` : 'No tax'}</p>
                           )}
                           {hasPriceDiff && priceDiff > 0 && (
                             <div className="pt-2 border-t border-amber-100">
                               <p className="text-[10px] font-pmedium text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Collect Extra Payment ({formatCurrency(priceDiff)})</p>
                               <div className="flex gap-2">
-                                {['Cash', 'GPay (UPI)'].map((mode) => (
+                                {paymentMethods.filter((method) => !method.requiresReference && !method.requiresProof).map((method) => (
                                   <button
-                                    key={mode}
+                                    key={method.code}
                                     type="button"
-                                    onClick={() => setRescheduleForm({ ...rescheduleForm, paymentMode: mode })}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${rescheduleForm.paymentMode === mode ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'}`}
+                                    onClick={() => setRescheduleForm({ ...rescheduleForm, paymentMode: method.code })}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-black transition-all border-2 ${rescheduleForm.paymentMode === method.code ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'}`}
                                   >
-                                    {mode}
+                                    {method.label}
                                   </button>
                                 ))}
                               </div>
@@ -6609,7 +6666,7 @@ export default function VisitorsManagementPage() {
                           </div>
                         )}
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-pmedium text-gray-500">GST (18%)</span>
+                          <span className="text-xs font-pmedium text-gray-500">{String(viewingBooking.taxLabel || 'Tax')}{Number(viewingBooking.taxRatePercent || 0) > 0 ? ` (${Number(viewingBooking.taxRatePercent)}%)` : ''}</span>
                           <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
                         </div>
                         {Number(viewingBooking.extensionAmount || 0) > 0 && (

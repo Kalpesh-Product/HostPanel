@@ -1,10 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Box, CircularProgress, Container, Grid, TextField } from "@mui/material";
-import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import Footer from "../../components/Footer";
 import { api, axiosPrivate } from "../../utils/axios";
+import { showSuccessAlert } from "../../utils/alerts";
 import { writeInviteOnboardingState } from "../../utils/inviteOnboarding";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import "./ClientLogin.css";
@@ -18,7 +18,6 @@ export default function RegisterOtpVerification() {
     : location.state?.flow === "tenant-register" ? "tenant-register"
     : "register";
   const [otp, setOtp] = useState("");
-  const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false);
   const [emailInput] = useState(location.state?.email || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const email = location.state?.email || "";
@@ -36,16 +35,6 @@ export default function RegisterOtpVerification() {
         .map((item: unknown) => String(item || "").trim())
         .filter(Boolean)
     : [];
-
-  useEffect(() => {
-    if (!showRegistrationSuccess) return;
-
-    const redirectTimer = setTimeout(() => {
-      navigate("/", { replace: true });
-    }, 3000);
-
-    return () => clearTimeout(redirectTimer);
-  }, [navigate, showRegistrationSuccess]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -115,8 +104,12 @@ export default function RegisterOtpVerification() {
           businessTypes,
         });
       }
-      toast.success(response.data?.message || "Registration complete.");
-      setShowRegistrationSuccess(true);
+      const successMessage =
+        flow === "tenant-register" && companyName
+          ? `You are now registered as a team member of ${companyName}. Use the same credentials to sign in.`
+          : response.data?.message || "Registration successful. Redirecting to Sign In...";
+      await showSuccessAlert(successMessage);
+      navigate("/", { replace: true });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "OTP verification failed.");
     } finally {
@@ -135,27 +128,6 @@ export default function RegisterOtpVerification() {
       </header>
 
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
-        {showRegistrationSuccess ? (
-          <div className="w-full max-w-2xl mx-auto min-h-[58vh] flex items-center justify-center px-4">
-            <div className="w-full rounded-[24px] border border-[#d9e6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] shadow-[0_16px_50px_rgba(23,73,182,0.14)] px-5 md:px-8 py-8 md:py-9 text-center">
-              <div className="w-14 h-14 md:w-16 md:h-16 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-4">
-                <CheckCircle2 className="text-[#2d67f0]" size={30} strokeWidth={2.5} />
-              </div>
-              <h1 className="text-[22px] md:text-[26px] leading-tight font-bold text-[#102a56] mb-2 text-center">
-                Registration Successful
-              </h1>
-              <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">
-                {flow === "tenant-register" && companyName
-                  ? `You are now registered as a team member of ${companyName}. Use the same credentials to sign in.`
-                  : "Redirecting to Sign In page. Use the same credentials to sign in."}
-              </p>
-              <p className="mt-4 text-[12px] text-[#6b7fa7] font-medium">
-                Redirecting in a few seconds...
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
         <h1 className="text-center text-4xl font-bold">VERIFY OTP</h1>
         <div className="loginDividingContainer shrink-container">
           <div className="w-5/6 md:w-2/3">
@@ -211,8 +183,6 @@ export default function RegisterOtpVerification() {
             </Container>
           </div>
         </div>
-          </>
-        )}
       </div>
 
       <Footer />

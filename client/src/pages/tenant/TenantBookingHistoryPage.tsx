@@ -22,6 +22,8 @@ import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/l
 import { getMyTenantCompany } from '@/services/tenant-companies';
 import { getMeetingRoomBookings, respondToMeetingRoomInvite, updateMeetingRoomBooking, cancelBooking } from '@/services/meeting-room-bookings';
 import useBusinessHours from '@/hooks/useBusinessHours';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { getWorkspaceDateKey, getWorkspaceTime } from '@/lib/workspaceLocalization';
 
 const BOOKING_SLOT_STEP_MINUTES = 5;
 const BOOKING_MIN_DURATION_MINUTES = 30;
@@ -441,8 +443,9 @@ export default function TenantBookingHistoryPage() {
     return Number((rescheduleNewCredits - originalCredits).toFixed(2));
   }, [rescheduleModal, rescheduleNewCredits]);
 
-  const todayValue = getTodayInputValue();
-  const currentTimeValue = getCurrentTimeInputValue();
+  const workspacePreferences = useWorkspacePreferences();
+  const todayValue = getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
+  const currentTimeValue = getWorkspaceTime(new Date(), workspacePreferences.timezone);
   const roundedCurrentTimeValue = roundUpToStepTime(currentTimeValue);
 
   const businessHours = useBusinessHours();
@@ -574,8 +577,8 @@ export default function TenantBookingHistoryPage() {
     setIsSaving(true); setErrorMessage('');
     try {
       await updateMeetingRoomBooking(rescheduleModal.recordId, {
-        start: `${rescheduleForm.date}T${rescheduleForm.startTime}:00+05:30`,
-        end: `${rescheduleForm.date}T${rescheduleForm.endTime}:00+05:30`,
+        start: `${rescheduleForm.date}T${rescheduleForm.startTime}:00`,
+        end: `${rescheduleForm.date}T${rescheduleForm.endTime}:00`,
         scheduleChangeType: 'rescheduled',
         inviteeUserIds: rescheduleInviteeIds,
       });
@@ -596,7 +599,7 @@ export default function TenantBookingHistoryPage() {
     const currentEndStr = extendModal?.endTime || extendModal?.checkOut || '';
     const currentEndMin = timeToMinutes(currentEndStr);
     const nextEndMin = minutesToTimeString((currentEndMin || 0) + extra);
-    const nextEndISO = `${extendDate}T${nextEndMin}:00+05:30`;
+    const nextEndISO = `${extendDate}T${nextEndMin}:00`;
     setIsSaving(true); setErrorMessage('');
     try {
       await updateMeetingRoomBooking(extendModal.recordId, {
