@@ -288,7 +288,11 @@ const Header = ({
 
           <Avatar onClick={handleAvatarClick} className="cursor-pointer">
             {auth?.user?.profilePicture?.url ? (
-              <img src={auth?.user?.profilePicture?.url} alt="" />
+              <img
+                src={auth?.user?.profilePicture?.url}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             ) : (
               auth?.user?.name?.charAt(0) || ""
             )}

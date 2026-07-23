@@ -31,6 +31,7 @@ import { getStoredTenantRole } from "../../lib/tenant-session";
 import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import MuiModal from "../../components/MuiModal";
+import AvatarCropModal from "../../components/AvatarCropModal";
 
 const MAX_AVATAR_SIZE_MB = 2;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
@@ -301,6 +302,8 @@ export default function UserDetails() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
+  const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
   const authUser = useMemo(() => auth?.user || {}, [auth?.user]);
 
@@ -502,9 +505,22 @@ export default function UserDetails() {
       event.target.value = "";
       return;
     }
-    setAvatarFile(selectedFile);
-    setAvatarPreviewUrl(URL.createObjectURL(selectedFile));
+    setCropSourceUrl(URL.createObjectURL(selectedFile));
+    setIsCropModalOpen(true);
     event.target.value = "";
+  };
+
+  const handleCropModalClose = () => {
+    setIsCropModalOpen(false);
+    if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+    setCropSourceUrl(null);
+  };
+
+  const handleCropSave = (croppedBlob: Blob) => {
+    const croppedFile = new File([croppedBlob], "avatar.jpg", { type: "image/jpeg" });
+    setAvatarFile(croppedFile);
+    setAvatarPreviewUrl(URL.createObjectURL(croppedBlob));
+    handleCropModalClose();
   };
 
   const handleAvatarUpload = async () => {
@@ -664,6 +680,13 @@ export default function UserDetails() {
                   </label>
                 </div>
               </MuiModal>
+
+              <AvatarCropModal
+                open={isCropModalOpen}
+                imageSrc={cropSourceUrl}
+                onClose={handleCropModalClose}
+                onSave={handleCropSave}
+              />
             </div>
             <div className="min-w-0 flex-1">
               {/* <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">My Profile</p> */}
