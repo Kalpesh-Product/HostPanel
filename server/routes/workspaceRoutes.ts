@@ -11,6 +11,9 @@ import {
   validateWorkspaceName,
   updateManagedWorkspace,
   updateWorkspaceSettings,
+  setWorkspaceActiveStatus,
+  deleteManagedWorkspace,
+  requestWorkspaceRecovery,
 } from "../controllers/workspaceControllers.js";
 import {
   getTourProgress,
@@ -22,7 +25,10 @@ const router = Router();
 router.post("/setup", completeWorkspaceSetup);
 router.get("/validate-name", validateWorkspaceName);
 router.get("/management", getWorkspaceManagementOverview);
+router.patch("/management/:workspaceId/status", setWorkspaceActiveStatus);
+router.post("/management/:workspaceId/recovery-request", requestWorkspaceRecovery);
 router.patch("/management/:workspaceId", updateManagedWorkspace);
+router.delete("/management/:workspaceId", deleteManagedWorkspace);
 router.post("/management/switch", switchWorkspace);
 router.get("/settings", getWorkspaceSettings);
 router.get("/module-access-map", getWorkspaceModuleAccessMap);

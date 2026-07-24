@@ -14,6 +14,7 @@ import {
   EXTRA_COMMON_MODULE_IDS,
 } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
+import { sendMail } from "../config/mailer.js";
 import { getCountryBillingDefaults, normalizeBillingConfig } from "../utils/workspaceBilling.js";
 import { recalcResourceDailyPricesForWorkspace } from "../services/resourceService.js";
 import {
@@ -22,6 +23,15 @@ import {
   normalizeCurrency,
   normalizeTimeZone,
 } from "../utils/workspaceLocalization.js";
+import {
+  resolveAccountPlan,
+  syncAccountWorkspacePlans,
+  getWorkspaceLimitForPlan,
+  getActiveWorkspaceLimitForPlan,
+  countAccountWorkspaces,
+  countActiveAccountWorkspaces,
+  resolveMainWorkspaceId,
+} from "../utils/accountPlan.js";
 
 const _getRoleName = (role: any) => {
   if (!role) return "";
@@ -70,26 +80,43 @@ const buildAuthUserPayload = (
   company: any,
   workspaceMembership: any = null,
   workspaceCount = 1,
-) => ({
-  ...user,
-  companyId: company?.companyId || user?.companyId,
-  effectiveNomadsCompanyId:
-    company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
-  companiesListingRequested: Boolean(company?.companiesListingRequestedAt),
-  companyName: company?.companyName,
-  logo: company?.logo,
-  isWebsiteTemplate: company?.isWebsiteTemplate,
-  hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
-  primaryWorkspace: user?.primaryWorkspace || null,
-  workspaceCount,
-  workspaceMembership: workspaceMembership
-    ? {
-        role: workspaceMembership.role,
-        isPrimary: workspaceMembership.isPrimary,
-        isActive: workspaceMembership.isActive,
-      }
-    : user?.workspaceMembership || null,
-});
+) => {
+  // This payload is only built inside completeWorkspaceSetup, where the acting
+  // user is always the workspace owner (assigned the "founder" role). Resolve
+  // the role to its NAME — never leak the raw Role ObjectId to the client, and
+  // never fall back to a generic label like "member".
+  const membershipRoleName = workspaceMembership
+    ? _getRoleName(workspaceMembership.role) || "founder"
+    : null;
+  const isFounderMembership =
+    !!membershipRoleName &&
+    ["founder", "owner"].includes(String(membershipRoleName).trim().toLowerCase());
+
+  return {
+    ...user,
+    companyId: company?.companyId || user?.companyId,
+    effectiveNomadsCompanyId:
+      company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
+    companiesListingRequested: Boolean(company?.companiesListingRequestedAt),
+    companyName: company?.companyName,
+    logo: company?.logo,
+    isWebsiteTemplate: company?.isWebsiteTemplate,
+    hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
+    primaryWorkspace: user?.primaryWorkspace || null,
+    workspaceCount,
+    isOwner: isFounderMembership,
+    isFounder: isFounderMembership,
+    workspaceMembership: workspaceMembership
+      ? {
+          role: membershipRoleName,
+          isPrimary: workspaceMembership.isPrimary,
+          isActive: workspaceMembership.isActive,
+          isOwner: isFounderMembership,
+          isFounder: isFounderMembership,
+        }
+      : user?.workspaceMembership || null,
+  };
+};
 
 export const completeWorkspaceSetup = async (req, res, next) => {
   try {
@@ -112,6 +139,44 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       return res.status(409).json({
         message: "Workspace setup is already completed for this user.",
       });
+    }
+
+    // Plan is an account-level entitlement. When the founder adds another
+    // workspace, it must adopt the account's plan (the highest tier among the
+    // founder's existing workspaces) instead of a client-supplied/basic default
+    // — this is what stops additional workspaces from landing on "basic" while
+    // the account is on "professional".
+    let effectivePlan = selectedPlan;
+    if (isAdditionalWorkspaceMode) {
+      const accountPlan = await resolveAccountPlan(user._id);
+      if (accountPlan) {
+        effectivePlan = accountPlan;
+      }
+
+      // Two caps: at most N units KEPT (delete to free a slot) and at most M
+      // ACTIVE at once (disable one to free an active slot). A new unit is
+      // created active, so both must have room.
+      const keptLimit = getWorkspaceLimitForPlan(effectivePlan);
+      const activeLimit = getActiveWorkspaceLimitForPlan(effectivePlan);
+      const keptCount = await countAccountWorkspaces(user._id);
+      const activeCount = await countActiveAccountWorkspaces(user._id);
+
+      if (keptCount >= keptLimit) {
+        return res.status(403).json({
+          code: "WORKSPACE_LIMIT_REACHED",
+          message: `Your ${effectivePlan} plan allows up to ${keptLimit} unit${
+            keptLimit === 1 ? "" : "s"
+          }. Delete a unit to add a new one.`,
+        });
+      }
+      if (activeCount >= activeLimit) {
+        return res.status(403).json({
+          code: "ACTIVE_WORKSPACE_LIMIT_REACHED",
+          message: `Only ${activeLimit} unit${
+            activeLimit === 1 ? "" : "s"
+          } can be active at a time on the ${effectivePlan} plan. Disable an active unit before adding another.`,
+        });
+      }
     }
 
     const normalizedWorkspaceName = normalizeWorkspaceName(
@@ -196,11 +261,11 @@ export const completeWorkspaceSetup = async (req, res, next) => {
 
     const normalizedRequestedEnabledIds = normalizeStringArray(enabledModuleIds);
     const finalEnabledModuleIds = getEffectiveEnabledModuleIds({
-      selectedPlan,
+      selectedPlan: effectivePlan,
       existingEnabledModuleIds: normalizedRequestedEnabledIds,
     });
     const finalWorkspaceModules = buildWorkspaceModulesStructure({
-      selectedPlan,
+      selectedPlan: effectivePlan,
       enabledModuleIds: finalEnabledModuleIds,
     });
 
@@ -217,7 +282,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       city: String(workspaceDetails.city || "").trim(),
       address: String(workspaceDetails.address || "").trim(),
       businessTypes: normalizedBusinessTypes,
-      selectedPlan,
+      selectedPlan: effectivePlan,
       preferences: {
         timezone: requestedTimeZone,
         currency: requestedCurrency,
@@ -254,6 +319,13 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    // findOneAndUpdate returns `role` as a raw ObjectId. Attach the resolved
+    // founder Role document so buildAuthUserPayload emits the role NAME
+    // ("founder") to the client instead of a raw ObjectId.
+    if (workspaceMembership) {
+      (workspaceMembership as any).role = founderRole;
+    }
 
     await ensureEmployeeProfileForMember({
       workspace,
@@ -375,10 +447,23 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     }
 
     const ownerId = workspace.owner;
-    const ownerWorkspaces = await Workspace.find({ owner: ownerId, isActive: true })
+    // Include disabled AND deleted workspaces so the founder can see disabled
+    // ones (to re-enable) and deleted ones (locked, with a recovery request).
+    const ownerWorkspaces = await Workspace.find({ owner: ownerId })
       .sort({ createdAt: 1 })
       .lean()
       .exec();
+
+    // The account's main (registration) workspace can never be disabled or
+    // deleted — it is the earliest-created non-deleted workspace.
+    const mainWorkspaceId = await resolveMainWorkspaceId(ownerId);
+    const accountPlan = await resolveAccountPlan(ownerId);
+    const keptLimit = getWorkspaceLimitForPlan(accountPlan);
+    const activeLimit = getActiveWorkspaceLimitForPlan(accountPlan);
+    const keptWorkspaceCount = ownerWorkspaces.filter((item) => item.isDeleted !== true).length;
+    const activeWorkspaceCount = ownerWorkspaces.filter(
+      (item) => item.isDeleted !== true && item.isActive !== false,
+    ).length;
 
     const workspaceIds = ownerWorkspaces.map((item) => item._id);
     const membershipCounts = await WorkspaceMember.aggregate([
@@ -540,8 +625,21 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         industry: "",
         businessType: Array.isArray(item.businessTypes) ? item.businessTypes.join(", ") : "",
         selectedPlan: String(item.selectedPlan || "basic").trim().toLowerCase(),
-        status: item.isActive === false ? "inactive" : "active",
-        isActiveWorkspace: workspaceId === toId(user.primaryWorkspace || workspace._id),
+        status: item.isDeleted === true ? "deleted" : item.isActive === false ? "inactive" : "active",
+        isActiveWorkspace:
+          item.isDeleted !== true && workspaceId === toId(user.primaryWorkspace || workspace._id),
+        isMain: workspaceId === mainWorkspaceId,
+        isDeleted: item.isDeleted === true,
+        isDisabled: item.isDeleted !== true && item.isActive === false,
+        // Deleted units are locked: no enable/disable/delete/switch, only a
+        // recovery request to the WONO team.
+        canDisable: item.isDeleted !== true && workspaceId !== mainWorkspaceId && item.isActive !== false,
+        canEnable: item.isDeleted !== true && item.isActive === false,
+        canDelete: item.isDeleted !== true && workspaceId !== mainWorkspaceId,
+        canRequestRecovery: item.isDeleted === true && !item.recoveryRequestedAt,
+        recoveryRequested: Boolean(item.recoveryRequestedAt),
+        recoveryRequestedAt: item.recoveryRequestedAt || null,
+        deletedAt: item.deletedAt || null,
         createdAt: item.createdAt,
         metrics: {
           totalEmployees: memberMap.get(workspaceId) || 0,
@@ -601,6 +699,15 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       data: {
         workspaceCount: list.length,
         workspaceManagement: { enabled: list.length > 1 },
+        accountPlan,
+        // null == unlimited (custom plan).
+        workspaceLimit: Number.isFinite(keptLimit) ? keptLimit : null,
+        activeWorkspaceLimit: Number.isFinite(activeLimit) ? activeLimit : null,
+        keptWorkspaceCount,
+        activeWorkspaceCount,
+        // Room to add a new (active) unit needs both a kept slot and an active slot.
+        canAddWorkspace: keptWorkspaceCount < keptLimit && activeWorkspaceCount < activeLimit,
+        mainWorkspaceId,
         selectedDepartment: "All departments",
         departments: ["All departments", ...Array.from(allowedDepartmentNames).sort()],
         summary,
@@ -656,6 +763,220 @@ export const updateManagedWorkspace = async (req, res, next) => {
   }
 };
 
+// Move the founder off a workspace that is being disabled/deleted, back onto
+// the account's main workspace, so they never end up "active" on an
+// unavailable workspace.
+const reassignPrimaryToMain = async (user: any, mainWorkspaceId: string) => {
+  if (!mainWorkspaceId) return;
+  user.primaryWorkspace = mainWorkspaceId;
+  await user.save();
+  await WorkspaceMember.updateMany({ user: user._id }, { $set: { isPrimary: false } });
+  await WorkspaceMember.updateOne(
+    { user: user._id, workspace: mainWorkspaceId },
+    { $set: { isPrimary: true, isActive: true } },
+  );
+};
+
+export const setWorkspaceActiveStatus = async (req, res, next) => {
+  try {
+    const { user, workspace } = await getCurrentWorkspaceContext(req.user);
+    if (!user || !workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    if (!canManageWorkspaces(req.workspaceMembership)) {
+      return res.status(403).json({ message: "Only founders can enable or disable workspaces." });
+    }
+
+    const desiredActive = Boolean(req.body?.isActive);
+    const target = await Workspace.findOne({
+      _id: req.params.workspaceId,
+      owner: workspace.owner,
+      isDeleted: { $ne: true },
+    });
+    if (!target) {
+      return res.status(404).json({ message: "Workspace not found." });
+    }
+
+    const mainWorkspaceId = await resolveMainWorkspaceId(workspace.owner);
+    const isMainWorkspace = String(target._id) === mainWorkspaceId;
+
+    if (isMainWorkspace && !desiredActive) {
+      return res.status(400).json({
+        message: "The main workspace created at registration cannot be disabled.",
+      });
+    }
+
+    if (Boolean(target.isActive) === desiredActive) {
+      return res.status(200).json({
+        message: `Workspace is already ${desiredActive ? "enabled" : "disabled"}.`,
+      });
+    }
+
+    // Enabling consumes an ACTIVE slot — block it if the account already has
+    // the max number of units active at once (disable another one first).
+    if (desiredActive) {
+      const accountPlan = (await resolveAccountPlan(workspace.owner)) || target.selectedPlan;
+      const activeLimit = getActiveWorkspaceLimitForPlan(accountPlan);
+      const activeWorkspaceCount = await countActiveAccountWorkspaces(workspace.owner);
+      if (activeWorkspaceCount >= activeLimit) {
+        return res.status(403).json({
+          code: "ACTIVE_WORKSPACE_LIMIT_REACHED",
+          message: `Only ${activeLimit} unit${
+            activeLimit === 1 ? "" : "s"
+          } can be active at a time on the ${accountPlan} plan. Disable another active unit first.`,
+        });
+      }
+    }
+
+    target.isActive = desiredActive;
+    await target.save();
+
+    if (!desiredActive && String(user.primaryWorkspace || "") === String(target._id)) {
+      await reassignPrimaryToMain(user, mainWorkspaceId);
+    }
+
+    if (desiredActive) {
+      // Bring the re-enabled workspace up to the account plan (upgrade-only).
+      try {
+        await syncAccountWorkspacePlans(workspace.owner);
+      } catch {
+        // Best-effort.
+      }
+    }
+
+    return res.status(200).json({
+      message: desiredActive ? "Workspace enabled successfully." : "Workspace disabled successfully.",
+      data: { workspaceId: String(target._id), isActive: desiredActive },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteManagedWorkspace = async (req, res, next) => {
+  try {
+    const { user, workspace } = await getCurrentWorkspaceContext(req.user);
+    if (!user || !workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    if (!canManageWorkspaces(req.workspaceMembership)) {
+      return res.status(403).json({ message: "Only founders can delete workspaces." });
+    }
+
+    const target = await Workspace.findOne({
+      _id: req.params.workspaceId,
+      owner: workspace.owner,
+      isDeleted: { $ne: true },
+    });
+    if (!target) {
+      return res.status(404).json({ message: "Workspace not found." });
+    }
+
+    const mainWorkspaceId = await resolveMainWorkspaceId(workspace.owner);
+    if (String(target._id) === mainWorkspaceId) {
+      return res.status(400).json({
+        message: "The main workspace created at registration cannot be deleted.",
+      });
+    }
+
+    // Soft delete: stays in the DB (visible but locked) and revokes every
+    // member's access. Only the WONO team can recover it later.
+    target.isActive = false;
+    target.isDeleted = true;
+    target.deletedAt = new Date();
+    target.recoveryRequestedAt = null;
+    await target.save();
+    await WorkspaceMember.updateMany(
+      { workspace: target._id },
+      { $set: { isActive: false } },
+    );
+
+    if (String(user.primaryWorkspace || "") === String(target._id)) {
+      await reassignPrimaryToMain(user, mainWorkspaceId);
+    }
+
+    return res.status(200).json({
+      message: "Workspace deleted successfully.",
+      data: { workspaceId: String(target._id) },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Founder-facing: request the WONO team to recover a soft-deleted unit. The
+// founder cannot restore it themselves — this records the request and notifies
+// the WONO team, who perform the actual recovery from the master panel.
+export const requestWorkspaceRecovery = async (req, res, next) => {
+  try {
+    const { user, workspace } = await getCurrentWorkspaceContext(req.user);
+    if (!user || !workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    if (!canManageWorkspaces(req.workspaceMembership)) {
+      return res.status(403).json({ message: "Only founders can request unit recovery." });
+    }
+
+    const target = await Workspace.findOne({
+      _id: req.params.workspaceId,
+      owner: workspace.owner,
+      isDeleted: true,
+    });
+    if (!target) {
+      return res.status(404).json({ message: "Deleted unit not found." });
+    }
+
+    if (target.recoveryRequestedAt) {
+      return res.status(200).json({
+        message: "Recovery has already been requested. The WONO team will reach out.",
+        data: { workspaceId: String(target._id), recoveryRequestedAt: target.recoveryRequestedAt },
+      });
+    }
+
+    target.recoveryRequestedAt = new Date();
+    await target.save();
+
+    // Notify the WONO team. Best-effort: the request is recorded regardless of
+    // whether the email dispatch succeeds.
+    const supportEmail = String(
+      process.env.WONO_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || "",
+    ).trim();
+    if (supportEmail) {
+      try {
+        const ownerRecord = await HostUser.findById(target.owner)
+          .select("name email companyId")
+          .lean()
+          .exec();
+        await sendMail({
+          to: supportEmail,
+          subject: `Unit recovery requested: ${target.workspaceName || target._id}`,
+          html: `
+            <p>A founder has requested recovery of a soft-deleted unit.</p>
+            <ul>
+              <li><b>Unit:</b> ${target.workspaceName || ""} (${String(target._id)})</li>
+              <li><b>Business:</b> ${target.businessName || ""}</li>
+              <li><b>Company ID:</b> ${target.companyId || ownerRecord?.companyId || ""}</li>
+              <li><b>Founder:</b> ${ownerRecord?.name || ""} (${ownerRecord?.email || ""})</li>
+              <li><b>Deleted at:</b> ${target.deletedAt ? new Date(target.deletedAt).toISOString() : "unknown"}</li>
+              <li><b>Requested at:</b> ${new Date().toISOString()}</li>
+            </ul>
+            <p>Recover it from the master panel when appropriate.</p>
+          `,
+        });
+      } catch (mailError) {
+        console.error("Failed to send recovery request email:", mailError?.message);
+      }
+    }
+
+    return res.status(200).json({
+      message: "Recovery requested. The WONO team will review and restore this unit.",
+      data: { workspaceId: String(target._id), recoveryRequestedAt: target.recoveryRequestedAt },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const switchWorkspace = async (req, res, next) => {
   try {
     const { user, workspace } = await getCurrentWorkspaceContext(req.user);
@@ -681,6 +1002,14 @@ export const switchWorkspace = async (req, res, next) => {
     user.primaryWorkspace = targetWorkspace._id;
     await user.save();
 
+    // Keep every workspace on the account's plan (upgrade-only). Fixes extra
+    // workspaces that were created on a lower tier than the account plan.
+    try {
+      await syncAccountWorkspacePlans(user._id);
+    } catch {
+      // Best-effort: never block a workspace switch on plan alignment.
+    }
+
     await WorkspaceMember.updateMany({ user: user._id }, { $set: { isPrimary: false } });
     await WorkspaceMember.updateOne(
       { user: user._id, workspace: targetWorkspace._id },
@@ -692,7 +1021,12 @@ export const switchWorkspace = async (req, res, next) => {
       .lean()
       .exec();
     const accessibleWorkspaces = memberships
-      .filter((membership: any) => membership?.workspace)
+      .filter(
+        (membership: any) =>
+          membership?.workspace &&
+          membership.workspace.isActive !== false &&
+          membership.workspace.isDeleted !== true,
+      )
       .map((membership: any) => ({
         id: toId(membership.workspace?._id),
         workspaceName: membership.workspace?.workspaceName || "Workspace",

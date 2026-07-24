@@ -14,9 +14,13 @@ import {
   Loader2,
   MapPin,
   Pencil,
+  Power,
+  PowerOff,
   RefreshCcw,
+  RotateCcw,
   Shield,
   Ticket,
+  Trash2,
   Users,
   Package,
   Boxes,
@@ -28,6 +32,9 @@ import { getWorkspaceCount } from "../../utils/workspacePlanAccess";
 import {
   getWorkspaceManagementOverview,
   updateManagedWorkspace,
+  setWorkspaceStatus,
+  deleteManagedWorkspace,
+  requestWorkspaceRecovery,
 } from "../../services/unit-management";
 import { switchWorkspaceSession } from "../../services/workspace-session";
 import PageFrame from "../../components/Pages/PageFrame";
@@ -477,6 +484,9 @@ export default function WorkspaceManagementPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isCombinedModalOpen, setIsCombinedModalOpen] = useState(false);
   const [switchingWorkspaceId, setSwitchingWorkspaceId] = useState("");
+  const [mutatingWorkspaceId, setMutatingWorkspaceId] = useState("");
+  const [deletingWorkspace, setDeletingWorkspace] = useState<Workspace | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (isWorkspaceManagementLocked) {
@@ -722,6 +732,103 @@ export default function WorkspaceManagementPage() {
     }
   }
 
+  function syncAccessibleWorkspaces(data) {
+    const list = Array.isArray(data?.workspaces) ? data.workspaces : [];
+    const accessible = list
+      .filter((ws) => !ws.isDeleted && !ws.isDisabled)
+      .map((ws) => ({
+        id: ws.id,
+        workspaceName: ws.workspaceName,
+        businessName: ws.businessName || "",
+        location: ws.location || "",
+        isPrimary: Boolean(ws.isActiveWorkspace),
+      }));
+    setAuth((prev) =>
+      prev.user
+        ? {
+            ...prev,
+            user: {
+              ...(prev.user as Record<string, unknown>),
+              accessibleWorkspaces: accessible,
+            },
+          }
+        : prev,
+    );
+  }
+
+  async function reloadOverview() {
+    const refreshed = await getWorkspaceManagementOverview(
+      axiosPrivate,
+      departmentFilter === "All departments" ? "" : departmentFilter,
+    );
+    const data = refreshed?.data?.data || null;
+    setOverview(data);
+    syncAccessibleWorkspaces(data);
+  }
+
+  async function handleToggleWorkspaceStatus(workspace) {
+    if (!workspace?.id || mutatingWorkspaceId) {
+      return;
+    }
+    const nextActive = Boolean(workspace.isDisabled);
+    try {
+      setMutatingWorkspaceId(workspace.id);
+      await setWorkspaceStatus(axiosPrivate, workspace.id, nextActive);
+      toast.success(
+        nextActive
+          ? `Enabled ${workspace.workspaceName || "unit"}.`
+          : `Disabled ${workspace.workspaceName || "unit"}.`,
+      );
+      if (!nextActive && workspace.isActiveWorkspace) {
+        window.location.reload();
+        return;
+      }
+      await reloadOverview();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Unable to update unit status.");
+    } finally {
+      setMutatingWorkspaceId("");
+    }
+  }
+
+  async function handleConfirmDeleteWorkspace() {
+    if (!deletingWorkspace?.id) {
+      return;
+    }
+    const wasActive = Boolean(deletingWorkspace.isActiveWorkspace);
+    try {
+      setIsDeleting(true);
+      await deleteManagedWorkspace(axiosPrivate, deletingWorkspace.id);
+      toast.success(`Deleted ${deletingWorkspace.workspaceName || "unit"}.`);
+      setDeletingWorkspace(null);
+      if (wasActive) {
+        window.location.reload();
+        return;
+      }
+      await reloadOverview();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Unable to delete unit.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  async function handleRequestRecovery(workspace) {
+    if (!workspace?.id || mutatingWorkspaceId) {
+      return;
+    }
+    try {
+      setMutatingWorkspaceId(workspace.id);
+      await requestWorkspaceRecovery(axiosPrivate, workspace.id);
+      await reloadOverview();
+      toast.success("Recovery requested. The WONO team will review and restore this unit.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Unable to request recovery.");
+    } finally {
+      setMutatingWorkspaceId("");
+    }
+  }
+
   return (
     <>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -900,7 +1007,7 @@ export default function WorkspaceManagementPage() {
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit Unit
                               </button>
-                              {!workspace.isActiveWorkspace ? (
+                              {!workspace.isActiveWorkspace && !workspace.isDisabled && !workspace.isDeleted ? (
                                 <button
                                   data-tour="unit-management-switch-unit"
                                   type="button"
@@ -914,6 +1021,67 @@ export default function WorkspaceManagementPage() {
                                     <ArrowLeftRight className="h-3.5 w-3.5" />
                                   )}
                                   {switchingWorkspaceId === workspace.id ? "Switching..." : "Switch"}
+                                </button>
+                              ) : null}
+                              {workspace.canRequestRecovery ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestRecovery(workspace)}
+                                  disabled={Boolean(mutatingWorkspaceId)}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-[12px] font-pmedium text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:opacity-60"
+                                >
+                                  {mutatingWorkspaceId === workspace.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                  )}
+                                  Request Recovery
+                                </button>
+                              ) : null}
+                              {workspace.isDeleted && workspace.recoveryRequested ? (
+                                <span className="inline-flex h-9 items-center rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 text-[11px] font-pmedium text-indigo-600">
+                                  Recovery requested
+                                </span>
+                              ) : null}
+                              {workspace.canEnable ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleWorkspaceStatus(workspace)}
+                                  disabled={Boolean(mutatingWorkspaceId)}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-pmedium text-emerald-700 shadow-sm transition hover:bg-emerald-100 disabled:opacity-60"
+                                >
+                                  {mutatingWorkspaceId === workspace.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Power className="h-3.5 w-3.5" />
+                                  )}
+                                  Enable
+                                </button>
+                              ) : null}
+                              {workspace.canDisable ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleWorkspaceStatus(workspace)}
+                                  disabled={Boolean(mutatingWorkspaceId)}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 text-[12px] font-pmedium text-amber-700 shadow-sm transition hover:bg-amber-100 disabled:opacity-60"
+                                >
+                                  {mutatingWorkspaceId === workspace.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <PowerOff className="h-3.5 w-3.5" />
+                                  )}
+                                  Disable
+                                </button>
+                              ) : null}
+                              {workspace.canDelete ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingWorkspace(workspace)}
+                                  disabled={Boolean(mutatingWorkspaceId)}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-pmedium text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-60"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Delete
                                 </button>
                               ) : null}
                             </div>
@@ -1241,6 +1409,48 @@ export default function WorkspaceManagementPage() {
         combinedData={combinedData}
         isProfessional={isActiveWorkspaceProfessional}
       />
+
+      {deletingWorkspace ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+            <div className="flex items-start gap-3">
+              <div className="rounded-2xl bg-rose-50 p-2 text-rose-600 shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[14px] font-pmedium text-slate-950">
+                  Delete {deletingWorkspace.workspaceName || "this unit"}?
+                </p>
+                <p className="mt-1 text-[12px] font-pmedium text-slate-500">
+                  This permanently removes the unit and frees a slot so you can add a new one.
+                  Members lose access to it. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isDeleting) setDeletingWorkspace(null);
+                }}
+                disabled={isDeleting}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteWorkspace}
+                disabled={isDeleting}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {isDeleting ? "Deleting..." : "Delete Unit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

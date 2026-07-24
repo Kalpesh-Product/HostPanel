@@ -146,7 +146,7 @@ export function renderNotificationEmail({
                   <tr>
                     <td style="padding:18px 24px;text-align:center;">
                       <p class="email-subtext" style="margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#55617a;">Your Verification Code</p>
-                      <p class="email-heading" style="margin:0 0 10px;font-size:32px;font-weight:700;letter-spacing:10px;color:#123a75;">${String(otpCode.code).split("").join(" ")}</p>
+                      <p class="email-heading" style="margin:0 0 10px;font-size:32px;font-weight:700;letter-spacing:10px;color:#123a75;">${otpCode.code}</p>
                       <p class="email-subtext" style="margin:0;font-size:12px;color:#55617a;">Expires in ${otpCode.expiryMinutes} minutes</p>
                     </td>
                   </tr>

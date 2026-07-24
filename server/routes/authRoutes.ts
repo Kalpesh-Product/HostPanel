@@ -12,13 +12,16 @@ import {
   startForgotPasswordWithOtp,
   verifyForgotPasswordOtp,
   startRegisterDirect,
+  resendRegisterOtpDirect,
   startRegisterWithOtp,
+  resendRegisterOtp,
   sendFounderSignupOtp,
   verifyRegisterOtpDirect,
   verifyRegisterOtpAndComplete,
   getTenantRegisterPrefill,
   registerTenantEmployee,
   sendTenantRegisterOtp,
+  resendTenantRegisterOtp,
   verifyTenantRegisterOtpAndComplete,
   getTenantProfile,
   consumeStaffViewToken,
@@ -40,8 +43,10 @@ router.post("/signup/:token/send-otp", sendFounderSignupOtp);
 router.post("/signup/:token/complete", completeFounderSignup);
 router.get("/register/:token/prefill", getRegisterPrefill);
 router.post("/register/:token/start", startRegisterWithOtp);
+router.post("/register/:token/resend-otp", resendRegisterOtp);
 router.post("/register/:token/verify-otp", verifyRegisterOtpAndComplete);
 router.post("/register/start", startRegisterDirect);
+router.post("/register/resend-otp", resendRegisterOtpDirect);
 router.post("/register/verify-otp", verifyRegisterOtpDirect);
 
 // Staff "View As" — master-panel-issued short-lived impersonation token.
@@ -50,6 +55,7 @@ router.post("/staff-view/:token", consumeStaffViewToken);
 // Tenant employee registration (invite-based, raw token)
 router.get("/tenant-register/prefill", getTenantRegisterPrefill);
 router.post("/tenant-register/send-otp", sendTenantRegisterOtp);
+router.post("/tenant-register/resend-otp", resendTenantRegisterOtp);
 router.post("/tenant-register/verify-otp", verifyTenantRegisterOtpAndComplete);
 // Legacy endpoint kept for backward compatibility
 router.post("/tenant-register/complete", registerTenantEmployee);

@@ -15,6 +15,7 @@ import {
   resolveAccessibleWorkspaceMemberships,
   resolveActiveWorkspaceMembership,
 } from "../utils/resolveMembership.js";
+import { syncAccountWorkspacePlans } from "../utils/accountPlan.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 import logAuthEvent from "../utils/authActivityLog.js";
 import { renderNotificationEmail } from "../utils/emailTemplates.js";
@@ -223,7 +224,12 @@ const getAccessibleWorkspaces = async (userId: any) => {
   const memberships = await resolveAccessibleWorkspaceMemberships(userId);
 
   return memberships
-    .filter((membership: any) => membership?.workspace)
+    .filter(
+      (membership: any) =>
+        membership?.workspace &&
+        membership.workspace.isActive !== false &&
+        membership.workspace.isDeleted !== true,
+    )
     .map((membership: any) => {
       const workspace = membership.workspace;
       return {
@@ -430,6 +436,15 @@ export const login = async (req, res, next) => {
         code: "ACCOUNT_DISABLED",
         message: "Account access disabled by founder.",
       });
+    }
+
+    // Align every workspace with the account's plan (upgrade-only) before we
+    // resolve the session, so additional workspaces that landed on a lower
+    // tier than the account plan are corrected on sign-in.
+    try {
+      await syncAccountWorkspacePlans(user._id);
+    } catch {
+      // Best-effort: never block login on plan alignment.
     }
 
     const activeMembership = await resolveActiveWorkspaceMembership(user);
@@ -1053,6 +1068,69 @@ export const startRegisterWithOtp = async (req, res, next) => {
   }
 };
 
+export const resendRegisterOtp = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    if (!token) return res.status(400).json({ message: "Invite token is required." });
+
+    const decoded = decodeSignupInviteToken(token);
+    const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
+    if (!inviteEmail || !inviteName) {
+      return res.status(400).json({ message: "Invalid invite token payload." });
+    }
+
+    const lastOtp = await Otp.findOne({ email: inviteEmail, purpose: "registration" })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (!lastOtp?.payload?.password) {
+      return res.status(400).json({ message: "No pending registration found. Please start again." });
+    }
+
+    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
+    await Otp.updateMany(
+      { email: inviteEmail, purpose: "registration", isUsed: false },
+      { $set: { isUsed: true } },
+    );
+    await Otp.create({
+      email: inviteEmail,
+      code: otp,
+      purpose: "registration",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      payload: lastOtp.payload,
+    });
+
+    await sendMail({
+      to: inviteEmail,
+      subject: "Verify Your WONO Account",
+      html: renderNotificationEmail({
+        heroTitle: "Verify Your WONO Account",
+        heroSubtitle:
+          "Use the verification code below to continue your account activation.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${lastOtp.payload.fullName || inviteName},</p>
+          <p class="email-text" style="margin:0;">Here is your new verification code to verify your email address and continue your WONO account activation.</p>
+        `,
+        otpCode: { code: otp, expiryMinutes: 10 },
+        noteHtml:
+          "For your security, never share this verification code with anyone.<br/>WONO will never ask you to share your OTP, password, or account credentials.<br/><br/><b>Didn't request this verification?</b> You can safely ignore this email.",
+      }),
+    });
+
+    return res.status(200).json({
+      message: "OTP resent successfully.",
+      email: normalizeInviteEmail(inviteEmail),
+    });
+  } catch (error) {
+    if (error?.name === "TokenExpiredError") {
+      return res.status(400).json({ message: "Invite link has expired." });
+    }
+    if (error?.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid invite link." });
+    }
+    next(error);
+  }
+};
+
 const buildSetupJourneyStep = ({ state, number, label }) => {
   const icon =
     state === "done"
@@ -1352,6 +1430,57 @@ export const startRegisterDirect = async (req, res, next) => {
   }
 };
 
+export const resendRegisterOtpDirect = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!normalizedEmail) return res.status(400).json({ message: "Email is required." });
+
+    const lastOtp = await Otp.findOne({ email: normalizedEmail, purpose: "registration" })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (!lastOtp?.payload?.password) {
+      return res.status(400).json({ message: "No pending registration found. Please start again." });
+    }
+
+    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
+    await Otp.updateMany(
+      { email: normalizedEmail, purpose: "registration", isUsed: false },
+      { $set: { isUsed: true } },
+    );
+    await Otp.create({
+      email: normalizedEmail,
+      code: otp,
+      purpose: "registration",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      payload: lastOtp.payload,
+    });
+
+    await sendMail({
+      to: normalizedEmail,
+      subject: "Verify Your WONO Account",
+      html: renderNotificationEmail({
+        heroTitle: "Verify Your WONO Account",
+        heroSubtitle: "Use the verification code below to continue your account activation.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${lastOtp.payload.fullName || "there"},</p>
+          <p class="email-text" style="margin:0;">Here is your new verification code to verify your email address and continue your WONO account activation.</p>
+        `,
+        otpCode: { code: otp, expiryMinutes: 10 },
+        noteHtml:
+          "For your security, never share this verification code with anyone.<br/>WONO will never ask you to share your OTP, password, or account credentials.<br/><br/><b>Didn't request this verification?</b> You can safely ignore this email.",
+      }),
+    });
+
+    return res.status(200).json({
+      message: "OTP resent successfully.",
+      email: normalizedEmail,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const verifyRegisterOtpDirect = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
@@ -1640,6 +1769,69 @@ export const sendTenantRegisterOtp = async (req, res, next) => {
 
     return res.status(200).json({
       message: "OTP sent successfully.",
+      email,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resendTenantRegisterOtp = async (req, res, next) => {
+  try {
+    const { inviteToken } = req.body;
+    if (!inviteToken) return res.status(400).json({ message: "Invite token is required." });
+
+    const employee = await TenantEmployee.findOne({ inviteToken }).exec();
+    if (!employee) {
+      return res.status(400).json({ message: "Invalid or expired invite link." });
+    }
+    if (employee.inviteStatus === "Registered" || employee.userId) {
+      return res.status(409).json({ message: "Account is already registered. Please sign in." });
+    }
+
+    const email = employee.email;
+    if (!email) {
+      return res.status(400).json({ message: "Employee email not found in invite record." });
+    }
+
+    const lastOtp = await Otp.findOne({ email, purpose: "registration" })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (!lastOtp?.payload?.password) {
+      return res.status(400).json({ message: "No pending registration found. Please start again." });
+    }
+
+    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
+    await Otp.updateMany(
+      { email, purpose: "registration", isUsed: false },
+      { $set: { isUsed: true } },
+    );
+    await Otp.create({
+      email,
+      code: otp,
+      purpose: "registration",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      payload: lastOtp.payload,
+    });
+
+    await sendMail({
+      to: email,
+      subject: "Verify Your WONO Account",
+      html: renderNotificationEmail({
+        heroTitle: "Verify Your WONO Account",
+        heroSubtitle: "Use the verification code below to continue your account activation.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${employee.name},</p>
+          <p class="email-text" style="margin:0;">Here is your new verification code to verify your email address and continue your WONO account activation.</p>
+        `,
+        otpCode: { code: otp, expiryMinutes: 10 },
+        noteHtml:
+          "For your security, never share this verification code with anyone.<br/>WONO will never ask you to share your OTP, password, or account credentials.<br/><br/><b>Didn't request this verification?</b> You can safely ignore this email.",
+      }),
+    });
+
+    return res.status(200).json({
+      message: "OTP resent successfully.",
       email,
     });
   } catch (error) {

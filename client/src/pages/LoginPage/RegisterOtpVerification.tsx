@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Box, CircularProgress, Container, Grid, TextField } from "@mui/material";
 import { toast } from "sonner";
@@ -20,6 +20,8 @@ export default function RegisterOtpVerification() {
   const [otp, setOtp] = useState("");
   const [emailInput] = useState(location.state?.email || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(30);
   const email = location.state?.email || "";
   const fullName = location.state?.fullName || "";
   const companyName = location.state?.companyName || "";
@@ -117,6 +119,41 @@ export default function RegisterOtpVerification() {
     }
   };
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((seconds) => seconds - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleResend = async () => {
+    try {
+      setIsResending(true);
+      const endpoint =
+        flow === "forgot-password"
+          ? "/api/auth/forgot-password/start"
+          : flow === "tenant-register"
+          ? "/api/auth/tenant-register/resend-otp"
+          : token
+          ? `/api/auth/register/${token}/resend-otp`
+          : "/api/auth/register/resend-otp";
+      const payload =
+        flow === "forgot-password"
+          ? { email: email || emailInput }
+          : flow === "tenant-register"
+          ? { inviteToken }
+          : token
+          ? {}
+          : { email: emailInput };
+      const response = await api.post(endpoint, payload);
+      toast.success(response.data?.message || "OTP resent successfully.");
+      setResendCooldown(30);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to resend OTP.");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900 font-pregular">
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-300 shadow-sm">
@@ -150,13 +187,29 @@ export default function RegisterOtpVerification() {
                       label="OTP"
                       variant="standard"
                       value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      inputProps={{ inputMode: "numeric", maxLength: 6 }}
                       required
                       fullWidth
                     />
                   </div>
                 </div>
-                <div className="mt-2 col-span-2 text-end min-h-[1.5rem]" />
+                <div className="mt-2 col-span-2 text-end min-h-[1.5rem]">
+                  <div className="w-full lg:max-w-[50%] lg:mx-auto">
+                    {resendCooldown > 0 ? (
+                      <span className="text-black/60">Resend OTP in {resendCooldown}s</span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isResending}
+                        onClick={handleResend}
+                        className="hover:underline text-black disabled:opacity-50"
+                      >
+                        {isResending ? "Resending..." : "Resend OTP"}
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 <div className="flex">
                   <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
