@@ -5,6 +5,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
+import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
 import {
   buildWorkspaceModuleCatalog,
   buildWorkspaceModulesStructure,
@@ -407,6 +408,22 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       departmentNameById.set(String(dept._id), dept.name || "");
     }
 
+    const allBookings = await MeetingRoomBooking.find({
+      workspaceId: { $in: workspaceIds },
+    })
+      .sort({ start: -1 })
+      .limit(500)
+      .lean()
+      .exec();
+
+    const bookingsByWorkspace = new Map<string, any[]>();
+    for (const booking of allBookings) {
+      const wId = String(booking.workspaceId);
+      const current = bookingsByWorkspace.get(wId) || [];
+      current.push(booking);
+      bookingsByWorkspace.set(wId, current);
+    }
+
     const activeMemberships = await WorkspaceMember.find({
       workspace: { $in: workspaceIds },
       isActive: true,
@@ -451,17 +468,17 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       });
       const roleCountsMap = new Map<string, number>();
       const employees = workspaceMembers.map((member: any) => {
-        const role = String(member?.role || "member").trim().toLowerCase();
-        roleCountsMap.set(role, Number(roleCountsMap.get(role) || 0) + 1);
-        const roleLabel = role
-          .split("_")
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(" ");
+        // member.role is populated (see activeMemberships query above) into a
+        // full Role document, not a plain string — _getRoleName handles both
+        // shapes (previously this stringified the document itself, producing
+        // "[object Object]" for the employee role badge and the Roles tab).
+        const roleName = _getRoleName(member?.role) || "Member";
+        roleCountsMap.set(roleName, Number(roleCountsMap.get(roleName) || 0) + 1);
         return {
           id: toId(member?._id),
           fullName: String(member?.user?.name || "Member"),
           email: String(member?.user?.email || ""),
-          roleLabel,
+          roleLabel: roleName,
           status: String(member?.status || "active"),
           departments: Array.isArray(member?.departments)
             ? member.departments.map((d: any) => {
@@ -472,14 +489,49 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
           employeeId: "",
         };
       });
-      const roles = Array.from(roleCountsMap.entries()).map(([role, count]) => ({
-        role,
-        label: role
-          .split("_")
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(" "),
+      const roles = Array.from(roleCountsMap.entries()).map(([roleName, count]) => ({
+        role: roleName.toLowerCase().replace(/\s+/g, "_"),
+        label: roleName,
         count,
       }));
+
+      const workspaceBookings = bookingsByWorkspace.get(workspaceId) || [];
+      const bookingStatusCounts = new Map<string, number>();
+      workspaceBookings.forEach((booking: any) => {
+        const status = String(booking?.status || "confirmed");
+        bookingStatusCounts.set(status, Number(bookingStatusCounts.get(status) || 0) + 1);
+      });
+      const bookingsByStatus = Array.from(bookingStatusCounts.entries()).map(([status, count]) => ({
+        status,
+        count,
+      }));
+      const recentBookings = workspaceBookings.slice(0, 10).map((booking: any) => ({
+        id: toId(booking._id),
+        code: booking.bookingCode || "",
+        roomName: booking.roomName || "",
+        startTime: booking.start ? new Date(booking.start).toLocaleString() : "--:--",
+        endTime: booking.end ? new Date(booking.end).toLocaleString() : "--:--",
+        status: booking.status || "confirmed",
+        department: booking.department || "",
+        bookingType: booking.bookingType || "Internal",
+        bookedByName: booking.bookedByName || "",
+      }));
+
+      const departmentEmployeeCounts = new Map<string, number>();
+      employees.forEach((employee) => {
+        (employee.departments || []).forEach((departmentName: string) => {
+          const key = String(departmentName || "").trim().toLowerCase();
+          if (!key) return;
+          departmentEmployeeCounts.set(key, Number(departmentEmployeeCounts.get(key) || 0) + 1);
+        });
+      });
+      const departmentBookingCounts = new Map<string, number>();
+      workspaceBookings.forEach((booking: any) => {
+        const key = String(booking?.department || "").trim().toLowerCase();
+        if (!key) return;
+        departmentBookingCounts.set(key, Number(departmentBookingCounts.get(key) || 0) + 1);
+      });
+
       return {
         id: workspaceId,
         workspaceName: item.workspaceName || "",
@@ -487,6 +539,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         location: [item.city, item.state, item.country].filter(Boolean).join(", "),
         industry: "",
         businessType: Array.isArray(item.businessTypes) ? item.businessTypes.join(", ") : "",
+        selectedPlan: String(item.selectedPlan || "basic").trim().toLowerCase(),
         status: item.isActive === false ? "inactive" : "active",
         isActiveWorkspace: workspaceId === toId(user.primaryWorkspace || workspace._id),
         createdAt: item.createdAt,
@@ -497,7 +550,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
           totalTasks: 0,
           totalAssets: 0,
           totalInventory: 0,
-          totalMeetingBookings: 0,
+          totalMeetingBookings: workspaceBookings.length,
           performance: {
             taskCompletionRate: 0,
             ticketResolutionRate: 0,
@@ -507,14 +560,19 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         details: {
           employees,
           roles,
-          departments: departments.map((department: any) => ({
-            name: department?.name || "",
-            totalEmployees: 0,
-            totalTickets: 0,
-            totalTasks: 0,
-          })),
+          departments: departments.map((department: any) => {
+            const key = String(department?.name || "").trim().toLowerCase();
+            return {
+              name: department?.name || "",
+              totalEmployees: departmentEmployeeCounts.get(key) || 0,
+              totalTickets: 0,
+              totalTasks: 0,
+              totalMeetingBookings: departmentBookingCounts.get(key) || 0,
+            };
+          }),
           tickets: { byStatus: [], recent: [] },
           tasks: { byStatus: [], recent: [] },
+          bookings: { byStatus: bookingsByStatus, recent: recentBookings },
         },
       };
     });
@@ -523,6 +581,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       (acc, item) => {
         acc.totalEmployees += Number(item.metrics.totalEmployees || 0);
         acc.totalDepartments += Number(item.metrics.totalDepartments || 0);
+        acc.totalMeetingBookings += Number(item.metrics.totalMeetingBookings || 0);
         return acc;
       },
       {
@@ -673,7 +732,7 @@ export const getWorkspaceSettings = async (req, res, next) => {
     }
 
     const preferences = workspace.preferences || {};
-    const billing = workspace.billingCustomized
+    const billing = preferences.billingCustomized
       ? normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state)
       : getCountryBillingDefaults(workspace.countryCode, workspace.state);
     const branding = workspace.branding || {};
@@ -857,12 +916,6 @@ export const updateWorkspaceSettings = async (req, res, next) => {
         : {}),
     };
 
-    // Once a founder saves billing explicitly, the stored config becomes the
-    // source of truth for this location (overriding country-derived defaults).
-    if (preferences.billing !== undefined) {
-      workspace.billingCustomized = true;
-    }
-
     // Recalc on every save that includes businessHours (not only on change):
     // it is idempotent, and it lets a plain re-save heal resources whose daily
     // price was stored under a different span (e.g. the old hourly × 24 formula).
@@ -891,6 +944,16 @@ export const updateWorkspaceSettings = async (req, res, next) => {
       billing: preferences.billing !== undefined
         ? normalizedPreferences.billing
         : (workspace.preferences?.billing?.toObject?.() || workspace.preferences?.billing),
+      // Once a founder saves billing explicitly, the stored config becomes the
+      // source of truth for this location (overriding country-derived
+      // defaults). This lives under preferences (matching the schema path at
+      // Workspace.ts preferences.billingCustomized) — it was previously set
+      // as a top-level workspace field that the schema doesn't define, so it
+      // was silently dropped on save and getWorkspaceSettings always fell
+      // back to country defaults.
+      billingCustomized: preferences.billing !== undefined
+        ? true
+        : Boolean(workspace.preferences?.billingCustomized),
     };
     workspace.branding = {
       ...(workspace.branding?.toObject?.() || workspace.branding || {}),

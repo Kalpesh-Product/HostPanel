@@ -50,7 +50,7 @@ export default function WorkspaceSwitcher() {
           : prev.user,
       }));
       toast.success("Unit switched.");
-      navigate("/company-settings", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Unable to switch unit.");
     } finally {

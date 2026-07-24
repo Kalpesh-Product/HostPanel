@@ -10,6 +10,7 @@ import ActingManager from "../models/ActingManager.js";
 import Company from "../models/Company.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
+import { renderNotificationEmail } from "../utils/emailTemplates.js";
 import {
   buildWorkspaceModuleCatalog,
   COMMON_MODULE_IDS,
@@ -1165,15 +1166,22 @@ export const inviteOrganizationMember = async (req, res, next) => {
       try {
         await sendMail({
           to: email,
-          subject: "You are invited to WONO Host Panel",
-          html: `
-            <p>Hi ${name},</p>
-            <p>You have been invited to join the Host Panel.</p>
-            <p>Use the link below to complete your account setup:</p>
-            <p><a href="${inviteLink}" target="_blank">Complete Registration</a></p>
-            <p>Your name and email will be prefilled. You only need to set your password and verify OTP.</p>
-            <p>This invite link expires in 7 days.</p>
-          `,
+          subject: "You're Invited to WONO",
+          html: renderNotificationEmail({
+            heroTitle: "You're Invited to WONO",
+            heroSubtitle: `Join ${workspace.businessName || "your team"} on WONO.`,
+            greetingHtml: `
+              <p style="margin:0 0 4px;">Hello ${name},</p>
+              <p class="email-text" style="margin:0;">You have been invited to join the WONO Host Panel${workspace.businessName ? ` for <b class="email-heading">${workspace.businessName}</b>` : ""}. Complete your account setup to get started.</p>
+            `,
+            ctaButton: {
+              label: "Complete Registration",
+              href: inviteLink,
+              caption: "Your name and email will be prefilled — you only need to set your password and verify OTP.",
+            },
+            noteHtml:
+              "This invite link expires in 7 days.<br/>This signup invitation is intended only for you — for your security, do not share this link with anyone.",
+          }),
         });
       } catch (mailError: any) {
         console.error("Invite email failed (member was still created):", mailError?.message || mailError);

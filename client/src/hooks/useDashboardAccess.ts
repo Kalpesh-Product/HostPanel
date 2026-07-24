@@ -15,6 +15,7 @@ export interface DashboardAccessResult {
   /** True if the given module ID is accessible for this workspace/plan */
   hasModule: (id: string) => boolean;
   enabledModuleIds: Set<string>;
+  workspaceName: string;
 }
 
 /**
@@ -69,6 +70,7 @@ export default function useDashboardAccess(): DashboardAccessResult {
       isLoading,
       hasModule: (id: string) => allIds.has(id),
       enabledModuleIds: allIds,
+      workspaceName: String(data?.workspaceName || ""),
     };
   }, [data, isLoading, auth?.user]);
 

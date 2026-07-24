@@ -14,7 +14,7 @@ import ProfessionalDashboard from "./dashboard/ProfessionalDashboard";
 import CustomDashboard from "./dashboard/CustomDashboard";
 import PlanDashboardSkeleton from "./dashboard/PlanDashboardSkeleton";
 import { UpgradePlanModal } from "./ModuleCardsLanding";
-import { CheckCircle2, CalendarCheck, AlertCircle } from "lucide-react";
+import { CheckCircle2, CalendarCheck, AlertCircle, Building2 } from "lucide-react";
 
 const CompanySettingsDashboard = () => {
   const { auth } = useAuth();
@@ -66,6 +66,12 @@ const CompanySettingsDashboard = () => {
               >
                 <PlanBadge plan={access.plan} clickable={canUpgrade} />
               </button>
+              {access.workspaceName && (
+                <span className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-small font-pmedium text-slate-600">
+                  <Building2 size={13} />
+                  {access.workspaceName}
+                </span>
+              )}
             </div>
             <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
             <p className="text-content text-gray-400">{todayLabel}</p>

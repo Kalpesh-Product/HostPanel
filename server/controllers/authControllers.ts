@@ -701,14 +701,18 @@ export const startForgotPasswordWithOtp = async (req, res, next) => {
 
     await sendMail({
       to: normalizedEmail,
-      subject: "WONO Password Reset OTP",
-      html: `
-        <p>Hi ${user?.name || ""},</p>
-        <p>Your OTP for password reset is:</p>
-        <h2>${otp}</h2>
-        <p>This OTP expires in 10 minutes.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `,
+      subject: "Reset Your WONO Password",
+      html: renderNotificationEmail({
+        heroTitle: "Reset Your Password",
+        heroSubtitle: "Use the verification code below to continue.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${user?.name || "there"},</p>
+          <p class="email-text" style="margin:0;">Use the verification code below to verify your identity and reset your WONO password.</p>
+        `,
+        otpCode: { code: otp, expiryMinutes: 10 },
+        noteHtml:
+          "For your security, never share this verification code with anyone.<br/><br/><b>Didn't request this?</b> You can safely ignore this email.",
+      }),
     });
 
     return res.status(200).json({ message: "OTP sent successfully.", email: normalizedEmail });
@@ -1198,7 +1202,7 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
       if (workspace?._id) {
         const profile = await EmployeeProfile.findOne({
           workspaceId: workspace._id,
-          email: normalizeInviteEmail(email),
+          email: normalizeInviteEmail(inviteEmail),
         }).lean().exec();
 
         if (profile) {
@@ -1325,14 +1329,18 @@ export const startRegisterDirect = async (req, res, next) => {
 
     await sendMail({
       to: normalizedEmail,
-      subject: "WONO Registration OTP",
-      html: `
-      <p>Hi ${String(fullName).trim()},</p>
-      <p>Your OTP for registration is:</p>
-      <h2>${otp}</h2>
-      <p>This OTP expires in 10 minutes.</p>
-      <p>If you didn't request this, please ignore this email.</p>
-      `,
+      subject: "Verify Your WONO Account",
+      html: renderNotificationEmail({
+        heroTitle: "Verify Your WONO Account",
+        heroSubtitle: "Use the verification code below to continue your account activation.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${String(fullName).trim()},</p>
+          <p class="email-text" style="margin:0;">Use the verification code below to verify your email address and continue your WONO account activation.</p>
+        `,
+        otpCode: { code: otp, expiryMinutes: 10 },
+        noteHtml:
+          "For your security, never share this verification code with anyone.<br/>WONO will never ask you to share your OTP, password, or account credentials.<br/><br/><b>Didn't request this verification?</b> You can safely ignore this email.",
+      }),
     });
 
     return res.status(200).json({
@@ -1616,14 +1624,18 @@ export const sendTenantRegisterOtp = async (req, res, next) => {
 
     await sendMail({
       to: email,
-      subject: "WONO Registration OTP",
-      html: `
-        <p>Hi ${employee.name},</p>
-        <p>Your OTP for registration is:</p>
-        <h2>${otp}</h2>
-        <p>This OTP expires in 10 minutes.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `,
+      subject: "Verify Your WONO Account",
+      html: renderNotificationEmail({
+        heroTitle: "Verify Your WONO Account",
+        heroSubtitle: "Use the verification code below to continue your account activation.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${employee.name},</p>
+          <p class="email-text" style="margin:0;">Use the verification code below to verify your email address and continue your WONO account activation.</p>
+        `,
+        otpCode: { code: otp, expiryMinutes: 10 },
+        noteHtml:
+          "For your security, never share this verification code with anyone.<br/>WONO will never ask you to share your OTP, password, or account credentials.<br/><br/><b>Didn't request this verification?</b> You can safely ignore this email.",
+      }),
     });
 
     return res.status(200).json({

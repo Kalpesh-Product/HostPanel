@@ -36,6 +36,7 @@ import PageFrame from "../../components/Pages/PageFrame";
 interface Workspace {
   id: string;
   workspaceName: string;
+  selectedPlan?: string;
   [key: string]: any;
 }
 
@@ -192,7 +193,7 @@ function WorkspaceEditModal({
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Edit Unit</p>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">
+            <p className="mt-1 text-[12px] font-pmedium text-slate-500">
               Update the unit identity without changing unrelated founder settings.
             </p>
           </div>
@@ -236,35 +237,41 @@ function WorkspaceEditModal({
   );
 }
 
-function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
-  const [activeTab, setActiveTab] = useState("tasks");
+function CombinedDataModal({ isOpen, onClose, summary, combinedData, isProfessional }) {
+  const [activeTab, setActiveTab] = useState(isProfessional ? "tickets" : "tasks");
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab("tasks");
+      setActiveTab(isProfessional ? "tickets" : "tasks");
     }
-  }, [isOpen]);
+  }, [isOpen, isProfessional]);
 
   if (!isOpen) {
     return null;
   }
 
-  const tabs = [
-    { key: "tasks", label: "Tasks" },
-    { key: "tickets", label: "Tickets" },
-    { key: "assets", label: "Assets" },
-    { key: "inventory", label: "Inventory" },
-    { key: "bookings", label: "Bookings" },
-    { key: "employees", label: "Employees" },
-  ];
+  const tabs = isProfessional
+    ? [
+        { key: "tickets", label: "Tickets" },
+        { key: "bookings", label: "Meeting Room Bookings" },
+        { key: "employees", label: "Employees" },
+      ]
+    : [
+        { key: "tasks", label: "Tasks" },
+        { key: "tickets", label: "Tickets" },
+        { key: "assets", label: "Assets" },
+        { key: "inventory", label: "Inventory" },
+        { key: "bookings", label: "Meeting Room Bookings" },
+        { key: "employees", label: "Employees" },
+      ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6">
       <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.28)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3.5">
           <div>
-            <h2 className="text-lg font-black text-slate-950">Combined Units Data</h2>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">
+            <h2 className="text-lg font-pmedium text-slate-950">Combined Units Data</h2>
+            <p className="mt-1 text-[12px] font-pmedium text-slate-500">
               Unified founder view across tasks, tickets, assets, inventory, bookings, and employees.
             </p>
           </div>
@@ -280,12 +287,18 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
         <div className="flex-1 overflow-y-auto p-5">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard icon={Users} label="Employees" value={summary.totalEmployees || 0} tone="blue" />
-            <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments || 0} tone="emerald" />
+            {!isProfessional ? (
+              <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments || 0} tone="emerald" />
+            ) : null}
             <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets || 0} tone="amber" />
-            <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks || 0} tone="violet" />
-            <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
-            <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
-            <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
+            {!isProfessional ? (
+              <>
+                <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks || 0} tone="violet" />
+                <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
+                <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
+              </>
+            ) : null}
+            <MetricCard icon={CalendarDays} label="Meeting Room Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
             <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
           </div>
 
@@ -312,13 +325,13 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                   {combinedData.tasks.recent.length > 0 ? combinedData.tasks.recent.map((task) => (
                     <div key={`task-${task.workspaceId}-${task.id}-${task.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-slate-950">{task.code || "Task"}</p>
+                        <p className="text-sm font-pmedium text-slate-950">{task.code || "Task"}</p>
                         <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{task.status || "Pending"}</span>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">{task.title || "Untitled task"}</p>
-                      <p className="mt-2 text-xs font-semibold text-slate-500">{task.workspaceName} · {task.department || "No department"} · {task.assignee || "Unassigned"}</p>
+                      <p className="mt-1 text-sm font-pmedium text-slate-700">{task.title || "Untitled task"}</p>
+                      <p className="mt-2 text-xs font-pmedium text-slate-500">{task.workspaceName} · {task.department || "No department"} · {task.assignee || "Unassigned"}</p>
                     </div>
-                  )) : <p className="text-sm font-medium text-slate-500">No tasks found.</p>}
+                  )) : <p className="text-sm font-pmedium text-slate-500">No tasks found.</p>}
                 </div>
               </div>
             ) : null}
@@ -334,13 +347,13 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                   {combinedData.tickets.recent.length > 0 ? combinedData.tickets.recent.map((ticket) => (
                     <div key={`ticket-${ticket.workspaceId}-${ticket.id}-${ticket.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-slate-950">{ticket.code || "Ticket"}</p>
+                        <p className="text-sm font-pmedium text-slate-950">{ticket.code || "Ticket"}</p>
                         <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{ticket.status || "Open"}</span>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">{ticket.title || "Untitled ticket"}</p>
-                      <p className="mt-2 text-xs font-semibold text-slate-500">{ticket.workspaceName} · {ticket.department || "No department"} · {ticket.assignedTo || "Unassigned"}</p>
+                      <p className="mt-1 text-sm font-pmedium text-slate-700">{ticket.title || "Untitled ticket"}</p>
+                      <p className="mt-2 text-xs font-pmedium text-slate-500">{ticket.workspaceName} · {ticket.department || "No department"} · {ticket.assignedTo || "Unassigned"}</p>
                     </div>
-                  )) : <p className="text-sm font-medium text-slate-500">No tickets found.</p>}
+                  )) : <p className="text-sm font-pmedium text-slate-500">No tickets found.</p>}
                 </div>
               </div>
             ) : null}
@@ -356,13 +369,13 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                   {combinedData.assets.recent.length > 0 ? combinedData.assets.recent.map((asset) => (
                     <div key={`asset-${asset.workspaceId}-${asset.id}-${asset.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-slate-950">{asset.code || "Asset"}</p>
+                        <p className="text-sm font-pmedium text-slate-950">{asset.code || "Asset"}</p>
                         <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{asset.status || "Active"}</span>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">{asset.name || "Unnamed asset"}</p>
-                      <p className="mt-2 text-xs font-semibold text-slate-500">{asset.workspaceName} · {asset.department || "No department"} · {asset.category || "Other"} · {asset.assignedTo || "Unassigned"}</p>
+                      <p className="mt-1 text-sm font-pmedium text-slate-700">{asset.name || "Unnamed asset"}</p>
+                      <p className="mt-2 text-xs font-pmedium text-slate-500">{asset.workspaceName} · {asset.department || "No department"} · {asset.category || "Other"} · {asset.assignedTo || "Unassigned"}</p>
                     </div>
-                  )) : <p className="text-sm font-medium text-slate-500">No assets found.</p>}
+                  )) : <p className="text-sm font-pmedium text-slate-500">No assets found.</p>}
                 </div>
               </div>
             ) : null}
@@ -383,13 +396,13 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                   {combinedData.inventory.recent.length > 0 ? combinedData.inventory.recent.map((item) => (
                     <div key={`inventory-${item.workspaceId}-${item.id}-${item.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-slate-950">{item.code || "Inventory"}</p>
+                        <p className="text-sm font-pmedium text-slate-950">{item.code || "Inventory"}</p>
                         <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{item.trackingType || "Consumable"}</span>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">{item.name || "Unnamed inventory"}</p>
-                      <p className="mt-2 text-xs font-semibold text-slate-500">{item.workspaceName} · {item.department || "No department"} · {item.category || "Other"} · {item.availableQuantity}/{item.totalQuantity} available</p>
+                      <p className="mt-1 text-sm font-pmedium text-slate-700">{item.name || "Unnamed inventory"}</p>
+                      <p className="mt-2 text-xs font-pmedium text-slate-500">{item.workspaceName} · {item.department || "No department"} · {item.category || "Other"} · {item.availableQuantity}/{item.totalQuantity} available</p>
                     </div>
-                  )) : <p className="text-sm font-medium text-slate-500">No inventory records found.</p>}
+                  )) : <p className="text-sm font-pmedium text-slate-500">No inventory records found.</p>}
                 </div>
               </div>
             ) : null}
@@ -405,13 +418,13 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
                   {combinedData.bookings.recent.length > 0 ? combinedData.bookings.recent.map((booking) => (
                     <div key={`booking-${booking.workspaceId}-${booking.id}-${booking.code}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-slate-950">{booking.code || "Booking"}</p>
+                        <p className="text-sm font-pmedium text-slate-950">{booking.code || "Booking"}</p>
                         <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{booking.status || "booked"}</span>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">{booking.roomName || "Meeting room"} · {booking.startTime || "--:--"} - {booking.endTime || "--:--"}</p>
-                      <p className="mt-2 text-xs font-semibold text-slate-500">{booking.workspaceName} · {booking.department || "No department"} · {booking.bookingType || "Internal"} · {booking.bookedByName || "Unknown"}</p>
+                      <p className="mt-1 text-sm font-pmedium text-slate-700">{booking.roomName || "Meeting room"} · {booking.startTime || "--:--"} - {booking.endTime || "--:--"}</p>
+                      <p className="mt-2 text-xs font-pmedium text-slate-500">{booking.workspaceName} · {booking.department || "No department"} · {booking.bookingType || "Internal"} · {booking.bookedByName || "Unknown"}</p>
                     </div>
-                  )) : <p className="text-sm font-medium text-slate-500">No meeting room bookings found.</p>}
+                  )) : <p className="text-sm font-pmedium text-slate-500">No meeting room bookings found.</p>}
                 </div>
               </div>
             ) : null}
@@ -419,20 +432,20 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
             {activeTab === "employees" ? (
               <div className="mt-4 space-y-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Total Employees</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">{summary.totalEmployees || 0}</p>
+                  <p className="text-xs font-pmedium uppercase tracking-[0.16em] text-slate-500">Total Employees</p>
+                  <p className="mt-2 text-2xl font-pmedium text-slate-950">{summary.totalEmployees || 0}</p>
                 </div>
                 <div className="space-y-3">
                   {combinedData.employees.recent.length > 0 ? combinedData.employees.recent.map((employee) => (
                     <div key={`employee-${employee.workspaceId}-${employee.id}-${employee.email}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-slate-950">{employee.fullName || "Member"}</p>
+                        <p className="text-sm font-pmedium text-slate-950">{employee.fullName || "Member"}</p>
                         <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">{employee.roleLabel || "Member"}</span>
                       </div>
-                      <p className="mt-1 text-sm font-medium text-slate-700">{employee.email || "No email"}</p>
-                      <p className="mt-2 text-xs font-semibold text-slate-500">{employee.workspaceName}</p>
+                      <p className="mt-1 text-sm font-pmedium text-slate-700">{employee.email || "No email"}</p>
+                      <p className="mt-2 text-xs font-pmedium text-slate-500">{employee.workspaceName}</p>
                     </div>
-                  )) : <p className="text-sm font-medium text-slate-500">No employees found.</p>}
+                  )) : <p className="text-sm font-pmedium text-slate-500">No employees found.</p>}
                 </div>
               </div>
             ) : null}
@@ -452,14 +465,6 @@ export default function WorkspaceManagementPage() {
     (auth?.user as { workspaceCount?: number } | null)?.workspaceCount ??
     (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
   );
-  const planLabel = String(
-    (auth?.user as { workspace?: { selectedPlan?: string }; selectedPlan?: string } | null)?.workspace
-      ?.selectedPlan ||
-    (auth?.user as { selectedPlan?: string } | null)?.selectedPlan ||
-    "basic",
-  )
-    .trim()
-    .toLowerCase();
   const isWorkspaceManagementLocked = !(workspaceCount > 1);
   const [departmentFilter, setDepartmentFilter] = useState("All departments");
   const [workspaceFilter, setWorkspaceFilter] = useState("all");
@@ -616,6 +621,16 @@ export default function WorkspaceManagementPage() {
     () => workspaceList.find((workspace) => workspace.isActiveWorkspace)?.workspaceName || "Unit",
     [workspaceList],
   );
+  const activeWorkspacePlan = useMemo(
+    () =>
+      String(
+        workspaceList.find((workspace) => workspace.isActiveWorkspace)?.selectedPlan || "basic",
+      )
+        .trim()
+        .toLowerCase(),
+    [workspaceList],
+  );
+  const isActiveWorkspaceProfessional = activeWorkspacePlan === "professional";
 
   function getActiveTab(workspaceId) {
     return activeTabs[workspaceId] || "employees";
@@ -734,12 +749,18 @@ export default function WorkspaceManagementPage() {
               {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md) */}
               <div data-tour="unit-management-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
                 <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
-                <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
+                {!isActiveWorkspaceProfessional ? (
+                  <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
+                ) : null}
                 <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
-                <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks} tone="violet" />
-                <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
-                <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
-                <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
+                {!isActiveWorkspaceProfessional ? (
+                  <>
+                    <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks} tone="violet" />
+                    <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
+                    <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
+                  </>
+                ) : null}
+                <MetricCard icon={CalendarDays} label="Meeting Room Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
                 <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
               </div>
 
@@ -749,7 +770,7 @@ export default function WorkspaceManagementPage() {
                 <div data-tour="unit-management-controls" className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">All Units</p>
-                    <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
+                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
                       {departmentFilter === "All departments"
                         ? "Founder-level combined view across every active unit."
                         : `Metrics filtered to ${departmentFilter}.`}
@@ -805,12 +826,15 @@ export default function WorkspaceManagementPage() {
 
                 <div className="p-3 sm:p-4 lg:p-5">
                   {displayedWorkspaces.length === 0 ? (
-                    <div className="text-center py-20 text-slate-400 font-semibold">
+                    <div className="text-center py-20 text-slate-400 font-pmedium">
                       No units found.
                     </div>
                   ) : (
                     <div data-tour="unit-management-list" className="grid gap-3.5">
-                      {displayedWorkspaces.map((workspace) => (
+                      {displayedWorkspaces.map((workspace) => {
+                        const isWorkspaceProfessional =
+                          String(workspace.selectedPlan || "basic").trim().toLowerCase() === "professional";
+                        return (
                         <article
                           key={workspace.id}
                           className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden"
@@ -818,17 +842,17 @@ export default function WorkspaceManagementPage() {
                           <div className="p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <h3 className="text-[16px] font-black text-slate-950">
+                                <h3 className="text-[16px] font-pmedium text-slate-950">
                                   {workspace.workspaceName}
                                 </h3>
                                 <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                                   {workspace.status}
                                 </span>
                               </div>
-                              <p className="mt-1.5 text-[12px] font-semibold text-slate-600">
+                              <p className="mt-1.5 text-[12px] font-pmedium text-slate-600">
                                 {workspace.businessName || "Business name not set"}
                               </p>
-                              <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[12px] font-medium text-slate-500">
+                              <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[12px] font-pmedium text-slate-500">
                                 <span className="inline-flex items-center gap-1.5">
                                   <MapPin className="h-3.5 w-3.5" />
                                   {workspace.location || "Location not set"}
@@ -842,7 +866,7 @@ export default function WorkspaceManagementPage() {
 
                             <div className="flex flex-wrap gap-2">
                               <div
-                                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-semibold ${workspace.isActiveWorkspace
+                                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-pmedium ${workspace.isActiveWorkspace
                                   ? "border-blue-200 bg-blue-50 text-[#2563EB]"
                                   : "border-slate-200 bg-white text-slate-600"
                                   }`}
@@ -897,12 +921,18 @@ export default function WorkspaceManagementPage() {
 
                           <div className="px-4 sm:px-5 pb-4 sm:pb-5 grid gap-3 grid-cols-2 md:grid-cols-4">
                             <MetricCard icon={Users} label="Employees" value={workspace.metrics.totalEmployees} tone="blue" />
-                            <MetricCard icon={Briefcase} label="Departments" value={workspace.metrics.totalDepartments} tone="emerald" />
+                            {!isWorkspaceProfessional ? (
+                              <MetricCard icon={Briefcase} label="Departments" value={workspace.metrics.totalDepartments} tone="emerald" />
+                            ) : null}
                             <MetricCard icon={Ticket} label="Tickets" value={workspace.metrics.totalTickets} tone="amber" />
-                            <MetricCard icon={CheckCircle2} label="Tasks" value={workspace.metrics.totalTasks} tone="violet" />
-                            <MetricCard icon={Package} label="Assets" value={workspace.metrics.totalAssets || 0} tone="rose" />
-                            <MetricCard icon={Boxes} label="Inventory" value={workspace.metrics.totalInventory || 0} tone="cyan" />
-                            <MetricCard icon={CalendarDays} label="Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="orange" />
+                            {!isWorkspaceProfessional ? (
+                              <>
+                                <MetricCard icon={CheckCircle2} label="Tasks" value={workspace.metrics.totalTasks} tone="violet" />
+                                <MetricCard icon={Package} label="Assets" value={workspace.metrics.totalAssets || 0} tone="rose" />
+                                <MetricCard icon={Boxes} label="Inventory" value={workspace.metrics.totalInventory || 0} tone="cyan" />
+                              </>
+                            ) : null}
+                            <MetricCard icon={CalendarDays} label="Meeting Room Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="orange" />
                             <MetricCard icon={BarChart3} label="Performance" value={`${workspace.metrics.performance?.overallScore || 0}%`} tone="indigo" />
                           </div>
 
@@ -941,10 +971,10 @@ export default function WorkspaceManagementPage() {
                                       >
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="min-w-0">
-                                            <p className="truncate text-sm font-bold text-slate-950">
+                                            <p className="truncate text-sm font-pmedium text-slate-950">
                                               {employee.fullName}
                                             </p>
-                                            <p className="mt-1 truncate text-xs font-medium text-slate-500">
+                                            <p className="mt-1 truncate text-xs font-pmedium text-slate-500">
                                               {employee.email}
                                             </p>
                                           </div>
@@ -952,7 +982,7 @@ export default function WorkspaceManagementPage() {
                                             {employee.roleLabel}
                                           </span>
                                         </div>
-                                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-pmedium text-slate-500">
                                           {employee.employeeId ? (
                                             <span className="rounded-full bg-white px-3 py-1">
                                               {employee.employeeId}
@@ -970,7 +1000,7 @@ export default function WorkspaceManagementPage() {
                                       </article>
                                     ))
                                   ) : (
-                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2">
+                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-pmedium md:col-span-2">
                                       No workspace members found yet.
                                     </div>
                                   )}
@@ -996,7 +1026,7 @@ export default function WorkspaceManagementPage() {
                                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                       <div className="flex items-center gap-2">
                                         <Ticket className="h-4 w-4 text-amber-600" />
-                                        <h4 className="text-sm font-bold text-slate-950">Ticket Status</h4>
+                                        <h4 className="text-sm font-pmedium text-slate-950">Ticket Status</h4>
                                       </div>
                                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                                         {(workspace.details?.tickets?.byStatus || []).map((item) => (
@@ -1010,27 +1040,46 @@ export default function WorkspaceManagementPage() {
                                       </div>
                                     </div>
 
-                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                      <div className="flex items-center gap-2">
-                                        <ClipboardList className="h-4 w-4 text-violet-600" />
-                                        <h4 className="text-sm font-bold text-slate-950">Task Status</h4>
+                                    {isWorkspaceProfessional ? (
+                                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="flex items-center gap-2">
+                                          <CalendarDays className="h-4 w-4 text-orange-600" />
+                                          <h4 className="text-sm font-pmedium text-slate-950">Meeting Room Bookings</h4>
+                                        </div>
+                                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                          {(workspace.details?.bookings?.byStatus || []).map((item) => (
+                                            <StatusPill
+                                              key={`${workspace.id}-booking-${item.status}`}
+                                              label={item.status}
+                                              value={item.count}
+                                              tone="amber"
+                                            />
+                                          ))}
+                                        </div>
                                       </div>
-                                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                                        {(workspace.details?.tasks?.byStatus || []).map((item) => (
-                                          <StatusPill
-                                            key={`${workspace.id}-task-${item.status}`}
-                                            label={item.status}
-                                            value={item.count}
-                                            tone="violet"
-                                          />
-                                        ))}
+                                    ) : (
+                                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="flex items-center gap-2">
+                                          <ClipboardList className="h-4 w-4 text-violet-600" />
+                                          <h4 className="text-sm font-pmedium text-slate-950">Task Status</h4>
+                                        </div>
+                                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                          {(workspace.details?.tasks?.byStatus || []).map((item) => (
+                                            <StatusPill
+                                              key={`${workspace.id}-task-${item.status}`}
+                                              label={item.status}
+                                              value={item.count}
+                                              tone="violet"
+                                            />
+                                          ))}
+                                        </div>
                                       </div>
-                                    </div>
+                                    )}
                                   </div>
 
                                   <div className="grid gap-4 xl:grid-cols-2">
                                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                      <h4 className="text-sm font-bold text-slate-950">Recent Tickets</h4>
+                                      <h4 className="text-sm font-pmedium text-slate-950">Recent Tickets</h4>
                                       <div className="mt-3 space-y-3">
                                         {(workspace.details?.tickets?.recent || []).length > 0 ? (
                                           workspace.details.tickets.recent.map((ticketItem) => (
@@ -1039,53 +1088,84 @@ export default function WorkspaceManagementPage() {
                                               className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
                                             >
                                               <div className="flex items-center justify-between gap-3">
-                                                <p className="text-sm font-bold text-slate-950">{ticketItem.code}</p>
+                                                <p className="text-sm font-pmedium text-slate-950">{ticketItem.code}</p>
                                                 <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">
                                                   {ticketItem.status}
                                                 </span>
                                               </div>
-                                              <p className="mt-1 text-sm font-medium text-slate-600">
+                                              <p className="mt-1 text-sm font-pmedium text-slate-600">
                                                 {ticketItem.title}
                                               </p>
-                                              <p className="mt-2 text-xs font-semibold text-slate-500">
+                                              <p className="mt-2 text-xs font-pmedium text-slate-500">
                                                 {ticketItem.department || "No department"} · {ticketItem.assignedTo || "Unassigned"}
                                               </p>
                                             </div>
                                           ))
                                         ) : (
-                                          <p className="text-sm font-medium text-slate-500">No tickets yet.</p>
+                                          <p className="text-sm font-pmedium text-slate-500">No tickets yet.</p>
                                         )}
                                       </div>
                                     </div>
 
-                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                      <h4 className="text-sm font-bold text-slate-950">Recent Tasks</h4>
-                                      <div className="mt-3 space-y-3">
-                                        {(workspace.details?.tasks?.recent || []).length > 0 ? (
-                                          workspace.details.tasks.recent.map((taskItem) => (
-                                            <div
-                                              key={taskItem.id || taskItem.code}
-                                              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                                            >
-                                              <div className="flex items-center justify-between gap-3">
-                                                <p className="text-sm font-bold text-slate-950">{taskItem.code}</p>
-                                                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">
-                                                  {taskItem.status}
-                                                </span>
+                                    {isWorkspaceProfessional ? (
+                                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <h4 className="text-sm font-pmedium text-slate-950">Recent Meeting Room Bookings</h4>
+                                        <div className="mt-3 space-y-3">
+                                          {(workspace.details?.bookings?.recent || []).length > 0 ? (
+                                            workspace.details.bookings.recent.map((bookingItem) => (
+                                              <div
+                                                key={bookingItem.id || bookingItem.code}
+                                                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                                              >
+                                                <div className="flex items-center justify-between gap-3">
+                                                  <p className="text-sm font-pmedium text-slate-950">{bookingItem.roomName || "Meeting room"}</p>
+                                                  <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">
+                                                    {bookingItem.status}
+                                                  </span>
+                                                </div>
+                                                <p className="mt-1 text-sm font-pmedium text-slate-600">
+                                                  {bookingItem.startTime} - {bookingItem.endTime}
+                                                </p>
+                                                <p className="mt-2 text-xs font-pmedium text-slate-500">
+                                                  {bookingItem.department || "No department"} · {bookingItem.bookedByName || "Unassigned"}
+                                                </p>
                                               </div>
-                                              <p className="mt-1 text-sm font-medium text-slate-600">
-                                                {taskItem.title}
-                                              </p>
-                                              <p className="mt-2 text-xs font-semibold text-slate-500">
-                                                {taskItem.department || "No department"} · {taskItem.assignee || "Unassigned"}
-                                              </p>
-                                            </div>
-                                          ))
-                                        ) : (
-                                          <p className="text-sm font-medium text-slate-500">No tasks yet.</p>
-                                        )}
+                                            ))
+                                          ) : (
+                                            <p className="text-sm font-pmedium text-slate-500">No meeting room bookings yet.</p>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <h4 className="text-sm font-pmedium text-slate-950">Recent Tasks</h4>
+                                        <div className="mt-3 space-y-3">
+                                          {(workspace.details?.tasks?.recent || []).length > 0 ? (
+                                            workspace.details.tasks.recent.map((taskItem) => (
+                                              <div
+                                                key={taskItem.id || taskItem.code}
+                                                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                                              >
+                                                <div className="flex items-center justify-between gap-3">
+                                                  <p className="text-sm font-pmedium text-slate-950">{taskItem.code}</p>
+                                                  <span className="rounded-full bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.16em] text-slate-600">
+                                                    {taskItem.status}
+                                                  </span>
+                                                </div>
+                                                <p className="mt-1 text-sm font-pmedium text-slate-600">
+                                                  {taskItem.title}
+                                                </p>
+                                                <p className="mt-2 text-xs font-pmedium text-slate-500">
+                                                  {taskItem.department || "No department"} · {taskItem.assignee || "Unassigned"}
+                                                </p>
+                                              </div>
+                                            ))
+                                          ) : (
+                                            <p className="text-sm font-pmedium text-slate-500">No tasks yet.</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               ) : null}
@@ -1100,19 +1180,23 @@ export default function WorkspaceManagementPage() {
                                       >
                                         <div className="flex items-center gap-2">
                                           <Shield className="h-4 w-4 text-emerald-600" />
-                                          <h4 className="text-sm font-bold text-slate-950">
+                                          <h4 className="text-sm font-pmedium text-slate-950">
                                             {departmentItem.name}
                                           </h4>
                                         </div>
                                         <div className="mt-4 grid gap-3">
                                           <StatusPill label="Employees" value={departmentItem.totalEmployees} tone="blue" />
                                           <StatusPill label="Tickets" value={departmentItem.totalTickets} tone="amber" />
-                                          <StatusPill label="Tasks" value={departmentItem.totalTasks} tone="violet" />
+                                          {isWorkspaceProfessional ? (
+                                            <StatusPill label="Meeting Room Bookings" value={departmentItem.totalMeetingBookings} tone="violet" />
+                                          ) : (
+                                            <StatusPill label="Tasks" value={departmentItem.totalTasks} tone="violet" />
+                                          )}
                                         </div>
                                       </article>
                                     ))
                                   ) : (
-                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2 xl:col-span-3">
+                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-pmedium md:col-span-2 xl:col-span-3">
                                       No department data is available for this workspace yet.
                                     </div>
                                   )}
@@ -1121,7 +1205,8 @@ export default function WorkspaceManagementPage() {
                             </div>
                           ) : null}
                         </article>
-                      ))}
+                      );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1154,6 +1239,7 @@ export default function WorkspaceManagementPage() {
         onClose={() => setIsCombinedModalOpen(false)}
         summary={summary}
         combinedData={combinedData}
+        isProfessional={isActiveWorkspaceProfessional}
       />
     </>
   );

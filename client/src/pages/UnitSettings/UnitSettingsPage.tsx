@@ -328,7 +328,7 @@ export default function WorkspaceSettingsPage() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
           <div className="space-y-4">
-            <section data-tour="unit-settings-create" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            <section data-tour="unit-settings-create" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               {/* Header row */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                 <div className="flex items-start gap-3">
@@ -337,7 +337,7 @@ export default function WorkspaceSettingsPage() {
                   </span>
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Create New Unit</p>
-                    <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
+                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
                       Keep the same founder onboarding flow and create a new branch unit under the same business.
                     </p>
                   </div>
@@ -365,22 +365,22 @@ export default function WorkspaceSettingsPage() {
                 <div data-tour="unit-settings-creation-details" className="rounded-3xl border border-blue-100 bg-blue-50/70 p-10">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-white/70 bg-white px-5 py-5 shadow-sm">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Prefilled business data</p>
-                      <p className="mt-1 text-[14px] font-bold text-slate-950">
+                      <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Prefilled business data</p>
+                      <p className="mt-1 text-[14px] font-pmedium text-slate-950">
                         {(auth.user as { companyName?: string } | null)?.companyName || "Business name"}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500">Brand from current unit</p>
+                      <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">Brand from current unit</p>
                     </div>
                     <div className="rounded-2xl border border-dashed border-blue-200 bg-white/80 px-5 py-5">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">New branch identity</p>
-                      <p className="mt-1 text-[14px] font-bold text-slate-950">Unit name starts empty</p>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                      <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">New branch identity</p>
+                      <p className="mt-1 text-[14px] font-pmedium text-slate-950">Unit name starts empty</p>
+                      <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">
                         Location, address and vertical are entered fresh for the new branch.
                       </p>
                     </div>
                   </div>
                   <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white px-5 py-4">
-                    <div className="text-[11px] font-medium leading-6 text-slate-600">
+                    <div className="text-[11px] font-pmedium leading-6 text-slate-600">
                       Founder password verification runs first, then branch unit onboarding opens.
                     </div>
                     <div className="text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] flex items-center gap-1.5">
@@ -400,7 +400,7 @@ export default function WorkspaceSettingsPage() {
                   </span>
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Business Hours</p>
-                    <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
+                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
                       Set operating hours for meeting rooms, walk-ins, and bookings. Applied across all resources.
                     </p>
                   </div>
@@ -436,23 +436,34 @@ export default function WorkspaceSettingsPage() {
                     />
                   </div>
                 </div>
-                <p className="mt-3 text-[10px] font-medium text-slate-400">
+                <p className="mt-3 text-[10px] font-pmedium text-slate-400">
                   Current: {businessStart ? (() => { const [h, m] = businessStart.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'} – {businessEnd ? (() => { const [h, m] = businessEnd.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'}
                 </p>
               </div>
             </section>
 
             <section data-tour="unit-settings-billing" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex items-start gap-3 bg-slate-50/50">
-                <span className="rounded-2xl bg-emerald-50 p-2 text-emerald-600 shrink-0">
-                  <ReceiptText className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax & Payment Preferences</p>
-                  <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
-                    These location-level rules drive external and walk-in booking totals, payment evidence, details, and emails.
-                  </p>
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+                <div className="flex items-start gap-3">
+                  <span className="rounded-2xl bg-emerald-50 p-2 text-emerald-600 shrink-0">
+                    <ReceiptText className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax & Payment Preferences</p>
+                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
+                      These location-level rules drive external and walk-in booking totals, payment evidence, details, and emails.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={saveBusinessHours}
+                  disabled={isSavingHours}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSavingHours ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
+                  {isSavingHours ? "SAVING..." : "SAVE PREFERENCES"}
+                </button>
               </div>
               <div className="p-3 sm:p-4 lg:p-5 space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -524,7 +535,7 @@ export default function WorkspaceSettingsPage() {
                           />
                           <span>
                             <span className="block text-[11px] font-pmedium text-slate-800">{method.label}</span>
-                            <span className="text-[9px] font-medium text-slate-400">
+                            <span className="text-[9px] font-pmedium text-slate-400">
                               {method.requiresReference ? 'Reference required' : 'No reference required'} · {method.requiresProof ? 'Proof required' : 'No proof required'}
                             </span>
                           </span>
@@ -541,7 +552,7 @@ export default function WorkspaceSettingsPage() {
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                 <div>
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit Snapshot</p>
-                  <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
+                  <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
                     Current founder-level view of active unit and shared totals.
                   </p>
                 </div>
@@ -560,24 +571,24 @@ export default function WorkspaceSettingsPage() {
               <div className="p-3 sm:p-4 lg:p-5">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Active unit</p>
-                    <p className="mt-1 text-[16px] leading-none font-black text-slate-950">{activeWorkspaceName}</p>
-                    <p className="mt-1 text-[11px] font-medium text-slate-500">{activeWorkspaceLocation}</p>
+                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Active unit</p>
+                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{activeWorkspaceName}</p>
+                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">{activeWorkspaceLocation}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Total tasks</p>
-                    <p className="mt-1 text-[16px] leading-none font-black text-slate-950">{overview?.summary?.totalTasks || 0}</p>
-                    <p className="mt-1 text-[11px] font-medium text-slate-500">Across Linked Units</p>
+                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Total tasks</p>
+                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{overview?.summary?.totalTasks || 0}</p>
+                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">Across Linked Units</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Departments</p>
-                    <p className="mt-1 text-[16px] leading-none font-black text-slate-950">{overview?.summary?.totalDepartments || 0}</p>
-                    <p className="mt-1 text-[11px] font-medium text-slate-500">Founder-wide active departments</p>
+                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Departments</p>
+                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{overview?.summary?.totalDepartments || 0}</p>
+                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">Founder-wide active departments</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Overall performance</p>
-                    <p className="mt-1 text-[16px] leading-none font-black text-slate-950">{overview?.summary?.performance?.overallScore || 0}%</p>
-                    <p className="mt-1 text-[11px] font-medium text-slate-500">Tickets and tasks combined</p>
+                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Overall performance</p>
+                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{overview?.summary?.performance?.overallScore || 0}%</p>
+                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">Tickets and tasks combined</p>
                   </div>
                 </div>
               </div>
@@ -591,12 +602,12 @@ export default function WorkspaceSettingsPage() {
               </div>
               <div className="p-3 sm:p-4 lg:p-5">
                 {isLoadingOverview ? (
-                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-500">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading workspaces...
                   </div>
                 ) : workspaceList.length === 0 ? (
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-slate-400 font-semibold">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-slate-400 font-pmedium">
                     No linked units found.
                   </div>
                 ) : (
@@ -605,14 +616,14 @@ export default function WorkspaceSettingsPage() {
                       <article key={workspace.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="truncate text-[11px] font-bold text-slate-950">{workspace.workspaceName}</p>
-                            <p className="mt-1 truncate text-[10px] font-medium text-slate-500">
+                            <p className="truncate text-[11px] font-pmedium text-slate-950">{workspace.workspaceName}</p>
+                            <p className="mt-1 truncate text-[10px] font-pmedium text-slate-500">
                               <span className="inline-flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
                                 {workspace.location || "Location not set"}
                               </span>
                             </p>
-                            <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                            <p className="mt-0.5 text-[10px] font-pmedium text-slate-500">
                               {workspace.metrics?.totalEmployees || 0} employees
                             </p>
                           </div>
@@ -638,16 +649,16 @@ export default function WorkspaceSettingsPage() {
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="flex items-center gap-2">
                       <LockKeyhole className="h-4 w-4 text-[#2563EB]" />
-                      <p className="text-[12px] font-bold text-slate-950">Password check first</p>
+                      <p className="text-[12px] font-pmedium text-slate-950">Password check first</p>
                     </div>
-                    <p className="mt-1.5 text-[10px] font-medium text-slate-500">Founders must confirm password before branch setup starts.</p>
+                    <p className="mt-1.5 text-[10px] font-pmedium text-slate-500">Founders must confirm password before branch setup starts.</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="flex items-center gap-2">
                       <ClipboardList className="h-4 w-4 text-violet-600" />
-                      <p className="text-[12px] font-bold text-slate-950">Same onboarding UI</p>
+                      <p className="text-[12px] font-pmedium text-slate-950">Same onboarding UI</p>
                     </div>
-                    <p className="mt-1.5 text-[10px] font-medium text-slate-500">Business identity is prefilled, branch-specific fields are entered fresh.</p>
+                    <p className="mt-1.5 text-[10px] font-pmedium text-slate-500">Business identity is prefilled, branch-specific fields are entered fresh.</p>
                   </div>
                 </div>
               </div>
@@ -668,7 +679,7 @@ export default function WorkspaceSettingsPage() {
               </span>
               <div>
                 <h2 className="text-xl font-pmedium text-primary">Confirm password</h2>
-                <p className="mt-1 text-sm font-medium leading-6 text-slate-500">
+                <p className="mt-1 text-sm font-pmedium leading-6 text-slate-500">
                   Enter your current password to start a new workspace under this founder account.
                 </p>
               </div>
@@ -676,18 +687,18 @@ export default function WorkspaceSettingsPage() {
 
             <form onSubmit={startAdditionalWorkspaceFlow} className="mt-6 space-y-4">
               <label className="grid gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Current password</span>
+                <span className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-500">Current password</span>
                 <input
                   type="password"
                   value={currentPassword}
                   onChange={(event) => setCurrentPassword(event.target.value)}
                   placeholder="Enter your current password"
                   autoFocus
-                  className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+                  className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
                   required
                 />
               </label>
-              {passwordError ? <p className="text-sm font-semibold text-red-500">{passwordError}</p> : null}
+              {passwordError ? <p className="text-sm font-pmedium text-red-500">{passwordError}</p> : null}
               <div className="flex items-center justify-end gap-3">
                 <button
                   type="button"
