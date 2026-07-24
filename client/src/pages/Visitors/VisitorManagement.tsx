@@ -5739,10 +5739,12 @@ export default function VisitorsManagementPage() {
                                 </span>
                                 <span>{hasWalkInQuote ? `- ${formatCurrency(walkInPricing.discountAmount)}` : 'Pending'}</span>
                               </div>
-                              <div className="flex justify-between text-[12px] font-semibold text-slate-600">
-                                <span>Taxable amount</span>
-                                <span>{hasWalkInQuote ? formatCurrency(walkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
-                              </div>
+                              {(taxConfig.enabled || walkInPricing.gst > 0) && (
+                                <div className="flex justify-between text-[12px] font-semibold text-slate-600">
+                                  <span>Taxable amount</span>
+                                  <span>{hasWalkInQuote ? formatCurrency(walkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
+                                </div>
+                              )}
                               {(taxConfig.enabled || walkInPricing.gst > 0) && (
                                 <div className="flex justify-between text-[12px] font-semibold text-slate-600">
                                   <span>{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>
@@ -6776,10 +6778,12 @@ export default function VisitorsManagementPage() {
                             <span className="text-sm font-pmedium text-emerald-700">- {formatCurrency(viewingBooking.discountAmount)}</span>
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-pmedium text-gray-500">{String(viewingBooking.taxLabel || 'Tax')}{Number(viewingBooking.taxRatePercent || 0) > 0 ? ` (${Number(viewingBooking.taxRatePercent)}%)` : ''}</span>
-                          <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
-                        </div>
+                        {Number(viewingBooking.gstAmount || 0) > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-pmedium text-gray-500">{String(viewingBooking.taxLabel || 'Tax')}{Number(viewingBooking.taxRatePercent || 0) > 0 ? ` (${Number(viewingBooking.taxRatePercent)}%)` : ''}</span>
+                            <span className="text-sm font-pmedium text-gray-900">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
+                          </div>
+                        )}
                         {Number(viewingBooking.extensionAmount || 0) > 0 && (
                           <div className="flex items-center justify-between rounded-xl bg-purple-50 px-3 py-2">
                             <span className="text-xs font-pmedium text-purple-600">Extension Charges</span>

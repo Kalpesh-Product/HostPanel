@@ -95,11 +95,16 @@ const workspaceSchema = new mongoose.Schema(
         start: { type: String, default: "09:00" },
         end: { type: String, default: "22:00" },
       },
+      // When false (default), tax + payment methods are derived from the
+      // location's country/state at read time so each country charges its own
+      // tax and shows its own payment methods. A founder editing billing in
+      // Unit Settings flips this to true, after which the stored config wins.
+      billingCustomized: { type: Boolean, default: false },
       billing: {
         tax: {
-          enabled: { type: Boolean, default: true },
-          label: { type: String, default: "GST", trim: true, maxlength: 40 },
-          ratePercent: { type: Number, default: 18, min: 0, max: 100 },
+          enabled: { type: Boolean },
+          label: { type: String, trim: true, maxlength: 40 },
+          ratePercent: { type: Number, min: 0, max: 100 },
           priceIncludesTax: { type: Boolean, default: false },
         },
         paymentMethods: {
@@ -109,12 +114,7 @@ const workspaceSchema = new mongoose.Schema(
             requiresReference: { type: Boolean, default: false },
             requiresProof: { type: Boolean, default: false },
           }],
-          default: () => [
-            { code: "cash", label: "Cash", requiresReference: false, requiresProof: false },
-            { code: "card", label: "Card", requiresReference: false, requiresProof: false },
-            { code: "bank_transfer", label: "Bank Transfer", requiresReference: true, requiresProof: true },
-            { code: "upi", label: "UPI", requiresReference: true, requiresProof: true },
-          ],
+          default: undefined,
         },
       },
     },

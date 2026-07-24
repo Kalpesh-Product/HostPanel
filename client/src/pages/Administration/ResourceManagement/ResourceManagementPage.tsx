@@ -23,6 +23,8 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -509,6 +511,8 @@ class ResourceManagementErrorBoundary extends React.Component<ErrorBoundaryProps
 // ── Inner Page Component ───────────────────────────────────────────────────
 
 function ResourceManagementPageInner() {
+  const workspacePreferences = useWorkspacePreferences();
+  const wsMoney = (value: number) => formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
   const [resources, setResources] = useState<Resource[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
@@ -1090,12 +1094,12 @@ function ResourceManagementPageInner() {
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Pricing</p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">
                           {resource.pricePerHour && resource.pricePerHour > 0
-                            ? `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(resource.pricePerHour)} / hr`
+                            ? `${wsMoney(resource.pricePerHour)} / hr`
                             : resource.pricing || 'Pricing pending'}
                         </p>
                         <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                           {resource.pricePerDay && resource.pricePerDay > 0
-                            ? `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(resource.pricePerDay)} / day`
+                            ? `${wsMoney(resource.pricePerDay)} / day`
                             : 'Daily rate not set'}
                         </p>
                       </div>
@@ -1600,12 +1604,12 @@ function ResourceManagementPageInner() {
                   <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Sales Pricing</p>
                   <p className="font-black text-green-600">
                     {viewingResource.pricePerHour && viewingResource.pricePerHour > 0
-                      ? `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(viewingResource.pricePerHour)} / hr`
+                      ? `${wsMoney(viewingResource.pricePerHour)} / hr`
                       : viewingResource.pricing || 'Pricing pending'}
                   </p>
                   <p className="mt-1 font-black text-green-600">
                     {viewingResource.pricePerDay && viewingResource.pricePerDay > 0
-                      ? `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(viewingResource.pricePerDay)} / day`
+                      ? `${wsMoney(viewingResource.pricePerDay)} / day`
                       : 'Daily rate not set'}
                   </p>
                 </div>

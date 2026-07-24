@@ -33,6 +33,8 @@ import { canAccessAdministrationDashboard, getStoredUser } from '@/lib/auth-sess
 import { BookingsSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
 import { statusPillClass } from '../../../lib/status-pill';
+import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
 // Backend services - uncomment when backend is ready:
 // import { getMeetingRoomBookings, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
 // import { getTenantCompanies } from '@/services/tenant-companies';
@@ -508,13 +510,9 @@ function isGpayPaymentMode(value: string): boolean {
   return normalized.includes('gpay') || normalized.includes('upi');
 }
 
-function formatCurrency(value: number | string | null | undefined): string {
+function formatCurrency(value: number | string | null | undefined, currency = 'INR'): string {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(Number.isFinite(amount) ? amount : 0);
+  return formatWorkspaceCurrency(Number.isFinite(amount) ? amount : 0, currency, { maximumFractionDigits: 0 });
 }
 
 function isExternalBooking(row: Record<string, unknown>): boolean {
@@ -899,6 +897,8 @@ function buildBookingDetailExportRows(booking: Record<string, unknown> = {}): Ar
 
 export default function BookingsPage() {
   const storedUser = getStoredUser();
+  const workspacePreferences = useWorkspacePreferences();
+  const wsCurrency = workspacePreferences.currency;
   const isAdministrationManagerProfile = canAccessAdministrationDashboard(storedUser);
   const [activeScope, setActiveScope] = useState('internal');
   const [activeTab, setActiveTab] = useState('All');
@@ -1065,6 +1065,8 @@ export default function BookingsPage() {
           financeStatus: String(booking.financeStatus || ''),
           baseAmount: Number(booking.baseAmount || 0),
           gstAmount: Number(booking.gstAmount || 0),
+          taxLabel: booking.taxLabel || (Number(booking.gstAmount || 0) > 0 ? 'GST' : 'Tax'),
+          taxRatePercent: Number(booking.taxRatePercent ?? (Number(booking.gstAmount || 0) > 0 ? 18 : 0)),
           extensionAmount: Number(booking.extensionAmount || 0),
           originalTotalAmount: Math.max(Number(booking.totalAmount || 0) - Number(booking.extensionAmount || 0), 0),
           totalAmount: Number(booking.totalAmount || 0),
@@ -2114,10 +2116,10 @@ export default function BookingsPage() {
                       <InfoRow label="Payment Status" value={viewingDetails.paymentStatus || '-'} />
                       {viewingDetails.totalAmount > 0 && (
                         <>
-                          <InfoRow label="Base Amount" value={formatCurrency(viewingDetails.baseAmount)} />
-                          <InfoRow label="GST" value={formatCurrency(viewingDetails.gstAmount)} />
-                          {viewingDetails.extensionAmount > 0 && <InfoRow label="Extension Charges" value={formatCurrency(viewingDetails.extensionAmount)} />}
-                          <InfoRow label="Total Amount" value={formatCurrency(viewingDetails.totalAmount)} />
+                          <InfoRow label="Base Amount" value={formatCurrency(viewingDetails.baseAmount, wsCurrency)} />
+                          <InfoRow label={(viewingDetails as any).taxLabel ? `${(viewingDetails as any).taxLabel}${Number((viewingDetails as any).taxRatePercent || 0) > 0 ? ` (${Number((viewingDetails as any).taxRatePercent)}%)` : ''}` : 'Tax'} value={formatCurrency(viewingDetails.gstAmount, wsCurrency)} />
+                          {viewingDetails.extensionAmount > 0 && <InfoRow label="Extension Charges" value={formatCurrency(viewingDetails.extensionAmount, wsCurrency)} />}
+                          <InfoRow label="Total Amount" value={formatCurrency(viewingDetails.totalAmount, wsCurrency)} />
                         </>
                       )}
                       <InfoRow label="Payment Mode" value={viewingDetails.paymentMode || '-'} />

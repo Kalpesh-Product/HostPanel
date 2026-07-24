@@ -13,7 +13,7 @@ import {
   EXTRA_COMMON_MODULE_IDS,
 } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
-import { normalizeBillingConfig } from "../utils/workspaceBilling.js";
+import { getCountryBillingDefaults, normalizeBillingConfig } from "../utils/workspaceBilling.js";
 import { recalcResourceDailyPricesForWorkspace } from "../services/resourceService.js";
 import {
   isValidCurrency,
@@ -673,7 +673,9 @@ export const getWorkspaceSettings = async (req, res, next) => {
     }
 
     const preferences = workspace.preferences || {};
-    const billing = normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state);
+    const billing = workspace.billingCustomized
+      ? normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state)
+      : getCountryBillingDefaults(workspace.countryCode, workspace.state);
     const branding = workspace.branding || {};
     return res.status(200).json({
       message: "Workspace settings loaded successfully.",
@@ -854,6 +856,12 @@ export const updateWorkspaceSettings = async (req, res, next) => {
         ? { billing: normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state) }
         : {}),
     };
+
+    // Once a founder saves billing explicitly, the stored config becomes the
+    // source of truth for this location (overriding country-derived defaults).
+    if (preferences.billing !== undefined) {
+      workspace.billingCustomized = true;
+    }
 
     // Recalc on every save that includes businessHours (not only on change):
     // it is idempotent, and it lets a plain re-save heal resources whose daily

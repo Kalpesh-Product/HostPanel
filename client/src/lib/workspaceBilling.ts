@@ -20,7 +20,6 @@ export type WorkspaceBillingConfig = {
 export const PAYMENT_METHOD_CATALOG: Record<string, WorkspacePaymentMethod> = {
   cash: { code: "cash", label: "Cash", requiresReference: false, requiresProof: false },
   card: { code: "card", label: "Card", requiresReference: false, requiresProof: false },
-  bank_transfer: { code: "bank_transfer", label: "Bank Transfer", requiresReference: true, requiresProof: true },
   upi: { code: "upi", label: "UPI", requiresReference: true, requiresProof: true },
   ach: { code: "ach", label: "ACH", requiresReference: true, requiresProof: false },
   interac: { code: "interac", label: "Interac", requiresReference: true, requiresProof: false },
@@ -59,7 +58,7 @@ export function getCountryBillingDefaults(countryCode: unknown, stateName: unkno
   const state = String(stateName || "").trim().toLowerCase();
   const tax = { ...(taxDefaults[code] || { enabled: false, label: "Tax", ratePercent: 0 }) };
   if (code === "CA" && state === "ontario") Object.assign(tax, { enabled: true, label: "HST", ratePercent: 13 });
-  const methodCodes = ["cash", "card", "bank_transfer", ...(localMethods[code] || [])];
+  const methodCodes = ["cash", "card", ...(localMethods[code] || [])];
   return {
     tax: { ...tax, priceIncludesTax: false },
     paymentMethods: methodCodes.map((methodCode) => PAYMENT_METHOD_CATALOG[methodCode]).filter(Boolean),

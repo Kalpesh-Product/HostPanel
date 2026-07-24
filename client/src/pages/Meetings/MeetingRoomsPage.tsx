@@ -6670,10 +6670,12 @@ export function MeetingRoomsPage() {
                               <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Discount</span>
                               <span className="text-[12px] font-pmedium text-emerald-600">{hasExternalQuote ? `- ${formatCurrency(externalWalkInPricing.discountAmount)}` : 'Pending'}</span>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Taxable Amount</span>
-                              <span className="text-[12px] font-pmedium text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
-                            </div>
+                            {(taxConfig.enabled || externalWalkInPricing.gst > 0) && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Taxable Amount</span>
+                                <span className="text-[12px] font-pmedium text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
+                              </div>
+                            )}
                             {(taxConfig.enabled || externalWalkInPricing.gst > 0) && (
                               <div className="flex items-center justify-between">
                                 <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>

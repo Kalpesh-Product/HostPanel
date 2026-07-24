@@ -30,7 +30,9 @@ const DEFAULT_PREFERENCES: WorkspacePreferences = {
   timeFormat: "12h",
   weekStartsOn: "monday",
   businessHours: { start: "09:00", end: "22:00" },
-  billing: getCountryBillingDefaults("IN"),
+  // Country-neutral until the workspace's real settings load, so a non-India
+  // location never briefly shows India's GST.
+  billing: getCountryBillingDefaults(""),
 };
 
 export default function useWorkspacePreferences(): WorkspacePreferences {
