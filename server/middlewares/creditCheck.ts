@@ -5,6 +5,7 @@ import {
   resolveWorkspacePlan,
   syncSubscriptionPlan,
 } from "../utils/websiteCredits.js";
+import { findWorkspaceSubscription } from "../controllers/subscriptionHelpers.js";
 
 const getFirstDayOfNextMonthUtc = () => {
   const now = new Date();
@@ -25,12 +26,14 @@ export const checkAndDeductCredit = async (req, res, next) => {
       return res.status(400).json({ error: "companyId or workspaceId is required" });
     }
 
-    const lookupClauses = [];
-    if (companyId) lookupClauses.push({ companyId });
-    if (workspaceId) lookupClauses.push({ workspaceId });
-
-    let subscription = await WorkspaceSubscription.findOne({
-      $or: lookupClauses.length ? lookupClauses : [{ companyId: identifier }],
+    // Prefer the exact (companyId, workspaceId) pool; only fall back to a single
+    // id when that's all we have. A plain companyId-OR-workspaceId match would
+    // return whichever doc happens to share one id — the wrong workspace's pool
+    // for a company that runs multiple workspaces.
+    let subscription = await findWorkspaceSubscription({
+      companyId,
+      workspaceId,
+      routeId: identifier,
     });
 
     if (!subscription) {

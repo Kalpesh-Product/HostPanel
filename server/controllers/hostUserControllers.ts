@@ -222,9 +222,13 @@ export const getMyProfile = async (req, res) => {
     let workspaceMembership = await resolveActiveWorkspaceMembership(user);
     let workspace = workspaceMembership?.workspace || null;
 
-    if (workspace && typeof workspace !== "string") {
-      // already populated by resolveActiveWorkspaceMembership
-    } else if (workspace && typeof workspace === "string") {
+    // resolveActiveWorkspaceMembership only populates `role`, not `workspace`
+    // — it comes back as a bare ObjectId (typeof "object", not "string"), so
+    // the old typeof check here treated it as an already-populated document
+    // and skipped the lookup entirely, silently sending the client a raw
+    // ObjectId instead of the Workspace doc (every field on the Company
+    // Profile page then read as undefined off a string/ObjectId).
+    if (workspace && !(typeof workspace === "object" && workspace.workspaceName)) {
       workspace = await Workspace.findById(workspace).lean().exec();
     }
 

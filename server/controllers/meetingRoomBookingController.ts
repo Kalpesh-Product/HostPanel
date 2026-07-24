@@ -63,7 +63,7 @@ type WorkspaceLocalization = {
 async function getWorkspaceLocalization(workspaceId: string): Promise<WorkspaceLocalization> {
     try {
         const workspace = await Workspace.findById(workspaceId)
-            .select("countryCode state billingCustomized preferences.timezone preferences.currency preferences.businessHours preferences.billing")
+            .select("countryCode state preferences.timezone preferences.currency preferences.businessHours preferences.billing preferences.billingCustomized")
             .lean();
         const preferences = workspace?.preferences;
         const businessHours = preferences?.businessHours;
@@ -71,7 +71,7 @@ async function getWorkspaceLocalization(workspaceId: string): Promise<WorkspaceL
         const fallbackCountry = workspace?.countryCode || (currency === "INR" ? "IN" : "");
         // Country/state drive tax + payment methods unless the founder has
         // explicitly customized billing for this location.
-        const billing = workspace?.billingCustomized
+        const billing = preferences?.billingCustomized
             ? normalizeBillingConfig(preferences?.billing, fallbackCountry, workspace?.state)
             : getCountryBillingDefaults(fallbackCountry, workspace?.state);
         return {

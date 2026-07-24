@@ -16,6 +16,7 @@ import { VERTICAL_CONFIG } from "../../config/verticalConfig.js";
 import { THEME_TOKENS } from "../../config/themeTokens.js";
 import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";
 import recordWebsiteCreditEvent from "../../utils/websiteCreditLedger.js";
+import { findWorkspaceSubscription } from "../subscriptionHelpers.js";
 import { assertWebsiteEditLock } from "./websiteEditLockControllers.js";
 
 const VALID_VERTICALS = new Set([
@@ -3313,21 +3314,33 @@ export const editTemplate = async (req, res, next) => {
     // edit the same website.
     await template.save();
 
-    const updatedSubscription = await deductWorkspaceCreditOnSuccess({
-      workspaceId: req.body?.workspaceId || template?.workspaceId,
-      companyId: req.body?.companyId || template?.companyId,
-    });
+    // The edit is already persisted above. Credit deduction must therefore be
+    // best-effort: if it throws (e.g. a transient duplicate-key error while the
+    // website_credits indexes are being repaired) we must NOT bubble that into
+    // the catch block, or a fully successful edit gets reported to the user as a
+    // 400 failure — prompting a re-edit and leaving credits mis-tracked.
+    try {
+      const updatedSubscription = await deductWorkspaceCreditOnSuccess({
+        workspaceId: req.body?.workspaceId || template?.workspaceId,
+        companyId: req.body?.companyId || template?.companyId,
+      });
 
-    // Fire-and-forget: record who consumed the credit for the credits ledger.
-    void recordWebsiteCreditEvent({
-      req,
-      type: "used",
-      credits: 1,
-      subscription: updatedSubscription,
-      workspaceId: req.body?.workspaceId || template?.workspaceId,
-      companyId: req.body?.companyId || template?.companyId,
-      description: "Website edit published",
-    });
+      // Fire-and-forget: record who consumed the credit for the credits ledger.
+      void recordWebsiteCreditEvent({
+        req,
+        type: "used",
+        credits: 1,
+        subscription: updatedSubscription,
+        workspaceId: req.body?.workspaceId || template?.workspaceId,
+        companyId: req.body?.companyId || template?.companyId,
+        description: "Website edit published",
+      });
+    } catch (creditError) {
+      console.error(
+        "Website edit saved but credit deduction failed:",
+        creditError?.message || creditError,
+      );
+    }
 
     res
       .status(200)
@@ -3360,15 +3373,16 @@ export const publishWebsite = async (req, res, next) => {
     const resolvedWorkspaceId = String(workspaceId || template.workspaceId || "").trim();
     const resolvedCompanyId = String(template.companyId || "").trim();
 
-    let subscription = null;
-    if (resolvedWorkspaceId) {
-      subscription = await WorkspaceSubscription.findOne({
-        $or: [
-          { workspaceId: resolvedWorkspaceId },
-          { companyId: resolvedCompanyId || resolvedWorkspaceId },
-        ],
-      }).exec();
-    }
+    // Match the credit pool strictly by the (companyId, workspaceId) pair first,
+    // falling back to a single id only when just one is known. Matching companyId
+    // OR workspaceId independently (the old behavior) let a workspace inherit an
+    // unrelated company's subscription — which then surfaced that other company's
+    // publishedProjectUrl as this site's "deployed link" and tracked credits
+    // against the wrong company.
+    let subscription = await findWorkspaceSubscription({
+      companyId: resolvedCompanyId,
+      workspaceId: resolvedWorkspaceId,
+    });
 
     if (!subscription) {
       const plan = await resolveWorkspacePlan({

@@ -462,11 +462,25 @@ const FinalizeSetupPage: React.FC = () => {
         additionalWorkspaceMode: isAdditionalWorkspaceMode,
       });
 
+      // The server is authoritative on the plan: additional workspaces inherit
+      // the account plan and are never downgraded. Persist what the server
+      // actually saved so the UI can't drift back to a stale/basic plan.
+      const createdWorkspace = (response?.data?.workspace || {}) as {
+        selectedPlan?: string;
+        enabledModuleIds?: string[];
+      };
+      const persistedPlan = (String(createdWorkspace.selectedPlan || selectedPlan)
+        .trim()
+        .toLowerCase() || selectedPlan) as PlanType;
+      const persistedEnabledModuleIds = Array.isArray(createdWorkspace.enabledModuleIds)
+        ? createdWorkspace.enabledModuleIds
+        : enabledModuleIds;
+
       localStorage.setItem(
         "workspace_setup",
         JSON.stringify({
-          selectedPlan,
-          enabledModuleIds,
+          selectedPlan: persistedPlan,
+          enabledModuleIds: persistedEnabledModuleIds,
           workspaceDetails,
         }),
       );

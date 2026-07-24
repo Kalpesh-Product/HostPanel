@@ -47,7 +47,12 @@ const getAccessibleWorkspaces = async (userId: any) => {
   const memberships = await resolveAccessibleWorkspaceMemberships(userId);
 
   return memberships
-    .filter((membership: any) => membership?.workspace)
+    .filter(
+      (membership: any) =>
+        membership?.workspace &&
+        membership.workspace.isActive !== false &&
+        membership.workspace.isDeleted !== true,
+    )
     .map((membership: any) => {
       const workspace = membership.workspace;
       return {

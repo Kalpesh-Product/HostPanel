@@ -138,6 +138,23 @@ const workspaceSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Soft-delete flag. A deleted workspace stays visible (locked) but cannot
+    // be accessed or re-enabled by the founder; only the WONO team can recover
+    // it. Disabling, by contrast, just flips isActive and is reversible by the
+    // founder.
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    // Set when the founder requests the WONO team to recover a deleted unit.
+    recoveryRequestedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );
