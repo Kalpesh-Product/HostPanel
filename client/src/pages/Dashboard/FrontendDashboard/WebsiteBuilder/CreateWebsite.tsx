@@ -811,11 +811,15 @@ const isSameCompanyTemplate = ({
   const itemCompanyName = String(item?.companyName || "").trim().toLowerCase();
   const normalizedCompanyName = String(companyName || "").trim().toLowerCase();
 
-  // Cascade instead of early-return: templates are sometimes stored with a
-  // companyId from a different source than the one in the session, so a
-  // companyId mismatch must still fall through to the workspace/name checks.
-  if (companyId && itemCompanyId === String(companyId).trim()) return true;
-  if (workspaceId && itemWorkspaceId === String(workspaceId).trim()) return true;
+  // Explicit ownership identifiers must agree before a template can be edited.
+  if (companyId && itemCompanyId) {
+    return itemCompanyId === String(companyId).trim();
+  }
+  if (workspaceId && itemWorkspaceId) {
+    return itemWorkspaceId === String(workspaceId).trim();
+  }
+
+  // Company-name matching is only for legacy templates without ownership ids.
   if (normalizedCompanyName && itemCompanyName === normalizedCompanyName)
     return true;
   return false;
@@ -1009,27 +1013,35 @@ const CreateWebsite = () => {
   });
 
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
+  const authenticatedCompanyId = String(auth?.user?.companyId || "").trim();
+  const selectedCompanyId = String(selectedCompany?.companyId || "").trim();
+  const scopedSelectedCompany =
+    !authenticatedCompanyId ||
+    !selectedCompanyId ||
+    selectedCompanyId === authenticatedCompanyId
+      ? selectedCompany
+      : null;
   const builderBasePath = location.pathname.includes("/company-settings/website-builder")
     ? "/company-settings/website-builder"
     : "/dashboard/website-builder";
   const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
   const effectiveEditMode = isEditMode || hasExistingWebsite;
   const workspaceId =
-    selectedCompany?.workspaceId ||
+    scopedSelectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
     auth?.user?.workspaceId;
   const companyId =
-    selectedCompany?.companyId ||
+    scopedSelectedCompany?.companyId ||
     hostCompanyIdentity?.companyId ||
     auth?.user?.companyId ||
     "";
   const prefillCompanyId =
-    selectedCompany?.companyId ||
+    scopedSelectedCompany?.companyId ||
     hostCompanyIdentity?.companyId ||
     auth?.user?.companyId ||
     "";
   const prefillCompanyName =
-    selectedCompany?.companyName ||
+    scopedSelectedCompany?.companyName ||
     auth?.user?.companyName ||
     workspaceBusinessName ||
     hostCompanyIdentity?.companyName ||
@@ -1273,7 +1285,7 @@ const CreateWebsite = () => {
       try {
         const resolvedCompanyName = String(
           prefillCompanyName ||
-            selectedCompany?.companyName ||
+            scopedSelectedCompany?.companyName ||
             workspaceBusinessName ||
             auth?.user?.companyName ||
             "",
@@ -1770,7 +1782,7 @@ const CreateWebsite = () => {
     prefillCompanyId,
     prefillCompanyName,
     workspaceId,
-    selectedCompany?.companyName,
+    scopedSelectedCompany?.companyName,
     workspaceBusinessName,
     auth?.user?.companyName,
     auth?.user?.primaryWorkspace,
@@ -1874,7 +1886,7 @@ const CreateWebsite = () => {
         prefillCompanyName ||
         workspaceBusinessName ||
         hostCompanyIdentity?.companyName ||
-        selectedCompany?.companyName ||
+        scopedSelectedCompany?.companyName ||
         auth?.user?.companyName ||
         "",
     ).trim();
@@ -2932,7 +2944,15 @@ const CreateWebsite = () => {
                   {draftStatus === "saving"
                     ? "Saving draft..."
                     : draftStatus === "saved"
-                      ? `Draft saved${draftUpdatedAt ? ` at ${new Date(draftUpdatedAt).toLocaleTimeString()}` : ""}`
+                      ? `Draft saved${
+                          draftUpdatedAt
+                            ? ` at ${new Date(draftUpdatedAt).toLocaleTimeString([], {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })}`
+                            : ""
+                        }`
                       : draftStatus === "error"
                         ? "Draft save failed. Changes are still in the form."
                         : hasRestoredDraft
@@ -2997,25 +3017,7 @@ const CreateWebsite = () => {
               <div className="mt-4 min-w-0 overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b-default border-borderGray py-4">
                   <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Products Page Settings <SectionPreviewInfo section="productsPage" /></span>
-                  {productsPageNavIndex >= 0 ? (
-                    <div>
-                      <Controller
-                        name={`pageNavItems.${productsPageNavIndex}.enabled`}
-                        control={control}
-                        render={({ field }) => (
-                          <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={field.value !== false}
-                              onChange={(event) => field.onChange(event.target.checked)}
-                            />
-                            Show Products page on website
-                          </label>
-                        )}
-                      />
-                    </div>
-                  ) : null}
-                  <div className="flex flex-shrink-0 items-center gap-2 flex-wrap">
+                  <div className="flex flex-shrink-0 items-center gap-3 flex-wrap">
                     <TextField
                       select
                       size="small"
@@ -3045,6 +3047,24 @@ const CreateWebsite = () => {
                         + Add New Page
                       </MenuItem>
                     </TextField>
+                    {productsPageNavIndex >= 0 ? (
+                      <div>
+                        <Controller
+                          name={`pageNavItems.${productsPageNavIndex}.enabled`}
+                          control={control}
+                          render={({ field }) => (
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={field.value !== false}
+                                onChange={(event) => field.onChange(event.target.checked)}
+                              />
+                              Show Products page on website
+                            </label>
+                          )}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <p className="mb-3 border-b border-slate-200 pb-2 text-xs text-slate-500">

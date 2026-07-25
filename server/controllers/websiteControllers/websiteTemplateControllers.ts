@@ -2299,6 +2299,14 @@ export const getTemplates = async (req, res) => {
     const normalizedCompanyId = String(companyId || "").trim();
     const normalizedBusinessName = String(businessName || "").trim();
     const normalizedCompanyName = String(companyName || "").trim();
+    const legacyOwnershipFilter = {};
+    if (normalizedCompanyId) {
+      legacyOwnershipFilter.companyId = { $in: [null, ""] };
+    }
+    if (workspaceId) {
+      legacyOwnershipFilter.workspaceId = { $in: [null, ""] };
+    }
+
 
     const candidates = [];
     const seenIds = new Set();
@@ -2311,7 +2319,7 @@ export const getTemplates = async (req, res) => {
       }
     };
 
-    if (workspaceId) {
+    if (workspaceId && !normalizedCompanyId) {
       appendUnique(
         await WebsiteTemplate.find({ isActive: true, workspaceId }).lean().exec(),
       );
@@ -2326,11 +2334,22 @@ export const getTemplates = async (req, res) => {
       );
     }
 
-    if (normalizedBusinessName) {
+    if (normalizedCompanyId && workspaceId && !candidates.length) {
+      appendUnique(
+        await WebsiteTemplate.find({
+          isActive: true,
+          workspaceId,
+          companyId: { $in: [null, ""] },
+        }).lean().exec(),
+      );
+    }
+
+    if (normalizedBusinessName && !candidates.length) {
       const safeBusiness = escapeRegex(normalizedBusinessName);
       appendUnique(
         await WebsiteTemplate.find({
           isActive: true,
+          ...legacyOwnershipFilter,
           $or: [
             { companyName: { $regex: new RegExp(`^${safeBusiness}$`, "i") } },
             { searchKey: normalizeSearchKeyFromName(normalizedBusinessName) },
@@ -2339,11 +2358,12 @@ export const getTemplates = async (req, res) => {
       );
     }
 
-    if (normalizedCompanyName) {
+    if (normalizedCompanyName && !candidates.length) {
       const safeCompany = escapeRegex(normalizedCompanyName);
       appendUnique(
         await WebsiteTemplate.find({
           isActive: true,
+          ...legacyOwnershipFilter,
           $or: [
             { companyName: { $regex: new RegExp(`^${safeCompany}$`, "i") } },
             { searchKey: normalizeSearchKeyFromName(normalizedCompanyName) },

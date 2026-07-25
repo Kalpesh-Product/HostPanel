@@ -10,6 +10,8 @@ import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import "./ClientLogin.css";
 import "./ClientSpecialClasses.css";
 
+const VERIFY_OTP_HEADING = "Verify OTP";
+
 export default function RegisterOtpVerification() {
   const { token } = useParams();
   const navigate = useNavigate();
@@ -22,6 +24,8 @@ export default function RegisterOtpVerification() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(30);
+  const [typedHeading, setTypedHeading] = useState("");
+  const [isFormVisible, setIsFormVisible] = useState(false);
   const email = location.state?.email || "";
   const fullName = location.state?.fullName || "";
   const companyName = location.state?.companyName || "";
@@ -125,6 +129,24 @@ export default function RegisterOtpVerification() {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
+  useEffect(() => {
+    setTypedHeading("");
+    setIsFormVisible(false);
+
+    let headingIndex = 0;
+    const headingInterval = setInterval(() => {
+      headingIndex += 1;
+      setTypedHeading(VERIFY_OTP_HEADING.slice(0, headingIndex));
+
+      if (headingIndex >= VERIFY_OTP_HEADING.length) {
+        clearInterval(headingInterval);
+        setIsFormVisible(true);
+      }
+    }, 7);
+
+    return () => clearInterval(headingInterval);
+  }, []);
+
   const handleResend = async () => {
     try {
       setIsResending(true);
@@ -165,7 +187,7 @@ export default function RegisterOtpVerification() {
       </header>
 
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
-        <h1 className="text-center text-4xl font-bold">VERIFY OTP</h1>
+        <h1 className="text-center text-4xl font-play min-h-[3rem]">{typedHeading}</h1>
         <div className="loginDividingContainer shrink-container">
           <div className="w-5/6 md:w-2/3">
             <Container maxWidth="lg" style={{ padding: "3rem 0 0" }}>
@@ -180,8 +202,15 @@ export default function RegisterOtpVerification() {
                 )}
               </p>
 
-              <Box component="form" sx={{ flexGrow: 1 }} onSubmit={handleSubmit} noValidate autoComplete="off">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Box
+                component="form"
+                sx={{ flexGrow: 1 }}
+                onSubmit={handleSubmit}
+                noValidate
+                autoComplete="off"
+                className={isFormVisible ? "visible" : "invisible"}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="w-full lg:col-start-1 lg:col-end-3 lg:max-w-[50%] lg:mx-auto">
                     <TextField
                       label="OTP"
@@ -212,15 +241,15 @@ export default function RegisterOtpVerification() {
                 </div>
 
                 <div className="flex">
-                  <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
+                  <div className="flex flex-col justify-center w-full items-center gap-6 mt-6">
                     <Grid size={12}>
                       <div className="centerInPhone">
                         <button
                           disabled={isSubmitting}
                           type="submit"
-                          className="loginButtonStyling text-decoration-none text-subtitle w-40"
+                          className="loginButtonStyling text-decoration-none text-subtitle font-medium w-40"
                         >
-                          {isSubmitting ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : "VERIFY"}
+                          {isSubmitting ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : "Verify"}
                         </button>
                       </div>
                     </Grid>

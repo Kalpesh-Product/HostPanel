@@ -234,7 +234,9 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
               />
             ))
           ) : (
-            <p className="text-content text-gray-400 text-center py-6">No leads yet — publish your website to start receiving leads.</p>
+            <div className="min-h-48 flex items-center justify-center">
+              <p className="text-content text-gray-400 text-center">No leads yet — publish your website to start receiving leads.</p>
+            </div>
           )}
           </SectionCard>
         </div>
@@ -270,7 +272,9 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
               );
             })
           ) : (
-            <p className="text-content text-gray-400 text-center py-6">No visitors logged yet.</p>
+            <div className="min-h-48 flex items-center justify-center">
+              <p className="text-content text-gray-400 text-center">No visitors logged yet.</p>
+            </div>
           )}
           </SectionCard>
         </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { City, Country, State } from "country-state-city";
+import { Country, State } from "country-state-city";
 import { Autocomplete, TextField } from "@mui/material";
 import Footer from "../../components/Footer";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
@@ -10,6 +10,7 @@ import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 import { getCountryBillingDefaults } from "../../lib/workspaceBilling";
+import { getCities, getStates } from "../../utils/locationApi";
 
 interface CountryTimeZoneOption {
   zoneName: string;
@@ -22,15 +23,6 @@ interface CountryOption {
   flag: string;
   currency: string;
   timezones: CountryTimeZoneOption[];
-}
-
-interface StateOption {
-  name: string;
-  isoCode: string;
-}
-
-interface CityOption {
-  name: string;
 }
 
 const getFlagUrl = (isoCode: string) =>
@@ -114,6 +106,17 @@ const normalizeBusinessTypes = (values: unknown): string[] => {
   return Array.from(new Set(normalized));
 };
 
+const workspaceSelectClassName =
+  "w-full h-[42px] appearance-none rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 pr-10 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#f2f4f8] disabled:opacity-100";
+
+const WorkspaceSelectChevron = () => (
+  <ChevronDown
+    aria-hidden="true"
+    size={16}
+    className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8d99ad]"
+  />
+);
+
 const CreateWorkspacePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -146,8 +149,8 @@ const CreateWorkspacePage: React.FC = () => {
     location.state?.workspaceDetails?.state || normalizedInviteState || "",
   ).trim();
   const [countries, setCountries] = useState<CountryOption[]>([]);
-  const [states, setStates] = useState<StateOption[]>([]);
-  const [cities, setCities] = useState<CityOption[]>([]);
+  const [states, setStates] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
 
   const [country, setCountry] = useState(
     location.state?.workspaceDetails?.country || normalizedInviteCountry || "",
@@ -206,18 +209,16 @@ const CreateWorkspacePage: React.FC = () => {
   const currencyOptions = Array.from(
     new Set(countries.map((item) => item.currency).filter(Boolean)),
   ).sort((a, b) => a.localeCompare(b));
-  const selectedStateOption =
-    states.find((item) => item.name === stateName) || null;
   const hasLockedInviteCountry = Boolean(normalizedInviteCountry);
   const hasLockedInviteState = Boolean(
     normalizedInviteState &&
-      states.some((item) => item.name.toLowerCase() === normalizedInviteState.toLowerCase()),
+      states.some((item) => item.toLowerCase() === normalizedInviteState.toLowerCase()),
   );
   const hasLockedInviteCity = Boolean(
     activeInviteOnboarding?.city &&
       cities.some(
         (item) =>
-          item.name.toLowerCase() ===
+          item.toLowerCase() ===
           String(activeInviteOnboarding.city || "").trim().toLowerCase(),
       ),
   );
@@ -345,12 +346,7 @@ const CreateWorkspacePage: React.FC = () => {
           setCities([]);
           setCity("");
         }
-        const result = State.getStatesOfCountry(selectedCountryOption?.isoCode || "")
-          .map((item) => ({
-            name: item.name,
-            isoCode: item.isoCode,
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+        const result = await getStates(country);
         if (active) setStates(result);
       } catch (error: unknown) {
         if (active) {
@@ -365,7 +361,7 @@ const CreateWorkspacePage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [country, initialCountryValue, selectedCountryOption?.isoCode]);
+  }, [country, initialCountryValue]);
 
   useEffect(() => {
     let active = true;
@@ -382,14 +378,7 @@ const CreateWorkspacePage: React.FC = () => {
         if (stateName !== initialStateValue) {
           setCity("");
         }
-        const result = City.getCitiesOfState(
-          selectedCountryOption?.isoCode || "",
-          selectedStateOption?.isoCode || "",
-        )
-          .map((item) => ({
-            name: item.name,
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+        const result = await getCities(country, stateName);
         if (active) setCities(result);
       } catch (error: unknown) {
         if (active) {
@@ -404,13 +393,7 @@ const CreateWorkspacePage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [
-    country,
-    stateName,
-    initialStateValue,
-    selectedCountryOption?.isoCode,
-    selectedStateOption?.isoCode,
-  ]);
+  }, [country, stateName, initialStateValue]);
 
   useEffect(() => {
     const normalized = workspaceName.trim();
@@ -644,6 +627,7 @@ const CreateWorkspacePage: React.FC = () => {
                   value={selectedCountryOption}
                   onChange={(_, newValue) => setCountry(newValue?.name || "")}
                 disabled={isCountriesLoading || hasLockedInviteCountry}
+                  popupIcon={<ChevronDown size={16} />}
                   getOptionLabel={(option) => option.name}
                   isOptionEqualToValue={(option, value) => option.isoCode === value.isoCode}
                   noOptionsText="No countries found"
@@ -655,6 +639,8 @@ const CreateWorkspacePage: React.FC = () => {
                     },
                     "& .MuiAutocomplete-endAdornment": {
                       right: "10px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
                       gap: "2px",
                     },
                     "& .MuiAutocomplete-clearIndicator, & .MuiAutocomplete-popupIndicator": {
@@ -722,6 +708,10 @@ const CreateWorkspacePage: React.FC = () => {
                       },
                       "& .MuiOutlinedInput-input": {
                         padding: "4px 8px",
+                        "&::placeholder": {
+                          color: "#8d99ad",
+                          opacity: 1,
+                        },
                       },
                       "& .MuiInputBase-input.Mui-disabled": {
                         WebkitTextFillColor: "#334155 !important",
@@ -757,25 +747,33 @@ const CreateWorkspacePage: React.FC = () => {
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 State
               </label>
-              <select
-                value={stateName}
-                onChange={(e) => setStateName(e.target.value)}
-                disabled={!country || isStatesLoading || hasLockedInviteState}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#334155] disabled:font-medium disabled:opacity-100"
-              >
-                <option value="">
-                  {!country
-                    ? "Select country first"
-                    : isStatesLoading
-                    ? "Loading states..."
-                    : "Select state"}
-                </option>
-                {states.map((item) => (
-                  <option key={item.isoCode} value={item.name}>
-                    {item.name}
+              <div className="relative">
+                <select
+                  value={stateName}
+                  onChange={(e) => setStateName(e.target.value)}
+                  disabled={!country || isStatesLoading || hasLockedInviteState}
+                  className={`${workspaceSelectClassName} ${
+                    stateName ? "text-[#334155]" : "text-[#8d99ad]"
+                  }`}
+                  style={{
+                    WebkitTextFillColor: stateName ? "#334155" : "#8d99ad",
+                  }}
+                >
+                  <option value="">
+                    {!country
+                      ? "Select country first"
+                      : isStatesLoading
+                      ? "Loading states..."
+                      : "Select state"}
                   </option>
-                ))}
-              </select>
+                  {states.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+                <WorkspaceSelectChevron />
+              </div>
             </div>
           </div>
 
@@ -784,27 +782,35 @@ const CreateWorkspacePage: React.FC = () => {
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 City
               </label>
-              <select
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                disabled={
-                  !country || !stateName || isCitiesLoading || hasLockedInviteCity
-                }
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#334155] disabled:font-medium disabled:opacity-100"
-              >
-                <option value="">
-                  {!country || !stateName
-                    ? "Select country and state first"
-                    : isCitiesLoading
-                    ? "Loading cities..."
-                    : "Select city"}
-                </option>
-                {cities.map((item) => (
-                  <option key={item.name} value={item.name}>
-                    {item.name}
+              <div className="relative">
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  disabled={
+                    !country || !stateName || isCitiesLoading || hasLockedInviteCity
+                  }
+                  className={`${workspaceSelectClassName} ${
+                    city ? "text-[#334155]" : "text-[#8d99ad]"
+                  }`}
+                  style={{
+                    WebkitTextFillColor: city ? "#334155" : "#8d99ad",
+                  }}
+                >
+                  <option value="">
+                    {!country || !stateName
+                      ? "Select country and state first"
+                      : isCitiesLoading
+                      ? "Loading cities..."
+                      : "Select city"}
                   </option>
-                ))}
-              </select>
+                  {cities.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+                <WorkspaceSelectChevron />
+              </div>
             </div>
 
             <div className="flex flex-col">
@@ -824,7 +830,7 @@ const CreateWorkspacePage: React.FC = () => {
                   <span className={businessTypes.length ? "text-[#334155]" : "text-[#8d99ad]"}>
                     {businessTypeLabel}
                   </span>
-                  <ChevronDown size={16} className="text-[#8d99ad]" />
+                  <ChevronDown size={16} className="shrink-0 text-[#8d99ad]" />
                 </button>
 
                 {isBusinessTypeOpen && (
@@ -856,20 +862,25 @@ const CreateWorkspacePage: React.FC = () => {
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Timezone
               </label>
-              <select
-                value={timezone}
-                onChange={(event) => setTimezone(event.target.value)}
-                disabled={!country}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5]"
-              >
-                <option value="">Select timezone</option>
-                {timezoneOptions.map((item) => (
-                  <option key={item.zoneName} value={item.zoneName}>
-                    {item.zoneName}{item.gmtOffsetName ? ` (${item.gmtOffsetName})` : ""}
-                  </option>
-                ))}
-                {!timezoneOptions.length && country ? <option value="UTC">UTC</option> : null}
-              </select>
+              <div className="relative">
+                <select
+                  value={timezone}
+                  onChange={(event) => setTimezone(event.target.value)}
+                  disabled={!country}
+                  className={`${workspaceSelectClassName} ${
+                    timezone ? "text-[#334155]" : "text-[#8d99ad]"
+                  }`}
+                >
+                  <option value="">Select timezone</option>
+                  {timezoneOptions.map((item) => (
+                    <option key={item.zoneName} value={item.zoneName}>
+                      {item.zoneName}{item.gmtOffsetName ? ` (${item.gmtOffsetName})` : ""}
+                    </option>
+                  ))}
+                  {!timezoneOptions.length && country ? <option value="UTC">UTC</option> : null}
+                </select>
+                <WorkspaceSelectChevron />
+              </div>
               <p className="mt-1 text-[11px] text-[#7b8ba3]">
                 Used for bookings, attendance, reminders, and reports regardless of the server timezone.
               </p>
@@ -879,17 +890,22 @@ const CreateWorkspacePage: React.FC = () => {
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Currency
               </label>
-              <select
-                value={currency}
-                onChange={(event) => setCurrency(event.target.value)}
-                disabled={!country}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5]"
-              >
-                <option value="">Select currency</option>
-                {currencyOptions.map((item) => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={currency}
+                  onChange={(event) => setCurrency(event.target.value)}
+                  disabled={!country}
+                  className={`${workspaceSelectClassName} ${
+                    currency ? "text-[#334155]" : "text-[#8d99ad]"
+                  }`}
+                >
+                  <option value="">Select currency</option>
+                  {currencyOptions.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+                <WorkspaceSelectChevron />
+              </div>
               <p className="mt-1 text-[11px] text-[#7b8ba3]">
                 Defaults from the selected country and can be confirmed by the founder.
               </p>

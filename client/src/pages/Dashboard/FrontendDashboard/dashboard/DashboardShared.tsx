@@ -130,7 +130,7 @@ export interface SectionCardProps {
 export const SectionCard = ({ title, linkLabel, linkRoute, children }: SectionCardProps) => {
   const navigate = useNavigate();
   return (
-    <div className="border-default border-borderGray rounded-xl overflow-hidden">
+    <div className="h-full border-default border-borderGray rounded-xl overflow-hidden flex flex-col">
       <div className="p-4 border-b-2 border-borderGray flex items-center justify-between">
         <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium uppercase">
           {title}
@@ -144,7 +144,7 @@ export const SectionCard = ({ title, linkLabel, linkRoute, children }: SectionCa
           </button>
         )}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-4 flex-1 flex flex-col">{children}</div>
     </div>
   );
 };

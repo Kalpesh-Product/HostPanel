@@ -20,6 +20,8 @@ import { setStoredTenantRole } from "../../lib/tenant-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearUserSessionData } from "../../utils/clearUserSessionData";
 
+const SIGN_IN_HEADING = "Sign In";
+
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -29,6 +31,26 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [typedHeading, setTypedHeading] = useState("");
+  const [isFormVisible, setIsFormVisible] = useState(false);
+
+  React.useEffect(() => {
+    setTypedHeading("");
+    setIsFormVisible(false);
+
+    let headingIndex = 0;
+    const headingInterval = setInterval(() => {
+      headingIndex += 1;
+      setTypedHeading(SIGN_IN_HEADING.slice(0, headingIndex));
+
+      if (headingIndex >= SIGN_IN_HEADING.length) {
+        clearInterval(headingInterval);
+        setIsFormVisible(true);
+      }
+    }, 7);
+
+    return () => clearInterval(headingInterval);
+  }, []);
   // Kept as comments per request: do not delete company project code.
   // const defaultModules = [
   //   {
@@ -355,7 +377,7 @@ const LoginPage = () => {
       </Drawer>
       {/* Header */}
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
-        <h1 className="text-center text-4xl font-bold">SIGN IN</h1>
+        <h1 className="text-center text-4xl font-play min-h-[3rem]">{typedHeading}</h1>
         <div className="loginDividingContainer shrink-container">
           <div className="w-5/6 md:w-2/3">
             <Container
@@ -369,8 +391,9 @@ const LoginPage = () => {
                 onSubmit={handleLogin}
                 noValidate
                 autoComplete="off"
+                className={isFormVisible ? "visible" : "invisible"}
               >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Grid item xs={12}>
                     <TextField
                       label="Email"
@@ -414,7 +437,7 @@ const LoginPage = () => {
                   </Grid>
                 </div>
 
-                <div className="mt-2 col-span-2 text-end">
+                <div className="mt-6 col-span-2 text-end">
                   <Link
                     // to="https://wono.co/forgot-password"
                     to="/forgot-password"
@@ -424,19 +447,19 @@ const LoginPage = () => {
                   </Link>
                 </div>
                 <div className="flex">
-                  <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
+                  <div className="flex flex-col justify-center w-full items-center gap-6 mt-6">
                     <Grid item xs={12}>
                       <div className="centerInPhone">
                         <button
                           disabled={loading}
                           onClick={handleLogin}
                           type="submit"
-                          className="loginButtonStyling text-decoration-none text-subtitle w-40"
+                          className="loginButtonStyling text-decoration-none text-subtitle font-medium w-40"
                         >
                           {loading ? (
                             <CircularProgress size={20} color="white" />
                           ) : (
-                            "SIGN IN"
+                            "Sign In"
                           )}
                         </button>
                         {/* <button

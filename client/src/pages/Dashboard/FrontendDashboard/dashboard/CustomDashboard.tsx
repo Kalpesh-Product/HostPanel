@@ -300,14 +300,14 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
             <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/app/meeting-rooms">
               {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
                 <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
-              )) : <p className="text-content text-gray-400 text-center py-6">No recent bookings</p>}
+              )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent bookings</p></div>}
             </SectionCard>
           )}
           {showTickets && (
             <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/app/tickets">
               {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
                 <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
-              )) : <p className="text-content text-gray-400 text-center py-6">No recent tickets</p>}
+              )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent tickets</p></div>}
             </SectionCard>
           )}
         </div>
@@ -329,7 +329,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
                   </div>
                   <span className={`ml-auto flex-shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black uppercase border ${statusBadgeColor(t.status || "")}`}>{t.status || "—"}</span>
                 </div>
-              )) : <p className="col-span-3 text-content text-gray-400 text-center py-6">No tenant data</p>}
+              )) : <div className="col-span-3 min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tenant data</p></div>}
             </div>
           </SectionCard>
           {tenantStats.expiringSoon > 0 && (
