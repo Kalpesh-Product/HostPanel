@@ -77,8 +77,12 @@ async function getWorkspaceLocalization(workspaceId: string): Promise<WorkspaceL
         return {
             timezone: normalizeTimeZone(preferences?.timezone),
             currency,
-            startMinutes: businessHours?.start ? toMinutes(businessHours.start) : BOOKING_DAY_START_MINUTES,
-            endMinutes: businessHours?.end ? toMinutes(businessHours.end) : BOOKING_DAY_END_MINUTES,
+            startMinutes: businessHours?.is24Hours
+                ? 0
+                : businessHours?.start ? toMinutes(businessHours.start) : BOOKING_DAY_START_MINUTES,
+            endMinutes: businessHours?.is24Hours
+                ? 24 * 60
+                : businessHours?.end ? toMinutes(businessHours.end) : BOOKING_DAY_END_MINUTES,
             billing,
         };
     } catch {

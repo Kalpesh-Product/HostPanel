@@ -223,7 +223,7 @@ function toTitleCase(value = '') {
     .join(' ');
 }
 
-function getMonthYearFromValue(value) {
+function getMonthYearFromValue(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) {
     return { month: '', year: '' };
   }
@@ -234,8 +234,8 @@ function getMonthYearFromValue(value) {
   }
 
   return {
-    month: date.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', month: 'long' }),
-    year: date.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric' }),
+    month: date.toLocaleDateString('en-US', { timeZone, month: 'long' }),
+    year: date.toLocaleDateString('en-US', { timeZone, year: 'numeric' }),
   };
 }
 
@@ -312,7 +312,7 @@ function getVisitorStateRank(visitor = {}) {
   return 0;
 }
 
-function normalizeVisitorTrackingEntry(visitor = {}) {
+function normalizeVisitorTrackingEntry(visitor = {}, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   const rawStatus = normalizeText(visitor?.status || visitor?.statusKey || '');
   const approvalStatus = normalizeText(visitor?.approvalStatus || 'pending') || 'pending';
   const hasCheckInTime = hasMeaningfulTimeValue(visitor?.checkInAt) || hasMeaningfulTimeValue(visitor?.checkIn);
@@ -352,7 +352,7 @@ function normalizeVisitorTrackingEntry(visitor = {}) {
     visitor?.checkInAt ||
     visitor?.createdAt ||
     (visitor?.date ? new Date(visitor.date) : null);
-  const derivedMonthYear = getMonthYearFromValue(monthYearSource);
+  const derivedMonthYear = getMonthYearFromValue(monthYearSource, timeZone);
 
   return {
     ...visitor,
@@ -1322,7 +1322,7 @@ export default function VisitorsManagementPage() {
 
     [pendingVisitors, approvedVisitors, liveVisitors].forEach((collection) => {
       collection.forEach((visitor) => {
-        const normalizedVisitor = normalizeVisitorTrackingEntry(visitor);
+        const normalizedVisitor = normalizeVisitorTrackingEntry(visitor, workspacePreferences.timezone);
         const visitorId = String(normalizedVisitor?.id || normalizedVisitor?.recordId || '').trim();
         if (!visitorId) {
           return;
@@ -2986,7 +2986,7 @@ export default function VisitorsManagementPage() {
 
     const newId = `VIS-${Math.floor(Math.random() * 9000) + 1000}`;
     const badge = `B-${Math.floor(Math.random() * 900) + 100}`;
-    const timeNow = formatTimeLabel(new Date());
+    const timeNow = formatTimeLabel(new Date(), workspacePreferences.timezone);
 
     let finalRecord = {
       id: newId, name: fullName, phone: form.phone, company: normalizedCompany,
@@ -3031,7 +3031,7 @@ export default function VisitorsManagementPage() {
 
           const createdVisitor = result?.visitor || null;
           const normalizedVisitor = createdVisitor
-            ? normalizeVisitorTrackingEntry(createdVisitor)
+            ? normalizeVisitorTrackingEntry(createdVisitor, workspacePreferences.timezone)
             : normalizeVisitorTrackingEntry({
               ...finalRecord,
               purpose: form.purpose || 'Exploring Services',
@@ -3063,7 +3063,7 @@ export default function VisitorsManagementPage() {
             purpose: form.purpose || 'General Visit',
             host: 'Front Desk',
             badgeNo: normalizedVisitor.badgeNo || createdVisitor?.badgeNo || badge,
-            checkIn: formatTimeLabel(new Date()),
+            checkIn: formatTimeLabel(new Date(), workspacePreferences.timezone),
             notes: 'Visitor checked in successfully.',
           });
 
@@ -3190,7 +3190,7 @@ export default function VisitorsManagementPage() {
 
         const createdVisitor = result?.visitor || null;
         const normalizedTourVisitor = createdVisitor
-          ? normalizeVisitorTrackingEntry(createdVisitor)
+          ? normalizeVisitorTrackingEntry(createdVisitor, workspacePreferences.timezone)
           : normalizeVisitorTrackingEntry({
             ...finalRecord,
             name: visitorName,
@@ -3239,7 +3239,7 @@ export default function VisitorsManagementPage() {
           purpose: 'Workspace Tour',
           host: 'Administration Desk',
           badgeNo: normalizedTourVisitor.badgeNo || createdVisitor?.badgeNo || badge,
-          checkIn: formatTimeLabel(new Date()),
+          checkIn: formatTimeLabel(new Date(), workspacePreferences.timezone),
           notes: 'Unit tour visitor checked in. Lead forwarded to CRM for Sales follow-up.',
         });
 
@@ -3386,7 +3386,7 @@ export default function VisitorsManagementPage() {
               const checkedOutVisitor = checkOutResponse?.visitor || checkOutResponse?.data?.visitor || null;
 
               if (checkedOutVisitor) {
-                const normalizedCheckedOutVisitor = normalizeVisitorTrackingEntry(checkedOutVisitor);
+                const normalizedCheckedOutVisitor = normalizeVisitorTrackingEntry(checkedOutVisitor, workspacePreferences.timezone);
                 setLiveVisitors((prev) => prev.filter((visitor) => !isSameVisitorEntry(visitor, normalizedCheckedOutVisitor)));
                 setVisitorHistory((prev) => [
                   normalizedCheckedOutVisitor,
@@ -3508,7 +3508,7 @@ export default function VisitorsManagementPage() {
       const checkedOutVisitor = response?.visitor || response?.data?.visitor || null;
 
       if (checkedOutVisitor) {
-        const normalizedCheckedOutVisitor = normalizeVisitorTrackingEntry(checkedOutVisitor);
+        const normalizedCheckedOutVisitor = normalizeVisitorTrackingEntry(checkedOutVisitor, workspacePreferences.timezone);
         setLiveVisitors((prev) => prev.filter((visitor) => visitor.id !== normalizedCheckedOutVisitor.id));
         setVisitorHistory((prev) => [normalizedCheckedOutVisitor, ...prev.filter((visitor) => visitor.id !== normalizedCheckedOutVisitor.id)]);
         setViewingVisitor((prev) => (
@@ -3522,8 +3522,8 @@ export default function VisitorsManagementPage() {
           return next;
         });
       } else {
-        const fallbackCheckedOutVisitor = normalizeVisitorTrackingEntry({ ...(viewingVisitor || {}), id, checkOutAt: new Date(), checkOut: formatTimeLabel(new Date()), status: 'Checked Out', statusKey: 'checked_out' });
-        setLiveVisitors((prev) => prev.map((visitor) => visitor.id === id ? normalizeVisitorTrackingEntry({ ...visitor, checkOutAt: new Date(), checkOut: formatTimeLabel(new Date()), status: 'Checked Out', statusKey: 'checked_out' }) : visitor));
+        const fallbackCheckedOutVisitor = normalizeVisitorTrackingEntry({ ...(viewingVisitor || {}), id, checkOutAt: new Date(), checkOut: formatTimeLabel(new Date(), workspacePreferences.timezone), status: 'Checked Out', statusKey: 'checked_out' });
+        setLiveVisitors((prev) => prev.map((visitor) => visitor.id === id ? normalizeVisitorTrackingEntry({ ...visitor, checkOutAt: new Date(), checkOut: formatTimeLabel(new Date(), workspacePreferences.timezone), status: 'Checked Out', statusKey: 'checked_out' }) : visitor));
         setViewingVisitor((prev) => (
           prev && String(prev.id || prev.recordId || '') === String(id)
             ? fallbackCheckedOutVisitor
@@ -3557,11 +3557,11 @@ export default function VisitorsManagementPage() {
         statusKey: 'checked_in',
         approvalStatus: 'approved',
         approvalStatusLabel: 'Approved',
-        checkIn: visitor?.checkIn || formatTimeLabel(new Date()),
+        checkIn: visitor?.checkIn || formatTimeLabel(new Date(), workspacePreferences.timezone),
       };
       const normalizedCheckedInVisitor = checkedInVisitor
-        ? normalizeVisitorTrackingEntry(checkedInVisitor)
-        : normalizeVisitorTrackingEntry(fallbackCheckedInVisitor);
+        ? normalizeVisitorTrackingEntry(checkedInVisitor, workspacePreferences.timezone)
+        : normalizeVisitorTrackingEntry(fallbackCheckedInVisitor, workspacePreferences.timezone);
 
       const isSameTrackedVisitor = (entry) => (
         isSameVisitorEntry(entry, visitor) ||
@@ -6277,10 +6277,10 @@ export default function VisitorsManagementPage() {
                   </div>
 
                   {rescheduleForm.newDate ? (() => {
-                    const rescheduleDateKey = formatDateKey(rescheduleForm.newDate);
-                    const rescheduleEndDateKey = formatDateKey(rescheduleForm.newEndDate || rescheduleForm.newDate);
+                    const rescheduleDateKey = formatDateKey(rescheduleForm.newDate, workspacePreferences.timezone);
+                    const rescheduleEndDateKey = formatDateKey(rescheduleForm.newEndDate || rescheduleForm.newDate, workspacePreferences.timezone);
                     const isMultiDay = rescheduleEndDateKey !== rescheduleDateKey;
-                    const todayKey = formatDateKey(new Date());
+                    const todayKey = formatDateKey(new Date(), workspacePreferences.timezone);
                     const now = new Date();
                     const nowRounded = Math.ceil((now.getHours() * 60 + now.getMinutes()) / WALK_IN_SLOT_STEP) * WALK_IN_SLOT_STEP;
                     // For today the day effectively starts "now" — past slots are never offered.
@@ -7064,7 +7064,7 @@ export default function VisitorsManagementPage() {
                 <div className="grid grid-cols-2 gap-3 text-left border-t border-gray-200 pt-3">
                   <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Badge No</p><p className="font-pmedium text-xs text-gray-700">{showBadge.badgeNo || '—'}</p></div>
                   <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Purpose</p><p className="font-pmedium text-xs text-gray-700">{showBadge.purpose || '—'}</p></div>
-                  <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Check-In</p><p className="font-pmedium text-xs text-gray-700">{showBadge.checkIn || formatTimeLabel(new Date())}</p></div>
+                  <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Check-In</p><p className="font-pmedium text-xs text-gray-700">{showBadge.checkIn || formatTimeLabel(new Date(), workspacePreferences.timezone)}</p></div>
                   <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Phone</p><p className="font-pmedium text-xs text-gray-700">{showBadge.phone || '—'}</p></div>
                   <div className="col-span-2"><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Host / Destination</p><p className="font-pmedium text-xs text-gray-700">{showBadge.host || showBadge.hostName || 'Front Desk'}</p></div>
                 </div>

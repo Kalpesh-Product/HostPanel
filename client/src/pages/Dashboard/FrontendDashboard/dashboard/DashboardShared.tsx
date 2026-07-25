@@ -224,7 +224,7 @@ const PLAN_BADGE_STYLES: Record<string, string> = {
 
 export const PlanBadge = ({ plan, clickable }: { plan: string; clickable?: boolean }) => (
   <span
-    className={`px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border transition-all ${
+    className={`inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 text-[11px] font-pmedium uppercase tracking-widest transition-all ${
       PLAN_BADGE_STYLES[plan] ?? PLAN_BADGE_STYLES.basic
     } ${clickable ? "hover:opacity-80 hover:shadow-sm" : ""}`}
   >

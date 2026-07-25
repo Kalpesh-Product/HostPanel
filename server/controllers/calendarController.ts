@@ -1,26 +1,18 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from "express";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
+import { getZonedDateTimeParts, normalizeTimeZone } from "../utils/workspaceLocalization.js";
 
 interface AuthenticatedRequest extends Request {
     user?: string;
     workspaceMembership?: { workspace: string };
 }
 
-const dateParts = (value: Date) => {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-    }).formatToParts(new Date(value));
-    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+const dateParts = (value: Date, timeZone: string) => {
+    const parts = getZonedDateTimeParts(new Date(value), timeZone);
     return {
-        date: `${values.year}-${values.month}-${values.day}`,
-        time: `${values.hour}:${values.minute}`,
+        date: `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`,
+        time: `${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`,
     };
 };
 
@@ -51,8 +43,9 @@ export const getMyCalendar = async (
             );
             return !currentInvite || !["rejected", "cancelled"].includes(String(currentInvite.status || "").toLowerCase());
         }).map((booking: any) => {
-            const start = dateParts(booking.start);
-            const end = dateParts(booking.end);
+            const timezone = normalizeTimeZone(booking.timezone);
+            const start = dateParts(booking.start, timezone);
+            const end = dateParts(booking.end, timezone);
             const currentInvite = (booking.invites || []).find(
                 (invite: any) => String(invite.invitedUserId || "") === String(req.user),
             );

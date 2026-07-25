@@ -13,6 +13,7 @@ import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { ResourcePricingSkeleton } from '../../../components/ui/SalesPageSkeletons';
+import TimePicker12h from '../../../components/ui/TimePicker12h';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '../../../lib/workspaceLocalization';
 
@@ -631,9 +632,9 @@ export default function PricingPackagesPage() {
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = (value = 0) => formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
   const currencySymbol = getWorkspaceCurrencySymbol(workspacePreferences.currency);
-  const [bookingHours, setBookingHours] = useState({ start: '09:00', end: '22:00' });
+  const [bookingHours, setBookingHours] = useState({ start: '09:00', end: '22:00', is24Hours: false });
   const [isHoursModalOpen, setIsHoursModalOpen] = useState(false);
-  const [hoursForm, setHoursForm] = useState({ start: '09:00', end: '22:00' });
+  const [hoursForm, setHoursForm] = useState({ start: '09:00', end: '22:00', is24Hours: false });
   const [isSavingHours, setIsSavingHours] = useState(false);
   const bulkUploadInputRef = useRef(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
@@ -688,7 +689,7 @@ export default function PricingPackagesPage() {
       .then((res) => {
         const bh = res?.data?.data?.settings?.preferences?.businessHours;
         if (mounted && bh?.start && bh?.end) {
-          setBookingHours({ start: bh.start, end: bh.end });
+          setBookingHours({ start: bh.start, end: bh.end, is24Hours: Boolean(bh.is24Hours) });
         }
       })
       .catch(() => {
@@ -702,6 +703,7 @@ export default function PricingPackagesPage() {
   // Hours in a bookable day, derived from the workspace booking hours (e.g. 9 AM – 10 PM = 13).
   // Drives the hourly ↔ daily price conversion on resource forms.
   const bookingSpanHours = useMemo(() => {
+    if (bookingHours.is24Hours) return 24;
     const toMin = (t) => {
       const [h, m] = String(t || '').split(':').map(Number);
       return (h || 0) * 60 + (m || 0);
@@ -716,14 +718,14 @@ export default function PricingPackagesPage() {
   };
 
   const handleSaveBookingHours = async () => {
-    if (!hoursForm.start || !hoursForm.end || hoursForm.start >= hoursForm.end) {
+    if (!hoursForm.is24Hours && (!hoursForm.start || !hoursForm.end || hoursForm.start >= hoursForm.end)) {
       toast.error('Opening time must be before closing time.');
       return;
     }
     try {
       setIsSavingHours(true);
       await axiosPrivate.patch('/api/workspaces/settings', {
-        preferences: { businessHours: { start: hoursForm.start, end: hoursForm.end } },
+        preferences: { businessHours: { start: hoursForm.start, end: hoursForm.end, is24Hours: hoursForm.is24Hours } },
       });
       setBookingHours({ ...hoursForm });
       // Re-derive daily prices on any open resource form so they match the new span.
@@ -1740,7 +1742,7 @@ export default function PricingPackagesPage() {
               {activeTab === 'resource' ? (
                 <>
                   <button onClick={openHoursModal} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap" title="Set the booking timings used across meeting room, walk-in and tenant bookings">
-                    <Clock size={13} strokeWidth={2.5} /> {formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}
+                    <Clock size={13} strokeWidth={2.5} /> {bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}
                   </button>
                   <button onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
                     <Plus size={13} strokeWidth={3} /> ADD RESOURCE
@@ -2133,14 +2135,23 @@ export default function PricingPackagesPage() {
                 </button>
               </div>
               <div className="p-5 sm:p-6 space-y-4">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hoursForm.is24Hours}
+                    onChange={(e) => setHoursForm((prev) => ({ ...prev, is24Hours: e.target.checked }))}
+                    className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30"
+                  />
+                  <span className="text-[11px] font-pmedium text-[#0F172A]">Open 24 hours</span>
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Opening Time</label>
-                    <input type="time" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={hoursForm.start} onChange={(e) => setHoursForm((prev) => ({ ...prev, start: e.target.value }))} />
+                    <TimePicker12h value={hoursForm.start} onChange={(value) => setHoursForm((prev) => ({ ...prev, start: value }))} disabled={hoursForm.is24Hours} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Closing Time</label>
-                    <input type="time" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={hoursForm.end} onChange={(e) => setHoursForm((prev) => ({ ...prev, end: e.target.value }))} />
+                    <TimePicker12h value={hoursForm.end} onChange={(value) => setHoursForm((prev) => ({ ...prev, end: value }))} disabled={hoursForm.is24Hours} />
                   </div>
                 </div>
                 <p className="text-[11px] font-pmedium text-slate-500">
@@ -2381,7 +2392,7 @@ export default function PricingPackagesPage() {
                       <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
                         <p className="text-[11px] font-pmedium text-slate-600">
                           <Clock size={11} className="inline -mt-0.5 mr-1 text-blue-500" />
-                          Booking hours: <span className="text-slate-900">{formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
+                          Booking hours: <span className="text-slate-900">{bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
                         </p>
                         <button type="button" onClick={openHoursModal} className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline whitespace-nowrap">
                           Change
@@ -2389,7 +2400,7 @@ export default function PricingPackagesPage() {
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Hours per Day</label>
-                        <input type="text" readOnly className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none cursor-not-allowed" value={`${bookingSpanHours} hrs (${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)})`} title="Calculated from the workspace booking hours. Use the Change link above to update." />
+                        <input type="text" readOnly className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none cursor-not-allowed" value={bookingHours.is24Hours ? `${bookingSpanHours} hrs (Open 24 hours)` : `${bookingSpanHours} hrs (${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)})`} title="Calculated from the workspace booking hours. Use the Change link above to update." />
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
@@ -2608,7 +2619,7 @@ export default function PricingPackagesPage() {
                       <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
                         <p className="text-[11px] font-pmedium text-slate-600">
                           <Clock size={11} className="inline -mt-0.5 mr-1 text-blue-500" />
-                          Booking hours: <span className="text-slate-900">{formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
+                          Booking hours: <span className="text-slate-900">{bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
                         </p>
                         {!isViewingResource ? (
                           <button type="button" onClick={openHoursModal} className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline whitespace-nowrap">

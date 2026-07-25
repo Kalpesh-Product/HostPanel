@@ -3,6 +3,7 @@ import useWorkspacePreferences from "./useWorkspacePreferences";
 export type BusinessHours = {
   start: string;
   end: string;
+  is24Hours: boolean;
   startMinutes: number;
   endMinutes: number;
 };
@@ -14,11 +15,12 @@ function toMinutes(time: string): number {
 
 export default function useBusinessHours(): BusinessHours {
   const preferences = useWorkspacePreferences();
-  const { start, end } = preferences.businessHours;
+  const { start, end, is24Hours } = preferences.businessHours;
   return {
-    start,
-    end,
-    startMinutes: toMinutes(start),
-    endMinutes: toMinutes(end),
+    start: is24Hours ? "00:00" : start,
+    end: is24Hours ? "23:59" : end,
+    is24Hours,
+    startMinutes: is24Hours ? 0 : toMinutes(start),
+    endMinutes: is24Hours ? 24 * 60 : toMinutes(end),
   };
 }

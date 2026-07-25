@@ -7,6 +7,7 @@ import { useLocation } from "react-router-dom";
 import PageFrame from "../../../components/Pages/PageFrame";
 import useAuth from "../../../hooks/useAuth";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
+import useWorkspacePreferences from "../../../hooks/useWorkspacePreferences";
 import { PlanBadge } from "./dashboard/DashboardShared";
 import { getGreeting } from "./dashboard/dashboardUtils";
 import BasicDashboard from "./dashboard/BasicDashboard";
@@ -14,12 +15,56 @@ import ProfessionalDashboard from "./dashboard/ProfessionalDashboard";
 import CustomDashboard from "./dashboard/CustomDashboard";
 import PlanDashboardSkeleton from "./dashboard/PlanDashboardSkeleton";
 import { UpgradePlanModal } from "./ModuleCardsLanding";
-import { CheckCircle2, CalendarCheck, AlertCircle, Building2 } from "lucide-react";
+import { Building2, Clock } from "lucide-react";
+
+const WorkspaceClock = ({ workspaceName, timezone }: { workspaceName: string; timezone: string }) => {
+  const [tick, setTick] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const timeLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(tick);
+    } catch {
+      return "";
+    }
+  }, [tick, timezone]);
+
+  if (!workspaceName && !timeLabel) return null;
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+      {workspaceName && (
+        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600">
+          <Building2 size={13} />
+          {workspaceName}
+        </span>
+      )}
+      {workspaceName && timeLabel && <span className="h-3.5 w-px bg-slate-300" />}
+      {timeLabel && (
+        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600 tabular-nums">
+          <Clock size={13} />
+          {timeLabel}
+        </span>
+      )}
+    </div>
+  );
+};
 
 const CompanySettingsDashboard = () => {
   const { auth } = useAuth();
   const location = useLocation();
   const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
   const [now, setNow] = useState(new Date());
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -66,40 +111,14 @@ const CompanySettingsDashboard = () => {
               >
                 <PlanBadge plan={access.plan} clickable={canUpgrade} />
               </button>
-              {access.workspaceName && (
-                <span className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-small font-pmedium text-slate-600">
-                  <Building2 size={13} />
-                  {access.workspaceName}
-                </span>
-              )}
             </div>
             <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
             <p className="text-content text-gray-400">{todayLabel}</p>
           </div>
 
-          {/* Live status chips */}
-          {access.plan !== "basic" && (
-            <div className="flex flex-wrap gap-2 mt-1 sm:mt-0">
-              {access.hasModule("tenant-companies-admin") && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
-                  <CheckCircle2 size={13} />
-                  <span className="text-small font-pmedium">Tenants Active</span>
-                </div>
-              )}
-              {access.hasModule("meeting-room-system") && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700">
-                  <CalendarCheck size={13} />
-                  <span className="text-small font-pmedium">Bookings Active</span>
-                </div>
-              )}
-              {access.hasModule("tickets") && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
-                  <AlertCircle size={13} />
-                  <span className="text-small font-pmedium">Tickets Active</span>
-                </div>
-              )}
-            </div>
-          )}
+          <div className="mt-1 sm:mt-0">
+            <WorkspaceClock workspaceName={access.workspaceName} timezone={workspacePreferences.timezone} />
+          </div>
         </div>
       </PageFrame>
 

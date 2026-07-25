@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2, CheckCircle2, X } from "lucide-react";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
+import useWorkspacePreferences from "../../hooks/useWorkspacePreferences";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
 import MuiModal from "../../components/MuiModal";
@@ -53,6 +54,7 @@ const { data: userDetails } = useQuery({
   }, [setAuth, userDetails]);
 
   const workspace = userDetails?.data?.workspace || null;
+  const workspacePreferences = useWorkspacePreferences();
 
   const defaults = useMemo(
     () => ({
@@ -408,6 +410,14 @@ const { data: userDetails } = useQuery({
                 </div>
               );
             })}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
+              <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">Timezone</p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{workspacePreferences.timezone || "-"}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
+              <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">Currency</p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{workspacePreferences.currency || "-"}</p>
+            </div>
           </div>
           {requestedUpgradePlan ? (
             <p className="text-center mt-4 text-[13px] font-medium text-[#2d67f0]">

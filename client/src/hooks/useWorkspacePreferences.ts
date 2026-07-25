@@ -19,7 +19,7 @@ export type WorkspacePreferences = {
   dateFormat: string;
   timeFormat: "12h" | "24h";
   weekStartsOn: "monday" | "sunday";
-  businessHours: { start: string; end: string };
+  businessHours: { start: string; end: string; is24Hours: boolean };
   billing: WorkspaceBillingConfig;
 };
 
@@ -29,7 +29,7 @@ const DEFAULT_PREFERENCES: WorkspacePreferences = {
   dateFormat: "DD MMM YYYY",
   timeFormat: "12h",
   weekStartsOn: "monday",
-  businessHours: { start: "09:00", end: "22:00" },
+  businessHours: { start: "09:00", end: "22:00", is24Hours: false },
   // Country-neutral until the workspace's real settings load, so a non-India
   // location never briefly shows India's GST.
   billing: getCountryBillingDefaults(""),
@@ -55,6 +55,7 @@ export default function useWorkspacePreferences(): WorkspacePreferences {
           businessHours: {
             start: String(incoming.businessHours?.start || DEFAULT_PREFERENCES.businessHours.start),
             end: String(incoming.businessHours?.end || DEFAULT_PREFERENCES.businessHours.end),
+            is24Hours: Boolean(incoming.businessHours?.is24Hours),
           },
           billing: normalizeBillingConfig(incoming.billing),
         });

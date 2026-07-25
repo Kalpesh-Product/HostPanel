@@ -43,6 +43,7 @@ import useWorkspacePreferences from '../../hooks/useWorkspacePreferences';
 import {
   DEFAULT_WORKSPACE_TIMEZONE,
   formatWorkspaceCurrency,
+  getWorkspaceDateKey,
 } from '../../lib/workspaceLocalization';
 import { getPaymentMethod, getTaxDisplayLabel } from '../../lib/workspaceBilling';
 
@@ -390,6 +391,19 @@ function statusBadge(status?: string) {
 function getMeetingTimeZoneDateParts(value?: any, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) {
     return null;
+  }
+
+  // A plain "YYYY-MM-DD" string (e.g. from a date picker) already IS the
+  // workspace-local calendar date the user chose — it must be read verbatim,
+  // never routed through `new Date()` (which anchors it to UTC midnight)
+  // and re-projected into `timeZone`, or workspaces far from UTC (e.g.
+  // America/Adak) shift a day off.
+  if (typeof value === 'string') {
+    const dateOnlyMatch = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      return { year, month, day };
+    }
   }
 
   const date = value instanceof Date ? value : new Date(value);
@@ -2347,9 +2361,8 @@ export function MeetingRoomsPage() {
   });
 
   const todayStr = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  }, []);
+    return getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
+  }, [workspacePreferences.timezone]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -2606,7 +2619,7 @@ export function MeetingRoomsPage() {
     const toTime = (minutes: any) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
     // For today: clamp the start cursor to current time so past slots are never suggested
-    const nowClock = getMeetingClockParts();
+    const nowClock = getMeetingClockParts(new Date(), workspacePreferences.timezone);
     const isToday = date === todayStr;
     const nowMinutes = isToday && nowClock
       ? Math.ceil((nowClock.minutes + 1) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES
@@ -2639,7 +2652,7 @@ export function MeetingRoomsPage() {
     }
 
     return windows.filter((window) => toMinutes(window.end) - toMinutes(window.start) >= BOOKING_MIN_DURATION_MINUTES);
-  }, [allBookings, todayStr, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
+  }, [allBookings, todayStr, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const getSuggestedSlots = useCallback((roomName: string, date: string, desiredStartTime: string, desiredEndTime: string, excludeRecordId: string | null = null) => {
     const duration = (() => {
@@ -3373,9 +3386,9 @@ export function MeetingRoomsPage() {
 
   // --------- TIME OPTIONS ---------
   const createStartTimeOptions = useMemo(() => {
-    const now = getMeetingClockParts();
+    const now = getMeetingClockParts(new Date(), workspacePreferences.timezone);
     if (!now || !newBooking.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-    const parts = getMeetingTimeZoneDateParts(newBooking.date);
+    const parts = getMeetingTimeZoneDateParts(newBooking.date, workspacePreferences.timezone);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
@@ -3383,7 +3396,7 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [newBooking.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
+  }, [newBooking.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const createEndTimeOptions = useMemo(() => {
     if (!newBooking.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
@@ -3392,9 +3405,9 @@ export function MeetingRoomsPage() {
   }, [newBooking.startTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END]);
 
   const tenantStartTimeOptions = useMemo(() => {
-    const now = getMeetingClockParts();
+    const now = getMeetingClockParts(new Date(), workspacePreferences.timezone);
     if (!now || !tenantBookingForm.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-    const parts = getMeetingTimeZoneDateParts(tenantBookingForm.date);
+    const parts = getMeetingTimeZoneDateParts(tenantBookingForm.date, workspacePreferences.timezone);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
@@ -3402,7 +3415,7 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [tenantBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
+  }, [tenantBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const tenantEndTimeOptions = useMemo(() => {
     if (!tenantBookingForm.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
@@ -3411,9 +3424,9 @@ export function MeetingRoomsPage() {
   }, [tenantBookingForm.startTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END]);
 
   const internalStartTimeOptions = useMemo(() => {
-    const now = getMeetingClockParts();
+    const now = getMeetingClockParts(new Date(), workspacePreferences.timezone);
     if (!now || !internalBookingForm.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-    const parts = getMeetingTimeZoneDateParts(internalBookingForm.date);
+    const parts = getMeetingTimeZoneDateParts(internalBookingForm.date, workspacePreferences.timezone);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
@@ -3421,12 +3434,12 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [internalBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
+  }, [internalBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const externalStartTimeOptions = useMemo(() => {
-    const now = getMeetingClockParts();
+    const now = getMeetingClockParts(new Date(), workspacePreferences.timezone);
     if (!now || !externalBookingForm.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-    const parts = getMeetingTimeZoneDateParts(externalBookingForm.date);
+    const parts = getMeetingTimeZoneDateParts(externalBookingForm.date, workspacePreferences.timezone);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
@@ -3434,7 +3447,7 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [externalBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
+  }, [externalBookingForm.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   // --------- INVITE MEMBER HELPERS ---------
   const resolveMemberName = (member: any) => {
@@ -3558,9 +3571,9 @@ export function MeetingRoomsPage() {
 
   // --------- RESCHEDULE TIME OPTIONS ---------
   const rescheduleStartTimeOptions = useMemo(() => {
-    const now = getMeetingClockParts();
+    const now = getMeetingClockParts(new Date(), workspacePreferences.timezone);
     if (!now || !rescheduleData.date) return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-    const parts = getMeetingTimeZoneDateParts(rescheduleData.date);
+    const parts = getMeetingTimeZoneDateParts(rescheduleData.date, workspacePreferences.timezone);
     const todayKey = now.dateKey;
     const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
     if (bookingDateKey === todayKey) {
@@ -3568,7 +3581,7 @@ export function MeetingRoomsPage() {
       return buildTimeOptions(minTime, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
     }
     return buildTimeOptions(BOOKING_DAY_START, minutesToTimeString(BOOKING_DAY_END_MINUTES - BOOKING_MIN_DURATION_MINUTES));
-  }, [rescheduleData.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES]);
+  }, [rescheduleData.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const rescheduleEndTimeOptions = useMemo(() => {
     // The same start–end window repeats on each day of a multi-day range, so
@@ -3894,7 +3907,7 @@ export function MeetingRoomsPage() {
     if (!externalBookingForm.date) return setErrorMessage('Date is required.');
     if (!externalBookingForm.startTime) return setErrorMessage('Start time is required.');
     if (!externalBookingForm.endTime) return setErrorMessage('End time is required.');
-    const externalTimeValidation = getBookingTimeValidation(externalBookingForm.date, externalBookingForm.startTime, externalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+    const externalTimeValidation = getBookingTimeValidation(externalBookingForm.date, externalBookingForm.startTime, externalBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, externalBookingForm.date, workspacePreferences.timezone);
     if (!externalTimeValidation.valid) return setErrorMessage(externalTimeValidation.reason);
     if (!selectedExternalPaymentMethod) return setErrorMessage('Select a payment method enabled for this workspace.');
     if (selectedExternalPaymentMethod.requiresReference && !externalBookingForm.transactionId.trim()) return setErrorMessage(`Payment reference is required for ${selectedExternalPaymentMethod.label}.`);
@@ -4001,7 +4014,7 @@ export function MeetingRoomsPage() {
     if (!tenantBookingForm.date) { setTenantBookingError('Date is required.'); return; }
     if (!tenantBookingForm.startTime) { setTenantBookingError('Start time is required.'); return; }
     if (!tenantBookingForm.endTime) { setTenantBookingError('End time is required.'); return; }
-    const tenantTimeValidation = getBookingTimeValidation(tenantBookingForm.date, tenantBookingForm.startTime, tenantBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
+    const tenantTimeValidation = getBookingTimeValidation(tenantBookingForm.date, tenantBookingForm.startTime, tenantBookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES, tenantBookingForm.date, workspacePreferences.timezone);
     if (!tenantTimeValidation.valid) { setTenantBookingError(tenantTimeValidation.reason); return; }
     setIsSavingTenantBooking(true);
     setTenantBookingError('');
