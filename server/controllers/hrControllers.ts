@@ -10,6 +10,7 @@ import {
   updateOwnProfilePicture,
 } from "../services/core/hr.service.js";
 import { uploadFileToS3 } from "../config/s3config.js";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
 const normalizeFileName = (value = "") =>
   String(value || "")
@@ -69,9 +70,24 @@ export const updateEmployeeRecord = async (req, res, next) => {
 
 export const updateMyEmployeeProfile = async (req, res, next) => {
   try {
+    const payload = req.body || {};
+    const phone = String(payload.phone || "").trim();
+    const phoneCountryIso = String(payload.phoneCountryIso || "").trim().toUpperCase();
+    if (phone) {
+      const parsedPhone = parsePhoneNumberFromString(phone);
+      const isCountryMatch = !phoneCountryIso || parsedPhone?.country === phoneCountryIso;
+      if (!parsedPhone?.isValid() || !isCountryMatch) {
+        return res.status(400).json({
+          success: false,
+          message: "Enter a valid phone number for the selected country.",
+        });
+      }
+    }
+    const { phoneCountryIso: _phoneCountryIso, ...profilePayload } = payload;
+
     const workspace = await resolveWorkspaceOrThrow(req, res);
     if (!workspace) return;
-    const employee = await updateOwnEmployeeProfile(workspace, req.user, req.body || {});
+    const employee = await updateOwnEmployeeProfile(workspace, req.user, profilePayload);
     return res.status(200).json({
       success: true,
       data: employee,
