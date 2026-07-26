@@ -5,13 +5,17 @@ import {
   Mail, Phone, MapPin, CheckCircle2, AlertTriangle, Clock, Eye,
   ChevronDown, UserCog, ToggleLeft, ToggleRight, Building2, FileText, DollarSign,
   LayoutGrid, Loader2,
-  IndianRupee
+  Banknote
 } from 'lucide-react';
 import { getTenantCompany, addTenantCompanyEmployee, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
 import { getBookingsByTenantCompany } from '../../../services/meeting-room-bookings';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
+import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
+
+let currentWorkspaceCurrency = 'INR';
 
 // ---------------------------------------------------------------------------
 // Constants & Helpers
@@ -27,7 +31,7 @@ const TABS = [
 ];
 
 function fmt(n = 0) {
-  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(Number(n || 0)));
+  return formatWorkspaceCurrency(Math.round(Number(n || 0)), currentWorkspaceCurrency, { maximumFractionDigits: 0 });
 }
 function fmtDate(v) {
   if (!v) return '-'; const d = new Date(v); return isNaN(d.getTime()) ? v : new Intl.DateTimeFormat('en-IN', { year: 'numeric', month: 'short', day: '2-digit' }).format(d);
@@ -131,6 +135,8 @@ export default function TenantCompanyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const currentUser = useFreshCurrentUser();
+  const workspacePreferences = useWorkspacePreferences();
+  currentWorkspaceCurrency = workspacePreferences.currency;
 
   const [tenant, setTenant] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -383,7 +389,7 @@ export default function TenantCompanyDetailPage() {
                   </div>
 
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><IndianRupee size={14} /> Billing Snapshot</h3>
+                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><Banknote size={14} /> Billing Snapshot</h3>
                     <TenantBillingDetails tenant={tenant} />
                   </div>
                 </div>

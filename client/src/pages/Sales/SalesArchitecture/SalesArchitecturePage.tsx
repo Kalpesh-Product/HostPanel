@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { getWorkspacePlan, isDepartmentAllowedForPlan } from "../../../utils/workspacePlanAccess";
 import { SalesArchitectureSkeleton } from "../../../components/ui/SalesPageSkeletons";
+import useWorkspacePreferences from "../../../hooks/useWorkspacePreferences";
+import { formatWorkspaceCurrency } from "../../../lib/workspaceLocalization";
 
 // sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
@@ -39,7 +41,7 @@ const isDepartmentAssignableResource = (resource = {}) =>
   deskCats.has(String(resource.resourceCategory || "").trim().toLowerCase())
   && String(resource.inventoryMode || "area").trim().toLowerCase() !== "area";
 
-const money = (v = 0) => `Rs ${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(v || 0))}`;
+const money = (v = 0, currency = "INR") => formatWorkspaceCurrency(Number(v || 0), currency, { maximumFractionDigits: 0 });
 const locStr = (r = {}) => [r.floor, r.wing].filter(Boolean).join(" ").trim();
 // Building = the single location the user added on resources (Resource & Pricing / Resource Management).
 const buildingLabelFor = (r = {}) => String(r.buildingName || r.building || r.buildingLabel || r.location || "").trim();
@@ -226,12 +228,15 @@ const MAIN_TABS = [
 ];
 
 export default function SalesArchitecturePage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const currentUser = useFreshCurrentUser();
-  const { plan } = useDashboardAccess();
-  const showReportExports = canExportReports(plan);
-  const axiosPrivate = useAxiosPrivate();
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const currentUser = useFreshCurrentUser();
+    const { plan } = useDashboardAccess();
+    const showReportExports = canExportReports(plan);
+    const axiosPrivate = useAxiosPrivate();
+    const workspacePreferences = useWorkspacePreferences();
+    const money = (value = 0) =>
+      formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
@@ -325,10 +325,10 @@ function getInventoryModeLabel(value = '') {
 
 function getResourceCreditModeLabel(resourceCategory = '', inventoryMode = 'area') {
   if (isDeskCategory(resourceCategory)) {
-    return inventoryMode === 'single' ? 'Credit per desk' : 'Credit per seat';
+    return inventoryMode === 'single' ? 'Credits per desk' : 'Credits per seat / hour';
   }
 
-  return 'Hourly credit rate';
+  return 'Credits per hour';
 }
 
 function getResourceCreditValue(resource = {}) {
@@ -364,11 +364,11 @@ function getResourceCreditSummary(resource = {}) {
 
   if (isDeskCategory(resource.resourceCategory)) {
     if (resource.inventoryMode === 'single') {
-      return `${credits} credit${credits === 1 ? '' : 's'} for 1 fixed desk`;
+      return `${credits} credit${credits === 1 ? '' : 's'} per desk`;
     }
 
     const totalCredits = capacity * credits;
-    return `${capacity} seats x ${credits} credit${credits === 1 ? '' : 's'} = ${totalCredits} credits`;
+    return `${capacity} seats x ${credits} credit${credits === 1 ? '' : 's'} per seat / hour = ${totalCredits} credits`;
   }
 
   return `${credits} credit${credits === 1 ? '' : 's'} / hr`;
@@ -585,6 +585,7 @@ function formatAutoPriceValue(value) {
 }
 
 export default function PricingPackagesPage() {
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
@@ -648,6 +649,27 @@ export default function PricingPackagesPage() {
   const [floorMode, setFloorMode] = useState('select');
   const [wingMode, setWingMode] = useState('select');
   const currentUser = useFreshCurrentUser();
+  const [resourceGuideContext, setResourceGuideContext] = useState<'general' | 'meeting_room' | 'tenant_inventory'>('general');
+
+  useEffect(() => {
+    const launchState = (location.state || {}) as any;
+    if (!launchState?.openResourceModal) return;
+
+    const preset = String(launchState.preset || launchState.intent || '').toLowerCase();
+    setResourceGuideContext(
+      preset.includes('tenant') ? 'tenant_inventory' : preset.includes('meeting') ? 'meeting_room' : 'general',
+    );
+    setActiveTab('resource');
+    setModalKind('resource');
+    setModalMode('add');
+    setIsModalOpen(true);
+    setAddResourceForm((current) => ({
+      ...current,
+      resourceCategory: launchState.resourceCategory || (preset.includes('tenant') ? 'open_desk' : 'meeting_room'),
+      inventoryMode: launchState.inventoryMode || (preset.includes('tenant') ? 'area' : current.inventoryMode || 'area'),
+      credits: current.credits || '1',
+    }));
+  }, [location.state]);
   const { plan } = useDashboardAccess();
   const showReportExports = canExportReports(plan);
   const navigate = useNavigate();
@@ -2204,6 +2226,28 @@ export default function PricingPackagesPage() {
                 <div className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
                 {modalKind === 'resource' && modalMode === 'add' ? (
                   <div className="space-y-4">
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4">
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-700">Setup guide</p>
+                      {resourceGuideContext === 'tenant_inventory' ? (
+                        <div className="mt-2 space-y-2 text-[12px] font-pmedium leading-relaxed text-blue-950">
+                          <p>Add Open Desk and Cabin Desk resources here first so tenant bookings can allocate seats correctly.</p>
+                          <ul className="list-disc pl-4 space-y-1 text-blue-900/90">
+                            <li>Choose <span className="font-pmedium">Open Desk</span> or <span className="font-pmedium">Cabin Desk</span>.</li>
+                            <li>Use <span className="font-pmedium">Area Block</span> inventory for seat-based allocation.</li>
+                            <li>Set credits per seat / hour so tenant billing stays accurate.</li>
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-2 text-[12px] font-pmedium leading-relaxed text-blue-950">
+                          <p>Add the bookable meeting space first so meeting and walk-in bookings can use it immediately.</p>
+                          <ul className="list-disc pl-4 space-y-1 text-blue-900/90">
+                            <li>Choose <span className="font-pmedium">Meeting Room</span> or <span className="font-pmedium">Conference Room</span>.</li>
+                            <li>Enter the hourly price and the credit rate shown on booking screens.</li>
+                            <li>Save the resource, then return to booking to select it.</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
 
                       {/* <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">

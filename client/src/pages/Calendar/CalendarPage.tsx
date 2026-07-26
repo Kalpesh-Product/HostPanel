@@ -32,6 +32,12 @@ interface EventDetails {
   bookedByName?: string;
   bookedForName?: string;
   department?: string;
+  status?: string;
+  scheduleChangeType?: string;
+  previousDate?: string;
+  previousStartTime?: string;
+  previousEndTime?: string;
+  cancelReason?: string;
   currentInviteStatus?: string;
   invites?: EventInvite[];
   assignee?: string;
@@ -207,6 +213,10 @@ function getEventFieldGroups(event: CalendarEvent): EventFieldGroup[] {
         { label: 'Booked By', value: details.bookedByName },
         ...(details.bookedForName ? [{ label: 'Host', value: details.bookedForName }] : []),
         { label: 'Department', value: details.department },
+        { label: 'Status', value: event.status || details.status },
+        ...(details.scheduleChangeType ? [{ label: 'Change Type', value: details.scheduleChangeType }] : []),
+        ...(details.previousDate ? [{ label: 'Previous Slot', value: `${formatDateLabel(details.previousDate)}${details.previousStartTime ? ` ${formatCalendarTime(details.previousStartTime)}${details.previousEndTime ? ` - ${formatCalendarTime(details.previousEndTime)}` : ''}` : ''}` }] : []),
+        ...(details.cancelReason ? [{ label: 'Cancellation Reason', value: details.cancelReason, fullWidth: true } as EventFieldGroup] : []),
         { label: 'Invite Status', value: details.currentInviteStatus ? formatInviteStatusLabel(details.currentInviteStatus) : 'Pending' },
         { label: 'Invites', value: Array.isArray(details.invites) ? details.invites : [], renderInviteList: true },
       ];

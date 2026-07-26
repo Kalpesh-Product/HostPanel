@@ -28,11 +28,13 @@ import { getCountries, getStates, getCities } from '../../../utils/locationApi';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import useDashboardAccess from '../../../hooks/useDashboardAccess';
+import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
 import { canExportReports } from '../../../utils/workspacePlanAccess';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { SalesTenantCompaniesSkeleton } from '../../../components/ui/SalesPageSkeletons';
+import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
 
 const tenantLocationOptions = [
   { floor: '501', wing: 'A', locationCode: '501A', label: '501 A' },
@@ -722,6 +724,9 @@ export default function TenantCompaniesPage() {
   const { plan } = useDashboardAccess();
   const showReportExports = canExportReports(plan);
   const navigate = useNavigate();
+  const workspacePreferences = useWorkspacePreferences();
+  const formatCurrency = (value = 0) =>
+    formatWorkspaceCurrency(Math.round(Number(value || 0)), workspacePreferences.currency, { maximumFractionDigits: 0 });
 
   const currentUserName = useMemo(
     () => currentUser?.fullName || currentUser?.name || currentUser?.displayName || 'Sales Manager',

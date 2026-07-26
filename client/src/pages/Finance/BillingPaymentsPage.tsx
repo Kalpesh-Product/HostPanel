@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   generatePayrollPayslip,
   getPayrollSnapshot,
@@ -367,6 +369,9 @@ function buildHistoryReportRows(records: any[] = [], filters: Record<string, any
 /* ───────────────────── Main Component ───────────────────── */
 
 export function BillingPaymentsPage() {
+  const workspacePreferences = useWorkspacePreferences();
+  const formatCurrency = (value: number) =>
+    formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
@@ -560,7 +565,7 @@ export function BillingPaymentsPage() {
         const pendingPay = payablePayrollEmployees.filter((e) => (e.payment?.status || e.financials?.paymentStatus || 'Pending') !== 'Paid').length;
         return [
           { key: 'total', label: 'Total Employees', value: String(total), icon: Users },
-          { key: 'netPayable', label: 'Net Payable', value: formatCurrency(netPayable), isCurrency: true, icon: IndianRupee },
+          { key: 'netPayable', label: 'Net Payable', value: formatCurrency(netPayable), isCurrency: true, icon: Banknote },
           { key: 'paid', label: 'Paid', value: String(paid), icon: CheckCircle2 },
           { key: 'pending', label: 'Pending', value: String(pendingPay), icon: Clock },
         ];
@@ -582,7 +587,7 @@ export function BillingPaymentsPage() {
         const totalAmount = transactionHistory.reduce((s, t) => s + t.amount, 0);
         return [
           { key: 'total', label: 'All Transactions', value: String(total), icon: Clock },
-          { key: 'totalAmount', label: 'Total Volume', value: formatCurrency(totalAmount), isCurrency: true, icon: IndianRupee },
+          { key: 'totalAmount', label: 'Total Volume', value: formatCurrency(totalAmount), isCurrency: true, icon: Banknote },
           { key: 'empty', label: '', value: '', icon: PieChart },
           { key: 'empty2', label: '', value: '', icon: PieChart },
         ];
@@ -590,7 +595,7 @@ export function BillingPaymentsPage() {
       default:
         return [];
     }
-  }, [activeTab, tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests, transactionHistory]);
+  }, [activeTab, tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests, transactionHistory, formatCurrency]);
 
   const activeReportLabel = (() => {
     switch (activeTab) {

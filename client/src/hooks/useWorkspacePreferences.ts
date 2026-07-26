@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useAuth from "./useAuth";
 import useAxiosPrivate from "./useAxiosPrivate";
 import {
   DEFAULT_WORKSPACE_CURRENCY,
@@ -37,10 +38,18 @@ const DEFAULT_PREFERENCES: WorkspacePreferences = {
 
 export default function useWorkspacePreferences(): WorkspacePreferences {
   const axiosPrivate = useAxiosPrivate();
+  const { auth } = useAuth();
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  const activeWorkspaceId = String(
+    (auth?.user as { workspaceMembership?: { workspace?: string }; primaryWorkspace?: string; workspaceId?: string } | null)?.workspaceMembership?.workspace ||
+      (auth?.user as { workspaceMembership?: { workspace?: string }; primaryWorkspace?: string; workspaceId?: string } | null)?.primaryWorkspace ||
+      (auth?.user as { workspaceMembership?: { workspace?: string }; primaryWorkspace?: string; workspaceId?: string } | null)?.workspaceId ||
+      "",
+  ).trim();
 
   useEffect(() => {
     let mounted = true;
+    setPreferences(DEFAULT_PREFERENCES);
     void (async () => {
       try {
         const response = await axiosPrivate.get("/api/workspaces/settings");
@@ -64,7 +73,7 @@ export default function useWorkspacePreferences(): WorkspacePreferences {
       }
     })();
     return () => { mounted = false; };
-  }, [axiosPrivate]);
+  }, [axiosPrivate, activeWorkspaceId]);
 
   return preferences;
 }

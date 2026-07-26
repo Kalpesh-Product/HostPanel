@@ -73,6 +73,10 @@ const CompanySettingsDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone, access.workspaceName]);
+
   const founderName = useMemo(() => {
     const user = (auth?.user || {}) as { firstName?: string; lastName?: string; name?: string };
     const full = `${user.firstName || ""} ${user.lastName || ""}`.trim();

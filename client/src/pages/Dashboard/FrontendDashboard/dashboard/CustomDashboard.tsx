@@ -31,6 +31,7 @@ import {
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
 import { statusBadgeColor, humanRelTime, fmtINR } from "./dashboardUtils";
+import useWorkspacePreferences from "../../../../hooks/useWorkspacePreferences";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
 import { getTickets } from "../../../../services/tickets";
@@ -53,6 +54,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   const { hasModule } = access;
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
+  const workspacePreferences = useWorkspacePreferences();
 
   const showTenants = hasModule("tenant-companies-admin");
   const showBookings = hasModule("meeting-room-system") || hasModule("bookings");
@@ -212,12 +214,12 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     if (showBookings) cards.push({ icon: CalendarCheck, label: "Total Bookings", value: bookingStats.total, sub: `${bookingStats.todayCount} today`, color: "#2563EB", route: "/app/meeting-rooms" });
     if (showTickets) cards.push({ icon: Ticket, label: "Support Tickets", value: ticketStats.total, sub: `${ticketStats.open} open`, color: "#ef4444", route: "/app/tickets" });
     if (showVisitors) cards.push({ icon: Eye, label: "Visitors Today", value: visitorStats.todayCount, sub: `${visitorStats.checkedIn} checked in`, color: "#80bf01", route: "/visitors/visitor-management" });
-    if (showFinance) cards.push({ icon: Banknote, label: "Booking Revenue", value: fmtINR(bookingStats.revenue), sub: "Meeting room revenue", color: "#f59e0b", route: "/app/finance/billing-payments" });
+    if (showFinance) cards.push({ icon: Banknote, label: "Booking Revenue", value: fmtINR(bookingStats.revenue, workspacePreferences.currency), sub: "Meeting room revenue", color: "#f59e0b", route: "/app/finance/billing-payments" });
     if (showHR) cards.push({ icon: Users, label: "Payroll Employees", value: hrStats.totalEmployees, sub: `${hrStats.paid} paid`, color: "#7c3aed", route: "/app/finance/billing-payments" });
     if (showSales) cards.push({ icon: FileText, label: "Website Leads", value: leadStats.total, sub: `${leadStats.newLeads} new`, color: "#059669", route: "/company-settings/website-builder/leads" });
     return cards;
   }, [showTenants, showBookings, showTickets, showVisitors, showFinance, showHR, showSales,
-    tenantStats, bookingStats, ticketStats, visitorStats, billingStats, hrStats, leadStats]);
+    tenantStats, bookingStats, ticketStats, visitorStats, billingStats, hrStats, leadStats, workspacePreferences.currency]);
 
   // ── Quick links (only for enabled modules) ────────────────────────────────
 
@@ -266,9 +268,9 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       {/* Finance highlight row */}
       {showFinance && (
         <WidgetSection layout={3} title="Financial Snapshot" border normalCase>
-          <StatCard icon={Banknote} label="Booking Revenue" value={fmtINR(bookingStats.revenue)} sub="Meeting room revenue" color="#f59e0b" route="/app/finance/billing-payments" />
+          <StatCard icon={Banknote} label="Booking Revenue" value={fmtINR(bookingStats.revenue, workspacePreferences.currency)} sub="Meeting room revenue" color="#f59e0b" route="/app/finance/billing-payments" />
           <StatCard icon={CreditCard} label="Security Deposits" value={billingStats.total} sub={`${billingStats.paid} paid · ${billingStats.pending} pending`} color="#1E3D73" route="/app/finance/billing-payments" />
-          {showHR && <StatCard icon={Users} label="Net Payable" value={fmtINR(hrStats.netPayable)} sub={`${hrStats.paid}/${hrStats.totalEmployees} employees paid`} color="#7c3aed" route="/app/finance/billing-payments" />}
+          {showHR && <StatCard icon={Users} label="Net Payable" value={fmtINR(hrStats.netPayable, workspacePreferences.currency)} sub={`${hrStats.paid}/${hrStats.totalEmployees} employees paid`} color="#7c3aed" route="/app/finance/billing-payments" />}
           {!showHR && <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/app/meeting-rooms" />}
         </WidgetSection>
       )}

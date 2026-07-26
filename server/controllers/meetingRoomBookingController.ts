@@ -212,8 +212,8 @@ const emailPricingBlock = (booking: any) => {
       </table>`;
 };
 
-const transformBooking = (booking: any, currentUserId?: string) => {
-    const timezone = normalizeTimeZone(booking?.timezone);
+const transformBooking = (booking: any, currentUserId?: string, fallbackTimezone?: string) => {
+    const timezone = normalizeTimeZone(booking?.timezone || fallbackTimezone);
     const currency = normalizeCurrency(booking?.currency);
     const room = booking.roomId && typeof booking.roomId === "object" ? booking.roomId : null;
     const owner = booking.ownerId && typeof booking.ownerId === "object" ? booking.ownerId : null;
@@ -981,6 +981,7 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
     try {
         const workspaceId = workspaceIdFor(req);
         if (!workspaceId || workspaceId !== req.params.workspaceId) return res.status(403).json({ message: "Workspace access denied" });
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
         const [bookings, rooms] = await Promise.all([
             MeetingRoomBooking.find({ workspaceId }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").populate("externalClientId", "name email phone company clientCode").sort({ start: -1 }).lean().exec(),
             Resource.find({
@@ -990,7 +991,7 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
                 // ...MEETING_ROOM_RESOURCE_FILTER,
             }).sort({ sortOrder: 1, name: 1 }).lean().exec(),
         ]);
-        const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user));
+        const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user, workspaceLocalization.timezone));
         const receivedInvites = transformedBookings.flatMap((booking: any) => (booking.invites || [])
             .filter((invite: any) => String(invite.invitedUserId || "") === String(req.user || ""))
             .map((invite: any) => ({ ...invite, bookingId: booking.recordId, roomName: booking.roomName, bookedByName: booking.bookedByName, date: booking.date, startTime: booking.startTime, endTime: booking.endTime })));
@@ -1002,8 +1003,10 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
 export const getMyBookings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         if (!req.user) return res.status(401).json({ message: "User not authenticated" });
-        const bookings = await MeetingRoomBooking.find({ ownerId: req.user, workspaceId: workspaceIdFor(req) }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").sort({ start: -1 }).lean().exec();
-        return res.status(200).json({ message: "My bookings fetched successfully", data: { bookings: bookings.map((booking: any) => transformBooking(booking, req.user)) } });
+        const workspaceId = workspaceIdFor(req);
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
+        const bookings = await MeetingRoomBooking.find({ ownerId: req.user, workspaceId }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").sort({ start: -1 }).lean().exec();
+        return res.status(200).json({ message: "My bookings fetched successfully", data: { bookings: bookings.map((booking: any) => transformBooking(booking, req.user, workspaceLocalization.timezone)) } });
     } catch (error: any) { next(error); }
 };
 
@@ -1138,7 +1141,7 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
         // Email the external client when their booking is genuinely rescheduled
         // (not for extensions, which are a routine slot bump, not a change of plan).
         if (req.body.scheduleChangeType === "rescheduled") {
-            sendExternalLifecycleEmail(booking, "rescheduled", { previousStart, previousEnd, previousTotal });
+            sendExternalLifecycleEmail(booking, "rescheduled", { previousStart, previousEnd, previousTotal }, workspaceLocalization.timezone);
         }
 
         // Notify invitees of schedule change
@@ -1167,7 +1170,7 @@ export const updateBooking = async (req: AuthenticatedRequest, res: Response, ne
 
         // Return the transformed shape (date/startTime/endTime/previous* etc.)
         // — the frontdesk UIs merge this straight into their booking lists.
-        return res.status(200).json({ message: "Booking updated successfully", data: { booking: transformBooking(booking.toObject(), String(req.user || "")) } });
+        return res.status(200).json({ message: "Booking updated successfully", data: { booking: transformBooking(booking.toObject(), String(req.user || ""), workspaceLocalization.timezone) } });
     } catch (error: any) { next(error); }
 };
 
@@ -1176,6 +1179,7 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
         const id = getValidObjectId(req.params.id);
         if (!id) return res.status(400).json({ message: "Invalid booking ID" });
         const workspaceId = workspaceIdFor(req);
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
         const booking = await MeetingRoomBooking.findOne({ _id: id, workspaceId }).exec();
         if (!booking) return res.status(404).json({ message: "Booking not found" });
 
@@ -1197,7 +1201,7 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
         const reasonParts = String(booking.cancelReason || "").split("|").map((s: string) => s.trim());
         const refundType = reasonParts.length > 1 ? reasonParts[reasonParts.length - 1] : "";
         const cleanReason = reasonParts.length > 1 ? reasonParts.slice(0, -1).join(" | ") : reasonParts[0];
-        sendExternalLifecycleEmail(booking, "cancelled", { cancelReason: cleanReason, refundType });
+        sendExternalLifecycleEmail(booking, "cancelled", { cancelReason: cleanReason, refundType }, workspaceLocalization.timezone);
 
         // Refund credits for tenant bookings
         const bookingType = String(booking.bookingType || "").toLowerCase();
@@ -1276,7 +1280,7 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
             });
         }
 
-        return res.status(200).json({ message: "Booking cancelled successfully", data: { booking: transformBooking(booking.toObject(), String(req.user || "")) } });
+        return res.status(200).json({ message: "Booking cancelled successfully", data: { booking: transformBooking(booking.toObject(), String(req.user || ""), workspaceLocalization.timezone) } });
     } catch (error: any) { next(error); }
 };
 
@@ -1328,7 +1332,8 @@ export const getBookingsByTenantCompany = async (req: AuthenticatedRequest, res:
             workspaceId,
             bookedByTenantCompanyId: tenantCompanyId,
         }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").sort({ start: -1 }).lean().exec();
-        const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user));
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
+        const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user, workspaceLocalization.timezone));
         return res.status(200).json({ message: "Bookings fetched successfully", data: { bookings: transformedBookings } });
     } catch (error: any) { next(error); }
 };
@@ -1339,7 +1344,8 @@ export const getBookingById = async (req: AuthenticatedRequest, res: Response, n
         if (!id) return res.status(400).json({ message: "Invalid booking ID" });
         const booking = await MeetingRoomBooking.findOne({ _id: id, workspaceId: workspaceIdFor(req) }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").lean().exec();
         if (!booking) return res.status(404).json({ message: "Booking not found" });
-        return res.status(200).json({ message: "Booking fetched successfully", data: { booking: transformBooking(booking, req.user) } });
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceIdFor(req));
+        return res.status(200).json({ message: "Booking fetched successfully", data: { booking: transformBooking(booking, req.user, workspaceLocalization.timezone) } });
     } catch (error: any) { next(error); }
 };
 
@@ -1408,7 +1414,8 @@ const sendExternalLifecycleEmail = async (
     booking: any,
     kind: "rescheduled" | "cancelled",
     extra: { previousStart?: Date | null; previousEnd?: Date | null; previousTotal?: number; cancelReason?: string; refundType?: string } = {},
-) => {
+    fallbackTimeZone = DEFAULT_WORKSPACE_TIMEZONE,
+  ) => {
     try {
         if (String(booking?.bookingType) !== "External") return;
         const recipientEmail = String(booking.bookedByEmail || "").trim();
@@ -1419,7 +1426,7 @@ const sendExternalLifecycleEmail = async (
         const bookingCode = booking.bookingCode || String(booking._id);
         const startDate = booking.start ? new Date(booking.start) : null;
         const endDate = booking.end ? new Date(booking.end) : null;
-        const timezone = normalizeTimeZone(booking.timezone);
+        const timezone = normalizeTimeZone(booking.timezone || fallbackTimeZone);
         const slotLabel = emailSlotLabel(startDate, endDate, timezone);
         const dayLabel = startDate ? emailDateParts(startDate, timezone).day : "";
         const paid = isBookingPaid(booking);
@@ -1547,7 +1554,8 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
         // Friendly 12-hour slot label (handles multi-day date ranges).
         const startDate = booking.start ? new Date(booking.start) : null;
         const endDate = booking.end ? new Date(booking.end) : null;
-        const timezone = normalizeTimeZone(booking.timezone);
+        const workspaceLocalization = await getWorkspaceLocalization(String(booking.workspaceId || ""));
+        const timezone = normalizeTimeZone(booking.timezone || workspaceLocalization.timezone);
         const slotLabel = emailSlotLabel(startDate, endDate, timezone);
         const room = booking.roomId && typeof booking.roomId === "object" ? (booking.roomId as any) : null;
         const roomName = booking.roomName || room?.name || "Meeting Room";

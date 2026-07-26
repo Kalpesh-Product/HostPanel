@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from "express";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
+import Workspace from "../models/Workspace.js";
 import { getZonedDateTimeParts, normalizeTimeZone } from "../utils/workspaceLocalization.js";
 
 interface AuthenticatedRequest extends Request {
@@ -16,6 +17,12 @@ const dateParts = (value: Date, timeZone: string) => {
     };
 };
 
+const getWorkspaceTimeZone = async (workspaceId: string) => {
+    if (!workspaceId) return "";
+    const workspace = await Workspace.findById(workspaceId).select("preferences.timezone").lean().exec();
+    return normalizeTimeZone(workspace?.preferences?.timezone);
+};
+
 export const getMyCalendar = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -27,10 +34,11 @@ export const getMyCalendar = async (
             return res.status(401).json({ message: "An active workspace is required" });
         }
 
+        const workspaceTimeZone = await getWorkspaceTimeZone(workspaceId);
+
         const bookings = await MeetingRoomBooking.find({
             workspaceId,
             bookingType: "Internal",
-            status: { $ne: "cancelled" },
             $or: [
                 { ownerId: req.user },
                 { "invites.invitedUserId": req.user },
@@ -41,9 +49,9 @@ export const getMyCalendar = async (
             const currentInvite = (booking.invites || []).find(
                 (invite: any) => String(invite.invitedUserId || "") === String(req.user),
             );
-            return !currentInvite || !["rejected", "cancelled"].includes(String(currentInvite.status || "").toLowerCase());
+            return !currentInvite || !["rejected"].includes(String(currentInvite.status || "").toLowerCase());
         }).map((booking: any) => {
-            const timezone = normalizeTimeZone(booking.timezone);
+            const timezone = normalizeTimeZone(booking.timezone || workspaceTimeZone);
             const start = dateParts(booking.start, timezone);
             const end = dateParts(booking.end, timezone);
             const currentInvite = (booking.invites || []).find(
@@ -68,6 +76,12 @@ export const getMyCalendar = async (
                     bookedByName: booking.bookedByName,
                     bookedForName: booking.bookedForName,
                     department: booking.department,
+                    status: booking.status,
+                    scheduleChangeType: booking.scheduleChangeType,
+                    previousDate: booking.previousDate,
+                    previousStartTime: booking.previousStartTime,
+                    previousEndTime: booking.previousEndTime,
+                    cancelReason: booking.cancelReason,
                     currentInviteStatus: currentInvite?.status,
                     invites: booking.invites || [],
                 },

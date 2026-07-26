@@ -10,6 +10,7 @@ import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 import { getCountryBillingDefaults } from "../../lib/workspaceBilling";
+import { inferWorkspaceTimeZone } from "../../lib/workspaceLocalization";
 import { getCities, getStates } from "../../utils/locationApi";
 
 interface CountryTimeZoneOption {
@@ -142,21 +143,24 @@ const CreateWorkspacePage: React.FC = () => {
   const normalizedInviteBusinessTypes = normalizeBusinessTypes(
     activeInviteOnboarding?.businessTypes || [],
   );
-  const initialCountryValue = String(
+  const normalizedInitialCountry = normalizeCountryName(
     location.state?.workspaceDetails?.country || normalizedInviteCountry || "",
-  ).trim();
-  const initialStateValue = String(
+  );
+  const normalizedInitialState = normalizeStateName(
+    normalizedInitialCountry,
     location.state?.workspaceDetails?.state || normalizedInviteState || "",
-  ).trim();
+  );
+  const initialCountryValue = String(normalizedInitialCountry).trim();
+  const initialStateValue = String(normalizedInitialState).trim();
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
 
   const [country, setCountry] = useState(
-    location.state?.workspaceDetails?.country || normalizedInviteCountry || "",
+    normalizedInitialCountry || "",
   );
   const [stateName, setStateName] = useState(
-    location.state?.workspaceDetails?.state || normalizedInviteState || "",
+    normalizedInitialState || "",
   );
   const [city, setCity] = useState(
     location.state?.workspaceDetails?.city || activeInviteOnboarding?.city || "",
@@ -190,6 +194,7 @@ const CreateWorkspacePage: React.FC = () => {
   );
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
   const businessTypeDropdownRef = useRef<HTMLDivElement | null>(null);
+  const timezoneTouchedRef = useRef(false);
   const [workspaceNameStatus, setWorkspaceNameStatus] = useState<
     "idle" | "checking" | "available" | "taken"
   >("idle");
@@ -319,13 +324,23 @@ const CreateWorkspacePage: React.FC = () => {
       .map((item) => item.zoneName)
       .filter(Boolean);
     const shouldResetForCountry = country !== initialCountryValue;
-    if (shouldResetForCountry || !availableZones.includes(timezone)) {
-      setTimezone(availableZones[0] || "UTC");
+    const inferredTimezone = inferWorkspaceTimeZone({
+      countryCode: selectedCountryOption.isoCode,
+      countryName: selectedCountryOption.name,
+      stateName,
+      cityName: city,
+      availableTimeZones: availableZones,
+    });
+    const nextTimezone = availableZones.includes(inferredTimezone)
+      ? inferredTimezone
+      : availableZones[0] || "UTC";
+    if (shouldResetForCountry || !availableZones.includes(timezone) || !timezoneTouchedRef.current) {
+      setTimezone(nextTimezone);
     }
     if (shouldResetForCountry || !currency) {
       setCurrency(selectedCountryOption.currency || "USD");
     }
-  }, [country, currency, initialCountryValue, selectedCountryOption, timezone]);
+  }, [city, country, currency, initialCountryValue, selectedCountryOption, stateName, timezone]);
 
   useEffect(() => {
     let active = true;
@@ -622,11 +637,14 @@ const CreateWorkspacePage: React.FC = () => {
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Country
               </label>
-              <Autocomplete
-                  options={countries}
-                  value={selectedCountryOption}
-                  onChange={(_, newValue) => setCountry(newValue?.name || "")}
-                disabled={isCountriesLoading || hasLockedInviteCountry}
+                <Autocomplete
+                    options={countries}
+                    value={selectedCountryOption}
+                    onChange={(_, newValue) => {
+                      timezoneTouchedRef.current = false;
+                      setCountry(newValue?.name || "");
+                    }}
+                  disabled={isCountriesLoading || hasLockedInviteCountry}
                   popupIcon={<ChevronDown size={16} />}
                   getOptionLabel={(option) => option.name}
                   isOptionEqualToValue={(option, value) => option.isoCode === value.isoCode}
@@ -863,10 +881,13 @@ const CreateWorkspacePage: React.FC = () => {
                 Timezone
               </label>
               <div className="relative">
-                <select
-                  value={timezone}
-                  onChange={(event) => setTimezone(event.target.value)}
-                  disabled={!country}
+                  <select
+                    value={timezone}
+                    onChange={(event) => {
+                      timezoneTouchedRef.current = true;
+                      setTimezone(event.target.value);
+                    }}
+                    disabled={!country}
                   className={`${workspaceSelectClassName} ${
                     timezone ? "text-[#334155]" : "text-[#8d99ad]"
                   }`}
