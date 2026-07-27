@@ -219,6 +219,19 @@ function normalizeBookingWing(value: string | number = '') {
   return String(value || '').trim().toUpperCase();
 }
 
+function doesBookingOverlapDateRange(booking: any, fromDate: string = '', toDate: string = '') {
+  if (!fromDate && !toDate) return true;
+
+  const bookingStartDate = String(booking?.date || '').slice(0, 10);
+  const bookingEndDate = String(booking?.endDate || booking?.date || '').slice(0, 10);
+
+  if (!bookingStartDate) return false;
+  if (fromDate && bookingEndDate < fromDate) return false;
+  if (toDate && bookingStartDate > toDate) return false;
+
+  return true;
+}
+
 function getMeetingRoomTypeFromName(roomName?: string) {
   const normalized = String(roomName || '').toLowerCase();
   if (normalized.includes('board')) return 'Conference Room';
@@ -2441,6 +2454,8 @@ export function MeetingRoomsPage() {
   const [externalSearchQuery, setExternalSearchQuery] = useState('');
   const [externalPaymentFilter, setExternalPaymentFilter] = useState<'all' | 'Paid' | 'Pending'>('all');
   const [externalStatusFilter, setExternalStatusFilter] = useState<string>('all');
+  const [bookingDateFrom, setBookingDateFrom] = useState('');
+  const [bookingDateTo, setBookingDateTo] = useState('');
 
   // --------- TENANT COMPANIES ---------
   const [tenantCompanies, setTenantCompanies] = useState<Record<string, any>[]>([]);
@@ -2806,9 +2821,14 @@ export function MeetingRoomsPage() {
       const matchesSearch = (booking.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (booking.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase());
       const displayStatus = getBookingDisplayStatus(booking);
       const matchesStatus = statusFilter === 'all' || (statusFilter === 'rescheduled' ? isRescheduledBooking(booking) : displayStatus === statusFilter);
-      return matchesTab && matchesSearch && matchesStatus;
+      const matchesDateRange = doesBookingOverlapDateRange(booking, bookingDateFrom, bookingDateTo);
+      return matchesTab && matchesSearch && matchesStatus && matchesDateRange;
+    }).sort((a, b) => {
+      const dateCompare = (b.date || '').localeCompare(a.date || '');
+      if (dateCompare !== 0) return dateCompare;
+      return (b.startTime || '').localeCompare(a.startTime || '');
     });
-  }, [visibleBookings, activeTab, searchQuery, statusFilter, isBookingInActiveTab]);
+  }, [visibleBookings, activeTab, searchQuery, statusFilter, bookingDateFrom, bookingDateTo, isBookingInActiveTab]);
 
   const externalDisplayedBookings = useMemo(() => {
     if (mainBookingTab !== 'external_booking') return [];
@@ -2835,14 +2855,14 @@ export function MeetingRoomsPage() {
         if (externalStatusFilter !== 'all') {
           if (getBookingDisplayStatus(b) !== externalStatusFilter) return false;
         }
-        return true;
+        return doesBookingOverlapDateRange(b, bookingDateFrom, bookingDateTo);
       })
       .sort((a, b) => {
         const dateCompare = (b.date || '').localeCompare(a.date || '');
         if (dateCompare !== 0) return dateCompare;
         return (b.startTime || '').localeCompare(a.startTime || '');
       });
-  }, [allBookings, mainBookingTab, activeTab, externalSearchQuery, externalPaymentFilter, externalStatusFilter]);
+  }, [allBookings, mainBookingTab, activeTab, externalSearchQuery, externalPaymentFilter, externalStatusFilter, bookingDateFrom, bookingDateTo]);
 
   const memberDirectoryById = useMemo(() => {
     const directory = new Map();
@@ -4339,6 +4359,55 @@ export function MeetingRoomsPage() {
                     />
                   </div>
 
+                  {activeTab !== 'invites' && (
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center shrink-0">
+                      <label className="relative flex min-w-0 items-center rounded-xl border border-slate-200/60 bg-white shadow-sm focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/20 sm:w-[168px]">
+                        <CalIcon className="absolute left-3 text-slate-400 pointer-events-none" size={15} />
+                        <span className="absolute left-9 top-1 text-[8px] font-pmedium uppercase tracking-widest text-slate-400 pointer-events-none">From</span>
+                        <input
+                          type="date"
+                          aria-label="Filter bookings from date"
+                          value={bookingDateFrom}
+                          max={bookingDateTo || undefined}
+                          onChange={(event) => {
+                            const nextFromDate = event.target.value;
+                            setBookingDateFrom(nextFromDate);
+                            if (bookingDateTo && nextFromDate && bookingDateTo < nextFromDate) {
+                              setBookingDateTo(nextFromDate);
+                            }
+                          }}
+                          className="w-full rounded-xl bg-transparent pb-1.5 pl-9 pr-2 pt-4 text-[11px] font-pmedium text-slate-700 outline-none"
+                        />
+                      </label>
+                      <label className="relative flex min-w-0 items-center rounded-xl border border-slate-200/60 bg-white shadow-sm focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/20 sm:w-[168px]">
+                        <CalIcon className="absolute left-3 text-slate-400 pointer-events-none" size={15} />
+                        <span className="absolute left-9 top-1 text-[8px] font-pmedium uppercase tracking-widest text-slate-400 pointer-events-none">To</span>
+                        <input
+                          type="date"
+                          aria-label="Filter bookings to date"
+                          value={bookingDateTo}
+                          min={bookingDateFrom || undefined}
+                          onChange={(event) => setBookingDateTo(event.target.value)}
+                          className="w-full rounded-xl bg-transparent pb-1.5 pl-9 pr-2 pt-4 text-[11px] font-pmedium text-slate-700 outline-none"
+                        />
+                      </label>
+                      {(bookingDateFrom || bookingDateTo) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBookingDateFrom('');
+                            setBookingDateTo('');
+                          }}
+                          className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[9px] font-pmedium uppercase tracking-wider text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-800"
+                          aria-label="Clear booking date range"
+                        >
+                          <X size={13} />
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div data-tour="meetings-action-btn" className="flex items-center shrink-0">
                     {mainBookingTab === 'my_bookings' && (
                       <button onClick={() => openBookingDialog('room')} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
@@ -4664,7 +4733,7 @@ export function MeetingRoomsPage() {
                                     <Building size={16} className="text-primary" />
                                     <div className="min-w-0">
                                       <p className="font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
-                                      <p className="text-[11px] font-pmedium text-slate-400">{getBookingDisplayCount()} Booking{b.roomCapacity ? ` - ${b.roomCapacity} seats` : ''}</p>
+                                      {/* <p className="text-[11px] font-pmedium text-slate-400">{getBookingDisplayCount()} Booking{b.roomCapacity ? ` - ${b.roomCapacity} seats` : ''}</p> */}
                                       <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full border text-[9px] font-pmedium uppercase tracking-wider ${getBookingTagBadge(b)}`}>
                                         {getBookingTagLabel(b)}
                                       </span>

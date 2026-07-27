@@ -21,6 +21,8 @@ export interface IInventory extends Document {
     departmentName?: string;
     totalQuantity: number;
     availableQuantity: number;
+    addedByRole?: string;
+    addedByUserId?: mongoose.Types.ObjectId | null;
     ledger: IInventoryLedger[];
     createdAt?: Date;
     updatedAt?: Date;
@@ -112,6 +114,18 @@ const inventorySchema = new Schema<IInventory>(
             required: true,
             min: 0,
             default: 0,
+        },
+        addedByRole: {
+            type: String,
+            default: "",
+            trim: true,
+            index: true,
+        },
+        addedByUserId: {
+            type: Schema.Types.ObjectId,
+            ref: "HostUser",
+            default: null,
+            index: true,
         },
         ledger: {
             type: [inventoryLedgerSchema],

@@ -32,6 +32,8 @@ const YearWiseTable = ({
   search = true,
   onMonthChange,
   totalKey = "actualAmount",
+  modern = false,
+  tableDescription,
 }) => {
   const agGridRef = useRef(null);
   const [exportTable, setExportTable] = useState(false);
@@ -190,18 +192,19 @@ const YearWiseTable = ({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={modern ? "flex flex-col bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-h-[500px] font-pmedium" : "flex flex-col gap-4"}>
       {/* Header */}
-      <div className="grid grid-cols-9 items-center w-full">
+      <div className={modern ? "p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col md:flex-row md:items-end justify-between gap-3 bg-slate-50/50" : "grid grid-cols-9 items-center w-full"}>
         {tableTitle ? (
-          <span className="text-title text-primary font-pmedium uppercase col-span-6">
-            {tableTitle}
-          </span>
+          <div className={modern ? "min-w-0" : "col-span-6"}>
+            <div className="text-title text-primary font-pmedium uppercase">{tableTitle}</div>
+            {modern && tableDescription ? <p className="mt-1 text-xs font-pmedium text-slate-500">{tableDescription}</p> : null}
+          </div>
         ) : (
           <span></span>
         )}
 
-        <div className="flex gap-2 items-center justify-end flex-wrap col-span-3">
+        <div className={modern ? "flex gap-2 items-center flex-wrap" : "flex gap-2 items-center justify-end flex-wrap col-span-3"}>
           {/* ✅ Show calendar only if data is not empty */}
 
           <Popover
@@ -248,7 +251,7 @@ const YearWiseTable = ({
           </Popover>
 
           {buttonTitle && (
-            <PrimaryButton title={buttonTitle} handleSubmit={handleSubmit} />
+            <PrimaryButton title={buttonTitle} handleSubmit={handleSubmit} padding={modern ? "px-4 py-2.5" : undefined} className={modern ? "rounded-2xl text-[10px] shadow-sm active:scale-95" : undefined} />
           )}
           {exportData && (
             <PrimaryButton title="Export" handleSubmit={handleExportPass} />
@@ -262,11 +265,11 @@ const YearWiseTable = ({
         </div>
       </div>
       {dateRange.length > 0 && dateRange[0] && (
-        <div className="flex justify-center items-center gap-2">
+        <div className={modern ? "p-3 sm:px-5 flex flex-wrap items-center gap-2 border-b border-slate-100/60 bg-white" : "flex justify-center items-center gap-2"}>
           {/* Date information here */}
 
           <div className="flex items-center gap-2  justify-center">
-            <div className="px-6 py-1 rounded-md border-primary border-[1px]">
+            <div className={modern ? "px-3 py-2 rounded-lg border border-slate-200 bg-slate-50" : "px-6 py-1 rounded-md border-primary border-[1px]"}>
               <span className="text-gray-600 text-content font-pregular">
                 {dateRange.length > 0 &&
                   dateRange[0] &&
@@ -274,7 +277,7 @@ const YearWiseTable = ({
               </span>{" "}
             </div>
 
-            <div className="px-6 py-1 rounded-md border-primary border-[1px]">
+            <div className={modern ? "px-3 py-2 rounded-lg border border-slate-200 bg-slate-50" : "px-6 py-1 rounded-md border-primary border-[1px]"}>
               <span className="text-gray-600 text-content font-pregular">
                 {dateRange.length > 0 &&
                   dateRange[0] &&
@@ -297,7 +300,7 @@ const YearWiseTable = ({
 
       {/* Table */}
 
-      <>
+      <div className={modern ? "flex-1 overflow-hidden bg-white/20 p-3 sm:p-4" : ""}>
         {finalTableData.length > 0 ? (
           <AgTable
             key={key}
@@ -326,7 +329,7 @@ const YearWiseTable = ({
             No data available for the selected date range.
           </div>
         )}
-      </>
+      </div>
     </div>
   );
 };

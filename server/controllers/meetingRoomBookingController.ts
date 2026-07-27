@@ -269,7 +269,7 @@ const transformBooking = (booking: any, currentUserId?: string, fallbackTimezone
         previousEndDate: previousEndParts?.date || "",
         previousStartTime: previousStartParts?.time || "",
         previousEndTime: previousEndParts?.time || "",
-        roomName: booking.roomName || room?.name || "",
+        roomName: room?.name || booking.roomName || "",
         floor: room?.floor || "",
         wing: room?.wing || "",
         roomType: room?.type || "Meeting Room",

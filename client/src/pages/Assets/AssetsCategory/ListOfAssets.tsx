@@ -30,6 +30,7 @@ import { queryClient } from "../../../main";
 import dayjs from "dayjs";
 import DetalisFormatted from "../../../components/DetalisFormatted";
 import humanDate from "../../../utils/humanDateForamt";
+import { Box, Eye, Pencil, Plus } from "lucide-react";
 
 const ListOfAssets = () => {
   const { auth } = useAuth();
@@ -411,12 +412,14 @@ const ListOfAssets = () => {
   //-----------------------Table Data----------------------//
 
   return (
-    <PageFrame>
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium"><PageFrame>
       <YearWiseTable
         search={true}
+        modern
+        tableDescription="Track department assets, ownership, purchase details, and current condition."
         dateColumn={"purchaseDate"}
         tableTitle={"List of Assets"}
-        buttonTitle={"Add Asset"}
+        buttonTitle={<><Plus size={13} strokeWidth={3} /> ADD ASSET</>}
         data={tableData}
         columns={assetColumns}
         handleSubmit={handleAddAsset}
@@ -424,13 +427,19 @@ const ListOfAssets = () => {
 
       <MuiModal
         open={isModalOpen}
-        title={modalMode === "add" ? "Add Asset" : modalMode === "view"? "View Details" : "Edit Asset"}
+        variant="workspace"
+        title={modalMode === "add"
+          ? <><Plus size={22} /> Add Asset</>
+          : modalMode === "view"
+            ? <><Eye size={22} /> Asset Details</>
+            : <><Pencil size={22} /> Edit Asset</>}
+        subtitle={modalMode === "add" ? "Create a new department asset record" : modalMode === "view" ? "Review complete asset information" : "Update asset information and current condition"}
         onClose={() => setIsModalOpen(false)}
       >
         {modalMode === "add" && (
           <form
             onSubmit={handleSubmit((data) => addAsset(data))}
-            className="grid grid-cols-2 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
             <Controller
               name="categoryId"
@@ -776,13 +785,10 @@ const ListOfAssets = () => {
               )}
             />
 
-            <PrimaryButton
-              title={"Add Asset"}
-              type={"submit"}
-              isLoading={isAddingAsset}
-              disabled={isAddingAsset}
-              externalStyles={"col-span-2"}
-            />
+            <div className="col-span-1 sm:col-span-2 pt-4 mt-1 border-t border-slate-200/60 flex flex-col-reverse sm:flex-row gap-3">
+              <button type="button" onClick={() => setIsModalOpen(false)} disabled={isAddingAsset} className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">Cancel</button>
+              <button type="submit" disabled={isAddingAsset} className="flex-[2] py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"><Plus size={14} /> {isAddingAsset ? "Saving..." : "Add Asset"}</button>
+            </div>
           </form>
         )}
         {modalMode === "edit" && (
@@ -791,7 +797,7 @@ const ListOfAssets = () => {
             isDamaged :data.isDamaged === "true" ? true : false,
             isUnderMaintenance: data.isUnderMaintenance === "true" ? true : false,
             }))}
-            className="grid grid-cols-2 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
             <Controller
               name="name"
@@ -1051,13 +1057,10 @@ const ListOfAssets = () => {
               )}
             />
 
-            <PrimaryButton
-              title={"Update Asset"}
-              type={"submit"}
-              isLoading={isUpdateAsset}
-              disabled={isUpdateAsset}
-              externalStyles={"col-span-2"}
-            />
+            <div className="col-span-1 sm:col-span-2 pt-4 mt-1 border-t border-slate-200/60 flex flex-col-reverse sm:flex-row gap-3">
+              <button type="button" onClick={() => setIsModalOpen(false)} disabled={isUpdateAsset} className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">Cancel</button>
+              <button type="submit" disabled={isUpdateAsset} className="flex-[2] py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"><Pencil size={14} /> {isUpdateAsset ? "Saving..." : "Update Asset"}</button>
+            </div>
           </form>
         )}
         {/* {modalMode === "view" && (
@@ -1066,7 +1069,7 @@ const ListOfAssets = () => {
           </div>
         )} */}
            {modalMode === "view" && (
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 [&>div]:rounded-xl [&>div]:border [&>div]:border-slate-100 [&>div]:bg-white [&>div]:p-3 [&>div]:shadow-sm [&>div>span]:text-[11px] [&>div>span]:font-pmedium [&>div>span]:text-slate-700">
                     <DetalisFormatted
                       title={"Asset ID"}
                       detail={selectedAsset?.assetId || "N/A"}
@@ -1154,10 +1157,14 @@ const ListOfAssets = () => {
                   "N/A"
                 )}/>
 
+                    <div className="sm:col-span-2 pt-4 mt-1 border-t border-slate-200/60 flex gap-3">
+                      <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">Close</button>
+                      <button type="button" onClick={() => handleEdit(selectedAsset)} className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider flex items-center justify-center gap-2"><Pencil size={14} /> Edit Asset</button>
+                    </div>
                   </div>
                 )}
       </MuiModal>
-    </PageFrame>
+    </PageFrame></div>
   );
 };
 

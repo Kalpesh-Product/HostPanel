@@ -5,7 +5,7 @@ import { createAsset, getAssets, updateAsset, getDepartments } from '@/services/
 import {
   Search, ChevronDown, X, Eye, ShieldCheck,
   CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,FileSpreadsheet,FileDown,
-  Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package,
+  Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package, Pencil,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
@@ -89,6 +89,14 @@ function getLocationLabel(floor: string, wing: string): string {
   return parts.length > 0 ? parts.join(', ') : '';
 }
 
+function getLocationParts(location?: string): { floor: string; wing: string } {
+  const parts = String(location || '').split(',').map((part) => part.trim()).filter(Boolean);
+  return {
+    floor: FLOOR_OPTIONS.includes(parts[0]) ? parts[0] : '',
+    wing: WING_OPTIONS.includes(parts[1]) ? parts[1] : '',
+  };
+}
+
 function normalizeDepartmentName(value: string): string {
   return String(value || '').trim().toLowerCase();
 }
@@ -161,6 +169,8 @@ function normalizeAsset(a: any): Asset {
   return {
     ...a,
     notes: a.notes || '',
+    recordId: a.recordId || a._id || a.id,
+    id: a.id || a.assetCode || a._id,
     transferReason: a.transferReason || '',
     assignedTo: a.assignedTo || 'Unassigned',
     assignedToUserId: a.assignedToUserId || null,
@@ -310,6 +320,7 @@ export function AssetsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [viewingAsset, setViewingAsset] = useState<Asset | null>(null);
   const [activeAssetForTransfer, setActiveAssetForTransfer] = useState<Asset | null>(null);
@@ -338,7 +349,47 @@ export function AssetsPage() {
     [assetForm.purchaseDate, assetForm.ownershipType, assetForm.rentDurationMonths],
   );
 
-  async function handleCreateAsset(event: FormEvent<HTMLFormElement>) {
+  function openAddAsset() {
+    setEditingAsset(null);
+    setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment });
+    setIsAddModalOpen(true);
+  }
+
+  function openEditAsset(asset: Asset) {
+    const { floor, wing } = getLocationParts(asset.location);
+    setEditingAsset(asset);
+    setAssetForm({
+      name: asset.name || '',
+      category: asset.category || 'Hardware',
+      serialNumber: asset.serialNumber || '',
+      brandModel: asset.brandModel || '',
+      purchaseDate: asset.purchaseDate || '',
+      quantity: String(asset.quantity || 1),
+      ownershipType: asset.ownershipType || 'Owned',
+      rentDurationMonths: asset.rentDurationMonths ? String(asset.rentDurationMonths) : '',
+      department: asset.department || defaultDepartment,
+      status: asset.status || 'Active',
+      assignedToType: asset.assignedToUserId ? 'employee' : 'department',
+      assignedTo: asset.assignedTo || asset.department || '',
+      assignedToUserId: asset.assignedToUserId || '',
+      location: asset.location || '',
+      floor,
+      wing,
+      value: asset.value === '-' ? '' : asset.value || '',
+      notes: asset.notes || '',
+    });
+    setViewingAsset(null);
+    setIsAddModalOpen(true);
+  }
+
+  function closeAssetForm() {
+    if (isSaving) return;
+    setIsAddModalOpen(false);
+    setEditingAsset(null);
+    setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment });
+  }
+
+  async function handleSaveAsset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage('');
     setIsSaving(true);
@@ -346,7 +397,7 @@ export function AssetsPage() {
       const selectedEmployee = assetForm.assignedToType === 'employee'
         ? assetDepartmentEmployees.find((m) => m.value === assetForm.assignedToUserId)
         : null;
-      const response = await createAsset({
+      const payload = {
         name: assetForm.name,
         serialNumber: assetForm.serialNumber,
         brandModel: assetForm.brandModel,
@@ -362,13 +413,22 @@ export function AssetsPage() {
         location: getLocationLabel(assetForm.floor, assetForm.wing) || assetForm.location,
         value: assetForm.value,
         notes: assetForm.notes,
-      });
-      const createdAsset = response?.data?.asset || response?.asset;
-      if (createdAsset) setAssets((prev) => [normalizeAsset(createdAsset), ...prev]);
+      };
+      const response = editingAsset?.recordId
+        ? await updateAsset(editingAsset.recordId, payload)
+        : await createAsset(payload);
+      const savedAsset = response?.data?.asset || response?.asset;
+      if (savedAsset) {
+        const normalized = normalizeAsset(savedAsset);
+        setAssets((prev) => editingAsset
+          ? prev.map((asset) => asset.recordId === editingAsset.recordId ? normalized : asset)
+          : [normalized, ...prev]);
+      }
       setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment });
       setIsAddModalOpen(false);
+      setEditingAsset(null);
     } catch (error: any) {
-      setErrorMessage(error.message || 'Unable to create asset right now.');
+      setErrorMessage(error.message || `Unable to ${editingAsset ? 'update' : 'create'} asset right now.`);
     } finally {
       setIsSaving(false);
     }
@@ -453,7 +513,7 @@ function AssetsSkeleton() {
 }
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
         {isInitialLoading && <AssetsSkeleton />}
         {!isInitialLoading && (
@@ -477,14 +537,14 @@ function AssetsSkeleton() {
                                 // onClick={handleExportPDF}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
                                 // onClick={handleExportExcel}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
                               
                             </div>
@@ -492,7 +552,7 @@ function AssetsSkeleton() {
             </div>
 
             {errorMessage ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">{errorMessage}</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">{errorMessage}</div>
             ) : null}
 
             {/* 2. STAT CARDS */}
@@ -557,7 +617,7 @@ function AssetsSkeleton() {
                     </select>
                   </div>
                   <button
-                    onClick={() => { setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment }); setIsAddModalOpen(true); }}
+                    onClick={openAddAsset}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> ADD ASSET
@@ -615,6 +675,13 @@ function AssetsSkeleton() {
                               <Eye size={15} strokeWidth={2.5} />
                             </button>
                             <button
+                              onClick={() => openEditAsset(asset)}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+                              title="Edit"
+                            >
+                              <Pencil size={15} strokeWidth={2.5} />
+                            </button>
+                            <button
                               onClick={() => {
                                 setActiveAssetForTransfer(asset);
                                 setTransferForm({
@@ -644,27 +711,27 @@ function AssetsSkeleton() {
                     <div key={asset.id || asset.recordId} className={`bg-white border p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${asset.status === 'Maintenance' ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 flex flex-col gap-1.5">
-                          <span className="font-mono text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{asset.id || asset.recordId}</span>
-                          <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">{asset.name}</h3>
-                          <p className="text-[12px] text-slate-500 font-medium flex items-center gap-1.5">{getCategoryIcon(asset.category)} {asset.category}</p>
+                          <span className="text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{asset.id || asset.recordId}</span>
+                          <h3 className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]">{asset.name}</h3>
+                          <p className="text-[12px] text-slate-500 font-pmedium flex items-center gap-1.5">{getCategoryIcon(asset.category)} {asset.category}</p>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">{getStatusBadge(asset.status)}</div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-1">
                         <div>
                           <span className={statusPillClass("Owning Dept")}>Owning Dept</span>
-                          <span className="text-[11px] font-semibold text-[#0F172A] truncate flex items-center gap-1" title={asset.department}><Building2 size={10} className="text-slate-400 shrink-0" /> {asset.department || '--'}</span>
+                          <span className="text-[11px] font-pmedium text-[#0F172A] truncate flex items-center gap-1" title={asset.department}><Building2 size={10} className="text-slate-400 shrink-0" /> {asset.department || '--'}</span>
                         </div>
                         <div>
                           <span className={statusPillClass("Assigned To")}>Assigned To</span>
-                          <span className="text-[11px] font-semibold text-[#2563EB] truncate flex items-center gap-1" title={asset.assignedTo}><User size={10} className="text-blue-400 shrink-0" /> {asset.assignedTo}</span>
+                          <span className="text-[11px] font-pmedium text-[#2563EB] truncate flex items-center gap-1" title={asset.assignedTo}><User size={10} className="text-blue-400 shrink-0" /> {asset.assignedTo}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
                         <MapPin size={12} className="text-slate-400 shrink-0" />
-                        <span className="text-[10px] sm:text-[11px] font-semibold text-slate-600 truncate">{asset.location}</span>
+                        <span className="text-[10px] sm:text-[11px] font-pmedium text-slate-600 truncate">{asset.location}</span>
                       </div>
-                      <div className="flex justify-between items-center mt-1 border-t border-slate-100/60 pt-3">
+                      <div className="flex items-center gap-2 mt-1 border-t border-slate-100/60 pt-3">
                         <button
                           onClick={() => {
                             setActiveAssetForTransfer(asset);
@@ -677,13 +744,19 @@ function AssetsSkeleton() {
                             });
                             setShowTransferDialog(true);
                           }}
-                          className="px-4 py-2 bg-slate-50 border border-slate-200 text-indigo-600 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all flex items-center gap-1.5"
+                          className="flex-1 justify-center px-3 py-2 bg-slate-50 border border-slate-200 text-indigo-600 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all flex items-center gap-1.5"
                         >
                           <ArrowRightLeft size={13} strokeWidth={2} /> Transfer
                         </button>
                         <button
+                          onClick={() => openEditAsset(asset)}
+                          className="flex-1 justify-center px-3 py-2 bg-white border border-slate-200 text-amber-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-amber-200 hover:bg-amber-50 transition-all flex items-center gap-1.5"
+                        >
+                          <Pencil size={13} strokeWidth={2} /> Edit
+                        </button>
+                        <button
                           onClick={() => setViewingAsset(asset)}
-                          className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                          className="flex-1 justify-center px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
                         >
                           <Eye size={14} strokeWidth={2} /> View
                         </button>
@@ -697,7 +770,7 @@ function AssetsSkeleton() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100">
                       <Box className="text-slate-400" size={24} />
                     </div>
-                    <p className="text-slate-500 font-semibold mb-1">No assets found</p>
+                    <p className="text-slate-500 font-pmedium mb-1">No assets found</p>
                     <p className="text-slate-400 text-[13px]">Try adjusting your filters or search terms.</p>
                   </div>
                 )}
@@ -715,14 +788,14 @@ function AssetsSkeleton() {
               <div>
                 <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
                   <div className="bg-blue-50 text-[#2563EB]"></div>
-                  ADD ASSET
+                  {editingAsset ? 'EDIT ASSET' : 'ADD ASSET'}
                 </h2>
-                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Register hardware, software, furniture, or infra</p>
+                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">{editingAsset ? 'Update asset details and assignment' : 'Register hardware, software, furniture, or infra'}</p>
               </div>
-              <button onClick={() => setIsAddModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
+              <button onClick={closeAssetForm} disabled={isSaving} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm disabled:opacity-50"><X size={18} strokeWidth={2.5} /></button>
             </div>
 
-            <form onSubmit={handleCreateAsset} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-5 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+            <form onSubmit={handleSaveAsset} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-5 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Asset Name *</label>
@@ -731,7 +804,7 @@ function AssetsSkeleton() {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Category *</label>
-                  <select value={assetForm.category} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, category: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
+                  <select value={assetForm.category} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, category: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="Hardware">Hardware</option>
                     <option value="Infrastructure">Infrastructure</option>
                     <option value="Software">Software</option>
@@ -752,17 +825,17 @@ function AssetsSkeleton() {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Purchase Date</label>
-                  <input type="date" value={assetForm.purchaseDate} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" required={assetForm.ownershipType === 'Rented'} />
+                  <input type="date" value={assetForm.purchaseDate} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" required={assetForm.ownershipType === 'Rented'} />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Quantity</label>
-                  <input type="number" min={1} value={assetForm.quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, quantity: e.target.value === '' || /^\d+$/.test(e.target.value) ? e.target.value : prev.quantity }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" required />
+                  <input type="number" min={1} value={assetForm.quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, quantity: e.target.value === '' || /^\d+$/.test(e.target.value) ? e.target.value : prev.quantity }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" required />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Ownership Type</label>
-                  <select value={assetForm.ownershipType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, ownershipType: e.target.value, rentDurationMonths: e.target.value === 'Rented' ? prev.rentDurationMonths : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
+                  <select value={assetForm.ownershipType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, ownershipType: e.target.value, rentDurationMonths: e.target.value === 'Rented' ? prev.rentDurationMonths : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="Owned">Owned</option>
                     <option value="Rented">Rented</option>
                   </select>
@@ -771,7 +844,7 @@ function AssetsSkeleton() {
                 {assetForm.ownershipType === 'Rented' && (
                   <div className="space-y-1.5">
                     <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Rent Duration (Months)</label>
-                    <input type="number" min={1} value={assetForm.rentDurationMonths} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, rentDurationMonths: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" placeholder="e.g. 12" required />
+                    <input type="number" min={1} value={assetForm.rentDurationMonths} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, rentDurationMonths: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" placeholder="e.g. 12" required />
                   </div>
                 )}
 
@@ -782,7 +855,7 @@ function AssetsSkeleton() {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Department *</label>
-                  <select required value={assetForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, department: e.target.value, assignedToUserId: '', assignedTo: prev.assignedToType === 'department' ? e.target.value : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
+                  <select required value={assetForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, department: e.target.value, assignedToUserId: '', assignedTo: prev.assignedToType === 'department' ? e.target.value : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="">Select department</option>
                     {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
                   </select>
@@ -816,13 +889,13 @@ function AssetsSkeleton() {
                 ) : (
                   <div className="space-y-1.5 sm:col-span-2">
                     <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assigned Department</label>
-                    <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#0F172A] shadow-sm">{assetForm.department || 'Select a department'}</div>
+                    <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[#0F172A] shadow-sm">{assetForm.department || 'Select a department'}</div>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Status</label>
-                  <select value={assetForm.status} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, status: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
+                  <select value={assetForm.status} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, status: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="Active">Active</option>
                     <option value="Maintenance">Maintenance</option>
                     <option value="Decommissioned">Decommissioned</option>
@@ -853,7 +926,7 @@ function AssetsSkeleton() {
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Location Preview</label>
-                  <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 shadow-sm">{getLocationLabel(assetForm.floor, assetForm.wing) || 'Select floor and wing'}</div>
+                  <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-slate-700 shadow-sm">{getLocationLabel(assetForm.floor, assetForm.wing) || 'Select floor and wing'}</div>
                 </div>
 
                 <div className="space-y-1.5 sm:col-span-2">
@@ -868,8 +941,8 @@ function AssetsSkeleton() {
               </div>
 
               <div className="pt-4 sm:pt-6 flex gap-3 sm:gap-4 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Cancel</button>
-                <button type="submit" disabled={isSaving} className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Create Asset'}</button>
+                <button type="button" onClick={closeAssetForm} disabled={isSaving} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={isSaving} className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : editingAsset ? 'Update Asset' : 'Create Asset'}</button>
               </div>
             </form>
           </div>
@@ -883,10 +956,10 @@ function AssetsSkeleton() {
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-start shrink-0 relative">
               <div>
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
-                  <span className="font-mono text-[11px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingAsset.id || viewingAsset.recordId}</span>
+                  <span className="text-[11px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingAsset.id || viewingAsset.recordId}</span>
                   {getStatusBadge(viewingAsset.status)}
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight pr-8">{viewingAsset.name}</h2>
+                <h2 className="text-xl sm:text-2xl font-pmedium text-[#0F172A] leading-tight pr-8">{viewingAsset.name}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1">{getCategoryIcon(viewingAsset.category)} {viewingAsset.category}</p>
               </div>
               <button onClick={() => setViewingAsset(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8"><X size={18} strokeWidth={2.5} /></button>
@@ -898,14 +971,14 @@ function AssetsSkeleton() {
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Owning Department</p>
                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm">
                     <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center"><Building2 size={14} /></div>
-                    <span className="font-bold text-[#0F172A] text-[13px]">{viewingAsset.department}</span>
+                    <span className="font-pmedium text-[#0F172A] text-[13px]">{viewingAsset.department}</span>
                   </div>
                 </div>
                 <div>
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm">
                     <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center"><User size={14} /></div>
-                    <span className="font-bold text-[#0F172A] text-[13px]">{viewingAsset.assignedTo}</span>
+                    <span className="font-pmedium text-[#0F172A] text-[13px]">{viewingAsset.assignedTo}</span>
                   </div>
                 </div>
               </div>
@@ -915,52 +988,53 @@ function AssetsSkeleton() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className={statusPillClass("Serial Number")}>Serial Number</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.serialNumber || '--'}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.serialNumber || '--'}</span>
                   </div>
                   <div>
                     <span className={statusPillClass("Brand / Model")}>Brand / Model</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.brandModel || '--'}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.brandModel || '--'}</span>
                   </div>
                   <div>
                     <span className={statusPillClass("Purchase Date")}>Purchase Date</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.purchaseDate || '--'}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.purchaseDate || '--'}</span>
                   </div>
                   <div>
                     <span className={statusPillClass("Expiry Date")}>Expiry Date</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.expiryDate || viewingAsset.warrantyExpiry || '--'}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.expiryDate || viewingAsset.warrantyExpiry || '--'}</span>
                   </div>
                   <div>
                     <span className={statusPillClass("Quantity")}>Quantity</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.quantity || 1}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.quantity || 1}</span>
                   </div>
                   <div>
                     <span className={statusPillClass("Ownership")}>Ownership</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.ownershipType || 'Owned'}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.ownershipType || 'Owned'}</span>
                   </div>
                   {String(viewingAsset.ownershipType || '').trim() === 'Rented' && (
                     <div>
                       <span className={statusPillClass("Rent (Months)")}>Rent (Months)</span>
-                      <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.rentDurationMonths || '--'}</span>
+                      <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.rentDurationMonths || '--'}</span>
                     </div>
                   )}
                   <div>
                     <span className={statusPillClass("Physical Location")}>Physical Location</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.location}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.location}</span>
                   </div>
                   <div>
                     <span className={statusPillClass("Asset Value")}>Asset Value</span>
-                    <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.value}</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.value}</span>
                   </div>
                   <div className="col-span-2 mt-2">
                     <span className={statusPillClass("Notes")}>Notes</span>
-                    <span className="text-[12px] font-medium text-slate-600 block bg-white p-3 border border-slate-100 rounded-lg">{viewingAsset.notes || 'No notes added yet.'}</span>
+                    <span className="text-[12px] font-pmedium text-slate-600 block bg-white p-3 border border-slate-100 rounded-lg">{viewingAsset.notes || 'No notes added yet.'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0">
-              <button onClick={() => setViewingAsset(null)} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-pmedium shadow-md hover:bg-slate-800 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CLOSE DETAILS</button>
+            <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
+              <button onClick={() => setViewingAsset(null)} className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Close</button>
+              <button onClick={() => openEditAsset(viewingAsset)} className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2"><Pencil size={14} /> Edit Asset</button>
             </div>
           </div>
         </div>
@@ -971,7 +1045,7 @@ function AssetsSkeleton() {
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-[75vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
             <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
             <div className="p-5 sm:p-6 bg-indigo-50/50 border-b border-indigo-100 flex justify-between items-center shrink-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-indigo-900 flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-pmedium text-indigo-900 flex items-center gap-2">
                 <ArrowRightLeft className="text-indigo-600" size={24} /> Transfer Asset
               </h2>
               <button onClick={() => setShowTransferDialog(false)} className="w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all"><X size={18} strokeWidth={2.5} /></button>
@@ -980,14 +1054,14 @@ function AssetsSkeleton() {
             <div className="p-5 sm:p-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden">
               <div className="mb-6 p-4 bg-white border border-slate-200 shadow-sm rounded-xl">
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Transferring</p>
-                <p className="text-[14px] font-bold text-[#0F172A] mb-1">{activeAssetForTransfer.name}</p>
-                <span className="font-mono text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{activeAssetForTransfer.id || activeAssetForTransfer.recordId}</span>
+                <p className="text-[14px] font-pmedium text-[#0F172A] mb-1">{activeAssetForTransfer.name}</p>
+                <span className="text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{activeAssetForTransfer.id || activeAssetForTransfer.recordId}</span>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">New Department</label>
-                  <select value={transferForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, department: e.target.value, assignedToUserId: '', assignedTo: prev.assignedToType === 'department' ? e.target.value : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
+                  <select value={transferForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, department: e.target.value, assignedToUserId: '', assignedTo: prev.assignedToType === 'department' ? e.target.value : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="">Select Dept</option>
                     {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
                   </select>
@@ -1020,7 +1094,7 @@ function AssetsSkeleton() {
                 ) : (
                   <div className="space-y-1.5">
                     <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assigned Department</label>
-                    <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#0F172A] shadow-sm">{transferForm.department || 'Select a department'}</div>
+                    <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[#0F172A] shadow-sm">{transferForm.department || 'Select a department'}</div>
                   </div>
                 )}
                 <div className="space-y-1.5">

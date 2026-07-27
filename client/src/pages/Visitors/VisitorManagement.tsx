@@ -599,8 +599,20 @@ function getRoomTypeFromName(roomName) {
   const normalized = normalizeText(roomName);
   if (normalized.includes('board')) return 'Boardroom';
   if (normalized.includes('conference')) return 'Conference Room';
+  if (normalized.includes('virtual')) return 'Virtual Office';
   if (normalized.includes('cabin')) return 'Cabin';
   if (normalized.includes('desk')) return 'Desk';
+  return 'Meeting Room';
+}
+
+function normalizeResourceType(type = '', resourceCategory = '') {
+  const t = normalizeText(type).toLowerCase();
+  const cat = normalizeText(resourceCategory).toLowerCase();
+  if (t.includes('virtual') || cat.includes('virtual')) return 'Virtual Office';
+  if (t.includes('conference')) return 'Conference Room';
+  if (t.includes('meeting')) return 'Meeting Room';
+  if (t.includes('cabin') || cat.includes('cabin')) return 'Cabin';
+  if (t.includes('desk') || cat.includes('desk') || cat.includes('open')) return 'Desk';
   return 'Meeting Room';
 }
 
@@ -625,7 +637,7 @@ function normalizeMeetingRoom(room = {}) {
   return {
     ...room,
     name: room.name || '',
-    type: room.type || getRoomTypeFromName(room.name),
+    type: normalizeResourceType(room.type, room.resourceCategory),
     resourceCategory: room.resourceCategory || '',
     inventoryMode: room.inventoryMode || (Number(room.capacity || 0) > 1 ? 'area' : 'single'),
     assignedTenantCompanyId: room.assignedTenantCompanyId || null,
@@ -5389,7 +5401,7 @@ export default function VisitorsManagementPage() {
                                   }}
                                 >
                                   <option value="">Select type</option>
-                                  {['Desk', 'Cabin', 'Meeting Room', 'Conference Room'].map((type) => (
+                                  {['Desk', 'Cabin', 'Meeting Room', 'Conference Room', 'Virtual Office'].map((type) => (
                                     <option key={type} value={type}>{type}</option>
                                   ))}
                                 </select>
