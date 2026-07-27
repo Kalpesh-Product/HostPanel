@@ -262,9 +262,9 @@ export default function RegisterPage() {
           </div>
         ) : (
         <>
-        <h1 className="text-center text-4xl font-bold">{isTenantInvite ? "JOIN YOUR COMPANY" : "REGISTER YOURSELF!"}</h1>
+        <h1 className="text-center text-4xl font-play min-h-[3rem] mb-2">{isTenantInvite ? "Join Your Company" : "REGISTER YOURSELF!"}</h1>
         {isTenantInvite && tenantPrefill && (
-          <p className="text-center text-sm text-gray-600 mt-2">
+          <p className="text-center text-sm text-gray-600 mt-3 mb-4">
             You've been invited to join <strong>{tenantPrefill.companyName}</strong> as a <strong>{tenantPrefill.role}</strong>
           </p>
         )}

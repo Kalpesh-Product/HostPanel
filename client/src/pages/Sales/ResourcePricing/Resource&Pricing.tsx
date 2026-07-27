@@ -2194,7 +2194,7 @@ export default function PricingPackagesPage() {
         ) : null}
 
         {isModalOpen ? (
-          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeModal}>
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div
               onClick={(e) => e.stopPropagation()}
               className={`bg-white/95 backdrop-blur-xl w-full h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'sm:max-w-5xl' : 'sm:max-w-2xl'}`}
@@ -2468,8 +2468,9 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isDeskCategory(addResourceForm.resourceCategory) ? 'Credits Per Seat' : 'Credits Per Hour'}</label>
                           <input type="number" min="1" required placeholder="e.g. 10" className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <p className="text-[10px] font-pmedium text-slate-400 normal-case tracking-normal">(used for tenant bookings)</p>
                         </div>
                       </div>
                     </div>
@@ -2693,8 +2694,9 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isDeskCategory(resourceForm.resourceCategory) ? 'Credits Per Seat' : 'Credits Per Hour'}</label>
                           <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <p className="text-[10px] font-pmedium text-slate-400 normal-case tracking-normal">(used for tenant bookings)</p>
                         </div>
                       </div>
                     </div>
