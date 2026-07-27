@@ -8,6 +8,8 @@ import {
   allocateInventoryForCurrentUser,
   transferInventoryForCurrentUser,
   deleteInventoryForCurrentUser,
+  returnInventoryForCurrentUser,
+  markUnderMaintenanceForCurrentUser,
 } from "../services/inventoryService.js";
 
 const getCurrentWorkspaceId = (req: Request) => {
@@ -149,6 +151,40 @@ export async function deleteInventory(request: Request, response: Response, next
     const roleBand = getRoleBand((request as any).workspaceMembership?.role);
     const assignedDepartmentNames = await resolveAssignedDepartmentNames(request);
     const result = await deleteInventoryForCurrentUser(userId, inventoryId, {
+      roleBand,
+      assignedDepartmentNames,
+    });
+    response.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function returnInventory(request: Request, response: Response, next: NextFunction) {
+  try {
+    const userId = (request as any).user?.id || (request as any).user?._id || (request as any).user;
+    const inventoryId = request.params.inventoryId;
+    const roleBand = getRoleBand((request as any).workspaceMembership?.role);
+    const assignedDepartmentNames = await resolveAssignedDepartmentNames(request);
+    const result = await returnInventoryForCurrentUser(userId, inventoryId, {
+      ...request.body,
+      roleBand,
+      assignedDepartmentNames,
+    });
+    response.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function markUnderMaintenance(request: Request, response: Response, next: NextFunction) {
+  try {
+    const userId = (request as any).user?.id || (request as any).user?._id || (request as any).user;
+    const inventoryId = request.params.inventoryId;
+    const roleBand = getRoleBand((request as any).workspaceMembership?.role);
+    const assignedDepartmentNames = await resolveAssignedDepartmentNames(request);
+    const result = await markUnderMaintenanceForCurrentUser(userId, inventoryId, {
+      ...request.body,
       roleBand,
       assignedDepartmentNames,
     });

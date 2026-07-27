@@ -27,6 +27,16 @@ export const transferInventory = async (itemId: string, payload: Record<string, 
   return unwrap(response);
 };
 
+export const returnInventory = async (itemId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/inventory/${itemId}/return`, payload);
+  return unwrap(response);
+};
+
+export const markUnderMaintenance = async (itemId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/inventory/${itemId}/maintenance`, payload);
+  return unwrap(response);
+};
+
 export const deleteInventory = async (itemId: string) => {
   const response = await axiosPrivate.delete(`/api/inventory/${itemId}`);
   return unwrap(response);

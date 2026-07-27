@@ -23,6 +23,7 @@ function normalizeInventoryInput(input = {}) {
     trackingType: input.trackingType,
     departmentId: input.departmentId ?? null,
     department: String(input.department || "").trim(),
+    location: String(input.location || "").trim(),
     totalQuantity: Number(input.totalQuantity ?? 0),
     availableQuantity: Number(input.availableQuantity ?? input.totalQuantity ?? 0),
     inventoryCode: String(input.inventoryCode || "").trim(),
@@ -189,6 +190,7 @@ export async function createInventoryForCurrentUser(userId, input) {
     trackingType: payload.trackingType || "Consumable",
     departmentId: payload.departmentId ? toObjId(payload.departmentId) : null,
     departmentName: payload.department || "",
+    location: payload.location || "",
     totalQuantity,
     availableQuantity,
     ledger: payload.ledger?.length ? payload.ledger : ledger,
@@ -228,12 +230,57 @@ export async function updateInventoryForCurrentUser(userId, inventoryId, input) 
     }
   }
 
+  if (input.actionType === "increase" || input.actionType === "decrease") {
+    const qty = Math.max(0, Number(input.quantity || 0));
+    if (!qty || qty < 1) {
+      const err = new Error("quantity must be >= 1");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const doc = await Inventory.findById(inventoryId).exec();
+    if (!doc) {
+      const err = new Error("Inventory item not found.");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (input.actionType === "increase") {
+      doc.totalQuantity += qty;
+      doc.availableQuantity += qty;
+      doc.ledger.unshift({
+        dateLabel: "Today",
+        qty,
+        target: existing.departmentName || "Stock",
+        action: input.reason || "Stock Increased",
+      });
+    } else {
+      if (doc.availableQuantity < qty) {
+        const err = new Error("Decrease quantity exceeds available stock.");
+        err.statusCode = 400;
+        throw err;
+      }
+      doc.totalQuantity -= qty;
+      doc.availableQuantity -= qty;
+      doc.ledger.unshift({
+        dateLabel: "Today",
+        qty,
+        target: existing.departmentName || "Stock",
+        action: input.reason || "Stock Decreased",
+      });
+    }
+
+    await doc.save();
+    return { inventoryItem: { ...doc.toObject(), department: doc.departmentName || "Unassigned" } };
+  }
+
   const update = {};
   if (input.name !== undefined) update.name = String(input.name).trim();
   if (input.category !== undefined) update.category = input.category;
   if (input.trackingType !== undefined) update.trackingType = input.trackingType;
   if (input.departmentId !== undefined) update.departmentId = input.departmentId ? toObjId(input.departmentId) : null;
   if (input.department !== undefined) update.departmentName = String(input.department).trim();
+  if (input.location !== undefined) update.location = String(input.location).trim();
   if (input.totalQuantity !== undefined) update.totalQuantity = Math.max(0, Number(input.totalQuantity));
   if (input.availableQuantity !== undefined) update.availableQuantity = Math.max(0, Number(input.availableQuantity));
   if (Array.isArray(input.ledger)) update.ledger = input.ledger;
@@ -428,4 +475,90 @@ export async function deleteInventoryForCurrentUser(userId, inventoryId, input =
 
   await Inventory.findByIdAndDelete(inventoryId).lean().exec();
   return { deletedInventoryId: inventoryId };
+}
+
+export async function returnInventoryForCurrentUser(userId, inventoryId, input = {}) {
+  const { quantity, returnedBy, reason, roleBand } = input || {};
+  const band = getRoleBand(roleBand);
+  const assignedDepartmentNames = Array.isArray(input.assignedDepartmentNames) ? input.assignedDepartmentNames : [];
+
+  const qty = Math.max(0, Number(quantity || 0));
+  if (!qty || qty < 1) {
+    const err = new Error("quantity must be >= 1");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const doc = await Inventory.findById(inventoryId).exec();
+  if (!doc) {
+    const err = new Error("Inventory item not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (band === "admin" || band === "manager") {
+    const itemDept = String(doc.departmentName || "").toLowerCase().trim();
+    const allowed = assignedDepartmentNames.some(
+      (d) => d.toLowerCase().trim() === itemDept
+    );
+    if (!allowed) {
+      const err = new Error("You can only return inventory in your assigned departments.");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  const allocatedQty = doc.totalQuantity - doc.availableQuantity;
+  if (qty > allocatedQty) {
+    const err = new Error(`Return quantity (${qty}) exceeds allocated quantity (${allocatedQty}).`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  doc.availableQuantity += qty;
+  doc.ledger.unshift({
+    dateLabel: "Today",
+    qty,
+    target: returnedBy || "Employee",
+    action: reason || "Item Returned",
+  });
+
+  await doc.save();
+  return { inventoryItem: doc.toObject() };
+}
+
+export async function markUnderMaintenanceForCurrentUser(userId, inventoryId, input = {}) {
+  const { reason, expectedDate, roleBand } = input || {};
+  const band = getRoleBand(roleBand);
+  const assignedDepartmentNames = Array.isArray(input.assignedDepartmentNames) ? input.assignedDepartmentNames : [];
+
+  const doc = await Inventory.findById(inventoryId).exec();
+  if (!doc) {
+    const err = new Error("Inventory item not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (band === "admin" || band === "manager") {
+    const itemDept = String(doc.departmentName || "").toLowerCase().trim();
+    const allowed = assignedDepartmentNames.some(
+      (d) => d.toLowerCase().trim() === itemDept
+    );
+    if (!allowed) {
+      const err = new Error("You can only update inventory in your assigned departments.");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  doc.status = "maintenance";
+  doc.ledger.unshift({
+    dateLabel: "Today",
+    qty: 0,
+    target: expectedDate ? `Est. ${expectedDate}` : "Maintenance",
+    action: reason || "Marked Under Maintenance",
+  });
+
+  await doc.save();
+  return { inventoryItem: doc.toObject() };
 }

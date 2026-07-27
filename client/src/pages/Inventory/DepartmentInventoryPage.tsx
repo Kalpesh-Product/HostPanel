@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect, type ChangeEvent } from 'react';
 import { getStoredUser } from '@/lib/auth-session';
-import { createInventory, getInventory, updateInventory, deleteInventory } from '@/services/inventory';
+import { createInventory, getInventory, updateInventory, returnInventory, markUnderMaintenance } from '@/services/inventory';
 import { getOrganizationOverview } from '@/services/organization';
+import { getResources } from '@/services/resources';
 import { axiosPrivate } from '@/utils/axios';
 import { normalizeDepartmentKey } from '@/utils/user-helpers';
 import {
   Search, Plus, X, Package, TrendingDown, RefreshCw, Box, History, User,
-  AlertTriangle, ShieldCheck, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter,
+  AlertTriangle, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Filter,
+  RotateCcw, Wrench, Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
@@ -18,7 +20,9 @@ interface InventoryItem {
   name: string;
   category?: string;
   trackingType: string;
+  status?: string;
   department: string;
+  location?: string;
   totalQuantity: number;
   availableQuantity: number;
   allocatedQuantity: number;
@@ -40,6 +44,15 @@ interface NewItemData {
   category: string;
   department: string;
   quantity: string;
+  floor: string;
+  wing: string;
+}
+
+const ADD_NEW_OPTION = '__add_new__';
+
+function getLocationLabel(floor: string, wing: string): string {
+  const parts = [floor, wing].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : '';
 }
 
 interface UpdateStockData {
@@ -116,11 +129,49 @@ function normalizeInventoryItem(item: any): InventoryItem {
     id: item.id || item._id || item.inventoryCode,
     inventoryCode: item.inventoryCode || item.id,
     ledger: Array.isArray(item.ledger) ? item.ledger : [],
+    status: item.status || 'active',
+    location: item.location || '',
     availableQuantity,
     allocatedQuantity: typeof item.allocatedQuantity === 'number'
       ? item.allocatedQuantity
       : Math.max(0, (item.totalQuantity || 0) - availableQuantity),
   };
+}
+
+function StockStatusBadge({ status, availableQuantity }: { status?: string; availableQuantity: number }) {
+  if (status === 'maintenance') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-orange-100 text-orange-700">
+        <Wrench size={10} /> MAINTENANCE
+      </span>
+    );
+  }
+  if (status === 'retired') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-600">
+        <AlertTriangle size={10} /> RETIRED
+      </span>
+    );
+  }
+  if ((availableQuantity || 0) === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600">
+        <AlertTriangle size={10} /> OUT
+      </span>
+    );
+  }
+  if ((availableQuantity || 0) <= LOW_STOCK_THRESHOLD) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+        <TrendingDown size={10} /> LOW
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+      <ShieldCheck size={10} /> OK
+    </span>
+  );
 }
 
 function formatDate(dateStr?: string): string {
@@ -169,7 +220,6 @@ export function DepartmentInventoryPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [fetchedDepartments, setFetchedDepartments] = useState<string[]>([]);
 
   const [newItem, setNewItem] = useState<NewItemData>({
@@ -178,10 +228,41 @@ export function DepartmentInventoryPage() {
     category: categories[0] || 'Office Supplies',
     department: deptLabel,
     quantity: '',
+    floor: '',
+    wing: '',
   });
   const [updateStock, setUpdateStock] = useState<UpdateStockData>({
     itemId: '', actionType: 'increase', quantity: '', reason: '',
   });
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnData, setReturnData] = useState({ quantity: '', returnedBy: '', reason: '' });
+  const [activeReturnItem, setActiveReturnItem] = useState<InventoryItem | null>(null);
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [maintenanceData, setMaintenanceData] = useState({ reason: '', expectedDate: '' });
+  const [activeMaintenanceItem, setActiveMaintenanceItem] = useState<InventoryItem | null>(null);
+  const [resourceFloors, setResourceFloors] = useState<string[]>([]);
+  const [resourceWings, setResourceWings] = useState<string[]>([]);
+  const [floorMode, setFloorMode] = useState<'select' | 'custom'>('select');
+  const [wingMode, setWingMode] = useState<'select' | 'custom'>('select');
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFloorsAndWings() {
+      try {
+        const response = await getResources();
+        const resources = response?.data?.data?.resources || response?.data?.resources || [];
+        if (!isMounted) return;
+        const floors = Array.from(new Set(resources.map((r: any) => String(r.floor || '').trim()).filter(Boolean))) as string[];
+        const wings = Array.from(new Set(resources.map((r: any) => String(r.wing || '').trim().toUpperCase()).filter(Boolean))) as string[];
+        setResourceFloors(floors);
+        setResourceWings(wings.sort());
+      } catch {
+        // non-critical: floor/wing become free-text if resources can't be loaded
+      }
+    }
+    loadFloorsAndWings();
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -225,7 +306,7 @@ export function DepartmentInventoryPage() {
         const names = departments
           .filter((d: any) => d.isActive !== false)
           .map((d: any) => d.name)
-          .filter(Boolean);
+          .filter((n: string) => n && n !== 'Sales & CRM');
         if (isMounted && names.length > 0) {
           setFetchedDepartments(names);
         }
@@ -293,6 +374,7 @@ export function DepartmentInventoryPage() {
         category: newItem.category,
         trackingType: 'Consumable',
         department: deptLabel,
+        location: getLocationLabel(newItem.floor, newItem.wing),
         totalQuantity: parseInt(newItem.quantity, 10),
       });
       const createdItem = response?.data?.inventoryItem || response?.inventoryItem;
@@ -302,7 +384,9 @@ export function DepartmentInventoryPage() {
         setTimeout(() => setSuccessMessage(''), 3000);
       }
       setIsAddModalOpen(false);
-      setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '' });
+      setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', floor: '', wing: '' });
+      setFloorMode('select');
+      setWingMode('select');
     } catch (error: any) {
       setErrorMessage(error.message || 'Unable to add inventory item right now.');
     } finally {
@@ -337,18 +421,56 @@ export function DepartmentInventoryPage() {
     }
   };
 
-  const handleDeleteStock = async (itemId: string) => {
+  const handleReturn = async () => {
+    if (!returnData.quantity || !activeReturnItem?.recordId) return;
     setErrorMessage('');
     setSuccessMessage('');
     setIsSaving(true);
     try {
-      await deleteInventory(itemId);
-      setInventory((current) => current.filter((item) => item.recordId !== itemId));
-      setDeleteConfirmId(null);
-      setSuccessMessage('Inventory item deleted successfully.');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      const response = await returnInventory(activeReturnItem.recordId, {
+        quantity: returnData.quantity,
+        returnedBy: returnData.returnedBy,
+        reason: returnData.reason,
+      });
+      const updatedItem = response?.inventoryItem;
+      if (updatedItem) {
+        const normalized = normalizeInventoryItem(updatedItem);
+        setInventory((current) => current.map((item) => (item.recordId === normalized.recordId ? normalized : item)));
+        setSuccessMessage(`Returned ${returnData.quantity} units successfully.`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+      setIsReturnModalOpen(false);
+      setReturnData({ quantity: '', returnedBy: '', reason: '' });
+      setActiveReturnItem(null);
     } catch (error: any) {
-      setErrorMessage(error.message || 'Unable to delete inventory item.');
+      setErrorMessage(error.message || 'Unable to return stock right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleMaintenance = async () => {
+    if (!maintenanceData.reason || !activeMaintenanceItem?.recordId) return;
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsSaving(true);
+    try {
+      const response = await markUnderMaintenance(activeMaintenanceItem.recordId, {
+        reason: maintenanceData.reason,
+        expectedDate: maintenanceData.expectedDate,
+      });
+      const updatedItem = response?.inventoryItem;
+      if (updatedItem) {
+        const normalized = normalizeInventoryItem(updatedItem);
+        setInventory((current) => current.map((item) => (item.recordId === normalized.recordId ? normalized : item)));
+        setSuccessMessage('Item marked under maintenance.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+      setIsMaintenanceModalOpen(false);
+      setMaintenanceData({ reason: '', expectedDate: '' });
+      setActiveMaintenanceItem(null);
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Unable to update maintenance status.');
     } finally {
       setIsSaving(false);
     }
@@ -370,21 +492,27 @@ export function DepartmentInventoryPage() {
               <p className="text-[11px] font-pmedium text-[#2563EB] uppercase tracking-widest mt-1">{deptLabel}</p>
             </div>
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-              <button
-                onClick={() => setIsUpdateModalOpen(true)}
-                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
-              >
-                <RefreshCw size={14} strokeWidth={2.5} /> UPDATE STOCK
-              </button>
-              <button
-                onClick={() => {
-                  setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '' });
-                  setIsAddModalOpen(true);
-                }}
-                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
-              >
-                <Plus size={14} strokeWidth={3} /> ADD NEW ITEM
-              </button>
+              {roleBand !== 'employee' && (
+                <button
+                  onClick={() => setIsUpdateModalOpen(true)}
+                  className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
+                >
+                  <RefreshCw size={14} strokeWidth={2.5} /> UPDATE STOCK
+                </button>
+              )}
+              {roleBand !== 'employee' && (
+                <button
+                  onClick={() => {
+                    setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', floor: '', wing: '' });
+                    setFloorMode('select');
+                    setWingMode('select');
+                    setIsAddModalOpen(true);
+                  }}
+                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                >
+                  <Plus size={14} strokeWidth={3} /> ADD NEW ITEM
+                </button>
+              )}
             </div>
           </div>
 
@@ -506,19 +634,7 @@ export function DepartmentInventoryPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-center">
-                          {isOut ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600">
-                              <AlertTriangle size={10} /> OUT
-                            </span>
-                          ) : isLowStock ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
-                              <TrendingDown size={10} /> LOW
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                              <ShieldCheck size={10} /> OK
-                            </span>
-                          )}
+                          <StockStatusBadge status={item.status} availableQuantity={item.availableQuantity} />
                         </td>
                         <td className="px-5 py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -527,14 +643,39 @@ export function DepartmentInventoryPage() {
                               className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
                               title="View Ledger"
                             >
-                              <History size={15} strokeWidth={2.5} />
+                              <Eye size={15} strokeWidth={2.5} />
                             </button>
                             <button
-                              onClick={() => setDeleteConfirmId(item.recordId || item.id || '')}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all"
-                              title="Delete"
+                              onClick={() => {
+                                setUpdateStock({ itemId: item.recordId || item.id || '', actionType: 'increase', quantity: '', reason: '' });
+                                setIsUpdateModalOpen(true);
+                              }}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"
+                              title="Update Stock"
                             >
-                              <Trash2 size={15} strokeWidth={2.5} />
+                              <RefreshCw size={15} strokeWidth={2.5} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActiveReturnItem(item);
+                                setReturnData({ quantity: '', returnedBy: '', reason: '' });
+                                setIsReturnModalOpen(true);
+                              }}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+                              title="Return"
+                            >
+                              <RotateCcw size={15} strokeWidth={2.5} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActiveMaintenanceItem(item);
+                                setMaintenanceData({ reason: '', expectedDate: '' });
+                                setIsMaintenanceModalOpen(true);
+                              }}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all"
+                              title="Mark Under Maintenance"
+                            >
+                              <Wrench size={15} strokeWidth={2.5} />
                             </button>
                           </div>
                         </td>
@@ -582,8 +723,7 @@ export function DepartmentInventoryPage() {
                             </div>
                           </div>
                         </div>
-                        {isOut && <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600">OUT</span>}
-                        {isLowStock && !isOut && <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">LOW</span>}
+                        <StockStatusBadge status={item.status} availableQuantity={item.availableQuantity} />
                       </div>
                       <div className="grid grid-cols-3 gap-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
                         <div>
@@ -604,13 +744,36 @@ export function DepartmentInventoryPage() {
                           onClick={() => setViewingItem(item)}
                           className="flex-1 py-2 bg-slate-900 border border-slate-900 rounded-xl text-white font-pmedium hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-sm"
                         >
-                          <History size={14} /> Ledger
+                          <Eye size={14} /> Ledger
                         </button>
                         <button
-                          onClick={() => setDeleteConfirmId(item.recordId || item.id || '')}
-                          className="py-2 px-3 bg-white border border-red-200 text-red-500 rounded-xl text-[11px] hover:bg-red-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
+                          onClick={() => {
+                            setUpdateStock({ itemId: item.recordId || item.id || '', actionType: 'increase', quantity: '', reason: '' });
+                            setIsUpdateModalOpen(true);
+                          }}
+                          className="flex-1 py-2 bg-white border border-slate-200 text-emerald-700 rounded-xl text-[11px] hover:bg-emerald-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
                         >
-                          <Trash2 size={14} />
+                          <RefreshCw size={13} /> Update
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveReturnItem(item);
+                            setReturnData({ quantity: '', returnedBy: '', reason: '' });
+                            setIsReturnModalOpen(true);
+                          }}
+                          className="flex-1 py-2 bg-white border border-slate-200 text-amber-700 rounded-xl text-[11px] hover:bg-amber-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                          <RotateCcw size={13} /> Return
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveMaintenanceItem(item);
+                            setMaintenanceData({ reason: '', expectedDate: '' });
+                            setIsMaintenanceModalOpen(true);
+                          }}
+                          className="py-2 px-3 bg-white border border-slate-200 text-orange-600 rounded-xl text-[11px] hover:bg-orange-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
+                        >
+                          <Wrench size={14} />
                         </button>
                       </div>
                     </div>
@@ -689,6 +852,62 @@ export function DepartmentInventoryPage() {
                         onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                       />
                     </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor</label>
+                      {floorMode === 'custom' ? (
+                        <div className="space-y-1.5">
+                          <input
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            value={newItem.floor}
+                            onChange={(e) => setNewItem({ ...newItem, floor: e.target.value })}
+                            placeholder="Enter new floor"
+                          />
+                          <button type="button" onClick={() => { setFloorMode('select'); setNewItem((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                        </div>
+                      ) : (
+                        <select
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
+                          value={newItem.floor}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setNewItem((prev) => ({ ...prev, floor: '' })); return; }
+                            setNewItem({ ...newItem, floor: nextValue });
+                          }}
+                        >
+                          <option value="">Select floor</option>
+                          {resourceFloors.map((f) => <option key={f} value={f}>{f}</option>)}
+                          <option value={ADD_NEW_OPTION}>Add new floor</option>
+                        </select>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing</label>
+                      {wingMode === 'custom' ? (
+                        <div className="space-y-1.5">
+                          <input
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            value={newItem.wing}
+                            onChange={(e) => setNewItem({ ...newItem, wing: e.target.value })}
+                            placeholder="Enter new wing"
+                          />
+                          <button type="button" onClick={() => { setWingMode('select'); setNewItem((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                        </div>
+                      ) : (
+                        <select
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
+                          value={newItem.wing}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setNewItem((prev) => ({ ...prev, wing: '' })); return; }
+                            setNewItem({ ...newItem, wing: nextValue });
+                          }}
+                        >
+                          <option value="">Select wing</option>
+                          {resourceWings.map((w) => <option key={w} value={w}>{w}</option>)}
+                          <option value={ADD_NEW_OPTION}>Add new wing</option>
+                        </select>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -700,7 +919,7 @@ export function DepartmentInventoryPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
+                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-center">
                   <button type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
                   <button
                     type="submit"
@@ -794,7 +1013,7 @@ export function DepartmentInventoryPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
+                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-center">
                   <button type="button" onClick={() => setIsUpdateModalOpen(false)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
                   <button
                     type="submit"
@@ -828,6 +1047,11 @@ export function DepartmentInventoryPage() {
                     <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded shadow-sm">
                       Dept: {viewingItem.department}
                     </span>
+                    {viewingItem.location && (
+                      <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded shadow-sm">
+                        {viewingItem.location}
+                      </span>
+                    )}
                     {viewingItem.inventoryCode && (
                       <span className="text-[10px] font-pmedium text-[#2563EB] bg-blue-50 border border-blue-100 px-2.5 py-1 rounded shadow-sm">
                         {viewingItem.inventoryCode}
@@ -888,40 +1112,112 @@ export function DepartmentInventoryPage() {
           </motion.div>
         )}
 
-        {/* Delete Confirmation Modal */}
-        {deleteConfirmId && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-              className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center"
-            >
-              <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={24} className="text-red-500" />
+        {/* Return Modal */}
+        {isReturnModalOpen && activeReturnItem && (
+          <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-[75vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+              <div className="p-4 sm:p-6 border-b border-slate-200/60 flex justify-between items-center shrink-0">
+                <h2 className="text-[14px] sm:text-[16px] font-pmedium text-[#0F172A] flex items-center gap-2.5">
+                  <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700"><RotateCcw size={16} /></span>
+                  RETURN ITEM
+                </h2>
+                <button onClick={() => { setIsReturnModalOpen(false); setActiveReturnItem(null); }} className="w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all"><X size={18} strokeWidth={2.5} /></button>
               </div>
-              <h3 className="text-lg font-bold text-[#0F172A] mb-2">Delete Inventory Item?</h3>
-              <p className="text-[12px] text-slate-500 mb-6">This action cannot be undone. All ledger history will be lost.</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirmId(null)}
-                  className="flex-1 py-3 bg-white border border-slate-200 rounded-xl text-slate-600 font-pmedium text-[12px] hover:bg-slate-50 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeleteStock(deleteConfirmId)}
-                  disabled={isSaving}
-                  className="flex-1 py-3 bg-red-600 text-white rounded-xl font-pmedium text-[12px] hover:bg-red-700 transition-all disabled:opacity-70"
-                >
-                  {isSaving ? 'Deleting...' : 'Delete'}
-                </button>
+              <div className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0"><Package size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Item</span>
+                  </h4>
+                  <div className="flex items-center gap-3 bg-amber-50/60 p-3 rounded-xl border border-amber-100">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center"><Package size={14} /></div>
+                    <div>
+                      <p className="text-[13px] font-pmedium text-[#0F172A]">{activeReturnItem.name}</p>
+                      <span className="text-[10px] font-pmedium text-amber-700">Allocated: {activeReturnItem.totalQuantity - activeReturnItem.availableQuantity}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0"><RotateCcw size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Return Details</span>
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Quantity *</label>
+                      <input type="number" min={1} max={activeReturnItem.totalQuantity - activeReturnItem.availableQuantity} value={returnData.quantity} onChange={(e) => setReturnData({ ...returnData, quantity: e.target.value })} placeholder="How many units?" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Returned By</label>
+                      <input type="text" value={returnData.returnedBy} onChange={(e) => setReturnData({ ...returnData, returnedBy: e.target.value })} placeholder="Employee name or ID" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Reason</label>
+                      <textarea rows={2} value={returnData.reason} onChange={(e) => setReturnData({ ...returnData, reason: e.target.value })} placeholder="Optional reason..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none transition-all placeholder:text-slate-400" />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </motion.div>
-          </motion.div>
+              <div className="pt-4 sm:pt-6 p-4 sm:p-6 border-t border-slate-200/60 bg-white shrink-0 flex gap-3 flex-col-reverse sm:flex-row sm:justify-center">
+                <button onClick={() => { setIsReturnModalOpen(false); setActiveReturnItem(null); }} className="w-full sm:w-auto px-6 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                <button onClick={handleReturn} disabled={isSaving || !returnData.quantity} className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-amber-700 active:scale-95 transition-all uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'RETURNING...' : 'CONFIRM RETURN'}</button>
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* Maintenance Modal */}
+        {isMaintenanceModalOpen && activeMaintenanceItem && (
+          <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-[75vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+              <div className="p-4 sm:p-6 border-b border-slate-200/60 flex justify-between items-center shrink-0">
+                <h2 className="text-[14px] sm:text-[16px] font-pmedium text-[#0F172A] flex items-center gap-2.5">
+                  <span className="p-1.5 rounded-lg bg-orange-100 text-orange-700"><Wrench size={16} /></span>
+                  MAINTENANCE
+                </h2>
+                <button onClick={() => { setIsMaintenanceModalOpen(false); setActiveMaintenanceItem(null); }} className="w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all"><X size={18} strokeWidth={2.5} /></button>
+              </div>
+              <div className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-orange-100 text-orange-700 shrink-0"><Package size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Item</span>
+                  </h4>
+                  <div className="flex items-center gap-3 bg-orange-50/60 p-3 rounded-xl border border-orange-100">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center"><Package size={14} /></div>
+                    <div>
+                      <p className="text-[13px] font-pmedium text-[#0F172A]">{activeMaintenanceItem.name}</p>
+                      <span className="text-[10px] font-pmedium text-orange-700">{activeMaintenanceItem.department}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-orange-100 text-orange-700 shrink-0"><Wrench size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Maintenance Details</span>
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Reason *</label>
+                      <input type="text" value={maintenanceData.reason} onChange={(e) => setMaintenanceData({ ...maintenanceData, reason: e.target.value })} placeholder="e.g. Screen cracked, hardware failure" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Expected Return Date</label>
+                      <input type="date" value={maintenanceData.expectedDate} onChange={(e) => setMaintenanceData({ ...maintenanceData, expectedDate: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-4 sm:pt-6 p-4 sm:p-6 border-t border-slate-200/60 bg-white shrink-0 flex gap-3 flex-col-reverse sm:flex-row sm:justify-center">
+                <button onClick={() => { setIsMaintenanceModalOpen(false); setActiveMaintenanceItem(null); }} className="w-full sm:w-auto px-6 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                <button onClick={handleMaintenance} disabled={isSaving || !maintenanceData.reason} className="w-full sm:w-auto px-6 py-2.5 bg-orange-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-orange-700 active:scale-95 transition-all uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'UPDATING...' : 'MARK MAINTENANCE'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </AnimatePresence>
     </div>
   );
