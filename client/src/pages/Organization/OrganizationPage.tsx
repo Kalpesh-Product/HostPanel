@@ -929,6 +929,10 @@ export function OrganizationPage() {
       toast.error('You do not have access to toggle user status.');
       return;
     }
+    if (nextEnabled && isProfessionalPlanWorkspace && professionalPlanLimitReached) {
+      toast.error('Only 5 users can be enabled at a time. Disable one user to enable another.');
+      return;
+    }
     setAccessTogglePendingMemberId(id);
     try {
       await toggleOrganizationMemberStatus(axiosPrivate, id);
@@ -936,7 +940,8 @@ export function OrganizationPage() {
       await loadOrganization(selectedDepartment?.id || null);
     } catch (error) {
       console.error("Failed to update member status", error);
-      toast.error('Failed to update access.');
+      const accessErrorMessage = (error as any)?.response?.data?.message;
+      toast.error(accessErrorMessage || 'Failed to update access.');
     } finally {
       setAccessTogglePendingMemberId('');
     }

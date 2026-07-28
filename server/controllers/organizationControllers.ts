@@ -879,13 +879,26 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
     }
 
     const action = String(req.body?.action || "").trim().toLowerCase();
-    if (action === "enable") {
-      member.isActive = true;
-    } else if (action === "disable") {
-      member.isActive = false;
-    } else {
-      member.isActive = !member.isActive;
+    const nextIsActive = action === "enable"
+      ? true
+      : action === "disable"
+        ? false
+        : !member.isActive;
+
+    if (nextIsActive && !member.isActive && isProfessionalPlan(workspace)) {
+      const activeMemberCount = await WorkspaceMember.countDocuments({
+        workspace: workspace._id,
+        isActive: true,
+        _id: { $ne: member._id },
+      });
+      if (activeMemberCount >= PROFESSIONAL_PLAN_MAX_USERS) {
+        return res.status(400).json({
+          message: "Only 5 users can be enabled at a time. Disable one user to enable another.",
+        });
+      }
     }
+
+    member.isActive = nextIsActive;
     member.status = member.isActive ? "joined" : "disabled";
 
     if (member.isActive && (!Array.isArray(member.grantedModules) || member.grantedModules.length === 0)) {
