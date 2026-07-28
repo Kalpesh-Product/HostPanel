@@ -594,9 +594,7 @@ export function OrganizationPage() {
 
   const canAddUserOnCurrentPlan = isBasicPlanWorkspace
     ? isFounderRole && !basicPlanLimitReached
-    : isProfessionalPlanWorkspace
-      ? canAccessUsersTab && canInviteUsersByAccess && !professionalPlanLimitReached
-      : canAccessUsersTab && canInviteUsersByAccess;
+    : canAccessUsersTab && canInviteUsersByAccess;
   const normalizedTeamMemberRole = String(teamMemberFormData.role || '').trim().toLowerCase();
   const isSingleDepartmentTeamMemberRole = SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(normalizedTeamMemberRole);
   const inviteDepartmentOptions = departments.filter((dept) => isDepartmentAllowedForPlan(workspacePlan, dept.name));
@@ -612,7 +610,7 @@ export function OrganizationPage() {
         : `Add your one allowed Super Admin (${activeSuperAdminCount}/${basicPlanAdditionalUserLimit} used)`
     : isProfessionalPlanWorkspace
       ? professionalPlanLimitReached
-        ? `Professional plan limit reached - ${activeMemberCount}/${professionalPlanMaxUsers} users added.`
+        ? `No more users can be added. Disable one user to add another.`
         : `Add a user (${activeMemberCount}/${professionalPlanMaxUsers} used)`
       : canAddUserOnCurrentPlan
         ? 'Invite and onboard instantly'
@@ -834,8 +832,27 @@ export function OrganizationPage() {
     }
   };
 
+  const handleOpenTeamMemberModal = () => {
+    if (isProfessionalPlanWorkspace && professionalPlanLimitReached) {
+      toast.error('No more users can be added. Disable one user to add another.');
+      return;
+    }
+
+    setActiveTab('users');
+    setTeamMemberFormData({
+      name: '',
+      email: '',
+      role: isBasicPlanWorkspace ? 'super-admin' : 'manager',
+      departments: [],
+    });
+    setShowTeamMemberModal(true);
+  };
   const handleSendInvite = async () => {
     if (isSendingInvite) return;
+    if (isProfessionalPlanWorkspace && professionalPlanLimitReached) {
+      toast.error('No more users can be added. Disable one user to add another.');
+      return;
+    }
     if (teamMemberFormData.name && teamMemberFormData.email) {
       const normalizedRole =
         teamMemberFormData.role === 'super-admin'
@@ -1217,11 +1234,7 @@ export function OrganizationPage() {
               ? 'hover:shadow-md cursor-pointer'
               : 'opacity-60 cursor-not-allowed'
           }`}
-          onClick={() => {
-            setActiveTab('users');
-            setTeamMemberFormData({ name: '', email: '', role: isBasicPlanWorkspace ? 'super-admin' : 'manager', departments: [] });
-            setShowTeamMemberModal(true);
-          }}>
+          onClick={handleOpenTeamMemberModal}>
           <div className="min-w-0">
             <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Quick Action</p>
             <p className="text-[15px] font-pmedium text-slate-900 flex items-center gap-1.5">
@@ -1309,16 +1322,13 @@ export function OrganizationPage() {
                 )}
                 {isProfessionalPlanWorkspace && (
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                    {activeMemberCount}/{professionalPlanMaxUsers} users added
+                    {activeMemberCount}/{professionalPlanMaxUsers} active users
                   </p>
                 )}
                 <button
                   data-tour="organization-add-user"
                   title={addUserHoverMessage}
-                  onClick={() => {
-                    setTeamMemberFormData({ name: '', email: '', role: isBasicPlanWorkspace ? 'super-admin' : 'manager', departments: [] });
-                    setShowTeamMemberModal(true);
-                  }}
+                  onClick={handleOpenTeamMemberModal}
                   disabled={!canAddUserOnCurrentPlan}
                   className={`bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${
                     !canAddUserOnCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''

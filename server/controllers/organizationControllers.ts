@@ -1016,6 +1016,17 @@ export const inviteOrganizationMember = async (req, res, next) => {
       }
     }
 
+    if (isProfessionalPlan(workspace)) {
+      const activeMemberCount = await WorkspaceMember.countDocuments({
+        workspace: workspace._id,
+        isActive: true,
+      });
+      if (activeMemberCount >= PROFESSIONAL_PLAN_MAX_USERS) {
+        return res.status(400).json({
+          message: "No more users can be added. Disable one user to add another.",
+        });
+      }
+    }
     let targetRoleDoc = await Role.findOne({ name: role });
     if (!targetRoleDoc) {
       targetRoleDoc = await Role.create({
@@ -1122,31 +1133,6 @@ export const inviteOrganizationMember = async (req, res, next) => {
         return res.status(400).json({
           message: "This department already has a manager assigned.",
         });
-      }
-    }
-
-    if (isProfessionalPlan(workspace)) {
-      const alreadyActiveMember = await WorkspaceMember.findOne({
-        workspace: workspace._id,
-        user: targetUser._id,
-        isActive: true,
-      })
-        .select("_id")
-        .lean();
-
-      // Only count this invite against the cap if it's actually adding a new
-      // active member — re-inviting/updating someone already active doesn't
-      // grow headcount.
-      if (!alreadyActiveMember) {
-        const activeMemberCount = await WorkspaceMember.countDocuments({
-          workspace: workspace._id,
-          isActive: true,
-        });
-        if (activeMemberCount >= PROFESSIONAL_PLAN_MAX_USERS) {
-          return res.status(400).json({
-            message: `Professional plan limit reached. Maximum ${PROFESSIONAL_PLAN_MAX_USERS} users allowed (including the founder) — upgrade to Custom for more.`,
-          });
-        }
       }
     }
 
