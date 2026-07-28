@@ -12,7 +12,7 @@ import MuiModal from "../../components/MuiModal";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
 import AccountDeletionDangerZone from "./AccountDeletionDangerZone";
 
-const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 const MAX_LOGO_SIZE_MB = 1;
 const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 

@@ -386,7 +386,7 @@ const deductWorkspaceCreditOnSuccess = async ({ workspaceId, companyId } = {}) =
   ).exec();
 };
 
-const NOMADS_BASE_URL = "https://wononomadsbe.vercel.app";
+const NOMADS_BASE_URL = "https://wono.co";
 
 const safeNum = (value, fallback = 0) => {
   const num = Number(value);
@@ -2215,7 +2215,7 @@ export const createTemplate = async (req, res, next) => {
       }).catch(() => {});
 
       void axios.patch(
-        "https://wononomadsbe.vercel.app/api/company/add-template-link",
+        "https://wono.co/api/company/add-template-link",
         {
           companyName: req.body.companyName,
           link: `https://${savedTemplate.searchKey}.wono.co/`,

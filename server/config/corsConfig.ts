@@ -7,9 +7,9 @@ export const allowedOrigins = [
   "http://localhost:3007",
   "http://localhost:5006",
   "http://localhost:5007",
-  "https://wonohostfe.vercel.app",
-  "https://wonomasterbe.vercel.app",
-  "https://wonomasterfe.vercel.app",
+  "https://hostpanel.wono.co",
+  "https://masterpanel.wono.co",
+  "https://wono.co",
 ];
 
 export const corsConfig = {

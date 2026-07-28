@@ -270,7 +270,7 @@ const LoginPage = () => {
 
             {/* Desktop Buttons */}
             {/* <div className="hidden md:flex gap-4">
-          <a href="https://wonofe.vercel.app">
+          <a href="https://wono.co">
             <button type="button" className="bg-white text-black py-2 px-4 rounded-full uppercase">
               Sign In
             </button>
@@ -357,7 +357,7 @@ const LoginPage = () => {
           <div className="flex flex-col w-full items-center gap-6">
             <div>
               <a
-                href="https://wonofe.vercel.app"
+                href="https://wono.co"
                 className="block px-10 py-2 uppercase bg-white text-black mx-auto w-max rounded-full"
               >
                 Sign In
