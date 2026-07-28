@@ -954,6 +954,13 @@ export const inviteOrganizationMember = async (req, res, next) => {
       return res.status(400).json({ message: "Name and email are required." });
     }
 
+    const existingUserWithEmail = await HostUser.findOne({ email }).select("_id").lean();
+    if (existingUserWithEmail) {
+      return res.status(409).json({
+        message: "Email already used. Try using a different email.",
+      });
+    }
+
     // A department manager may only add employee-level members, and only into
     // their own department(s) — never another department, and never a
     // manager/admin/super_admin. Owner/super_admin/admin inviters are
@@ -973,6 +980,8 @@ export const inviteOrganizationMember = async (req, res, next) => {
       departments = actorDepartmentIds;
     }
 
+    const normalizedInviteRole = normalizeRoleForStorage(role);
+
     if (isBasicPlan(workspace)) {
       const actorRoleBand = getRoleBand(actorMembership?.role || user?.role || "");
 
@@ -982,7 +991,6 @@ export const inviteOrganizationMember = async (req, res, next) => {
         });
       }
 
-      const normalizedInviteRole = normalizeRoleForStorage(role);
       if (normalizedInviteRole !== "super_admin") {
         return res.status(400).json({
           message: "Basic plan allows only one Super Admin invite.",
@@ -1037,14 +1045,36 @@ export const inviteOrganizationMember = async (req, res, next) => {
       }
     }
 
-    let targetUser = await HostUser.findOne({ email });
-    let isFreshInviteAccount = false;
-    if (!targetUser) {
-      const company = await Company.findById(user.company).lean().exec();
-      if (!company) {
-        return res.status(404).json({ message: "Company not found for this user." });
-      }
+    const uniqueResolvedDepartmentIds = Array.from(
+      new Set(resolvedDepartmentIds.map((departmentId) => String(departmentId || "")).filter(Boolean)),
+    );
 
+    if (normalizedInviteRole === "super_admin") {
+      departments = [];
+    } else if (normalizedInviteRole === "admin") {
+      if (uniqueResolvedDepartmentIds.length === 0) {
+        return res.status(400).json({
+          message: "Admin must be assigned to at least one department.",
+        });
+      }
+    } else if (normalizedInviteRole === "manager" || normalizedInviteRole === "employee") {
+      if (uniqueResolvedDepartmentIds.length !== 1) {
+        return res.status(400).json({
+          message:
+            normalizedInviteRole === "manager"
+              ? "Manager must be assigned to exactly one department."
+              : "Employee must be assigned to exactly one department.",
+        });
+      }
+    }
+
+    const company = await Company.findById(user.company).lean().exec();
+    if (!company) {
+      return res.status(404).json({ message: "Company not found for this user." });
+    }
+
+    let targetUser;
+    try {
       targetUser = await HostUser.create({
         company: company._id,
         companyId: company.companyId,
@@ -1053,10 +1083,47 @@ export const inviteOrganizationMember = async (req, res, next) => {
         isActive: true,
         hasCompletedWorkspaceSetup: true,
       });
-      isFreshInviteAccount = true;
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        return res.status(409).json({
+          message: "Email already used. Try using a different email.",
+        });
+      }
+      throw error;
     }
 
-    const isExistingRegisteredUser = !isFreshInviteAccount && !!targetUser.password;
+    const isExistingRegisteredUser = false;
+
+    if (normalizedInviteRole === "manager") {
+      const managerDepartmentId = uniqueResolvedDepartmentIds[0];
+      const targetDepartment = await Department.findOne({
+        _id: managerDepartmentId,
+        workspaceId: workspace._id,
+      })
+        .select("managerUser")
+        .lean();
+
+      const existingDepartmentManagers = await WorkspaceMember.find({
+        workspace: workspace._id,
+        departments: managerDepartmentId,
+        isActive: true,
+        user: { $ne: targetUser._id },
+      })
+        .select("role")
+        .populate("role")
+        .lean()
+        .exec();
+
+      const hasExistingManager = Boolean(
+        targetDepartment?.managerUser && String(targetDepartment.managerUser) !== String(targetUser._id),
+      ) || existingDepartmentManagers.some((member) => getRoleBand(member?.role || "") === "manager");
+
+      if (hasExistingManager) {
+        return res.status(400).json({
+          message: "This department already has a manager assigned.",
+        });
+      }
+    }
 
     if (isProfessionalPlan(workspace)) {
       const alreadyActiveMember = await WorkspaceMember.findOne({
@@ -1089,7 +1156,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
     // the workspace currently has enabled, on top of any department defaults.
     const inviteRoleBand = getRoleBand(role);
     const departmentDefaultIds = await computeDepartmentDefaultModuleIds(
-      resolvedDepartmentIds,
+      uniqueResolvedDepartmentIds,
       inviteRoleBand,
     );
     const superAdminDefaultIds =
@@ -1117,7 +1184,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
       {
         $set: {
           role: targetRoleDoc._id,
-          departments: resolvedDepartmentIds,
+          departments: uniqueResolvedDepartmentIds,
           isPrimary: false,
           isActive: true,
           status: isExistingRegisteredUser ? "joined" : "invited",
@@ -1640,7 +1707,7 @@ export const transferOrganizationMember = async (req, res, next) => {
       {
         $set: {
           role: targetRoleDoc._id,
-          departments: resolvedDepartmentIds,
+          departments: uniqueResolvedDepartmentIds,
           status: "joined",
           isActive: true,
           grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],

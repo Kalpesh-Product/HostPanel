@@ -634,7 +634,7 @@ export default function WorkspaceSettingsPage() {
                 </div>
               </div>
 
-              <div className="p-3 sm:p-4 lg:p-5">
+              <div className="p-3 sm:p-4 lg:p-5" data-tour="unit-settings-linked-units">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Linked Units</p>
                   <p className="text-[10px] font-pmedium text-slate-400">

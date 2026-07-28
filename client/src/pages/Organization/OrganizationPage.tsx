@@ -41,7 +41,7 @@ import {
 import { getWorkspaceCount, isDepartmentAllowedForPlan } from '../../utils/workspacePlanAccess';
 import { statusPillClass } from '../../lib/status-pill';
 
-// sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
+// sessionStorage only - see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
 const getStoredUser = () => {
   try {
@@ -152,6 +152,26 @@ type TeamMemberFormData = {
   email: string;
   role: string;
   departments: string[];
+};
+
+const SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES = new Set(['manager', 'employee']);
+
+const getTeamMemberDepartmentHelperText = (role = '') => {
+  const normalizedRole = String(role || '').trim().toLowerCase();
+
+  if (normalizedRole === 'admin') {
+    return 'Admin can be assigned to multiple departments.';
+  }
+
+  if (normalizedRole === 'manager') {
+    return 'Manager can be assigned to exactly one department, and each department can have only one manager.';
+  }
+
+  if (normalizedRole === 'employee') {
+    return 'Employee can be assigned to exactly one department.';
+  }
+
+  return 'Select departments based on the chosen role.';
 };
 
 function resolveDepartmentManagementState(user, organizationDepartments: DepartmentOption[] = []) {
@@ -559,7 +579,7 @@ export function OrganizationPage() {
   const basicPlanLimitReached = isBasicPlanWorkspace && activeSuperAdminCount >= basicPlanAdditionalUserLimit;
 
   const isProfessionalPlanWorkspace = workspacePlan === 'professional';
-  // Mirrors PROFESSIONAL_PLAN_MAX_USERS in organizationControllers.ts — total
+  // Mirrors PROFESSIONAL_PLAN_MAX_USERS in organizationControllers.ts - total
   // active members (including the founder) capped at 5 on Professional.
   const professionalPlanMaxUsers = 5;
   const activeMemberCount = teamMembers.filter(
@@ -577,15 +597,22 @@ export function OrganizationPage() {
     : isProfessionalPlanWorkspace
       ? canAccessUsersTab && canInviteUsersByAccess && !professionalPlanLimitReached
       : canAccessUsersTab && canInviteUsersByAccess;
+  const normalizedTeamMemberRole = String(teamMemberFormData.role || '').trim().toLowerCase();
+  const isSingleDepartmentTeamMemberRole = SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(normalizedTeamMemberRole);
+  const inviteDepartmentOptions = departments.filter((dept) => isDepartmentAllowedForPlan(workspacePlan, dept.name));
+  const normalizedTeamMemberEmail = String(teamMemberFormData.email || '').trim().toLowerCase();
+  const isTeamMemberEmailAlreadyUsed = Boolean(normalizedTeamMemberEmail) && teamMembers.some(
+    (member) => String(member.email || '').trim().toLowerCase() === normalizedTeamMemberEmail,
+  );
   const addUserHoverMessage = isBasicPlanWorkspace
     ? !isFounderRole
       ? 'Only the founder can add users on the Basic plan.'
       : basicPlanLimitReached
-        ? `Basic plan limit reached — ${activeSuperAdminCount}/${basicPlanAdditionalUserLimit} additional user added.`
+        ? `Basic plan limit reached - ${activeSuperAdminCount}/${basicPlanAdditionalUserLimit} additional user added.`
         : `Add your one allowed Super Admin (${activeSuperAdminCount}/${basicPlanAdditionalUserLimit} used)`
     : isProfessionalPlanWorkspace
       ? professionalPlanLimitReached
-        ? `Professional plan limit reached — ${activeMemberCount}/${professionalPlanMaxUsers} users added.`
+        ? `Professional plan limit reached - ${activeMemberCount}/${professionalPlanMaxUsers} users added.`
         : `Add a user (${activeMemberCount}/${professionalPlanMaxUsers} used)`
       : canAddUserOnCurrentPlan
         ? 'Invite and onboard instantly'
@@ -619,13 +646,13 @@ export function OrganizationPage() {
   }, [workspaceEnabledModuleIds, availableCoreModules]);
   const formatJoinedDate = (value) => {
     if (!value) {
-      return '—';
+      return '-';
     }
 
     const parsedDate = new Date(value);
 
     if (Number.isNaN(parsedDate.getTime())) {
-      return '—';
+      return '-';
     }
 
     return parsedDate.toLocaleDateString('en-IN', {
@@ -709,7 +736,7 @@ export function OrganizationPage() {
             (departments.find((d) => d.id === deptId)?.name || '').toLowerCase(),
         );
       }
-      // role filter — show all transferred (no role filtering on transferred table)
+      // role filter - show all transferred (no role filtering on transferred table)
 
       return matchesSearch && matchesDepartment;
     });
@@ -810,14 +837,56 @@ export function OrganizationPage() {
   const handleSendInvite = async () => {
     if (isSendingInvite) return;
     if (teamMemberFormData.name && teamMemberFormData.email) {
+      const normalizedRole =
+        teamMemberFormData.role === 'super-admin'
+          ? 'super_admin'
+          : teamMemberFormData.role === 'admin-manager'
+            ? 'admin_manager'
+            : teamMemberFormData.role;
+
+      if (isTeamMemberEmailAlreadyUsed) {
+        toast.error('Email already used. Try using a different email.');
+        return;
+      }
+
+      if (normalizedTeamMemberRole !== 'super-admin') {
+        if (normalizedTeamMemberRole === 'admin' && teamMemberFormData.departments.length === 0) {
+          toast.error('Select at least one department for admin.');
+          return;
+        }
+
+        if (isSingleDepartmentTeamMemberRole && teamMemberFormData.departments.length !== 1) {
+          toast.error(
+            normalizedTeamMemberRole === 'manager'
+              ? 'Manager must have exactly one department.'
+              : 'Employee must have exactly one department.',
+          );
+          return;
+        }
+
+        if (normalizedTeamMemberRole === 'manager') {
+          const selectedManagerDepartment = departments.find(
+            (department) => String(department.id || '') === String(teamMemberFormData.departments[0] || ''),
+          );
+          const hasExistingManager = Boolean(
+            String(selectedManagerDepartment?.managerUserId || selectedManagerDepartment?.managerId || '').trim(),
+          ) || Boolean(
+            selectedManagerDepartment?.employees?.some((member) => {
+              const memberRole = normalizeRoleValue(member.role);
+              const memberStatus = String(member.status || '').toLowerCase();
+              return memberRole === 'manager' && memberStatus !== 'disabled';
+            }),
+          );
+
+          if (hasExistingManager) {
+            toast.error('This department already has a manager assigned.');
+            return;
+          }
+        }
+      }
+
       setIsSendingInvite(true);
       try {
-        const normalizedRole =
-          teamMemberFormData.role === 'super-admin'
-            ? 'super_admin'
-            : teamMemberFormData.role === 'admin-manager'
-              ? 'admin_manager'
-              : teamMemberFormData.role;
         await inviteOrganizationMember(axiosPrivate, {
           fullName: teamMemberFormData.name,
           email: teamMemberFormData.email,
@@ -830,7 +899,8 @@ export function OrganizationPage() {
         setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
       } catch (error) {
         console.error("Failed to send invite", error);
-        toast.error('Failed to send invite. Please try again.');
+        const inviteErrorMessage = (error as any)?.response?.data?.message;
+        toast.error(inviteErrorMessage || 'Failed to send invite. Please try again.');
       } finally {
         setIsSendingInvite(false);
       }
@@ -1217,13 +1287,13 @@ export function OrganizationPage() {
                     className="pl-1 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[9px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none"
                   >
                     <option value="all">All</option>
-                    <option disabled className="text-slate-300">── DEPARTMENTS ──</option>
+                    <option disabled className="text-slate-300">-- DEPARTMENTS --</option>
                     {departments.filter((department) => isDepartmentAllowedForPlan(workspacePlan, department.name)).map((department) => (
                       <option key={department.id} value={`dept:${department.id}`}>
                         {normalizeDepartmentLabel(department.name)}
                       </option>
                     ))}
-                    <option disabled className="text-slate-300">─── ROLES ───</option>
+                    <option disabled className="text-slate-300">--- ROLES ---</option>
                     <option value="role:owner">Founder</option>
                     <option value="role:super-admin">Super Admin</option>
                     <option value="role:admin">Admin</option>
@@ -1293,7 +1363,7 @@ export function OrganizationPage() {
                   return (
                   <tr key={member.id} className={`hover:bg-slate-50/50 transition-colors group ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : ''}`}>
                     <td className="px-5 py-4">
-                      <span className="font-pmedium text-slate-800 text-[12px]">{member.employeeId || '—'}</span>
+                      <span className="font-pmedium text-slate-800 text-[12px]">{member.employeeId || '-'}</span>
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -1556,7 +1626,7 @@ export function OrganizationPage() {
                       <div className="flex flex-wrap gap-1.5">
                         {(dept.employees || []).slice(0, 3).map((employee) => (
                           <span key={employee.id} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">
-                            {employee.employeeId ? `${employee.employeeId} · ` : ''}{employee.name}
+                            {employee.employeeId ? `${employee.employeeId} - ` : ''}{employee.name}
                           </span>
                         ))}
                       {(dept.employees || []).length > 3 && (
@@ -1690,7 +1760,7 @@ export function OrganizationPage() {
                             {emp.employeeId}
                           </span>
                         ) : (
-                          <span className="text-[12px] font-pmedium text-slate-300">—</span>
+                          <span className="text-[12px] font-pmedium text-slate-300">-</span>
                         )}
                       </td>
                       <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
@@ -2120,11 +2190,11 @@ export function OrganizationPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                   <div>
                     <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Employee ID</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{viewingMember.employeeId || '—'}</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingMember.employeeId || '-'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
-                    <p className="text-[12px] font-pmedium text-slate-900 break-all">{viewingMember.email || '—'}</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 break-all">{viewingMember.email || '-'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Shield size={10} /> Access Role</p>
@@ -2133,7 +2203,7 @@ export function OrganizationPage() {
                   <div>
                     <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Calendar size={10} /> Joined On</p>
                     <p className="text-[12px] font-pmedium text-slate-900">
-                      {viewingMember.joinedAt ? new Date(viewingMember.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                      {viewingMember.joinedAt ? new Date(viewingMember.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </p>
                   </div>
                 </div>
@@ -2148,7 +2218,7 @@ export function OrganizationPage() {
                     ? ['All Departments']
                     : (Array.isArray(viewingMember.departmentNames) && viewingMember.departmentNames.length > 0
                       ? viewingMember.departmentNames
-                      : ['—'])
+                      : ['-'])
                   ).map((dept, i) => (
                     <span key={i} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-pmedium tracking-wide">{normalizeDepartmentLabel(dept)}</span>
                   ))}
@@ -2199,7 +2269,7 @@ export function OrganizationPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 bg-[#2563EB] text-white rounded-lg"><UserPlus size={16}/></span>
-                  <h2 className="text-base lg:text-lg font-black tracking-tight text-slate-800 font-sans" style={{ fontFamily: "inherit" }}>
+                  <h2 className="text-primary lg:text-lg font-pmedium tracking-tight text-slate-800" style={{ fontFamily: "inherit" }}>
                     Add Platform User
                   </h2>
                 </div>
@@ -2215,7 +2285,23 @@ export function OrganizationPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Email *</label>
-                  <input type="email" placeholder="Enter work email" value={teamMemberFormData.email} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                  <input
+                    type="email"
+                    placeholder="Enter work email"
+                    value={teamMemberFormData.email}
+                    onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, email: e.target.value })}
+                    aria-invalid={isTeamMemberEmailAlreadyUsed}
+                    className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:ring-4 outline-none transition-all ${
+                      isTeamMemberEmailAlreadyUsed
+                        ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10'
+                        : 'border-slate-200 focus:border-[#2563EB] focus:ring-blue-500/10'
+                    }`}
+                  />
+                  {isTeamMemberEmailAlreadyUsed && (
+                    <p className="flex items-center gap-1 text-[10px] font-medium text-red-600">
+                      <AlertCircle size={12} /> Email already used. Try using a different email.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -2224,15 +2310,20 @@ export function OrganizationPage() {
                 <select
                   value={teamMemberFormData.role}
                   onChange={(e) =>
-                    setTeamMemberFormData({
-                      ...teamMemberFormData,
-                      role: e.target.value,
-                      departments:
-                        e.target.value === 'super-admin'
-                          ? departments.map((d) => d.id).filter((id): id is string => !!id)
-                          : e.target.value === 'manager'
-                            ? teamMemberFormData.departments.slice(0, 1)
-                            : teamMemberFormData.departments,
+                    setTeamMemberFormData((current) => {
+                      const nextRole = e.target.value;
+                      return {
+                        ...current,
+                        role: nextRole,
+                        departments:
+                          nextRole === 'super-admin'
+                            ? inviteDepartmentOptions.map((department) => department.id).filter((id): id is string => !!id)
+                            : nextRole === 'manager'
+                              ? []
+                              : nextRole === 'employee'
+                                ? current.departments.slice(0, 1)
+                                : current.departments,
+                      };
                     })
                   }
                   disabled={isBasicPlanWorkspace}
@@ -2254,6 +2345,38 @@ export function OrganizationPage() {
                 )}
               </div>
 
+              {/* <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5">
+                <p className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Department access by role</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {[
+                    { role: 'employee', title: 'Employee', rule: 'Choose exactly 1 department' },
+                    { role: 'manager', title: 'Manager', rule: 'Choose 1; one manager per department' },
+                    { role: 'admin', title: 'Admin', rule: 'Choose one or multiple departments' },
+                    { role: 'super-admin', title: 'Super Admin', rule: 'All departments automatically' },
+                  ].map((roleRule) => {
+                    const isActiveRole = teamMemberFormData.role === roleRule.role;
+                    return (
+                      <div
+                        key={roleRule.role}
+                        className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors ${
+                          isActiveRole
+                            ? 'border-blue-200 bg-white text-slate-900 shadow-sm'
+                            : 'border-transparent text-slate-500'
+                        }`}
+                      >
+                        <CheckCircle2
+                          size={16}
+                          className={isActiveRole ? 'mt-0.5 shrink-0 text-[#2563EB]' : 'mt-0.5 shrink-0 text-slate-300'}
+                        />
+                        <div>
+                          <p className="text-[11px] font-pmedium">{roleRule.title}</p>
+                          <p className="mt-0.5 text-[10px] leading-4">{roleRule.rule}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div> */}
               {teamMemberFormData.role !== 'super-admin' ? (
                 <div className="space-y-3 pt-2">
                   <label className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest flex items-center justify-between">
@@ -2261,28 +2384,88 @@ export function OrganizationPage() {
                     <span className="text-[#2563EB] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{teamMemberFormData.departments.length} Selected</span>
                   </label>
                     <p className="text-[11px] text-slate-500 -mt-1">
-                      Department managers stay attached to one department. Department admins and employees may cover multiple departments.
+                      {getTeamMemberDepartmentHelperText(teamMemberFormData.role)}
                     </p>
                     {isProfessionalPlanWorkspace && (
                       <p className="text-[11px] text-amber-600 font-medium -mt-1">
-                        Professional plan only allows Sales and Technology departments — upgrade to Custom for the rest.
+                        Professional plan only allows Sales and Technology departments - upgrade to Custom for the rest.
                       </p>
                     )}
-                    <div className="flex flex-wrap gap-1.5">
-                    {departments.filter((dept) => isDepartmentAllowedForPlan(workspacePlan, dept.name)).map((dept) => {
-                      const isSelected = dept.id ? teamMemberFormData.departments.includes(dept.id) : false;
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {inviteDepartmentOptions.map((dept) => {
+                      const departmentId = String(dept.id || '').trim();
+                      const isSelected = departmentId ? teamMemberFormData.departments.includes(departmentId) : false;
+                      const hasAssignedManager = Boolean(String(dept.managerUserId || dept.managerId || '').trim()) || Boolean(
+                        dept.employees?.some((member) => {
+                          const memberRole = normalizeRoleValue(member.role);
+                          const memberStatus = String(member.status || '').toLowerCase();
+                          return memberRole === 'manager' && memberStatus !== 'disabled';
+                        }),
+                      );
+                      const isManagerDepartmentDisabled = normalizedTeamMemberRole === 'manager' && hasAssignedManager;
                       return (
-                        <button key={dept.id} onClick={() => {
-                            if (teamMemberFormData.role === 'manager') { setTeamMemberFormData({ ...teamMemberFormData, departments: dept.id ? [dept.id] : [] }); }
-                            else { setTeamMemberFormData({ ...teamMemberFormData, departments: isSelected ? teamMemberFormData.departments.filter((departmentId) => departmentId !== dept.id) : dept.id ? [...teamMemberFormData.departments, dept.id] : teamMemberFormData.departments }); }
+                        <button
+                          key={dept.id}
+                          type="button"
+                          disabled={isManagerDepartmentDisabled}
+                          onClick={() => {
+                            if (!departmentId || isManagerDepartmentDisabled) return;
+                            setTeamMemberFormData((current) => {
+                              const alreadySelected = current.departments.includes(departmentId);
+                              if (SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(current.role)) {
+                                return {
+                                  ...current,
+                                  departments: alreadySelected ? [] : [departmentId],
+                                };
+                              }
+                              return {
+                                ...current,
+                                departments: alreadySelected
+                                  ? current.departments.filter((selectedDepartmentId) => selectedDepartmentId !== departmentId)
+                                  : [...current.departments, departmentId],
+                              };
+                            });
                           }}
-                          className={`px-3 py-2 rounded-[10px] text-[12px] font-semibold border transition-all ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB] hover:text-[#2563EB]'}`}
+                          className={`flex min-h-[54px] w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                            isSelected
+                              ? 'border-blue-300 bg-blue-50 text-blue-800 shadow-sm'
+                              : isManagerDepartmentDisabled
+                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/40'
+                          }`}
                         >
-                          {dept.name}
+                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                            isSelected
+                              ? 'border-[#2563EB] bg-[#2563EB] text-white'
+                              : 'border-slate-300 bg-white text-transparent'
+                          }`}>
+                            <CheckSquare size={13} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[12px] font-pmedium">{normalizeDepartmentLabel(dept.name)}</span>
+                            {normalizedTeamMemberRole === 'manager' && hasAssignedManager && (
+                              <span className="mt-0.5 block text-[9px] font-medium uppercase tracking-wide text-amber-600">
+                                Manager already assigned
+                              </span>
+                            )}
+                          </span>
+                          {isManagerDepartmentDisabled && <Lock size={13} className="shrink-0 text-slate-400" />}
                         </button>
                       );
                     })}
                   </div>
+                  <p className="text-[10px] text-slate-500 -mt-1">
+                    {normalizedTeamMemberRole === 'manager' && teamMemberFormData.departments.length === 1
+                      ? (() => {
+                          const selectedDepartment = departments.find((department) => String(department.id || '') === String(teamMemberFormData.departments[0] || ''));
+                          return selectedDepartment?.managerName
+                            ? `Existing manager: ${selectedDepartment.managerName}`
+                            : 'Only one department can be selected for this role.';
+                        })()
+                      : isSingleDepartmentTeamMemberRole
+                        ? 'Only one department can be selected for this role.'
+                        : 'This role can be assigned to multiple departments.'}
+                  </p>
                 </div>
               ) : (
                 <div className="bg-blue-50/50 p-4 rounded-2xl flex gap-3 items-center border border-blue-100">
@@ -2300,8 +2483,10 @@ export function OrganizationPage() {
                   isSendingInvite ||
                   !teamMemberFormData.name ||
                   !teamMemberFormData.email ||
+                  isTeamMemberEmailAlreadyUsed ||
                   !canAddUserOnCurrentPlan ||
-                  (teamMemberFormData.role !== 'super-admin' && teamMemberFormData.departments.length === 0) ||
+                  (normalizedTeamMemberRole === 'admin' && teamMemberFormData.departments.length === 0) ||
+                  (isSingleDepartmentTeamMemberRole && teamMemberFormData.departments.length !== 1) ||
                   (teamMemberFormData.role === 'super-admin' && !canInviteSuperAdmin)
                 }
                 className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"

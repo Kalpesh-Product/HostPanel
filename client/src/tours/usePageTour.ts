@@ -90,8 +90,8 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
         popover: {
           title: tourStep.title,
           description: tourStep.description,
-          side: "bottom",
-          align: "start",
+          side: tourStep.side || "bottom",
+          align: tourStep.align || "start",
         },
       });
     });
