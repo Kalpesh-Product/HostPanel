@@ -53,12 +53,156 @@ function isDeptAllowed(departmentId, assignedDepartmentIds) {
     return assignedDepartmentIds.some((d) => d === id);
 }
 
+function getPopulatedId(value) {
+    return value?._id || value || null;
+}
+
+function getUserLabel(user) {
+    if (!user || typeof user !== "object") return "";
+    return String(
+        user.name ||
+        [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+        user.email ||
+        ""
+    ).trim();
+}
+
+function idString(value) {
+    return String(getPopulatedId(value) || "");
+}
+
+function hasLegacyAllocation(asset) {
+    const ownerId = idString(asset.departmentId);
+    const assignedDepartmentId = idString(asset.assignedToDepartmentId);
+    return Boolean(asset.assignedToUserId || (assignedDepartmentId && assignedDepartmentId !== ownerId));
+}
+
+function getEffectiveAllocations(asset) {
+    if (Array.isArray(asset.allocations) && asset.allocations.length > 0) return asset.allocations;
+    if (!hasLegacyAllocation(asset)) return [];
+    return [{
+        _id: `legacy-${asset._id}`,
+        departmentId: asset.assignedToDepartmentId || asset.departmentId,
+        userId: asset.assignedToUserId || null,
+        quantity: Math.max(1, Number(asset.quantity) || 1),
+        note: asset.transferReason || "Legacy assignment",
+        assignedAt: asset.transferDate || asset.updatedAt || asset.createdAt,
+    }];
+}
+
+function ensureAllocationState(asset) {
+    if (!Array.isArray(asset.allocations)) asset.allocations = [];
+    if (asset.allocations.length === 0 && hasLegacyAllocation(asset)) {
+        asset.allocations.push({
+            departmentId: getPopulatedId(asset.assignedToDepartmentId) || getPopulatedId(asset.departmentId),
+            userId: getPopulatedId(asset.assignedToUserId) || null,
+            quantity: Math.max(1, Number(asset.quantity) || 1),
+            note: asset.transferReason || "Legacy assignment",
+            assignedAt: asset.transferDate || asset.updatedAt || asset.createdAt || new Date(),
+        });
+    }
+    asset.assignedToDepartmentId = null;
+    asset.assignedToUserId = null;
+}
+
+function serializeAsset(asset, fallbacks = {}) {
+    if (!asset) return asset;
+    const allocations = getEffectiveAllocations(asset).map((allocation) => ({
+        id: String(allocation._id || ""),
+        departmentId: getPopulatedId(allocation.departmentId),
+        department: allocation.departmentId?.name || "",
+        userId: getPopulatedId(allocation.userId),
+        user: getUserLabel(allocation.userId),
+        quantity: Math.max(0, Number(allocation.quantity) || 0),
+        note: allocation.note || "",
+        assignedAt: allocation.assignedAt || null,
+    }));
+    const totalQuantity = Math.max(1, Number(asset.quantity) || 1);
+    const allocatedQuantity = allocations.reduce((sum, allocation) => sum + allocation.quantity, 0);
+    const onlyAllocation = allocations.length === 1 ? allocations[0] : null;
+    const assignedLabel = onlyAllocation
+        ? onlyAllocation.user || onlyAllocation.department
+        : allocatedQuantity > 0 ? `${allocatedQuantity} of ${totalQuantity} allocated` : "Unassigned";
+    return {
+        ...asset,
+        departmentId: getPopulatedId(asset.departmentId),
+        department: asset.departmentId?.name || fallbacks.department || "",
+        allocations,
+        allocatedQuantity,
+        availableQuantity: Math.max(0, totalQuantity - allocatedQuantity),
+        assignedToDepartmentId: onlyAllocation?.departmentId || null,
+        assignedToDepartment: onlyAllocation?.department || "",
+        assignedToUserId: onlyAllocation?.userId || null,
+        assignedTo: assignedLabel || fallbacks.assignedTo || "Unassigned",
+    };
+}
+
 async function resolveDepartmentId(workspaceId, name) {
     if (!name) return null;
     const dept = await Department.findOne({ workspaceId, name: { $regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }).select("_id").lean().exec();
     return dept?._id || null;
 }
 
+
+async function validateAssetTransfer({
+    workspaceId,
+    userId,
+    roleBand,
+    asset,
+    assignedToDepartmentId,
+    assignedToUserId,
+}) {
+    if (!assignedToDepartmentId || !mongoose.Types.ObjectId.isValid(assignedToDepartmentId)) {
+        return { status: 400, message: "A valid target department is required." };
+    }
+
+    const targetDepartment = await Department.findOne({
+        _id: assignedToDepartmentId,
+        workspaceId,
+        isActive: true,
+    }).select("_id name").lean().exec();
+    if (!targetDepartment) return { status: 400, message: "Target department was not found in this workspace." };
+
+    if (assignedToUserId) {
+        if (!mongoose.Types.ObjectId.isValid(assignedToUserId)) {
+            return { status: 400, message: "Invalid assigned user id." };
+        }
+        const targetMembership = await WorkspaceMember.findOne({
+            workspace: workspaceId,
+            user: assignedToUserId,
+            isActive: true,
+            departments: targetDepartment._id,
+        }).select("_id role").populate("role", "name").lean().exec();
+        if (!targetMembership) {
+            return { status: 400, message: "The selected employee does not belong to the target department." };
+        }
+        const targetRoleBand = getRoleBand(targetMembership.role?.name || targetMembership.role);
+        if (targetRoleBand === "owner" || targetRoleBand === "super_admin") {
+            return { status: 400, message: "Founder and Super Admin accounts cannot be selected as department employees." };
+        }
+    }
+
+    if (roleBand === "owner" || roleBand === "super_admin") {
+        return { targetDepartment, operation: "transfer" };
+    }
+    if (roleBand !== "admin" && roleBand !== "manager") {
+        return { status: 403, message: "You do not have permission to assign or transfer assets." };
+    }
+
+    const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
+    if (!isDeptAllowed(assignedToDepartmentId, assignedDepartmentIds)) {
+        return { status: 403, message: "Department admins can assign assets only inside their own department." };
+    }
+    const targetId = String(assignedToDepartmentId);
+    const ownsAsset = idString(asset.departmentId) === targetId;
+    const hasDepartmentAllocation = getEffectiveAllocations(asset).some((allocation) =>
+        idString(allocation.departmentId) === targetId
+    );
+    if (!ownsAsset && !hasDepartmentAllocation) {
+        return { status: 403, message: "This asset has no quantity allocated to your department." };
+    }
+    return { targetDepartment, operation: "assignment" };
+}
 function computeExpiryDate(purchaseDate, ownershipType, rentDurationMonths) {
     if (!purchaseDate) return null;
     const parsed = new Date(purchaseDate);
@@ -98,7 +242,7 @@ export const createAsset = async (req, res, next) => {
         const roleBand = getRoleBand(req.workspaceMembership?.role);
         if (roleBand === "employee") {
             return res.status(403).json({
-                message: "You do not have permission to create assets.",
+                message: "You do not have permission to add assets.",
             });
         }
 
@@ -110,12 +254,12 @@ export const createAsset = async (req, res, next) => {
             const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
             if (!isDeptAllowed(departmentId, assignedDepartmentIds)) {
                 return res.status(403).json({
-                    message: "You can only create assets for your assigned departments.",
+                    message: "Department admins can only add assets to their own department.",
                 });
             }
         }
 
-        let assignedToDepartmentId = null;
+        let assignedToDepartmentId = departmentId;
         if (!assignedToUserId && assignedTo) {
             assignedToDepartmentId = await resolveDepartmentId(workspaceId, assignedTo);
         }
@@ -140,8 +284,9 @@ export const createAsset = async (req, res, next) => {
             assetNumber,
             assetCode,
             departmentId,
-            assignedToDepartmentId,
-            assignedToUserId: assignedToUserId || null,
+            assignedToDepartmentId: null,
+            assignedToUserId: null,
+            allocations: [],
             expiryDate: resolvedExpiry,
             warrantyExpiry: warrantyExpiry ? new Date(warrantyExpiry) : resolvedExpiry,
             value: normalizeMoneyValue(value),
@@ -150,17 +295,16 @@ export const createAsset = async (req, res, next) => {
         const asset = await Asset.findById(created._id)
             .populate("departmentId", "name")
             .populate("assignedToDepartmentId", "name")
+            .populate("assignedToUserId", "name firstName lastName email")
+            .populate("allocations.departmentId", "name")
+            .populate("allocations.userId", "name firstName lastName email")
             .lean()
             .exec();
 
         return res.status(201).json({
             message: "Asset created successfully",
             data: {
-                asset: {
-                    ...asset,
-                    department: asset.departmentId?.name || department || "",
-                    assignedTo: asset.assignedToDepartmentId?.name || asset.assignedToUserId || assignedTo || "Unassigned",
-                },
+                asset: serializeAsset(asset, { department, assignedTo }),
             },
         });
     } catch (error) {
@@ -212,9 +356,11 @@ export const getAssets = async (req, res, next) => {
             if (deptObjectIds.length > 0) {
                 scopeConditions.push({ departmentId: { $in: deptObjectIds } });
                 scopeConditions.push({ assignedToDepartmentId: { $in: deptObjectIds } });
+                scopeConditions.push({ "allocations.departmentId": { $in: deptObjectIds } });
             }
             if (userId) {
                 scopeConditions.push({ assignedToUserId: userId });
+                scopeConditions.push({ "allocations.userId": userId });
             }
             filter.$and = [{ $or: scopeConditions.length > 0 ? scopeConditions : [{ _id: null }] }];
         }
@@ -250,6 +396,9 @@ export const getAssets = async (req, res, next) => {
                 .limit(limitNumber)
                 .populate("departmentId", "name")
                 .populate("assignedToDepartmentId", "name")
+                .populate("assignedToUserId", "name firstName lastName email")
+            .populate("allocations.departmentId", "name")
+            .populate("allocations.userId", "name firstName lastName email")
                 .lean()
                 .exec(),
 
@@ -259,11 +408,7 @@ export const getAssets = async (req, res, next) => {
         return res.status(200).json({
             message: "Assets loaded successfully",
             data: {
-                assets: assets.map((a) => ({
-                    ...a,
-                    department: a.departmentId?.name || "",
-                    assignedTo: a.assignedToDepartmentId?.name || a.assignedToUserId || "Unassigned",
-                })),
+                assets: assets.map((a) => serializeAsset(a)),
                 pagination: {
                     total,
                     page: pageNumber,
@@ -301,6 +446,9 @@ export const getAssetById = async (req, res, next) => {
         })
             .populate("departmentId", "name")
             .populate("assignedToDepartmentId", "name")
+            .populate("assignedToUserId", "name firstName lastName email")
+            .populate("allocations.departmentId", "name")
+            .populate("allocations.userId", "name firstName lastName email")
             .lean()
             .exec();
 
@@ -312,12 +460,14 @@ export const getAssetById = async (req, res, next) => {
 
         const roleBand = getRoleBand(req.workspaceMembership?.role);
         if (roleBand !== "owner" && roleBand !== "super_admin") {
-            const isAssignedToMe = String(asset.assignedToUserId || "") === String(userId || "");
+            const isAssignedToMe = String(asset.assignedToUserId || "") === String(userId || "") ||
+                getEffectiveAllocations(asset).some((allocation) => idString(allocation.userId) === String(userId || ""));
             if (!isAssignedToMe) {
                 const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
                 const allowed =
                     isDeptAllowed(asset.departmentId?._id || asset.departmentId, assignedDepartmentIds) ||
-                    isDeptAllowed(asset.assignedToDepartmentId?._id || asset.assignedToDepartmentId, assignedDepartmentIds);
+                    isDeptAllowed(asset.assignedToDepartmentId?._id || asset.assignedToDepartmentId, assignedDepartmentIds) ||
+                    getEffectiveAllocations(asset).some((allocation) => isDeptAllowed(allocation.departmentId, assignedDepartmentIds));
                 if (!allowed) {
                     return res.status(404).json({
                         message: "Asset not found",
@@ -329,11 +479,7 @@ export const getAssetById = async (req, res, next) => {
         return res.status(200).json({
             message: "Asset loaded successfully",
             data: {
-                asset: {
-                    ...asset,
-                    department: asset.departmentId?.name || "",
-                    assignedTo: asset.assignedToDepartmentId?.name || asset.assignedToUserId || "Unassigned",
-                },
+                asset: serializeAsset(asset),
             },
         });
     } catch (error) {
@@ -366,7 +512,7 @@ export const updateAsset = async (req, res, next) => {
             });
         }
 
-        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId").lean().exec();
+        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId allocations quantity").lean().exec();
         if (!existingAsset) {
             return res.status(404).json({
                 message: "Asset not found",
@@ -377,36 +523,39 @@ export const updateAsset = async (req, res, next) => {
         delete req.body.createdBy;
         delete req.body.assetNumber;
 
-        const { department, assignedTo, expiryDate, warrantyExpiry, value, ...updateBody } = req.body;
+        const { department, assignedTo, assignedToUserId, assignedToDepartmentId, transferReason, transferDate, expiryDate, warrantyExpiry, value, ...updateBody } = req.body;
 
         if (department) {
             updateBody.departmentId = await resolveDepartmentId(workspaceId, department);
-        }
-        if (assignedTo && !updateBody.assignedToUserId) {
-            updateBody.assignedToDepartmentId = await resolveDepartmentId(workspaceId, assignedTo);
         }
 
         if (roleBand === "admin" || roleBand === "manager") {
             const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
             const currentlyAllowed =
-                isDeptAllowed(existingAsset.departmentId, assignedDepartmentIds) ||
-                isDeptAllowed(existingAsset.assignedToDepartmentId, assignedDepartmentIds);
+                isDeptAllowed(existingAsset.assignedToDepartmentId, assignedDepartmentIds) ||
+                (!existingAsset.assignedToDepartmentId && isDeptAllowed(existingAsset.departmentId, assignedDepartmentIds)) ||
+                getEffectiveAllocations(existingAsset).some((allocation) => isDeptAllowed(allocation.departmentId, assignedDepartmentIds));
             if (!currentlyAllowed) {
                 return res.status(403).json({
-                    message: "You can only update assets in your assigned departments.",
+                    message: "Department admins can only edit assets assigned to their own department.",
                 });
             }
             // Only re-validate the owning department when it is actually being changed —
             // assigning to an employee/department doesn't touch departmentId, and re-checking
             // it against the (unchanged) existing value here would falsely block admins/managers
             // who can only reach this asset via assignedToDepartmentId, not departmentId.
-            if (updateBody.departmentId !== undefined && !isDeptAllowed(updateBody.departmentId, assignedDepartmentIds)) {
+            if (updateBody.departmentId !== undefined && String(updateBody.departmentId) !== String(existingAsset.departmentId || "")) {
                 return res.status(403).json({
-                    message: "You can only move assets into your assigned departments.",
+                    message: "Only Founder and Super Admin can change an asset owning department.",
                 });
             }
         }
 
+        const allocatedQuantity = getEffectiveAllocations(existingAsset).reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0);
+        if (updateBody.quantity !== undefined && Number(updateBody.quantity) < allocatedQuantity) {
+            return res.status(400).json({ message: `Quantity cannot be lower than the ${allocatedQuantity} unit(s) already allocated.` });
+        }
+        delete updateBody.allocations;
         if (expiryDate !== undefined) updateBody.expiryDate = expiryDate ? new Date(expiryDate) : null;
         if (warrantyExpiry !== undefined) updateBody.warrantyExpiry = warrantyExpiry ? new Date(warrantyExpiry) : null;
         if (value !== undefined) updateBody.value = normalizeMoneyValue(value);
@@ -424,6 +573,9 @@ export const updateAsset = async (req, res, next) => {
         )
             .populate("departmentId", "name")
             .populate("assignedToDepartmentId", "name")
+            .populate("assignedToUserId", "name firstName lastName email")
+            .populate("allocations.departmentId", "name")
+            .populate("allocations.userId", "name firstName lastName email")
             .lean()
             .exec();
 
@@ -436,11 +588,7 @@ export const updateAsset = async (req, res, next) => {
         return res.status(200).json({
             message: "Asset updated successfully",
             data: {
-                asset: {
-                    ...asset,
-                    department: asset.departmentId?.name || department || "",
-                    assignedTo: asset.assignedToDepartmentId?.name || asset.assignedToUserId || assignedTo || "Unassigned",
-                },
+                asset: serializeAsset(asset, { department, assignedTo }),
             },
         });
     } catch (error) {
@@ -454,95 +602,199 @@ export const updateAsset = async (req, res, next) => {
     }
 };
 
+function allocationQuantity(value) {
+    const quantity = Number(value);
+    return Number.isInteger(quantity) && quantity > 0 ? quantity : 0;
+}
+
+function findAllocation(asset, departmentId, userId = null) {
+    return asset.allocations.find((allocation) =>
+        idString(allocation.departmentId) === String(departmentId) &&
+        idString(allocation.userId) === String(userId || "")
+    );
+}
+
+function addAllocation(asset, { departmentId, userId = null, quantity, note = "" }) {
+    const existing = findAllocation(asset, departmentId, userId);
+    if (existing) {
+        existing.quantity += quantity;
+        if (note) existing.note = note;
+        existing.assignedAt = new Date();
+        return existing;
+    }
+    asset.allocations.push({ departmentId, userId, quantity, note, assignedAt: new Date() });
+    return asset.allocations[asset.allocations.length - 1];
+}
+
+async function populatedAsset(assetId, workspaceId) {
+    return Asset.findOne({ _id: assetId, workspaceId })
+        .populate("departmentId", "name")
+        .populate("assignedToDepartmentId", "name")
+        .populate("assignedToUserId", "name firstName lastName email")
+        .populate("allocations.departmentId", "name")
+        .populate("allocations.userId", "name firstName lastName email")
+        .lean()
+        .exec();
+}
+
 export const transferAsset = async (req, res, next) => {
     try {
         const workspaceId = getCurrentWorkspaceId(req);
         const userId = getCurrentUserId(req);
         const { assetId } = req.params;
-
         const {
             assignedToUserId = null,
             assignedToDepartmentId = null,
+            quantity: requestedQuantity = 1,
             transferReason = "",
-            transferDate = new Date(),
         } = req.body;
 
-        if (!workspaceId) {
-            return res.status(400).json({
-                message: "Workspace is required",
-            });
-        }
-
-        if (!mongoose.Types.ObjectId.isValid(assetId)) {
-            return res.status(400).json({
-                message: "Invalid asset id",
-            });
-        }
-
-        if (assignedToUserId && !mongoose.Types.ObjectId.isValid(assignedToUserId)) {
-            return res.status(400).json({
-                message: "Invalid assigned user id",
-            });
+        if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
+        if (!mongoose.Types.ObjectId.isValid(assetId)) return res.status(400).json({ message: "Invalid asset id" });
+        const quantity = allocationQuantity(requestedQuantity);
+        if (!quantity) return res.status(400).json({ message: "Quantity must be a whole number greater than zero." });
+        if (assignedToUserId && quantity !== 1) {
+            return res.status(400).json({ message: "Each employee can be assigned exactly one unit of an asset." });
         }
 
         const roleBand = getRoleBand(req.workspaceMembership?.role);
-        if (roleBand === "employee") {
-            return res.status(403).json({
-                message: "You do not have permission to transfer assets.",
+        if (roleBand === "employee") return res.status(403).json({ message: "You do not have permission to assign or transfer assets." });
+
+        const asset = await Asset.findOne({ _id: assetId, workspaceId });
+        if (!asset) return res.status(404).json({ message: "Asset not found" });
+        ensureAllocationState(asset);
+        if (assignedToUserId && asset.allocations.some((allocation) => idString(allocation.userId) === String(assignedToUserId))) {
+            return res.status(400).json({ message: "This employee already has one unit of this asset assigned." });
+        }
+
+        const validation = await validateAssetTransfer({ workspaceId, userId, roleBand, asset, assignedToDepartmentId, assignedToUserId });
+        if (validation.message) return res.status(validation.status).json({ message: validation.message });
+
+        const ownerDepartmentId = idString(asset.departmentId);
+        const targetDepartmentId = String(assignedToDepartmentId);
+        const totalAllocated = asset.allocations.reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0);
+        const owningDepartmentAvailable = Math.max(0, Number(asset.quantity || 1) - totalAllocated);
+
+        if (roleBand === "owner" || roleBand === "super_admin") {
+            if (!assignedToUserId && targetDepartmentId === ownerDepartmentId) {
+                return res.status(400).json({ message: "The remaining quantity is already held by the owning department." });
+            }
+            if (quantity > owningDepartmentAvailable) {
+                return res.status(400).json({ message: `Only ${owningDepartmentAvailable} unallocated unit(s) remain in the owning department.` });
+            }
+            addAllocation(asset, {
+                departmentId: assignedToDepartmentId,
+                userId: assignedToUserId || null,
+                quantity,
+                note: transferReason,
+            });
+        } else {
+            if (!assignedToUserId) {
+                return res.status(403).json({ message: "Department admins can assign allocated units only to employees in their own department." });
+            }
+            if (targetDepartmentId === ownerDepartmentId) {
+                if (quantity > owningDepartmentAvailable) {
+                    return res.status(400).json({ message: `Only ${owningDepartmentAvailable} unit(s) are available in the owning department.` });
+                }
+            } else {
+                const departmentPool = findAllocation(asset, targetDepartmentId, null);
+                const departmentAvailable = Number(departmentPool?.quantity || 0);
+                if (quantity > departmentAvailable) {
+                    return res.status(400).json({ message: `Only ${departmentAvailable} unit(s) are available for this department.` });
+                }
+                departmentPool.quantity -= quantity;
+                if (departmentPool.quantity === 0) {
+                    asset.allocations.splice(asset.allocations.indexOf(departmentPool), 1);
+                }
+            }
+            addAllocation(asset, {
+                departmentId: assignedToDepartmentId,
+                userId: assignedToUserId,
+                quantity,
+                note: transferReason,
             });
         }
 
-        if (roleBand === "admin" || roleBand === "manager") {
-            const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId").lean().exec();
-            if (!existingAsset) {
-                return res.status(404).json({ message: "Asset not found" });
-            }
-            const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
-            const currentlyAllowed =
-                isDeptAllowed(existingAsset.departmentId, assignedDepartmentIds) ||
-                isDeptAllowed(existingAsset.assignedToDepartmentId, assignedDepartmentIds);
-            const targetAllowed = !assignedToDepartmentId || isDeptAllowed(assignedToDepartmentId, assignedDepartmentIds);
-            if (!currentlyAllowed || !targetAllowed) {
-                return res.status(403).json({
-                    message: "You can only transfer assets within your assigned departments.",
-                });
-            }
-        }
-
-        const asset = await Asset.findOneAndUpdate(
-            {
-                _id: assetId,
-                workspaceId,
-            },
-            {
-                assignedToUserId,
-                assignedToDepartmentId,
-                transferReason,
-                transferDate,
-            },
-            {
-                new: true,
-                runValidators: true,
-            }
-        )
-            .lean()
-            .exec();
-
-        if (!asset) {
-            return res.status(404).json({
-                message: "Asset not found",
-            });
-        }
-
+        asset.transferReason = transferReason;
+        asset.transferDate = new Date();
+        await asset.save();
+        const updated = await populatedAsset(assetId, workspaceId);
         return res.status(200).json({
-            message: "Asset transferred successfully",
-            data: { asset },
+            message: assignedToUserId ? "Asset quantity assigned successfully" : "Asset quantity transferred successfully",
+            data: { asset: serializeAsset(updated) },
         });
     } catch (error) {
         next(error);
     }
 };
 
+export const releaseAssetAllocation = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+        const userId = getCurrentUserId(req);
+        const { assetId, allocationId } = req.params;
+        const quantity = allocationQuantity(req.body?.quantity || 1);
+        const isLegacyAllocation = String(allocationId || "").startsWith("legacy-");
+        if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
+        if (!mongoose.Types.ObjectId.isValid(assetId) || (!isLegacyAllocation && !mongoose.Types.ObjectId.isValid(allocationId))) {
+            return res.status(400).json({ message: "Invalid asset allocation." });
+        }
+        if (!quantity) return res.status(400).json({ message: "Quantity must be a whole number greater than zero." });
+
+        const asset = await Asset.findOne({ _id: assetId, workspaceId });
+        if (!asset) return res.status(404).json({ message: "Asset not found" });
+        ensureAllocationState(asset);
+        // Legacy assets carry their pre-migration assignment on assignedToDepartmentId/assignedToUserId
+        // instead of a real allocations subdocument, so the client is shown a synthetic
+        // "legacy-<assetId>" id (see getEffectiveAllocations). ensureAllocationState converts that
+        // legacy assignment into the sole real allocation just above, so resolve it positionally here.
+        const allocation = isLegacyAllocation ? asset.allocations[0] : asset.allocations.id(allocationId);
+        if (!allocation) return res.status(404).json({ message: "Asset allocation not found." });
+        if (quantity > Number(allocation.quantity || 0)) {
+            return res.status(400).json({ message: `Only ${allocation.quantity} unit(s) are assigned in this allocation.` });
+        }
+
+        const roleBand = getRoleBand(req.workspaceMembership?.role);
+        const isTopManagement = roleBand === "owner" || roleBand === "super_admin";
+        if (!isTopManagement) {
+            if (roleBand !== "admin" && roleBand !== "manager") {
+                return res.status(403).json({ message: "You do not have permission to unassign assets." });
+            }
+            const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
+            if (!isDeptAllowed(allocation.departmentId, assignedDepartmentIds)) {
+                return res.status(403).json({ message: "You can unassign or return assets only for your own department." });
+            }
+        }
+
+        const allocationDepartmentId = idString(allocation.departmentId);
+        const ownerDepartmentId = idString(asset.departmentId);
+        const wasEmployeeAssignment = Boolean(allocation.userId);
+        allocation.quantity -= quantity;
+        if (allocation.quantity === 0) allocation.deleteOne();
+
+        if (wasEmployeeAssignment && allocationDepartmentId !== ownerDepartmentId) {
+            addAllocation(asset, {
+                departmentId: allocationDepartmentId,
+                userId: null,
+                quantity,
+                note: req.body?.reason || "Returned to department pool",
+            });
+        }
+
+        asset.transferReason = req.body?.reason || (wasEmployeeAssignment ? "Employee assignment removed" : "Returned to owning department");
+        asset.transferDate = new Date();
+        await asset.save();
+        const updated = await populatedAsset(assetId, workspaceId);
+        return res.status(200).json({
+            message: wasEmployeeAssignment
+                ? "Asset quantity unassigned and returned to the department pool"
+                : "Asset quantity returned to the owning department",
+            data: { asset: serializeAsset(updated) },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 export const deleteAsset = async (req, res, next) => {
     try {
         const workspaceId = getCurrentWorkspaceId(req);
@@ -562,26 +814,8 @@ export const deleteAsset = async (req, res, next) => {
         }
 
         const roleBand = getRoleBand(req.workspaceMembership?.role);
-        if (roleBand === "employee") {
-            return res.status(403).json({
-                message: "You do not have permission to delete assets.",
-            });
-        }
-
-        if (roleBand === "admin" || roleBand === "manager") {
-            const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId").lean().exec();
-            if (!existingAsset) {
-                return res.status(404).json({ message: "Asset not found" });
-            }
-            const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
-            const allowed =
-                isDeptAllowed(existingAsset.departmentId, assignedDepartmentIds) ||
-                isDeptAllowed(existingAsset.assignedToDepartmentId, assignedDepartmentIds);
-            if (!allowed) {
-                return res.status(403).json({
-                    message: "You can only delete assets in your assigned departments.",
-                });
-            }
+        if (roleBand !== "owner" && roleBand !== "super_admin") {
+            return res.status(403).json({ message: "Only Founder and Super Admin can delete assets." });
         }
 
         const asset = await Asset.findOneAndDelete({

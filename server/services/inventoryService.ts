@@ -348,7 +348,7 @@ export async function allocateInventoryForCurrentUser(userId, inventoryId, input
 }
 
 export async function transferInventoryForCurrentUser(userId, inventoryId, input) {
-  const { targetDepartment, quantity, roleBand } = input || {};
+  const { targetDepartment, targetDepartmentId, quantity, roleBand } = input || {};
   const band = getRoleBand(roleBand);
 
   if (band !== "owner" && band !== "super_admin") {
@@ -397,6 +397,7 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
     name: source.name,
     category: source.category,
     trackingType: source.trackingType,
+    ...(targetDepartmentId ? { departmentId: toObjId(targetDepartmentId) } : {}),
     departmentName: { $regex: new RegExp(`^${targetDepartment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
   });
 
@@ -428,6 +429,7 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
       name: source.name,
       category: source.category,
       trackingType: source.trackingType,
+      departmentId: targetDepartmentId ? toObjId(targetDepartmentId) : null,
       departmentName: targetDepartment,
       totalQuantity: qty,
       availableQuantity: qty,
@@ -444,7 +446,13 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
 
   return {
     sourceItem: await Inventory.findById(inventoryId).lean().exec(),
-    targetItem: target ? await Inventory.findById(target._id).lean().exec() : null,
+    targetItem: await Inventory.findOne({
+      workspaceId: source.workspaceId,
+      name: source.name,
+      category: source.category,
+      trackingType: source.trackingType,
+      ...(targetDepartmentId ? { departmentId: toObjId(targetDepartmentId) } : { departmentName: targetDepartment }),
+    }).lean().exec(),
   };
 }
 

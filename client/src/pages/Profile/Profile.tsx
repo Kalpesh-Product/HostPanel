@@ -38,7 +38,7 @@ const Profile = () => {
           },
         }}
       >
-        <Tab label="My zProfile" />
+        <Tab label="My Profile" />
         {/* <Tab label="Change Password" /> */}
         {/* <Tab label="Access Grant" /> */}
         {/* <Tab label="My Assets" /> */}
@@ -73,12 +73,12 @@ const Profile = () => {
             <MyAssets pageTitle={"My Assets"} />
           </div>
         )} */}
-        {activeTab === 5 && (
+        {activeTab === 2 && (
           <div>
             <MeetingRoomCredits pageTitle={"Meeting Room Credits"} />
           </div>
         )}
-        {activeTab === 5 && (
+        {activeTab === 3 && (
           <div>
             <TicketsHistory pageTitle={"Tickets History"} />
           </div>

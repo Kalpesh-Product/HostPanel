@@ -32,6 +32,29 @@ export const transferAsset = async (assetId: string, payload: Record<string, any
   return unwrap(response);
 };
 
+export const releaseAssetAllocation = async (assetId: string, allocationId: string, payload: Record<string, any> = {}) => {
+  const response = await axiosPrivate.patch(`/api/assets/${assetId}/allocations/${allocationId}/release`, payload);
+  return unwrap(response);
+};
+export const getAssetRequests = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/assets/requests", { params });
+  return unwrap(response);
+};
+
+export const createAssetRequest = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/assets/requests", payload);
+  return unwrap(response);
+};
+
+export const updateAssetRequestStatus = async (requestId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/assets/requests/${requestId}/status`, payload);
+  return unwrap(response);
+};
+
+export const fulfillAssetRequest = async (requestId: string, assetId: string) => {
+  const response = await axiosPrivate.post(`/api/assets/requests/${requestId}/fulfill`, { assetId });
+  return unwrap(response);
+};
 export const getDepartments = async () => {
   const response = await axiosPrivate.get("/api/organization/departments");
   return unwrap(response);

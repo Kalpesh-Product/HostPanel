@@ -641,7 +641,7 @@ export function InventoryPage() {
                   <>
                     <div className="w-px h-4 bg-slate-200 mx-1" />
                     <select
-                      className="px-3 py-1.5 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-600 outline-none cursor-pointer"
+                      className="px-3 py-1.5 bg-white border border-slate-200/60 rounded-xl text-[11px] font-pmedium text-slate-600 outline-none cursor-pointer"
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
                     >
@@ -656,7 +656,7 @@ export function InventoryPage() {
                 <div className="relative">
                   <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
-                    className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                    className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-xl text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
                     value={departmentFilter}
                     onChange={(e) => setDepartmentFilter(e.target.value)}
                   >
@@ -672,7 +672,7 @@ export function InventoryPage() {
                   <input
                     type="text"
                     placeholder="Search item name or code..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-xl text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />

@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
-import useModuleAccessMap from "../../hooks/useModuleAccessMap";
 import { getStoredTenantRole } from "../../lib/tenant-session";
 import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
@@ -308,7 +307,6 @@ interface EmployeeRecord {
 export default function UserDetails() {
   const { auth, setAuth } = useAuth();
   const axios = useAxiosPrivate();
-  const { workspacePlan } = useModuleAccessMap();
   const [employee, setEmployee] = useState<EmployeeRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -351,11 +349,7 @@ export default function UserDetails() {
     ? profileDepartments.join(", ")
     : employee?.department || "-";
   const profileStatus = employee?.status || "active";
-  const planDepartmentDisplay = workspacePlan === "basic"
-    ? "-"
-    : workspacePlan === "professional"
-    ? "Sales and Tech"
-    : "All Departments";
+
   const currentAvatarUrl = avatarPreviewUrl || employee?.profilePictureUrl || "";
   const selectedPhoneCountry = PHONE_COUNTRIES.find((country) => country.isoCode === editForm.phoneCountryIso);
   const phoneValidation = validatePhoneNumber(editForm.phone, editForm.phoneCountryIso);
@@ -378,7 +372,7 @@ export default function UserDetails() {
   const workFields = [
     { label: "Employee ID", value: employee?.employeeNumber || "-", icon: Hash },
     { label: "Role", value: profileRole, icon: BadgeCheck },
-    { label: "Department", value: planDepartmentDisplay, icon: Building },
+    { label: "Department", value: profileDepartment, icon: Building },
     { label: "Job Title", value: employee?.jobTitle || "-", icon: BadgeAlert },
     { label: "Job Code", value: employee?.jobCode || "-", icon: FileKey },
     { label: "Work Location", value: employee?.workLocation || "-", icon: MapPin },

@@ -44,6 +44,49 @@ export const updateMonthlyExpenseStatus = async (payload: {
   return unwrap(response);
 };
 
+// --- Department Finance Page V2 ---
+
+export const getDepartmentFinanceData = async (fiscalYear: string, department: string) => {
+  const response = await axiosPrivate.get('/api/finance/department', {
+    params: { fiscalYear, department },
+  });
+  return unwrap(response);
+};
+
+export const importFinanceSnapshot = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post('/api/finance/department/import-snapshot', payload);
+  return unwrap(response);
+};
+
+export const resetRejectedAnnualBudget = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post('/api/finance/department/reset-rejected', payload);
+  return unwrap(response);
+};
+
+export const sendReminder = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post('/api/finance/department/send-reminder', payload);
+  return unwrap(response);
+};
+
+export const submitBudgetRequest = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post('/api/finance/department/submit-budget', payload);
+  return unwrap(response);
+};
+
+export const submitVendor = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post('/api/finance/department/submit-vendor', payload);
+  return unwrap(response);
+};
+
+export const uploadInvoice = async (formData: FormData) => {
+  const response = await axiosPrivate.post('/api/finance/department/upload-invoice', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return unwrap(response);
+};
+
+// --- Existing Services ---
+
 export const getMyPayslips = async () => {
   const response = await axiosPrivate.get("/api/finance/payroll/my-payslips");
   return unwrap(response);
