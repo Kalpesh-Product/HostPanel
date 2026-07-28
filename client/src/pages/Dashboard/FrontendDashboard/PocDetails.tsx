@@ -42,13 +42,13 @@ const getCompanyId = (c) => c?._id?.$oid || c?._id || c?.id || null;
 async function fetchPocAxios(companyId, signal) {
   // Try both shapes; keep only the one that exists in prod if you know it
   const ENDPOINTS = [
-    "https://wononomadsbe.vercel.app/api/poc",
-    "https://wononomadsbe.vercel.app/api/poc/poc",
+    "https://wono.co/api/poc",
+    "https://wono.co/api/poc/poc",
   ];
 
   try {
     const res = await axios.get(
-      `https://wononomadsbe.vercel.app/api/poc/poc?companyId=${companyId}`,
+      `https://wono.co/api/poc/poc?companyId=${companyId}`,
       { signal }
     );
     const data = res.data;

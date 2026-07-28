@@ -17,10 +17,14 @@ export interface IInventory extends Document {
     name: string;
     category: "Physical" | "Digital" | "Other" | "Office Supplies" | "Pantry" | "Facilities" | "Branding" | "Hardware" | "Safety Equipment";
     trackingType: "Consumable" | "Returnable Asset";
+    status?: "active" | "maintenance" | "retired";
     departmentId?: mongoose.Types.ObjectId | null;
     departmentName?: string;
+    location?: string;
     totalQuantity: number;
     availableQuantity: number;
+    addedByRole?: string;
+    addedByUserId?: mongoose.Types.ObjectId | null;
     ledger: IInventoryLedger[];
     createdAt?: Date;
     updatedAt?: Date;
@@ -90,6 +94,12 @@ const inventorySchema = new Schema<IInventory>(
             required: true,
             index: true,
         },
+        status: {
+            type: String,
+            enum: ["active", "maintenance", "retired"],
+            default: "active",
+            trim: true,
+        },
         departmentId: {
             type: Schema.Types.ObjectId,
             ref: "Department",
@@ -100,6 +110,12 @@ const inventorySchema = new Schema<IInventory>(
             type: String,
             default: "",
             trim: true,
+        },
+        location: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 120,
         },
         totalQuantity: {
             type: Number,
@@ -112,6 +128,18 @@ const inventorySchema = new Schema<IInventory>(
             required: true,
             min: 0,
             default: 0,
+        },
+        addedByRole: {
+            type: String,
+            default: "",
+            trim: true,
+            index: true,
+        },
+        addedByUserId: {
+            type: Schema.Types.ObjectId,
+            ref: "HostUser",
+            default: null,
+            index: true,
         },
         ledger: {
             type: [inventoryLedgerSchema],

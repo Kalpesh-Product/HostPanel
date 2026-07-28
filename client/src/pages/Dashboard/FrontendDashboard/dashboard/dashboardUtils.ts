@@ -4,12 +4,13 @@
  * about a file mixing component exports with non-component exports.
  */
 
-export const fmtINR = (n: number) =>
-  new Intl.NumberFormat("en-IN", {
+import { formatWorkspaceCurrency } from "../../../../lib/workspaceLocalization";
+
+export const fmtINR = (n: number, currency = "INR") =>
+  formatWorkspaceCurrency(Number(n || 0), currency, {
     style: "currency",
-    currency: "INR",
     maximumFractionDigits: 0,
-  }).format(n);
+  });
 
 export const getGreeting = (hours: number) => {
   if (hours < 12) return "Good Morning";

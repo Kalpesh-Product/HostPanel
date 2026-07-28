@@ -11,6 +11,8 @@ import {
 import { CardsGridSkeleton } from '@/components/ui/Skeleton';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '@/lib/workspaceLocalization';
 
 import PageFrame from '@/components/Pages/PageFrame';
 
@@ -79,6 +81,7 @@ interface CreditRequest {
 }
 
 export default function TenantBuyCreditsPage() {
+  const workspacePreferences = useWorkspacePreferences();
   const currentUser = getStoredUser() || {};
   const userRole = getStoredTenantRole() || 'tenant-employee';
   const canManageTenant = isTenantAdminRole(userRole) || isTenantManagerRole(userRole);
@@ -98,6 +101,9 @@ export default function TenantBuyCreditsPage() {
   const [payingRequestId, setPayingRequestId] = useState<string | null>(null);
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [transactionId, setTransactionId] = useState('');
+  const currencySymbol = getWorkspaceCurrencySymbol(workspacePreferences.currency);
+  const formatCurrency = (value = 0) =>
+    formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
 
   useEffect(() => {
     let active = true;
@@ -250,7 +256,7 @@ export default function TenantBuyCreditsPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-        <p className="text-xs font-pmedium text-slate-500">Pricing: <span className="font-pbold text-slate-800">1 CR = ₹10</span></p>
+                <p className="text-xs font-pmedium text-slate-500">Pricing: <span className="font-pbold text-slate-800">1 CR = {currencySymbol}10</span></p>
         <span className="text-slate-300">|</span>
         <p className="text-xs font-pmedium text-slate-500">Minimum: <span className="font-pbold text-slate-800">50 CR</span></p>
       </div>
@@ -292,7 +298,7 @@ export default function TenantBuyCreditsPage() {
                           </p>
                           {Number(request.totalAmount || 0) > 0 && (
                             <p className="mt-1 text-xs font-pmedium text-slate-600">
-                              {Number(request.requestedCredits || 0)} CR × ₹{Number(request.ratePerCredit || 10)} = <span className="font-pbold">₹{Number(request.totalAmount).toLocaleString('en-IN')}</span>
+                              {Number(request.requestedCredits || 0)} CR × {currencySymbol}{Number(request.ratePerCredit || 10)} = <span className="font-pbold">{formatCurrency(request.totalAmount)}</span>
                             </p>
                           )}
                           {request.requestedReason && (
@@ -387,10 +393,10 @@ export default function TenantBuyCreditsPage() {
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 text-sm">
                 <div className="flex items-center justify-between font-pmedium text-slate-700">
                   <span>Estimated Price</span>
-                  <span className="font-pbold text-slate-900">₹{(Number(newCredits || 0) * 10).toLocaleString('en-IN')}</span>
+                  <span className="font-pbold text-slate-900">{formatCurrency(Number(newCredits || 0) * 10)}</span>
                 </div>
                 <div className="mt-1 text-xs font-pregular text-slate-500">
-                  {newCredits ? `${newCredits} CR × ₹10 = ₹${(Number(newCredits) * 10).toLocaleString('en-IN')}` : 'Enter credits to see price'}
+                  {newCredits ? `${newCredits} CR × ${currencySymbol}10 = ${formatCurrency(Number(newCredits) * 10)}` : 'Enter credits to see price'}
                 </div>
               </div>
             </div>

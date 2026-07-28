@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Country } from "country-state-city";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import type { CountryCode } from "libphonenumber-js";
 import {
   BadgeAlert,
   BadgeCheck,
@@ -26,7 +28,6 @@ import {
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
-import useModuleAccessMap from "../../hooks/useModuleAccessMap";
 import { getStoredTenantRole } from "../../lib/tenant-session";
 import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
@@ -55,35 +56,27 @@ function formatDateForInput(value: unknown): string {
 const getFlagUrl = (isoCode: string) =>
   `https://flagcdn.com/w40/${String(isoCode || "").toLowerCase()}.png`;
 
-// National significant number length used to cap phone digit entry per country.
-const PHONE_COUNTRY_DIGITS: Record<string, number> = {
-  IN: 10, US: 10, CA: 10, GB: 10, AU: 9, AE: 9, SA: 9, QA: 8, OM: 8, BH: 8,
-  KW: 8, SG: 8, MY: 9, TH: 9, PH: 10, ID: 10, PK: 10, BD: 10, LK: 9, NP: 10,
-  JP: 10, KR: 10, CN: 11, DE: 11, FR: 9, IT: 10, ES: 9, NL: 9, ZA: 9, NG: 10,
-  KE: 9,
-};
-
 interface PhoneCountry {
   isoCode: string;
   name: string;
   dialCode: string;
-  digits: number;
 }
 
 const PHONE_COUNTRIES: PhoneCountry[] = (() => {
-  const allCountries = Country.getAllCountries();
-  const entries = Object.entries(PHONE_COUNTRY_DIGITS)
-    .map(([isoCode, digits]) => {
-      const country = allCountries.find((c) => c.isoCode === isoCode);
-      if (!country) return null;
-      return { isoCode, name: country.name, dialCode: `+${country.phonecode}`, digits };
-    })
-    .filter((entry): entry is PhoneCountry => Boolean(entry));
+  const entries = Country.getAllCountries()
+    .filter((country) => Boolean(String(country.phonecode || "").trim()))
+    .map((country) => ({
+      isoCode: country.isoCode,
+      name: country.name,
+      dialCode: `+${String(country.phonecode).replace(/^\+/, "")}`,
+    }));
   entries.sort((a, b) => (a.isoCode === "IN" ? -1 : b.isoCode === "IN" ? 1 : a.name.localeCompare(b.name)));
   return entries;
 })();
 
-const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES.find((c) => c.isoCode === "IN") || PHONE_COUNTRIES[0];
+const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES.find((c) => c.isoCode === "IN")
+  || PHONE_COUNTRIES[0]
+  || { isoCode: "IN", name: "India", dialCode: "+91" };
 
 function getPhoneCountry(isoCode: string): PhoneCountry {
   return PHONE_COUNTRIES.find((c) => c.isoCode === isoCode) || DEFAULT_PHONE_COUNTRY;
@@ -91,23 +84,46 @@ function getPhoneCountry(isoCode: string): PhoneCountry {
 
 function parsePhoneValue(value: unknown): { isoCode: string; number: string } {
   const trimmed = String(value || "").trim();
-  if (!trimmed) return { isoCode: DEFAULT_PHONE_COUNTRY.isoCode, number: "" };
+  if (!trimmed) return { isoCode: "", number: "" };
   if (trimmed.startsWith("+")) {
+    const parsed = parsePhoneNumberFromString(trimmed);
+    if (parsed?.country && PHONE_COUNTRIES.some((entry) => entry.isoCode === parsed.country)) {
+      return { isoCode: parsed.country, number: parsed.nationalNumber };
+    }
     const match = [...PHONE_COUNTRIES]
-      .sort((a, b) => b.dialCode.length - a.dialCode.length)
-      .find((entry) => trimmed.startsWith(entry.dialCode));
+      .sort((a, b) => b.dialCode.replace(/\D/g, "").length - a.dialCode.replace(/\D/g, "").length)
+      .find((entry) => trimmed.replace(/\D/g, "").startsWith(entry.dialCode.replace(/\D/g, "")));
     if (match) {
-      return { isoCode: match.isoCode, number: trimmed.slice(match.dialCode.length).replace(/\D/g, "") };
+      const dialDigits = match.dialCode.replace(/\D/g, "");
+      return { isoCode: match.isoCode, number: trimmed.replace(/\D/g, "").slice(dialDigits.length) };
     }
     return { isoCode: DEFAULT_PHONE_COUNTRY.isoCode, number: trimmed.replace(/^\+\d+\D*/, "").replace(/\D/g, "") };
   }
   return { isoCode: DEFAULT_PHONE_COUNTRY.isoCode, number: trimmed.replace(/\D/g, "") };
 }
 
+function validatePhoneNumber(value: string, isoCode: string) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return { valid: true, e164: "", message: "" };
+  if (!isoCode) {
+    return { valid: false, e164: "", message: "Select a country code." };
+  }
+
+  const selectedCountry = getPhoneCountry(isoCode);
+  const parsed = parsePhoneNumberFromString(digits, isoCode as CountryCode);
+  const valid = Boolean(parsed?.isValid() && parsed.country === isoCode);
+
+  return {
+    valid,
+    e164: valid ? String(parsed?.number || "") : "",
+    message: valid ? "" : `Enter a valid phone number for ${selectedCountry.name}.`,
+  };
+}
+
 function PhoneCountryDropdown({ value, onChange }: { value: string; onChange: (isoCode: string) => void }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const selected = getPhoneCountry(value);
+  const selected = PHONE_COUNTRIES.find((country) => country.isoCode === value);
 
   useEffect(() => {
     if (!open) return;
@@ -130,8 +146,14 @@ function PhoneCountryDropdown({ value, onChange }: { value: string; onChange: (i
         onClick={() => setOpen((prev) => !prev)}
         className={`${fieldInputClass} flex w-[104px] shrink-0 items-center gap-1.5 px-2.5`}
       >
-        <img src={getFlagUrl(selected.isoCode)} alt={`${selected.name} flag`} className="h-3.5 w-5 shrink-0 rounded-[2px] object-cover" />
-        <span className="truncate">{selected.dialCode}</span>
+        {selected ? (
+          <>
+            <img src={getFlagUrl(selected.isoCode)} alt={`${selected.name} flag`} className="h-3.5 w-5 shrink-0 rounded-[2px] object-cover" />
+            <span className="truncate">{selected.dialCode}</span>
+          </>
+        ) : (
+          <span className="truncate text-slate-500">Code</span>
+        )}
         <ChevronDown size={13} className={`ml-auto shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -171,7 +193,7 @@ interface PersonalDetailsForm {
 
 function emptyPersonalDetailsForm(): PersonalDetailsForm {
   return {
-    phoneCountryIso: DEFAULT_PHONE_COUNTRY.isoCode,
+    phoneCountryIso: "",
     phone: "",
     gender: "",
     dateOfBirth: "",
@@ -285,7 +307,6 @@ interface EmployeeRecord {
 export default function UserDetails() {
   const { auth, setAuth } = useAuth();
   const axios = useAxiosPrivate();
-  const { workspacePlan } = useModuleAccessMap();
   const [employee, setEmployee] = useState<EmployeeRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -328,12 +349,10 @@ export default function UserDetails() {
     ? profileDepartments.join(", ")
     : employee?.department || "-";
   const profileStatus = employee?.status || "active";
-  const planDepartmentDisplay = workspacePlan === "basic"
-    ? "-"
-    : workspacePlan === "professional"
-    ? "Sales and Tech"
-    : "All Departments";
+
   const currentAvatarUrl = avatarPreviewUrl || employee?.profilePictureUrl || "";
+  const selectedPhoneCountry = PHONE_COUNTRIES.find((country) => country.isoCode === editForm.phoneCountryIso);
+  const phoneValidation = validatePhoneNumber(editForm.phone, editForm.phoneCountryIso);
 
   const personalFields = [
     { label: "Full Name", value: profileName, icon: UserRound },
@@ -353,7 +372,7 @@ export default function UserDetails() {
   const workFields = [
     { label: "Employee ID", value: employee?.employeeNumber || "-", icon: Hash },
     { label: "Role", value: profileRole, icon: BadgeCheck },
-    { label: "Department", value: planDepartmentDisplay, icon: Building },
+    { label: "Department", value: profileDepartment, icon: Building },
     { label: "Job Title", value: employee?.jobTitle || "-", icon: BadgeAlert },
     { label: "Job Code", value: employee?.jobCode || "-", icon: FileKey },
     { label: "Work Location", value: employee?.workLocation || "-", icon: MapPin },
@@ -554,16 +573,21 @@ export default function UserDetails() {
   };
 
   const handleSaveProfile = async () => {
+    const validatedPhone = validatePhoneNumber(editForm.phone, editForm.phoneCountryIso);
+    if (!validatedPhone.valid) {
+      toast.error(validatedPhone.message);
+      return;
+    }
+
     setIsSavingProfile(true);
     try {
-      const combinedPhone = editForm.phone.trim()
-        ? `${getPhoneCountry(editForm.phoneCountryIso).dialCode} ${editForm.phone.trim()}`
-        : "";
+      const combinedPhone = validatedPhone.e164;
       const permanentAddress = editForm.sameAsCurrentAddress
         ? editForm.currentAddress.trim()
         : editForm.permanentAddress.trim();
       const response = await updateMyEmployeeProfile({
         phone: combinedPhone,
+        phoneCountryIso: editForm.phoneCountryIso,
         gender: editForm.gender.trim(),
         dateOfBirth: editForm.dateOfBirth || null,
         currentAddress: editForm.currentAddress.trim(),
@@ -824,29 +848,34 @@ export default function UserDetails() {
               <input type="email" value={String(profileEmail)} disabled readOnly className={fieldDisabledClass} />
             </FormField>
 
-            <FormField label="Phone" hint={`${getPhoneCountry(editForm.phoneCountryIso).digits}-digit number for ${getPhoneCountry(editForm.phoneCountryIso).name}`}>
+            <FormField
+              label="Phone"
+              hint={selectedPhoneCountry
+                ? `${selectedPhoneCountry.dialCode} is selected for ${selectedPhoneCountry.name}.`
+                : "Select a country code."}
+            >
               <div className="flex gap-2">
                 <PhoneCountryDropdown
                   value={editForm.phoneCountryIso}
-                  onChange={(isoCode) => setEditForm((p) => ({
-                    ...p,
-                    phoneCountryIso: isoCode,
-                    phone: p.phone.slice(0, getPhoneCountry(isoCode).digits),
-                  }))}
+                  onChange={(isoCode) => setEditForm((p) => ({ ...p, phoneCountryIso: isoCode }))}
                 />
                 <input
                   type="tel"
                   inputMode="numeric"
                   value={editForm.phone}
-                  maxLength={getPhoneCountry(editForm.phoneCountryIso).digits}
+                  maxLength={15}
+                  placeholder="Phone number"
+                  aria-invalid={Boolean(editForm.phone) && !phoneValidation.valid}
                   onChange={(e) => {
-                    const maxDigits = getPhoneCountry(editForm.phoneCountryIso).digits;
-                    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, maxDigits);
+                    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 15);
                     setEditForm((p) => ({ ...p, phone: digitsOnly }));
                   }}
-                  className={`${fieldInputClass} flex-1`}
+                  className={`${fieldInputClass} flex-1 ${editForm.phone && !phoneValidation.valid ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/10" : ""}`}
                 />
               </div>
+              {editForm.phone && !phoneValidation.valid && (
+                <span className="text-[10px] font-medium text-rose-600">{phoneValidation.message}</span>
+              )}
             </FormField>
             <FormField label="Gender">
               <select

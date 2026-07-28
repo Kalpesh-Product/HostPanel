@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useAuth from "./useAuth";
 import useAxiosPrivate from "./useAxiosPrivate";
 import {
   DEFAULT_WORKSPACE_CURRENCY,
@@ -19,7 +20,7 @@ export type WorkspacePreferences = {
   dateFormat: string;
   timeFormat: "12h" | "24h";
   weekStartsOn: "monday" | "sunday";
-  businessHours: { start: string; end: string };
+  businessHours: { start: string; end: string; is24Hours: boolean };
   billing: WorkspaceBillingConfig;
 };
 
@@ -29,7 +30,7 @@ const DEFAULT_PREFERENCES: WorkspacePreferences = {
   dateFormat: "DD MMM YYYY",
   timeFormat: "12h",
   weekStartsOn: "monday",
-  businessHours: { start: "09:00", end: "22:00" },
+  businessHours: { start: "09:00", end: "22:00", is24Hours: false },
   // Country-neutral until the workspace's real settings load, so a non-India
   // location never briefly shows India's GST.
   billing: getCountryBillingDefaults(""),
@@ -37,10 +38,18 @@ const DEFAULT_PREFERENCES: WorkspacePreferences = {
 
 export default function useWorkspacePreferences(): WorkspacePreferences {
   const axiosPrivate = useAxiosPrivate();
+  const { auth } = useAuth();
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  const activeWorkspaceId = String(
+    (auth?.user as { workspaceMembership?: { workspace?: string }; primaryWorkspace?: string; workspaceId?: string } | null)?.workspaceMembership?.workspace ||
+      (auth?.user as { workspaceMembership?: { workspace?: string }; primaryWorkspace?: string; workspaceId?: string } | null)?.primaryWorkspace ||
+      (auth?.user as { workspaceMembership?: { workspace?: string }; primaryWorkspace?: string; workspaceId?: string } | null)?.workspaceId ||
+      "",
+  ).trim();
 
   useEffect(() => {
     let mounted = true;
+    setPreferences(DEFAULT_PREFERENCES);
     void (async () => {
       try {
         const response = await axiosPrivate.get("/api/workspaces/settings");
@@ -55,6 +64,7 @@ export default function useWorkspacePreferences(): WorkspacePreferences {
           businessHours: {
             start: String(incoming.businessHours?.start || DEFAULT_PREFERENCES.businessHours.start),
             end: String(incoming.businessHours?.end || DEFAULT_PREFERENCES.businessHours.end),
+            is24Hours: Boolean(incoming.businessHours?.is24Hours),
           },
           billing: normalizeBillingConfig(incoming.billing),
         });
@@ -63,7 +73,7 @@ export default function useWorkspacePreferences(): WorkspacePreferences {
       }
     })();
     return () => { mounted = false; };
-  }, [axiosPrivate]);
+  }, [axiosPrivate, activeWorkspaceId]);
 
   return preferences;
 }

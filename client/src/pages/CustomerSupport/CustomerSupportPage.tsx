@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, FileDown, FileSpreadsheet, FileText, Plus } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, FileDown, FileSpreadsheet, FileText, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -10,6 +10,7 @@ import { statusPillClass } from "../../lib/status-pill";
 import { createReport } from "../../services/reports";
 import { downloadReportFile } from "../../utils/report-download";
 import { CustomerSupportSkeleton } from "../../components/ui/Skeleton";
+import { getStoredUser } from "../../lib/auth-session";
 
 type TicketStatus =
   | "Open"
@@ -18,7 +19,8 @@ type TicketStatus =
   | "Closed"
   | "Pending"
   | "Escalated"
-  | "Rejected";
+  | "Rejected"
+  | "Draft";
 
 type SupportTicket = {
   id: string;
@@ -49,7 +51,73 @@ type SupportPayload = {
   history: SupportTicket[];
 };
 
+type SupportTicketDraft = {
+  title: string;
+  description: string;
+  pageUrl: string;
+  savedAt: string;
+};
+
 const SUPPORT_TICKETS_API = "/api/tickets/support-tickets";
+const SUPPORT_DRAFT_KEY_PREFIX = "hostpanel_support_ticket_draft";
+const SUPPORT_DRAFT_DB_NAME = "hostpanel-support-ticket-drafts";
+const SUPPORT_DRAFT_DB_STORE = "attachments";
+
+const getSupportDraftKey = () => {
+  const user = getStoredUser();
+  const workspaceId =
+    user?.workspaceMembership?.workspace ||
+    user?.primaryWorkspace ||
+    user?.workspaceId ||
+    "workspace";
+  const userId = user?._id || user?.id || user?.email || "user";
+  return `${SUPPORT_DRAFT_KEY_PREFIX}:${workspaceId}:${userId}`;
+};
+
+const openSupportDraftDatabase = () =>
+  new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(SUPPORT_DRAFT_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(SUPPORT_DRAFT_DB_STORE)) {
+        request.result.createObjectStore(SUPPORT_DRAFT_DB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+const readSupportDraftAttachment = async (draftKey: string) => {
+  const database = await openSupportDraftDatabase();
+  try {
+    return await new Promise<File | null>((resolve, reject) => {
+      const request = database
+        .transaction(SUPPORT_DRAFT_DB_STORE, "readonly")
+        .objectStore(SUPPORT_DRAFT_DB_STORE)
+        .get(draftKey);
+      request.onsuccess = () => resolve(request.result instanceof File ? request.result : null);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const writeSupportDraftAttachment = async (draftKey: string, file: File | null) => {
+  const database = await openSupportDraftDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(SUPPORT_DRAFT_DB_STORE, "readwrite");
+      const store = transaction.objectStore(SUPPORT_DRAFT_DB_STORE);
+      if (file) store.put(file, draftKey);
+      else store.delete(draftKey);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally {
+    database.close();
+  }
+};
 
 const capitalizeFirst = (value?: string | null) => {
   if (!value) return "-";
@@ -89,6 +157,9 @@ export default function CustomerSupportPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isRemovingDraft, setIsRemovingDraft] = useState(false);
+  const [savedDraft, setSavedDraft] = useState<SupportTicketDraft | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [pageUrl, setPageUrl] = useState("");
@@ -97,13 +168,43 @@ export default function CustomerSupportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isExportingReport, setIsExportingReport] = useState("");
+  const draftStorageKey = useMemo(getSupportDraftKey, []);
+
+  const draftTicket = useMemo<SupportTicket | null>(() => savedDraft ? ({
+    id: "local-support-ticket-draft",
+    ticketId: "DRAFT",
+    title: String(savedDraft.title || "").trim() || "Untitled support issue",
+    description: String(savedDraft.description || ""),
+    status: "Draft",
+    requestedAt: savedDraft.savedAt || new Date().toISOString(),
+    requestedByName: "You",
+    requestedByEmail: "",
+    acceptedByName: "",
+    acceptedByEmail: "",
+    resolvedByName: "",
+    resolvedByEmail: "",
+    role: "",
+    department: null,
+    workspaceName: "",
+    pageUrl: String(savedDraft.pageUrl || ""),
+    image: { id: "", url: "" },
+    resolutionMessage: "",
+    resolutionAttachment: { id: "", url: "" },
+    resolvedAt: null,
+    closedByUserAt: null,
+  }) : null, [savedDraft]);
 
   const currentList = useMemo(
-    () => (activeTab === "raised" ? supportData.raised : supportData.history),
-    [activeTab, supportData],
+    () => activeTab === "raised"
+      ? (draftTicket ? [draftTicket, ...supportData.raised] : supportData.raised)
+      : supportData.history,
+    [activeTab, draftTicket, supportData],
   );
 
-  const allTickets = useMemo(() => [...supportData.raised, ...supportData.history], [supportData]);
+  const allTickets = useMemo(
+    () => [...(draftTicket ? [draftTicket] : []), ...supportData.raised, ...supportData.history],
+    [draftTicket, supportData],
+  );
   const openCount = useMemo(() => allTickets.filter(t => t.status === "Open").length, [allTickets]);
   const inProgressCount = useMemo(() => allTickets.filter(t => t.status === "In Progress").length, [allTickets]);
   const resolvedCount = useMemo(() => allTickets.filter(t => t.status === "Resolved" || t.status === "Closed").length, [allTickets]);
@@ -147,11 +248,95 @@ export default function CustomerSupportPage() {
     void loadTickets();
   }, [loadTickets]);
 
+  useEffect(() => {
+    try {
+      const rawDraft = localStorage.getItem(draftStorageKey);
+      setSavedDraft(rawDraft ? JSON.parse(rawDraft) as SupportTicketDraft : null);
+    } catch {
+      setSavedDraft(null);
+    }
+  }, [draftStorageKey]);
+
   const resetCreateForm = () => {
     setTitle("");
     setDescription("");
     setPageUrl("");
     setImageFile(null);
+  };
+
+  const restoreDraft = async () => {
+    resetCreateForm();
+    try {
+      const rawDraft = localStorage.getItem(draftStorageKey);
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft) as Partial<SupportTicketDraft>;
+        setSavedDraft(draft as SupportTicketDraft);
+        setTitle(String(draft.title || ""));
+        setDescription(String(draft.description || ""));
+        setPageUrl(String(draft.pageUrl || ""));
+      }
+      setImageFile(await readSupportDraftAttachment(draftStorageKey));
+    } catch {
+      toast.error("The saved ticket draft could not be restored.");
+    }
+  };
+
+  const openCreateModal = () => {
+    setIsCreateModalOpen(true);
+    void restoreDraft();
+  };
+
+  const saveDraft = async () => {
+    if (!title.trim() && !description.trim() && !pageUrl.trim() && !imageFile) {
+      toast.error("Add ticket details before saving a draft.");
+      return;
+    }
+
+    try {
+      setIsSavingDraft(true);
+      const draft: SupportTicketDraft = {
+        title,
+        description,
+        pageUrl,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+      await writeSupportDraftAttachment(draftStorageKey, imageFile);
+      setSavedDraft(draft);
+      setIsCreateModalOpen(false);
+      toast.success("Ticket saved as draft. It has not been submitted.");
+    } catch {
+      toast.error("Failed to save the ticket draft.");
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
+  const clearDraft = () => {
+    setSavedDraft(null);
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch {
+      // The ticket is already submitted; draft cleanup is best effort only.
+    }
+    void writeSupportDraftAttachment(draftStorageKey, null).catch(() => undefined);
+  };
+
+  const removeDraft = async () => {
+    try {
+    if (!window.confirm("Remove this ticket draft? This cannot be undone.")) return;
+
+      setIsRemovingDraft(true);
+      await writeSupportDraftAttachment(draftStorageKey, null);
+      localStorage.removeItem(draftStorageKey);
+      setSavedDraft(null);
+      resetCreateForm();
+      toast.success("Ticket draft removed.");
+    } catch {
+      toast.error("Failed to remove the ticket draft.");
+    } finally {
+      setIsRemovingDraft(false);
+    }
   };
 
   const submitTicket = async (event: FormEvent<HTMLFormElement>) => {
@@ -169,6 +354,7 @@ export default function CustomerSupportPage() {
       await axios.post(SUPPORT_TICKETS_API, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      clearDraft();
       toast.success("Support ticket submitted.");
       resetCreateForm();
       setIsCreateModalOpen(false);
@@ -262,7 +448,8 @@ export default function CustomerSupportPage() {
 
   const handleExportIssues = async (format = "PDF") => {
     const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
-    if (!filteredList.length) { toast.error("There are no issues to export."); return; }
+    const exportableList = filteredList.filter(ticket => ticket.status !== "Draft");
+    if (!exportableList.length) { toast.error("There are no submitted issues to export."); return; }
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
@@ -273,7 +460,7 @@ export default function CustomerSupportPage() {
         generatedBy: "Customer Support", format: reportFormat,
         description: `Customer support ${activeTab === "resolved" ? "issue history" : "raised issues"} export.`,
         sourceType: "custom", sourceRef: activeTab === "resolved" ? "customer-support-history" : "customer-support-raised",
-        reportRows: filteredList.slice(0, 100).map((ticket, index) => ({
+        reportRows: exportableList.slice(0, 100).map((ticket, index) => ({
           label: `${index + 1}. ${ticket.ticketId || "Ticket"} - ${ticket.title || "Support issue"}`,
           value: [ticket.status, formatDate(ticket.requestedAt), ticket.requestedByName || "Unknown requester", ticket.acceptedByName || "Not accepted", ticket.resolvedByName || "Not resolved"].join(" | "),
         })),
@@ -393,7 +580,7 @@ export default function CustomerSupportPage() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {activeTab === "raised" ? (
                 <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
+                  {['All', 'Draft', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
@@ -434,7 +621,7 @@ export default function CustomerSupportPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={openCreateModal}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> RAISE ISSUE TO WONO TEAM
@@ -477,22 +664,43 @@ export default function CustomerSupportPage() {
                           <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
                           <td className="px-5 py-4 align-top text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
-                                title="View details"
-                                aria-label={`View details for ${ticket.ticketId || ticket.title}`}
-                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
-                              >
-                                <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
-                              </button>
-                              {ticket.status === "Open" && (
-                                <ThreeDotMenu
-                                  rowId={ticket.id}
-                                  menuItems={[
-                                    { label: "Edit Ticket", onClick: () => openEditModal(ticket) },
-                                  ]}
-                                />
+                              {ticket.status === "Draft" ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={openCreateModal}
+                                    title="Edit draft"
+                                    aria-label="Edit ticket draft"
+                                    className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                  >
+                                    <Pencil size={15} strokeWidth={2.5} aria-hidden="true" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void removeDraft()}
+                                    disabled={isRemovingDraft}
+                                    title="Remove draft"
+                                    aria-label="Remove ticket draft"
+                                    className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <Trash2 size={15} strokeWidth={2.5} aria-hidden="true" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
+                                    title="View details"
+                                    aria-label={`View details for ${ticket.ticketId || ticket.title}`}
+                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                  >
+                                    <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
+                                  </button>
+                                  {ticket.status === "Open" && (
+                                    <ThreeDotMenu rowId={ticket.id} menuItems={[{ label: "Edit Ticket", onClick: () => openEditModal(ticket) }]} />
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -518,7 +726,7 @@ export default function CustomerSupportPage() {
               </div>
               <button
                 type="button"
-                onClick={() => { setIsCreateModalOpen(false); resetCreateForm(); }}
+                onClick={() => setIsCreateModalOpen(false)}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"
               >
                 <X size={18} strokeWidth={2.5} />
@@ -601,14 +809,15 @@ export default function CustomerSupportPage() {
             <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
               <button
                 type="button"
-                onClick={() => { setIsCreateModalOpen(false); resetCreateForm(); }}
-                className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                disabled={isSavingDraft || isSubmitting}
+                onClick={() => void saveDraft()}
+                className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                Cancel
+                {isSavingDraft ? "Saving..." : "Save Draft"}
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !title.trim() || !description.trim()}
+                disabled={isSubmitting || isSavingDraft || !title.trim() || !description.trim()}
                 onClick={(e) => submitTicket(e)}
                 className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >

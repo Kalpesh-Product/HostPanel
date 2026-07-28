@@ -2075,7 +2075,7 @@ export default function AccessGrantsPage() {
                 <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                   <div>
                     <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Unit Access</p>
-                    <h2 className="mt-1 text-sm font-semibold text-white">Add access for {selectedUser.name}</h2>
+                    <h2 className="mt-1 text-sm font-pmedium text-white">Add access for {selectedUser.name}</h2>
                   </div>
                   <button
                     onClick={() => setShowWorkspaceLinkDialog(false)}
@@ -2168,7 +2168,7 @@ export default function AccessGrantsPage() {
               <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                 <div>
                   <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Unit Transfer</p>
-                  <h2 className="mt-1 text-sm font-semibold text-white">Transfer {selectedUser.name}</h2>
+                  <h2 className="mt-1 text-sm font-pmedium text-white">Transfer {selectedUser.name}</h2>
                 </div>
                 <button
                   onClick={() => setShowWorkspaceTransferDialog(false)}
@@ -2188,7 +2188,7 @@ export default function AccessGrantsPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-1">
                   <div>
                     <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Target Unit</label>
                     <div className="relative">

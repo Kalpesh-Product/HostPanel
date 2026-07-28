@@ -5,12 +5,10 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 const TOUR_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{0,119}$/;
 const TOUR_STATUSES = new Set(["completed", "skipped"]);
 
-const getActiveMembership = (req) => {
-  const workspaceId = String(req.workspaceMembership?.workspace || "").trim();
-  if (!workspaceId || !req.user) return null;
+const getActiveMemberships = (req) => {
+  if (!req.user) return null;
 
-  return WorkspaceMember.findOne({
-    workspace: workspaceId,
+  return WorkspaceMember.find({
     user: req.user,
     isActive: true,
   });
@@ -18,17 +16,33 @@ const getActiveMembership = (req) => {
 
 export const getTourProgress = async (req, res, next) => {
   try {
-    const membershipQuery = getActiveMembership(req);
-    const membership = membershipQuery
-      ? await membershipQuery.select("tourProgress").exec()
-      : null;
-    if (!membership) {
-      return res.status(404).json({ message: "Active workspace membership not found." });
+    const membershipsQuery = getActiveMemberships(req);
+    const memberships = membershipsQuery
+      ? await membershipsQuery.select("tourProgress").exec()
+      : [];
+    if (!memberships.length) {
+      return res.status(404).json({ message: "Active workspace memberships not found." });
     }
 
-    const progress = membership.tourProgress
-      ? Object.fromEntries(membership.tourProgress.entries())
-      : {};
+    const progress = {};
+    for (const membership of memberships) {
+      for (const [tourKey, storedEntry] of membership.tourProgress?.entries?.() || []) {
+        const entry = storedEntry?.toObject ? storedEntry.toObject() : storedEntry;
+        const current = progress[tourKey];
+        const currentUpdatedAt = current?.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+        const nextUpdatedAt = entry?.updatedAt ? new Date(entry.updatedAt).getTime() : 0;
+        if (
+          !current ||
+          Number(entry?.version || 0) > Number(current?.version || 0) ||
+          (
+            Number(entry?.version || 0) === Number(current?.version || 0) &&
+            nextUpdatedAt > currentUpdatedAt
+          )
+        ) {
+          progress[tourKey] = entry;
+        }
+      }
+    }
 
     return res.status(200).json({
       message: "Tour progress fetched successfully.",
@@ -55,23 +69,24 @@ export const saveTourProgress = async (req, res, next) => {
       return res.status(400).json({ message: "Tour status must be completed or skipped." });
     }
 
-    const membership = await getActiveMembership(req);
-    if (!membership) {
-      return res.status(404).json({ message: "Active workspace membership not found." });
-    }
-
-    membership.tourProgress.set(tourKey, {
+    const progressEntry = {
       version,
       status,
       updatedAt: new Date(),
-    });
-    await membership.save();
+    };
+    const updateResult = await WorkspaceMember.updateMany(
+      { user: req.user, isActive: true },
+      { $set: { [`tourProgress.${tourKey}`]: progressEntry } },
+    );
+    if (!updateResult.matchedCount) {
+      return res.status(404).json({ message: "Active workspace memberships not found." });
+    }
 
     return res.status(200).json({
       message: "Tour progress saved successfully.",
       data: {
         tourKey,
-        progress: membership.tourProgress.get(tourKey),
+        progress: progressEntry,
       },
     });
   } catch (error) {

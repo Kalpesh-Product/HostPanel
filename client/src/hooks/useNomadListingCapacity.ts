@@ -65,7 +65,7 @@ export default function useNomadListingCapacity(companyId: string) {
     queryFn: async () => {
       try {
         const response = await axios.get(
-          `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}`,
+          `https://wono.co/api/company/get-listings/${companyId}`,
           {
             headers: {
               "Cache-Control": "no-cache, no-store, must-revalidate",

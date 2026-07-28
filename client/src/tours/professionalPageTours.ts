@@ -51,7 +51,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
     steps: [
       { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your Professional-plan role. Other page tours will focus only on their own functionality." },
       { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
-      { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Guide progress is remembered separately for each member and workspace." },
+      { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
       { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
       { selector: '[data-tour="professional-plan"]', title: "Your Professional plan", description: "This banner confirms the current plan. Selecting it opens Custom-plan options for additional modules such as Finance, HR, AI tools, Maintenance, and IT." },
       { selector: '[data-tour="professional-overview"]', title: "Operational overview", description: "These live cards summarize tenants, bookings, customer-support tickets, and visitors. Selecting a card opens its complete module." },

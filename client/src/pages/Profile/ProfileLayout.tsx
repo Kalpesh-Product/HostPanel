@@ -23,7 +23,7 @@ const ProfileLayout = () => {
   // fetch below (same endpoint Sidebar.tsx polls) overrides it once it
   // resolves, so tabs unlock correctly after an upgrade instead of staying
   // gated on "basic" forever.
-  const [plan, setPlan] = useState<string>(readWorkspacePlan());
+  const [plan, setPlan] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -31,21 +31,26 @@ const ProfileLayout = () => {
       .get("/api/workspaces/module-access-map")
       .then((res) => {
         const selectedPlan = res?.data?.data?.selectedPlan;
-        if (mounted && selectedPlan) setPlan(selectedPlan);
+        if (mounted) setPlan(selectedPlan || readWorkspacePlan());
       })
-      .catch(() => {});
+      .catch(() => {
+        if (mounted) setPlan(readWorkspacePlan());
+      });
     return () => {
       mounted = false;
     };
   }, [axiosPrivate]);
 
-  const profileTabs = getProfileTabItemsForPlan(plan);
+  const profileTabs = plan ? getProfileTabItemsForPlan(plan) : [];
   const showTabs = location.pathname !== "/profile" && !location.pathname.includes("budget/");
   const activeTabId = profileTabs.find((tab) => location.pathname.includes(tab.id))?.id;
 
   return (
     <div className="p-4">
-      {showTabs && (
+      {showTabs && plan === null && (
+        <div className="h-10 rounded-2xl border border-slate-100 bg-white shadow-sm animate-pulse" />
+      )}
+      {showTabs && plan !== null && (
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {profileTabs.map((tab) => {
             const isActive = activeTabId === tab.id;

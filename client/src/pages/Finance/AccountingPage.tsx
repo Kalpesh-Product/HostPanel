@@ -23,12 +23,14 @@ import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import { downloadReportFile } from '@/utils/report-download';
 import PageFrame from '@/components/Pages/PageFrame';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
 const MONTH_SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FISCAL_YEAR_OPTIONS = getFiscalYearOptions();
 
-const money = (value: number = 0) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
+const money = (value: number = 0, currency = 'INR') =>
+  formatWorkspaceCurrency(Number(value || 0), currency, { maximumFractionDigits: 0 });
 
 const text = (value: string = '') => String(value || '').trim().toLowerCase();
 
@@ -261,9 +263,9 @@ interface PnlData {
 
 
 
-function PnlSection({ title, tone, icon: Icon, rows, totalLabel, totalValue }: {
+function PnlSection({ title, tone, icon: Icon, rows, totalLabel, totalValue, currency = 'INR' }: {
   title: string; tone: string; icon: React.ComponentType<{ size?: number }>;
-  rows: [string, number][]; totalLabel: string; totalValue: number;
+  rows: [string, number][]; totalLabel: string; totalValue: number; currency?: string;
 }) {
   const toneClass = tone === 'green' ? 'text-green-600 border-green-200' : tone === 'orange' ? 'text-orange-600 border-orange-200' : 'text-red-600 border-red-200';
   const totalClass = tone === 'green' ? 'text-green-700' : tone === 'orange' ? 'text-orange-700' : 'text-red-700';
@@ -276,12 +278,12 @@ function PnlSection({ title, tone, icon: Icon, rows, totalLabel, totalValue }: {
         {rows.map(([label, amount]) => (
           <div key={label} className="flex justify-between text-xs font-bold text-gray-700 sm:text-sm">
             <span>{label}</span>
-            <span>{money(amount)}</span>
+            <span>{money(amount, currency)}</span>
           </div>
         ))}
         <div className={`flex justify-between border-t border-gray-100 pt-2 text-sm font-black sm:pt-3 sm:text-lg ${totalClass}`}>
           <span>{totalLabel}</span>
-          <span>{money(totalValue)}</span>
+          <span>{money(totalValue, currency)}</span>
         </div>
       </div>
     </div>
@@ -289,6 +291,9 @@ function PnlSection({ title, tone, icon: Icon, rows, totalLabel, totalValue }: {
 }
 
 export default function AccountingPage(): React.ReactElement {
+  const workspacePreferences = useWorkspacePreferences();
+  const currency = workspacePreferences.currency;
+  const money = (value: number = 0) => formatWorkspaceCurrency(Number(value || 0), currency, { maximumFractionDigits: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -951,13 +956,13 @@ export default function AccountingPage(): React.ReactElement {
                       Read only. Auto-compiled from the live ledger for {selectedPeriodLabel}.
                     </div>
                     <div className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
-                      <PnlSection title="Revenue" tone="green" icon={ArrowUpRight} rows={[['Walk-in / Bookings', pnlData.revenueBookings], ['Tenant Onboarding', pnlData.revenueTenant], ['Other Income', pnlData.revenueOther]]} totalLabel="Total Income" totalValue={pnlData.revenueTotal} />
-                      <PnlSection title="COGS" tone="orange" icon={Building2} rows={[['Department Costs', pnlData.cogsDepartment], ['Extra Budget Costs', pnlData.cogsExtra]]} totalLabel="Total COGS" totalValue={pnlData.cogsTotal} />
+                      <PnlSection title="Revenue" tone="green" icon={ArrowUpRight} rows={[['Walk-in / Bookings', pnlData.revenueBookings], ['Tenant Onboarding', pnlData.revenueTenant], ['Other Income', pnlData.revenueOther]]} totalLabel="Total Income" totalValue={pnlData.revenueTotal} currency={currency} />
+                      <PnlSection title="COGS" tone="orange" icon={Building2} rows={[['Department Costs', pnlData.cogsDepartment], ['Extra Budget Costs', pnlData.cogsExtra]]} totalLabel="Total COGS" totalValue={pnlData.cogsTotal} currency={currency} />
                       <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-100 p-3 sm:p-4">
                         <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-600 sm:text-xs">Gross Profit</span>
                         <span className="text-lg font-black text-gray-900 sm:text-xl">{money(pnlData.grossProfit)}</span>
                       </div>
-                      <PnlSection title="OPEX" tone="red" icon={ArrowDownRight} rows={[['Payroll', pnlData.payroll], ['Admin / Other', pnlData.admin]]} totalLabel="Total Expenses" totalValue={pnlData.opexTotal} />
+                      <PnlSection title="OPEX" tone="red" icon={ArrowDownRight} rows={[['Payroll', pnlData.payroll], ['Admin / Other', pnlData.admin]]} totalLabel="Total Expenses" totalValue={pnlData.opexTotal} currency={currency} />
                       <div className={`flex flex-col gap-3 rounded-2xl border-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 ${pnlData.netProfit >= 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                         <div>
                           <span className={`text-xs font-pmedium uppercase tracking-widest sm:text-sm ${pnlData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>Net Profit</span>

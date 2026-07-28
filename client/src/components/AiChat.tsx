@@ -207,27 +207,27 @@ export default function ChatWidgetPreview() {
                         <div className="flex items-center justify-between">
                             <h3 className="flex items-center gap-2 text-xl font-bold tracking-tight">
                                 Ask WoNo
-                                <span className="rounded bg-white/20 px-2 py-0.5 text-xs font-medium tracking-wide">AI Flow</span>
+                                <span className="rounded bg-white/20 px-2 py-0.5 text-xs font-pmedium tracking-wide">AI Flow</span>
                             </h3>
-                            <button type="button" onClick={() => setShowChat(false)} className="rounded-md px-2 py-1 text-sm text-white/90 hover:bg-white/10 hover:text-white">
+                            <button type="button" onClick={() => setShowChat(false)} className="rounded-md px-2 py-1 text-sm font-pmedium text-white/90 hover:bg-white/10 hover:text-white">
                                 Close
                             </button>
                         </div>
-                        <p className="mt-2 text-sm text-blue-100">Interactive guidance from our assistant.</p>
+                        <p className="mt-2 text-sm font-pmedium text-blue-100">Interactive guidance from our assistant.</p>
                     </div>
 
                     <div className="flex-1 overflow-y-auto bg-gray-50 p-5 scrollbar-hide">
                         {messages.length === 0 ? (
                             <>
-                                <p className="text-sm font-medium text-gray-700">Want help getting started?</p> 
-                                <p className="mt-0.5 mb-4 text-xs text-gray-500">Tell us a little bit about what you&apos;re looking for.</p>
+                                <p className="text-sm font-pmedium text-gray-700">Want help getting started?</p> 
+                                <p className="mt-0.5 mb-4 text-xs font-pmedium text-gray-500">Tell us a little bit about what you&apos;re looking for.</p>
                                 <div className="flex flex-col gap-2.5">
                                     {visibleFlows.map((item) => (
                                         <button
                                             key={item.id}
                                             type="button"
                                             onClick={() => startChatFromQuestion(item.id, item.generalQuestion)}
-                                            className="w-full rounded-xl border border-gray-200 bg-white p-3.5 text-left text-sm text-gray-800 shadow-sm transition hover:border-blue-400 hover:bg-blue-50/30 active:bg-blue-50 cursor-pointer"
+                                            className="w-full rounded-xl border border-gray-200 bg-white p-3.5 text-left text-sm font-pmedium text-gray-800 shadow-sm transition hover:border-blue-400 hover:bg-blue-50/30 active:bg-blue-50 cursor-pointer"
                                         >
                                             {item.generalQuestion}
                                         </button>
@@ -239,7 +239,7 @@ export default function ChatWidgetPreview() {
                                 {messages.map((message) => (
                                     <div
                                         key={message.id}
-                                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user' ? 'ml-auto bg-blue-600 text-white shadow-md' : 'bg-white text-gray-700 shadow-sm border border-gray-100'
+                                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm font-pmedium leading-6 ${message.role === 'user' ? 'ml-auto bg-blue-600 text-white shadow-md' : 'bg-white text-gray-700 shadow-sm border border-gray-100'
                                             }`}
                                     >
                                         {message.content}
@@ -262,7 +262,7 @@ export default function ChatWidgetPreview() {
                                                     key={idx}
                                                     type="button"
                                                     onClick={() => handleOptionClick(answer)}
-                                                    className="rounded-lg border border-blue-200 bg-white p-2.5 text-sm text-gray-800 shadow-sm transition hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer"
+                                                    className="rounded-lg border border-blue-200 bg-white p-2.5 text-sm font-pmedium text-gray-800 shadow-sm transition hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer"
                                                 >
                                                     {answer.text}
                                                 </button>
@@ -272,7 +272,7 @@ export default function ChatWidgetPreview() {
                                         <button
                                             type="button"
                                             onClick={handleAnswerNotHere}
-                                            className="w-full rounded-lg border border-gray-200 bg-gray-50 p-2.5 text-xs text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+                                            className="w-full rounded-lg border border-gray-200 bg-gray-50 p-2.5 text-xs font-pmedium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
                                         >
                                             My answer isn't here
                                         </button>
@@ -283,7 +283,7 @@ export default function ChatWidgetPreview() {
                                     <button
                                         type="button"
                                         onClick={handleContactSupport}
-                                        className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 shadow-lg cursor-pointer animate-in zoom-in-95 duration-300"
+                                        className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-pmedium text-white hover:bg-blue-700 shadow-lg cursor-pointer animate-in zoom-in-95 duration-300"
                                     >
                                         Contact Customer Support
                                     </button>
@@ -294,7 +294,7 @@ export default function ChatWidgetPreview() {
                                 <button
                                     type="button"
                                     onClick={resetChat}
-                                    className="mt-2 text-left text-xs text-blue-600 underline hover:text-blue-800 cursor-pointer"
+                                    className="mt-2 text-left text-xs font-pmedium text-blue-600 underline hover:text-blue-800 cursor-pointer"
                                 >
                                     Start over
                                 </button>
@@ -303,10 +303,10 @@ export default function ChatWidgetPreview() {
                     </div>
 
                     <div className="border-t border-gray-100 bg-white p-4 text-center">
-                        <p className="text-[11px] text-gray-400">
+                        <p className="text-[11px] font-pmedium text-gray-400">
                             By chatting, you agree to our{' '}
                             <button type="button" onClick={() => setShowDisclaimer(true)} className="text-blue-500 underline hover:text-blue-600 cursor-pointer">
-                                disclaimer
+                                Disclaimer
                             </button>
                             .
                         </p>
@@ -317,12 +317,12 @@ export default function ChatWidgetPreview() {
             {showDisclaimer ? (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">        
                     <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <h2 className="mb-4 text-lg font-semibold text-gray-900">Disclaimer</h2>
-                        <p className="text-sm leading-6 text-gray-600">
+                        <h2 className="mb-4 text-lg font-pmedium text-gray-900">Disclaimer</h2>
+                        <p className="text-sm font-pmedium leading-6 text-gray-600">
                             By chatting, you agree to our Site Terms, Acceptable Use Policy, and Responsible AI Policy. Wono handles your information as described in the Wono Privacy Notice. Inputs you provide and output you generate through this Wono chatbot are licensed to Wono as posted content and submitted material under the Site Terms.
                         </p>
                         <div className="mt-6 flex justify-end">
-                            <button type="button" onClick={() => setShowDisclaimer(false)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer">
+                            <button type="button" onClick={() => setShowDisclaimer(false)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-pmedium text-white hover:bg-blue-700 cursor-pointer">
                                 Close
                             </button>
                         </div>

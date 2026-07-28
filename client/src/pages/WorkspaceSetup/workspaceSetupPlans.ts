@@ -30,7 +30,7 @@ export const PLAN_UI_DATA: PlanCardData[] = [
           "Organization Management",
           "Access Grants",
           "Visitor Management (Standard Visitor)",
-          "Built-in AI Chat",
+          "Built-in Chatbot",
           "Customer Support",
           "Cloud Storage",
           "Up to 2 Users",

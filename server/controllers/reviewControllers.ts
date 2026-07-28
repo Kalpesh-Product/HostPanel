@@ -9,8 +9,8 @@ import Workspace from "../models/Workspace.js";
 import WebsiteReview from "../models/WebsiteReview.js";
 
 const REVIEW_API_BASE_URL =
-  process.env.REVIEW_API_BASE_URL || "https://wononomadsbe.vercel.app";
-const REVIEW_API_FALLBACK_URL = "https://wononomadsbe.vercel.app";
+  process.env.REVIEW_API_BASE_URL || "https://wono.co";
+const REVIEW_API_FALLBACK_URL = "https://wono.co";
 
 const sanitizeValue = (value) => String(value || "").trim();
 const isSyntheticCompanyId = (value) => sanitizeValue(value).includes("-dev-");

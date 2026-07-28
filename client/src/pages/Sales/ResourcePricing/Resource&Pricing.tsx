@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
@@ -13,6 +13,7 @@ import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { ResourcePricingSkeleton } from '../../../components/ui/SalesPageSkeletons';
+import TimePicker12h from '../../../components/ui/TimePicker12h';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '../../../lib/workspaceLocalization';
 
@@ -324,10 +325,10 @@ function getInventoryModeLabel(value = '') {
 
 function getResourceCreditModeLabel(resourceCategory = '', inventoryMode = 'area') {
   if (isDeskCategory(resourceCategory)) {
-    return inventoryMode === 'single' ? 'Credit per desk' : 'Credit per seat';
+    return inventoryMode === 'single' ? 'Credits per desk' : 'Credits per seat / hour';
   }
 
-  return 'Hourly credit rate';
+  return 'Credits per hour';
 }
 
 function getResourceCreditValue(resource = {}) {
@@ -363,11 +364,11 @@ function getResourceCreditSummary(resource = {}) {
 
   if (isDeskCategory(resource.resourceCategory)) {
     if (resource.inventoryMode === 'single') {
-      return `${credits} credit${credits === 1 ? '' : 's'} for 1 fixed desk`;
+      return `${credits} credit${credits === 1 ? '' : 's'} per desk`;
     }
 
     const totalCredits = capacity * credits;
-    return `${capacity} seats x ${credits} credit${credits === 1 ? '' : 's'} = ${totalCredits} credits`;
+    return `${capacity} seats x ${credits} credit${credits === 1 ? '' : 's'} per seat / hour = ${totalCredits} credits`;
   }
 
   return `${credits} credit${credits === 1 ? '' : 's'} / hr`;
@@ -584,6 +585,7 @@ function formatAutoPriceValue(value) {
 }
 
 export default function PricingPackagesPage() {
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
@@ -631,9 +633,9 @@ export default function PricingPackagesPage() {
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = (value = 0) => formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
   const currencySymbol = getWorkspaceCurrencySymbol(workspacePreferences.currency);
-  const [bookingHours, setBookingHours] = useState({ start: '09:00', end: '22:00' });
+  const [bookingHours, setBookingHours] = useState({ start: '09:00', end: '22:00', is24Hours: false });
   const [isHoursModalOpen, setIsHoursModalOpen] = useState(false);
-  const [hoursForm, setHoursForm] = useState({ start: '09:00', end: '22:00' });
+  const [hoursForm, setHoursForm] = useState({ start: '09:00', end: '22:00', is24Hours: false });
   const [isSavingHours, setIsSavingHours] = useState(false);
   const bulkUploadInputRef = useRef(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
@@ -647,6 +649,27 @@ export default function PricingPackagesPage() {
   const [floorMode, setFloorMode] = useState('select');
   const [wingMode, setWingMode] = useState('select');
   const currentUser = useFreshCurrentUser();
+  const [resourceGuideContext, setResourceGuideContext] = useState<'general' | 'meeting_room' | 'tenant_inventory'>('general');
+
+  useEffect(() => {
+    const launchState = (location.state || {}) as any;
+    if (!launchState?.openResourceModal) return;
+
+    const preset = String(launchState.preset || launchState.intent || '').toLowerCase();
+    setResourceGuideContext(
+      preset.includes('tenant') ? 'tenant_inventory' : preset.includes('meeting') ? 'meeting_room' : 'general',
+    );
+    setActiveTab('resource');
+    setModalKind('resource');
+    setModalMode('add');
+    setIsModalOpen(true);
+    setAddResourceForm((current) => ({
+      ...current,
+      resourceCategory: launchState.resourceCategory || (preset.includes('tenant') ? 'open_desk' : 'meeting_room'),
+      inventoryMode: launchState.inventoryMode || (preset.includes('tenant') ? 'area' : current.inventoryMode || 'area'),
+      credits: current.credits || '1',
+    }));
+  }, [location.state]);
   const { plan } = useDashboardAccess();
   const showReportExports = canExportReports(plan);
   const navigate = useNavigate();
@@ -688,7 +711,7 @@ export default function PricingPackagesPage() {
       .then((res) => {
         const bh = res?.data?.data?.settings?.preferences?.businessHours;
         if (mounted && bh?.start && bh?.end) {
-          setBookingHours({ start: bh.start, end: bh.end });
+          setBookingHours({ start: bh.start, end: bh.end, is24Hours: Boolean(bh.is24Hours) });
         }
       })
       .catch(() => {
@@ -702,6 +725,7 @@ export default function PricingPackagesPage() {
   // Hours in a bookable day, derived from the workspace booking hours (e.g. 9 AM – 10 PM = 13).
   // Drives the hourly ↔ daily price conversion on resource forms.
   const bookingSpanHours = useMemo(() => {
+    if (bookingHours.is24Hours) return 24;
     const toMin = (t) => {
       const [h, m] = String(t || '').split(':').map(Number);
       return (h || 0) * 60 + (m || 0);
@@ -716,14 +740,14 @@ export default function PricingPackagesPage() {
   };
 
   const handleSaveBookingHours = async () => {
-    if (!hoursForm.start || !hoursForm.end || hoursForm.start >= hoursForm.end) {
+    if (!hoursForm.is24Hours && (!hoursForm.start || !hoursForm.end || hoursForm.start >= hoursForm.end)) {
       toast.error('Opening time must be before closing time.');
       return;
     }
     try {
       setIsSavingHours(true);
       await axiosPrivate.patch('/api/workspaces/settings', {
-        preferences: { businessHours: { start: hoursForm.start, end: hoursForm.end } },
+        preferences: { businessHours: { start: hoursForm.start, end: hoursForm.end, is24Hours: hoursForm.is24Hours } },
       });
       setBookingHours({ ...hoursForm });
       // Re-derive daily prices on any open resource form so they match the new span.
@@ -1740,7 +1764,7 @@ export default function PricingPackagesPage() {
               {activeTab === 'resource' ? (
                 <>
                   <button onClick={openHoursModal} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap" title="Set the booking timings used across meeting room, walk-in and tenant bookings">
-                    <Clock size={13} strokeWidth={2.5} /> {formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}
+                    <Clock size={13} strokeWidth={2.5} /> {bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}
                   </button>
                   <button onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
                     <Plus size={13} strokeWidth={3} /> ADD RESOURCE
@@ -2133,14 +2157,23 @@ export default function PricingPackagesPage() {
                 </button>
               </div>
               <div className="p-5 sm:p-6 space-y-4">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hoursForm.is24Hours}
+                    onChange={(e) => setHoursForm((prev) => ({ ...prev, is24Hours: e.target.checked }))}
+                    className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30"
+                  />
+                  <span className="text-[11px] font-pmedium text-[#0F172A]">Open 24 hours</span>
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Opening Time</label>
-                    <input type="time" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={hoursForm.start} onChange={(e) => setHoursForm((prev) => ({ ...prev, start: e.target.value }))} />
+                    <TimePicker12h value={hoursForm.start} onChange={(value) => setHoursForm((prev) => ({ ...prev, start: value }))} disabled={hoursForm.is24Hours} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Closing Time</label>
-                    <input type="time" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={hoursForm.end} onChange={(e) => setHoursForm((prev) => ({ ...prev, end: e.target.value }))} />
+                    <TimePicker12h value={hoursForm.end} onChange={(value) => setHoursForm((prev) => ({ ...prev, end: value }))} disabled={hoursForm.is24Hours} />
                   </div>
                 </div>
                 <p className="text-[11px] font-pmedium text-slate-500">
@@ -2161,7 +2194,7 @@ export default function PricingPackagesPage() {
         ) : null}
 
         {isModalOpen ? (
-          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeModal}>
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div
               onClick={(e) => e.stopPropagation()}
               className={`bg-white/95 backdrop-blur-xl w-full h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'sm:max-w-5xl' : 'sm:max-w-2xl'}`}
@@ -2193,6 +2226,28 @@ export default function PricingPackagesPage() {
                 <div className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
                 {modalKind === 'resource' && modalMode === 'add' ? (
                   <div className="space-y-4">
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4">
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-700">Setup guide</p>
+                      {resourceGuideContext === 'tenant_inventory' ? (
+                        <div className="mt-2 space-y-2 text-[12px] font-pmedium leading-relaxed text-blue-950">
+                          <p>Add Open Desk and Cabin Desk resources here first so tenant bookings can allocate seats correctly.</p>
+                          <ul className="list-disc pl-4 space-y-1 text-blue-900/90">
+                            <li>Choose <span className="font-pmedium">Open Desk</span> or <span className="font-pmedium">Cabin Desk</span>.</li>
+                            <li>Use <span className="font-pmedium">Area Block</span> inventory for seat-based allocation.</li>
+                            <li>Set credits per seat / hour so tenant billing stays accurate.</li>
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-2 text-[12px] font-pmedium leading-relaxed text-blue-950">
+                          <p>Add the bookable meeting space first so meeting and walk-in bookings can use it immediately.</p>
+                          <ul className="list-disc pl-4 space-y-1 text-blue-900/90">
+                            <li>Choose <span className="font-pmedium">Meeting Room</span> or <span className="font-pmedium">Conference Room</span>.</li>
+                            <li>Enter the hourly price and the credit rate shown on booking screens.</li>
+                            <li>Save the resource, then return to booking to select it.</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
 
                       {/* <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2381,7 +2436,7 @@ export default function PricingPackagesPage() {
                       <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
                         <p className="text-[11px] font-pmedium text-slate-600">
                           <Clock size={11} className="inline -mt-0.5 mr-1 text-blue-500" />
-                          Booking hours: <span className="text-slate-900">{formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
+                          Booking hours: <span className="text-slate-900">{bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
                         </p>
                         <button type="button" onClick={openHoursModal} className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline whitespace-nowrap">
                           Change
@@ -2389,7 +2444,7 @@ export default function PricingPackagesPage() {
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Hours per Day</label>
-                        <input type="text" readOnly className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none cursor-not-allowed" value={`${bookingSpanHours} hrs (${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)})`} title="Calculated from the workspace booking hours. Use the Change link above to update." />
+                        <input type="text" readOnly className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none cursor-not-allowed" value={bookingHours.is24Hours ? `${bookingSpanHours} hrs (Open 24 hours)` : `${bookingSpanHours} hrs (${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)})`} title="Calculated from the workspace booking hours. Use the Change link above to update." />
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
@@ -2413,8 +2468,9 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isDeskCategory(addResourceForm.resourceCategory) ? 'Credits Per Seat' : 'Credits Per Hour'}</label>
                           <input type="number" min="1" required placeholder="e.g. 10" className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <p className="text-[10px] font-pmedium text-slate-400 normal-case tracking-normal">(used for tenant bookings)</p>
                         </div>
                       </div>
                     </div>
@@ -2608,7 +2664,7 @@ export default function PricingPackagesPage() {
                       <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
                         <p className="text-[11px] font-pmedium text-slate-600">
                           <Clock size={11} className="inline -mt-0.5 mr-1 text-blue-500" />
-                          Booking hours: <span className="text-slate-900">{formatTime12h(bookingHours.start)} – {formatTime12h(bookingHours.end)}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
+                          Booking hours: <span className="text-slate-900">{bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}</span> ({bookingSpanHours} hrs/day, applies to all bookings)
                         </p>
                         {!isViewingResource ? (
                           <button type="button" onClick={openHoursModal} className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline whitespace-nowrap">
@@ -2638,8 +2694,9 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isDeskCategory(resourceForm.resourceCategory) ? 'Credits Per Seat' : 'Credits Per Hour'}</label>
                           <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                          <p className="text-[10px] font-pmedium text-slate-400 normal-case tracking-normal">(used for tenant bookings)</p>
                         </div>
                       </div>
                     </div>

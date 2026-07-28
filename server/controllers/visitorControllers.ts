@@ -7,6 +7,7 @@ import { Client } from "../models/Client.js";
 import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
 import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
+import { getZonedDateKey, normalizeTimeZone } from "../utils/workspaceLocalization.js";
 
 const FRONTDESK_ROLES = new Set(["owner", "founder", "super_admin", "admin", "admin_manager", "manager"]);
 const MODULE_ADMIN_ROLES = new Set(["owner", "founder", "super_admin"]);
@@ -212,16 +213,11 @@ const buildSummary = (visitors = []) =>
     },
   );
 
-const getKolkataDateKey = (value: Date | string | null) => {
+const getWorkspaceDateKey = (value: Date | string | null, timeZone: string) => {
   if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return getZonedDateKey(date, timeZone);
 };
 
 const buildHostGroups = (employeeRoster = [], workspaceDepartments = []) => {
@@ -353,10 +349,11 @@ export const getVisitorsOverview = async (req, res, next) => {
       isActive: d.isActive,
     }));
     const hostGroups = buildHostGroups(employeeRoster, activeWorkspaceDepartments);
-    const todayKey = getKolkataDateKey(new Date());
+    const workspaceTimeZone = normalizeTimeZone(workspace?.preferences?.timezone);
+    const todayKey = getWorkspaceDateKey(new Date(), workspaceTimeZone);
     const dailyVisitors = formatted.filter((visitor) => {
-      const createdKey = getKolkataDateKey(visitor.createdAt);
-      const checkInKey = getKolkataDateKey(visitor.checkInAt);
+      const createdKey = getWorkspaceDateKey(visitor.createdAt, workspaceTimeZone);
+      const checkInKey = getWorkspaceDateKey(visitor.checkInAt, workspaceTimeZone);
       return createdKey === todayKey || checkInKey === todayKey;
     });
     const visitorHistory = formatted.filter((visitor) =>

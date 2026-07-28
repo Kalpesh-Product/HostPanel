@@ -17,12 +17,34 @@ interface ForgotPasswordData {
   email: string;
 }
 
+const FORGOT_PASSWORD_HEADING = "Forgot Password?";
+
 const ForgotPassword = () => {
   const { auth } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const axios = api;
+  const [typedHeading, setTypedHeading] = useState("");
+  const [isFormVisible, setIsFormVisible] = useState(false);
+
+  React.useEffect(() => {
+    setTypedHeading("");
+    setIsFormVisible(false);
+
+    let headingIndex = 0;
+    const headingInterval = setInterval(() => {
+      headingIndex += 1;
+      setTypedHeading(FORGOT_PASSWORD_HEADING.slice(0, headingIndex));
+
+      if (headingIndex >= FORGOT_PASSWORD_HEADING.length) {
+        clearInterval(headingInterval);
+        setIsFormVisible(true);
+      }
+    }, 7);
+
+    return () => clearInterval(headingInterval);
+  }, []);
 
   const { mutate: sendEmail, isPending } = useMutation({
     mutationFn: async (data: ForgotPasswordData) => {
@@ -74,7 +96,7 @@ const ForgotPassword = () => {
 
             {/* Desktop Buttons */}
             {/* <div className="hidden md:flex gap-4">
-          <a href="https://wonofe.vercel.app">
+          <a href="https://wono.co">
             <button type="button" className="bg-white text-black py-2 px-4 rounded-full uppercase">
               Sign In
             </button>
@@ -139,14 +161,14 @@ const ForgotPassword = () => {
             </React.Fragment>
           ))} */}
 
-          {/* Sign In button */}
+          {/* Login button */}
           <div className="flex flex-col w-full items-center gap-6">
             <div>
               <a
-                href="https://wonofe.vercel.app"
+                href="https://wono.co"
                 className="block px-10 py-2 uppercase bg-white text-black mx-auto w-max rounded-full"
               >
-                Sign In
+                Login
               </a>
             </div>
             <hr className="w-[75%]" />
@@ -163,7 +185,7 @@ const ForgotPassword = () => {
       </Drawer>
       {/* Header */}
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding min-h-screen">
-        <h1 className="text-center text-4xl font-bold">FORGOT PASSWORD</h1>
+        <h1 className="text-center text-4xl font-play min-h-[3rem]">{typedHeading}</h1>
         <div className="loginDividingContainer shrink-container ">
           <div className="loginLeftContainer  w-full md:w-3/4">
             <Container
@@ -176,8 +198,9 @@ const ForgotPassword = () => {
                 onSubmit={onSubmit}
                 noValidate
                 autoComplete="off"
+                className={isFormVisible ? "visible" : "invisible"}
               >
-                <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 w-4/5 md:w-1/2 mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 w-4/5 md:w-1/2 mx-auto">
                   <div>
                     <TextField
                       label="Email"
@@ -218,7 +241,7 @@ const ForgotPassword = () => {
                     />
                   </Grid> */}
                 </div>
-                <div className="mt-2 col-span-2 text-end min-h-[1.5rem]" />
+                <div className="mt-6 col-span-2 text-end min-h-[1.5rem]" />
 
                 {/* <div className="mt-2 col-span-2 text-end">
                   <Link
@@ -229,18 +252,18 @@ const ForgotPassword = () => {
                   </Link>
                 </div> */}
                 <div className="flex">
-                  <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
+                  <div className="flex flex-col justify-center w-full items-center gap-6 mt-6">
                     <div>
                       <div className="centerInPhone">
                         <button
                           disabled={isPending}
                           type="submit"
-                          className="loginButtonStyling text-decoration-none text-subtitle w-40"
+                          className="loginButtonStyling text-decoration-none text-subtitle font-medium w-40"
                         >
                           {isPending ? (
                             <CircularProgress size={20} sx={{ color: 'white' }} />
                           ) : (
-                            "SEND"
+                            "Send"
                           )}
                         </button>
                       </div>
@@ -248,7 +271,7 @@ const ForgotPassword = () => {
                     <p className="text-[0.9rem]">
                       Already have an account?{" "}
                       <Link to="/" className="underline hover:text-primary">
-                        Sign In
+                        Login
                       </Link>
                     </p>
                   </div>

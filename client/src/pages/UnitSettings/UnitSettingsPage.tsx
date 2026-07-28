@@ -26,6 +26,7 @@ import {
   Trash2,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
+import TimePicker12h, { formatTime12hLabel } from "../../components/ui/TimePicker12h";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import {
@@ -43,6 +44,33 @@ import {
   normalizeBillingConfig,
   type WorkspaceBillingConfig,
 } from "../../lib/workspaceBilling";
+
+const TIMEZONE_OPTIONS: string[] = (() => {
+  try {
+    const supported = (Intl as any).supportedValuesOf?.("timeZone");
+    if (Array.isArray(supported) && supported.length > 0) return supported;
+  } catch {
+    // fall through to the curated list below
+  }
+  return [
+    "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+    "America/Anchorage", "America/Adak", "Pacific/Honolulu",
+    "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Asia/Tokyo", "Asia/Shanghai",
+    "Europe/London", "Europe/Paris", "Europe/Berlin",
+    "Australia/Sydney", "UTC",
+  ];
+})();
+
+function formatTimeInZone(timeZone: string): string {
+  if (!timeZone) return "-";
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone, hour: "2-digit", minute: "2-digit", hour12: true,
+    }).format(new Date());
+  } catch {
+    return "-";
+  }
+}
 
 type WorkspaceItem = {
   id: string;
@@ -124,6 +152,7 @@ export default function WorkspaceSettingsPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [businessStart, setBusinessStart] = useState("09:00");
   const [businessEnd, setBusinessEnd] = useState("22:00");
+  const [is24Hours, setIs24Hours] = useState(false);
   const [workspaceTimezone, setWorkspaceTimezone] = useState("Asia/Kolkata");
   const [workspaceCurrency, setWorkspaceCurrency] = useState("INR");
   const [billing, setBilling] = useState<WorkspaceBillingConfig>(() => getCountryBillingDefaults("IN"));
@@ -153,6 +182,7 @@ export default function WorkspaceSettingsPage() {
         if (mounted && preferences) {
           setBusinessStart(bh?.start || "09:00");
           setBusinessEnd(bh?.end || "22:00");
+          setIs24Hours(Boolean(bh?.is24Hours));
           setWorkspaceTimezone(preferences.timezone || "Asia/Kolkata");
           setWorkspaceCurrency(preferences.currency || "INR");
           setBilling(normalizeBillingConfig(preferences.billing));
@@ -314,13 +344,15 @@ export default function WorkspaceSettingsPage() {
   };
 
   const saveBusinessHours = async () => {
-    if (!businessStart || !businessEnd) {
-      toast.error("Please set both start and end times.");
-      return;
-    }
-    if (businessStart >= businessEnd) {
-      toast.error("Start time must be before end time.");
-      return;
+    if (!is24Hours) {
+      if (!businessStart || !businessEnd) {
+        toast.error("Please set both start and end times.");
+        return;
+      }
+      if (businessStart >= businessEnd) {
+        toast.error("Start time must be before end time.");
+        return;
+      }
     }
     try {
       setIsSavingHours(true);
@@ -334,7 +366,7 @@ export default function WorkspaceSettingsPage() {
           dateFormat: "DD MMM YYYY",
           timeFormat: "12h",
           weekStartsOn: "monday",
-          businessHours: { start: businessStart, end: businessEnd },
+          businessHours: { start: businessStart, end: businessEnd, is24Hours },
           billing,
         },
         branding: { primaryColor: "#2563EB" },
@@ -812,28 +844,57 @@ export default function WorkspaceSettingsPage() {
                 </button>
               </div>
               <div className="p-3 sm:p-4 lg:p-5">
+                <div className="grid gap-3 sm:grid-cols-2 mb-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace Timezone</label>
+                    <select
+                      value={workspaceTimezone}
+                      onChange={(e) => setWorkspaceTimezone(e.target.value)}
+                      className="w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none cursor-pointer"
+                    >
+                      {!TIMEZONE_OPTIONS.includes(workspaceTimezone) && workspaceTimezone && (
+                        <option value={workspaceTimezone}>{workspaceTimezone}</option>
+                      )}
+                      {TIMEZONE_OPTIONS.map((tz) => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] font-pmedium text-slate-400">Current time there: {formatTimeInZone(workspaceTimezone)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace Currency</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{workspaceCurrency || "-"}</p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2.5 mb-4 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={is24Hours}
+                    onChange={(e) => setIs24Hours(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30"
+                  />
+                  <span className="text-[11px] font-pmedium text-[#0F172A]">Open 24 hours</span>
+                </label>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Opening Time</label>
-                    <input
-                      type="time"
+                    <TimePicker12h
                       value={businessStart}
-                      onChange={(e) => setBusinessStart(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      onChange={setBusinessStart}
+                      disabled={is24Hours}
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Closing Time</label>
-                    <input
-                      type="time"
+                    <TimePicker12h
                       value={businessEnd}
-                      onChange={(e) => setBusinessEnd(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      onChange={setBusinessEnd}
+                      disabled={is24Hours}
                     />
                   </div>
                 </div>
                 <p className="mt-3 text-[10px] font-pmedium text-slate-400">
-                  Current: {businessStart ? (() => { const [h, m] = businessStart.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'} – {businessEnd ? (() => { const [h, m] = businessEnd.split(':'); const hr = parseInt(h); return hr <= 12 ? `${hr || 12}:${m} AM` : `${hr - 12}:${m} PM`; })() : '--'}
+                  Current: {is24Hours ? "Open 24 hours" : `${formatTime12hLabel(businessStart)} – ${formatTime12hLabel(businessEnd)}`}
                 </p>
               </div>
             </section>

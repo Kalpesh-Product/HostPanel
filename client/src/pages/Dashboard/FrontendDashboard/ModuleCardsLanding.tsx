@@ -158,7 +158,7 @@ type RoleAccessContext = {
   grantedModules: string[];
 };
 
-const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 
 const SECTION_TITLES: Record<SectionType, string> = {
   "common-modules": "Common Modules",

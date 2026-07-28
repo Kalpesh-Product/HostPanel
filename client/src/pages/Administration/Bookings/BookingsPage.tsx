@@ -34,7 +34,7 @@ import { BookingsSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
 import { statusPillClass } from '../../../lib/status-pill';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
-import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
+import { formatWorkspaceCurrency, getWorkspaceDateKey, getWorkspaceTime } from '../../../lib/workspaceLocalization';
 // Backend services - uncomment when backend is ready:
 // import { getMeetingRoomBookings, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
 // import { getTenantCompanies } from '@/services/tenant-companies';
@@ -719,7 +719,7 @@ function getDurationMinutes(startTime: string, endTime: string): number | null {
   return endMinutes - startMinutes;
 }
 
-function getBookingTimeValidation(dateValue: string, startTimeValue: string): { valid: boolean; reason: string } {
+function getBookingTimeValidation(dateValue: string, startTimeValue: string, timeZone?: string): { valid: boolean; reason: string } {
   if (!dateValue || !startTimeValue) {
     return { valid: true, reason: '' };
   }
@@ -731,8 +731,8 @@ function getBookingTimeValidation(dateValue: string, startTimeValue: string): { 
   }
 
   const now = new Date();
-  const today = formatDateOnly(now);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const today = getWorkspaceDateKey(now, timeZone);
+  const currentMinutes = timeStringToMinutes(getWorkspaceTime(now, timeZone)) ?? 0;
 
   if (selectedDate < today) {
     return { valid: false, reason: 'Backdated bookings are not allowed. Choose a future date.' };
@@ -1530,7 +1530,7 @@ export default function BookingsPage() {
       return { ...availability, mode: 'extend', nextDate: baseDate, nextStartTime: baseStartTime, nextEndTime, extraMinutes };
     }
 
-    const timeValidation = getBookingTimeValidation(rescheduleForm.newDate, rescheduleForm.newStartTime);
+    const timeValidation = getBookingTimeValidation(rescheduleForm.newDate, rescheduleForm.newStartTime, workspacePreferences.timezone);
     if (!timeValidation.valid) {
       return { available: false, conflicts: [], reason: timeValidation.reason, mode: 'reschedule' };
     }
