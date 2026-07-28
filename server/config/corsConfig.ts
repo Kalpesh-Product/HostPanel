@@ -12,9 +12,15 @@ export const allowedOrigins = [
   "https://wonomasterfe.vercel.app",
 ];
 
+const regexAllowedOrigins = [/\.wono\.co$/, /^https:\/\/wono\.co$/];
+
 export const corsConfig = {
   origin: function (origin, callback) {
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    if (
+      !origin ||
+      allowedOrigins.indexOf(origin) !== -1 ||
+      regexAllowedOrigins.some((regex) => regex.test(origin))
+    ) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
