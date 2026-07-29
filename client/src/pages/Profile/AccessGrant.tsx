@@ -802,6 +802,10 @@ export default function AccessGrantsPage() {
       toast.error('Only founder or super-admin can manage module access.');
       return;
     }
+    if (String(member?.status || '').trim().toLowerCase() === 'disabled') {
+      toast.error('Enable the user to manage sidebar access.');
+      return;
+    }
     const grantedModuleValues = Array.isArray(member?.grantedModules) ? member.grantedModules : [];
     const effectiveAccessModules = expandModuleAliases(
       [...grantedModuleValues]
@@ -1356,8 +1360,8 @@ export default function AccessGrantsPage() {
           <div data-tour="access-grants-summary" className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
             {[
               { key: 'total', label: 'Total Members', value: users.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600', Icon: Users },
-              { key: 'founder', label: 'Founder', value: stats.owner, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500', iconClass: 'bg-violet-50 text-violet-600', Icon: Shield },
-              { key: 'admin', label: 'Admin', value: stats.superAdmin + stats.admin, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600', Icon: Shield },
+              { key: 'super-admin', label: 'Super Admin', value: stats.superAdmin, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500', iconClass: 'bg-rose-50 text-rose-600', Icon: Crown },
+              { key: 'admin', label: 'Admin', value: stats.admin, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600', Icon: Shield },
               { key: 'manager', label: 'Manager', value: stats.manager, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600', Icon: UserCheck },
               { key: 'employee', label: 'Employee', value: stats.employee, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600', Icon: UserCog },
             ].map((card) => {
@@ -1470,6 +1474,7 @@ export default function AccessGrantsPage() {
                         currentUserId &&
                         rowUserId &&
                         currentUserId === rowUserId;
+                      const isUserDisabled = String(user.status || '').trim().toLowerCase() === 'disabled';
                       const normalizedDepartments = Array.isArray(user.departments)
                         ? user.departments.filter(Boolean)
                         : [];
@@ -1523,8 +1528,13 @@ export default function AccessGrantsPage() {
                                       onClick={() => openMemberAccessDialog(user)}
                                       type="button"
                                       disabled={!canManageModuleAccess}
-                                      className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all disabled:opacity-55 disabled:cursor-not-allowed"
-                                      title="Manage Sidebar Access"
+                                      aria-disabled={isUserDisabled || !canManageModuleAccess}
+                                      className={`p-1.5 rounded-lg transition-all disabled:opacity-55 disabled:cursor-not-allowed ${
+                                        isUserDisabled
+                                          ? 'bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed'
+                                          : 'bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
+                                      }`}
+                                      title={isUserDisabled ? 'Enable the user to manage sidebar access' : 'Manage Sidebar Access'}
                                     >
                                       <Shield size={15} strokeWidth={2.5} />
                                     </button>

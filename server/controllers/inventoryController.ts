@@ -134,9 +134,11 @@ export async function transferInventory(request: Request, response: Response, ne
     const userId = (request as any).user?.id || (request as any).user?._id || (request as any).user;
     const inventoryId = request.params.inventoryId;
     const roleBand = getRoleBand((request as any).workspaceMembership?.role);
+    const assignedDepartmentNames = await resolveAssignedDepartmentNames(request);
     const result = await transferInventoryForCurrentUser(userId, inventoryId, {
       ...request.body,
       roleBand,
+      assignedDepartmentNames,
     });
     response.status(200).json(result);
   } catch (error) {

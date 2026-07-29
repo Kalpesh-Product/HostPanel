@@ -213,7 +213,11 @@ export function InventoryPage() {
   const roleBand = getRoleBand(normalizedRole);
   const isFounder = roleBand === 'owner' || roleBand === 'super_admin';
   const canManageInventory = roleBand !== 'employee';
-  const assignedDepartments = useMemo(() => getAssignedDepartments(storedUser), [storedUser]);
+  const [resolvedAssignedDepartments, setResolvedAssignedDepartments] = useState<string[]>([]);
+  const assignedDepartments = useMemo(() => {
+    if (resolvedAssignedDepartments.length > 0) return resolvedAssignedDepartments;
+    return getAssignedDepartments(storedUser);
+  }, [resolvedAssignedDepartments, storedUser]);
 
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -240,22 +244,19 @@ export function InventoryPage() {
   const [fetchedDepartments, setFetchedDepartments] = useState<string[]>([]);
 
   const availableDepartments = useMemo(() => {
-    if (fetchedDepartments.length > 0) {
-      if (!isFounder && assignedDepartments.length > 0) {
-        return fetchedDepartments.filter((d) =>
-          assignedDepartments.some((ad) => normalizeDepartmentKey(ad) === normalizeDepartmentKey(d))
-        );
-      }
-      return fetchedDepartments;
-    }
-    const opts = getDepartmentOptions(storedUser, inventory);
-    if (!isFounder && assignedDepartments.length > 0) {
+    const opts = fetchedDepartments.length > 0 ? fetchedDepartments : getDepartmentOptions(storedUser, inventory);
+    if (!isFounder) {
       return opts.filter((d) =>
         assignedDepartments.some((ad) => normalizeDepartmentKey(ad) === normalizeDepartmentKey(d))
       );
     }
     return opts;
   }, [storedUser, inventory, isFounder, assignedDepartments, fetchedDepartments]);
+
+  const allDepartmentOptions = useMemo(() => {
+    if (fetchedDepartments.length > 0) return fetchedDepartments;
+    return getDepartmentOptions(storedUser, inventory);
+  }, [storedUser, inventory, fetchedDepartments]);
 
   const defaultDepartment = useMemo(() => {
     if (assignedDepartments.length > 0) return assignedDepartments[0];
@@ -330,6 +331,21 @@ export function InventoryPage() {
           .filter((n: string) => n && n !== 'Sales & CRM');
         if (isMounted && names.length > 0) {
           setFetchedDepartments(names);
+        }
+
+        // The stored user object never carries workspaceMembership.departments,
+        // so derive "my" real assigned departments from the org overview's
+        // team member list instead (same pattern Sidebar.tsx uses).
+        const teamMembers = Array.isArray(data?.teamMembers) ? data.teamMembers : [];
+        const currentUserId = String(storedUser?.id || storedUser?._id || '').trim();
+        const currentUserEmail = String(storedUser?.email || '').trim().toLowerCase();
+        const me = teamMembers.find((member: any) => {
+          const memberUserId = String(member?.userId || member?.id || '').trim();
+          const memberEmail = String(member?.email || '').trim().toLowerCase();
+          return (memberUserId && memberUserId === currentUserId) || (currentUserEmail && memberEmail === currentUserEmail);
+        });
+        if (isMounted && me && Array.isArray(me.departmentNames)) {
+          setResolvedAssignedDepartments(me.departmentNames.filter(Boolean));
         }
       } catch {
         // silently fall back to user-derived departments
@@ -562,7 +578,7 @@ export function InventoryPage() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 {isFounder
                   ? 'Founder View: monitor all inventory, create stock, and execute global reallocations.'
-                  : 'Admin View: manage inventory for departments assigned to you.'}
+                  : 'Admin View: manage and transfer inventory for departments assigned to you.'}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -754,7 +770,7 @@ export function InventoryPage() {
                         </td>
                         <td className="px-5 py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            {isFounder && item.availableQuantity > 0 && (
+                            {canManageInventory && item.availableQuantity > 0 && (
                               <button
                                 onClick={() => {
                                   setActiveInventoryItem(item);
@@ -774,28 +790,32 @@ export function InventoryPage() {
                             >
                               <Eye size={15} strokeWidth={2.5} />
                             </button>
-                            <button
-                              onClick={() => {
-                                setActiveInventoryItem(item);
-                                setReturnData({ quantity: '', returnedBy: '', reason: '' });
-                                setIsReturnModalOpen(true);
-                              }}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
-                              title="Return"
-                            >
-                              <RotateCcw size={15} strokeWidth={2.5} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setActiveInventoryItem(item);
-                                setMaintenanceData({ reason: '', expectedDate: '' });
-                                setIsMaintenanceModalOpen(true);
-                              }}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all"
-                              title="Mark Under Maintenance"
-                            >
-                              <Wrench size={15} strokeWidth={2.5} />
-                            </button>
+                            {item.trackingType === 'Returnable Asset' && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setActiveInventoryItem(item);
+                                    setReturnData({ quantity: '', returnedBy: '', reason: '' });
+                                    setIsReturnModalOpen(true);
+                                  }}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+                                  title="Return"
+                                >
+                                  <RotateCcw size={15} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setActiveInventoryItem(item);
+                                    setMaintenanceData({ reason: '', expectedDate: '' });
+                                    setIsMaintenanceModalOpen(true);
+                                  }}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all"
+                                  title="Mark Under Maintenance"
+                                >
+                                  <Wrench size={15} strokeWidth={2.5} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -860,7 +880,7 @@ export function InventoryPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 pt-2 border-t border-slate-100">
-                        {isFounder && item.availableQuantity > 0 && (
+                        {canManageInventory && item.availableQuantity > 0 && (
                           <button
                             onClick={() => {
                               setActiveInventoryItem(item);
@@ -878,26 +898,30 @@ export function InventoryPage() {
                         >
                           <Eye size={14} /> View
                         </button>
-                        <button
-                          onClick={() => {
-                            setActiveInventoryItem(item);
-                            setReturnData({ quantity: '', returnedBy: '', reason: '' });
-                            setIsReturnModalOpen(true);
-                          }}
-                          className="flex-1 py-2 bg-white border border-slate-200 text-amber-700 rounded-xl text-[11px] hover:bg-amber-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
-                        >
-                          <RotateCcw size={13} /> Return
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveInventoryItem(item);
-                            setMaintenanceData({ reason: '', expectedDate: '' });
-                            setIsMaintenanceModalOpen(true);
-                          }}
-                          className="py-2 px-3 bg-white border border-slate-200 text-orange-600 rounded-xl text-[11px] hover:bg-orange-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
-                        >
-                          <Wrench size={14} />
-                        </button>
+                        {item.trackingType === 'Returnable Asset' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setActiveInventoryItem(item);
+                                setReturnData({ quantity: '', returnedBy: '', reason: '' });
+                                setIsReturnModalOpen(true);
+                              }}
+                              className="flex-1 py-2 bg-white border border-slate-200 text-amber-700 rounded-xl text-[11px] hover:bg-amber-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              <RotateCcw size={13} /> Return
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActiveInventoryItem(item);
+                                setMaintenanceData({ reason: '', expectedDate: '' });
+                                setIsMaintenanceModalOpen(true);
+                              }}
+                              className="py-2 px-3 bg-white border border-slate-200 text-orange-600 rounded-xl text-[11px] hover:bg-orange-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
+                            >
+                              <Wrench size={14} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -1120,7 +1144,7 @@ export function InventoryPage() {
                         onChange={(e) => setTransferData({ ...transferData, targetDepartment: e.target.value })}
                       >
                         <option value="">Select target department</option>
-                        {availableDepartments
+                        {allDepartmentOptions
                           .filter((d) => normalizeDepartmentKey(d) !== normalizeDepartmentKey(activeInventoryItem.department))
                           .map((d) => <option key={d} value={d}>{d}</option>)}
                       </select>

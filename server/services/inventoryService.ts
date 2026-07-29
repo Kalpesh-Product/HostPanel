@@ -143,15 +143,18 @@ export async function createInventoryForCurrentUser(userId, input) {
 
   if (band === "admin" || band === "manager") {
     const deptName = payload.department;
-    if (deptName && assignedDepartmentNames && assignedDepartmentNames.length > 0) {
-      const allowed = assignedDepartmentNames.some(
-        (d) => d.toLowerCase().trim() === deptName.toLowerCase().trim()
-      );
-      if (!allowed) {
-        const err = new Error("You can only create inventory for your assigned departments.");
-        err.statusCode = 403;
-        throw err;
-      }
+    if (!deptName) {
+      const err = new Error("department is required.");
+      err.statusCode = 400;
+      throw err;
+    }
+    const allowed = (assignedDepartmentNames || []).some(
+      (d) => d.toLowerCase().trim() === deptName.toLowerCase().trim()
+    );
+    if (!allowed) {
+      const err = new Error("You can only create inventory for your assigned departments.");
+      err.statusCode = 403;
+      throw err;
     }
   }
 
@@ -266,7 +269,7 @@ export async function updateInventoryForCurrentUser(userId, inventoryId, input) 
         dateLabel: "Today",
         qty,
         target: existing.departmentName || "Stock",
-        action: input.reason || "Stock Decreased",
+        action: input.reason || "Utilized",
       });
     }
 
@@ -350,9 +353,12 @@ export async function allocateInventoryForCurrentUser(userId, inventoryId, input
 export async function transferInventoryForCurrentUser(userId, inventoryId, input) {
   const { targetDepartment, targetDepartmentId, quantity, roleBand } = input || {};
   const band = getRoleBand(roleBand);
+  const assignedDepartmentNames = Array.isArray(input.assignedDepartmentNames)
+    ? input.assignedDepartmentNames
+    : [];
 
-  if (band !== "owner" && band !== "super_admin") {
-    const err = new Error("Only founder or super admin can transfer inventory between departments.");
+  if (band === "employee") {
+    const err = new Error("You do not have permission to transfer inventory.");
     err.statusCode = 403;
     throw err;
   }
@@ -376,6 +382,24 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
     throw err;
   }
 
+  if (band === "admin" || band === "manager") {
+    const itemDept = String(source.departmentName || "").toLowerCase().trim();
+    const allowed = assignedDepartmentNames.some(
+      (d) => d.toLowerCase().trim() === itemDept
+    );
+    if (!allowed) {
+      const err = new Error("You can only transfer inventory out of your assigned departments.");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  if (String(targetDepartment).toLowerCase().trim() === String(source.departmentName || "").toLowerCase().trim()) {
+    const err = new Error("Target department must be different from the source department.");
+    err.statusCode = 400;
+    throw err;
+  }
+
   if (source.availableQuantity < qty) {
     const err = new Error("Transfer quantity exceeds available stock.");
     err.statusCode = 400;
@@ -387,7 +411,7 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
     dateLabel: "Today",
     qty,
     target: String(targetDepartment),
-    action: "Transferred Out by Founder",
+    action: "Transferred Out",
   });
 
   await source.save();

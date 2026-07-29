@@ -6,7 +6,7 @@ interface ProfessionalTourRoute extends BasicPageTour {
 }
 
 const PROFESSIONAL_TOUR_VERSION = 2;
-const PROFESSIONAL_UNIT_TOUR_VERSION = 3;
+const PROFESSIONAL_UNIT_TOUR_VERSION = 4;
 const exact = (path: string) => (pathname: string) =>
   pathname === path || pathname === `${path}/`;
 const startsWith = (path: string) => (pathname: string) =>
@@ -136,11 +136,10 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
     steps: [
       { selector: '[data-tour="unit-settings-summary"]', title: "Your unit overview", description: "Owned Units shows how many branches belong to this Founder account. The other cards identify the active unit and combine employee and task totals across linked units." },
       { selector: '[data-tour="unit-settings-create"]', title: "Start another branch unit", description: "This is the complete entry point for adding a second Professional unit. Only the Founder or Owner can start this protected creation flow." },
-      { selector: '[data-tour="unit-settings-create-button"]', title: "Select Create Unit", description: "Click Create Unit to open password verification. Enter the current Founder account password and continue; after successful verification, the additional-unit onboarding form opens." },
-      { selector: '[data-tour="unit-settings-creation-details"]', title: "What is copied and what is new", description: "The current business and brand identity are prefilled. The new unit name starts empty, and you enter its own country, state, city, address, location, business vertical, and other branch-specific setup information." },
-      { selector: '[data-tour="unit-settings-creation-notes"]', title: "Complete the onboarding flow", description: "Finish every required onboarding step and submit the new unit. It is then linked to the same Founder account, appears in the workspace switcher, and unlocks Unit Management because the account now has more than one unit." },
-      { selector: '[data-tour="unit-settings-linked-units"]', title: "Confirm the linked unit", description: "After setup is completed, the new branch appears here with its location and employee count. The Active badge identifies the unit you are currently using." },
+      { selector: '[data-tour="unit-settings-create-button"]', title: "Select Create Unit", description: "Click Create Unit to open password verification. Enter the current Founder account password to continue. You are then taken to the onboarding flow, where your current business and brand identity are prefilled and you enter the new branch's own country, state, city, address, and business vertical. Finishing onboarding links the new unit to this Founder account, adds it to the workspace switcher, and unlocks Unit Management." },
+      { selector: '[data-tour="unit-settings-linked-units"]', title: "Your linked units", description: "Every unit linked to this Founder account appears here with its status, plan, location, and employee count. Use the row actions to switch to a unit, rename it, enable or disable it, or delete it. The main unit is protected and cannot be removed." },
       { selector: '[data-tour="unit-settings-business-hours"]', title: "Set operating hours", description: "Choose opening and closing times for the active unit, then select Save Hours. These hours control meeting-room, walk-in, and booking availability for its resources." },
+      { selector: '[data-tour="unit-settings-billing"]', title: "Tax and payment preferences", description: "Configure the location-level tax and payment rules that drive external and walk-in booking totals, payment evidence, and confirmation emails for the active unit.", side: "top" },
     ],
     matches: exact("/company-settings/workspace-settings"),
   },
@@ -157,6 +156,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="unit-management-list"]', title: "Review each linked unit", description: "Each unit card shows its business identity, location, creation date, current or linked state, and separate totals for employees, departments, tickets, tasks, assets, inventory, bookings, and performance." },
       { selector: '[data-tour="unit-management-view-details"]', title: "View a unit’s detailed data", description: "Select View Details to expand the unit. The Employees, Roles, Work Items, and Departments tabs then show the people, access distribution, recent tickets and tasks, and department-level totals for that branch." },
       { selector: '[data-tour="unit-management-edit-unit"]', title: "Edit the unit name", description: "Select Edit Unit to open the edit dialog, update the branch name, and save it. The refreshed name is applied to the linked unit after the update succeeds." },
+      { selector: '[data-tour="unit-management-switch-unit"]', title: "Switch to a linked unit", description: "Select Switch on any linked unit that is not already active to move your session there. This button is only available for units that are not currently active, disabled, or deleted." },
     ],
     matches: exact("/company-settings/workspace-management"),
   },

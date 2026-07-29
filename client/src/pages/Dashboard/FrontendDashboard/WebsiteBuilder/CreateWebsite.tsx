@@ -2932,11 +2932,11 @@ const CreateWebsite = () => {
       <div className="p-4 flex flex-col gap-4 min-w-0">
         <PageFrame>
           <div className="flex flex-col gap-5 min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2" data-tour="wb-editor-header">
               <h2 className="text-title font-pmedium text-primary uppercase">
                 {effectiveEditMode ? "Edit Website" : "Create Website"}
               </h2>
-              <div className="flex flex-col items-end gap-1">
+              <div className="flex flex-col items-end gap-1" data-tour="wb-editor-draft-status">
                 <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
                   {selectedVerticalBadgeText}
                 </span>
@@ -2968,11 +2968,11 @@ const CreateWebsite = () => {
               onSubmit={(e) => e.preventDefault()}
               className="min-w-0 w-full"
             >
-          <div className="mb-4 min-w-0 overflow-hidden">
+            <div className="mb-4 min-w-0 overflow-hidden">
             <div className="border-b-default border-borderGray py-4">
               <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Website Pages <SectionPreviewInfo section="pages" /></span>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm" data-tour="wb-editor-page-tabs">
               {pageNavFields.map((item, index) => {
                 const tabSlug = String(watch(`pageNavItems.${index}.slug`) || "").trim().toLowerCase();
                 const isCareersTab = tabSlug === "careers";
@@ -4375,10 +4375,10 @@ const CreateWebsite = () => {
             ) : null}
           </div>
           {activeMainPageSlug === "home" ? (
-          <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4" data-tour="wb-editor-home-content">
             {/* HERO / COMPANY */}
             {activeSections.includes("hero") && (
-            <div>
+            <div data-tour="wb-editor-hero-section">
               <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Hero Section <SectionPreviewInfo section="hero" /></span>
                 <SectionToggle sectionKey="home_hero" control={control} />
@@ -5530,7 +5530,7 @@ const CreateWebsite = () => {
           ) : null}
 
               {/* Publish / Preview / Reset */}
-              <div className="flex justify-center mb-3">
+              <div className="flex justify-center mb-3" data-tour="wb-editor-credits">
                 {workspaceId || companyId ? (
                   <CreditsIndicator workspaceId={workspaceId} companyId={companyId} />
                 ) : null}
@@ -5539,6 +5539,7 @@ const CreateWebsite = () => {
                 <button
                   type="button"
                   onClick={openPreview}
+                  data-tour="wb-editor-preview"
                   className="px-8 py-2.5 bg-green-500 border border-slate-200 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-green-600 transition-all"
                 >
                   Preview
@@ -5546,6 +5547,7 @@ const CreateWebsite = () => {
                 <button
                   type="button"
                   onClick={() => setShowResetConfirmPopup(true)}
+                  data-tour="wb-editor-reset"
                   className="px-8 py-2.5 bg-red-500 border border-slate-200 text-slate-100 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-red-600 transition-all"
                 >
                   Reset
@@ -5554,6 +5556,7 @@ const CreateWebsite = () => {
                   type="button"
                   onClick={() => setShowConfirmPopup(true)}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
+                  data-tour="wb-editor-publish"
                   className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                 >
                   {isWebsiteSubmitting ? (

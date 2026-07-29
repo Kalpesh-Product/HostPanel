@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, type ChangeEvent } from 'react';
 import { getStoredUser } from '@/lib/auth-session';
-import { createInventory, getInventory, updateInventory, returnInventory, markUnderMaintenance } from '@/services/inventory';
+import { createInventory, getInventory, updateInventory, transferInventory, returnInventory, markUnderMaintenance } from '@/services/inventory';
 import { getOrganizationOverview } from '@/services/organization';
 import { getResources } from '@/services/resources';
 import { axiosPrivate } from '@/utils/axios';
@@ -8,7 +8,7 @@ import { normalizeDepartmentKey } from '@/utils/user-helpers';
 import {
   Search, Plus, X, Package, TrendingDown, RefreshCw, Box, History, User,
   AlertTriangle, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Filter,
-  RotateCcw, Wrench, Eye,
+  RotateCcw, Wrench, Eye, ArrowRightLeft, Building2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
@@ -60,6 +60,11 @@ interface UpdateStockData {
   actionType: string;
   quantity: string;
   reason: string;
+}
+
+interface TransferData {
+  targetDepartment: string;
+  quantity: string;
 }
 
 type SortField = 'name' | 'category' | 'totalQuantity' | 'availableQuantity' | 'createdAt';
@@ -203,7 +208,8 @@ export function DepartmentInventoryPage() {
   const storedUser = getStoredUser();
   const normalizedRole = String(storedUser?.workspaceMembership?.role || storedUser?.role || '').trim().toLowerCase();
   const roleBand = getRoleBand(normalizedRole);
-  const deptLabel = getDepartmentLabel(storedUser);
+  const [resolvedDeptLabel, setResolvedDeptLabel] = useState('');
+  const deptLabel = resolvedDeptLabel || getDepartmentLabel(storedUser);
   const categories = getDeptCategories(deptLabel);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -234,6 +240,9 @@ export function DepartmentInventoryPage() {
   const [updateStock, setUpdateStock] = useState<UpdateStockData>({
     itemId: '', actionType: 'increase', quantity: '', reason: '',
   });
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [transferData, setTransferData] = useState<TransferData>({ targetDepartment: '', quantity: '' });
+  const [activeTransferItem, setActiveTransferItem] = useState<InventoryItem | null>(null);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnData, setReturnData] = useState({ quantity: '', returnedBy: '', reason: '' });
   const [activeReturnItem, setActiveReturnItem] = useState<InventoryItem | null>(null);
@@ -310,6 +319,22 @@ export function DepartmentInventoryPage() {
         if (isMounted && names.length > 0) {
           setFetchedDepartments(names);
         }
+
+        // The stored user object never carries workspaceMembership.departments,
+        // so derive "my" real department from the org overview's team member
+        // list instead (same pattern Sidebar.tsx uses).
+        const teamMembers = Array.isArray(data?.teamMembers) ? data.teamMembers : [];
+        const currentUserId = String(storedUser?.id || storedUser?._id || '').trim();
+        const currentUserEmail = String(storedUser?.email || '').trim().toLowerCase();
+        const me = teamMembers.find((member: any) => {
+          const memberUserId = String(member?.userId || member?.id || '').trim();
+          const memberEmail = String(member?.email || '').trim().toLowerCase();
+          return (memberUserId && memberUserId === currentUserId) || (currentUserEmail && memberEmail === currentUserEmail);
+        });
+        const myDepartments = Array.isArray(me?.departmentNames) ? me.departmentNames.filter(Boolean) : [];
+        if (isMounted && myDepartments.length > 0) {
+          setResolvedDeptLabel(myDepartments[0]);
+        }
       } catch {
         // silently fall back
       }
@@ -317,6 +342,12 @@ export function DepartmentInventoryPage() {
     loadDepartments();
     return () => { isMounted = false; };
   }, []);
+
+  const otherDepartmentOptions = useMemo(() => {
+    return fetchedDepartments.filter(
+      (d) => normalizeDepartmentKey(d) !== normalizeDepartmentKey(deptLabel)
+    );
+  }, [fetchedDepartments, deptLabel]);
 
   function handleSort(field: SortField) {
     if (sortField === field) {
@@ -416,6 +447,33 @@ export function DepartmentInventoryPage() {
       setUpdateStock({ itemId: '', actionType: 'increase', quantity: '', reason: '' });
     } catch (error: any) {
       setErrorMessage(error.message || 'Unable to update stock right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTransferStock = async () => {
+    if (!transferData.targetDepartment || !transferData.quantity || !activeTransferItem?.recordId) return;
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsSaving(true);
+    try {
+      const response = await transferInventory(activeTransferItem.recordId, {
+        targetDepartment: transferData.targetDepartment,
+        quantity: transferData.quantity,
+      });
+      const sourceItem = response?.data?.sourceItem || response?.sourceItem;
+      if (sourceItem) {
+        const normalized = normalizeInventoryItem(sourceItem);
+        setInventory((current) => current.map((item) => (item.recordId === normalized.recordId ? normalized : item)));
+        setSuccessMessage(`Transferred ${transferData.quantity} units to ${transferData.targetDepartment}.`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+      setIsTransferModalOpen(false);
+      setTransferData({ targetDepartment: '', quantity: '' });
+      setActiveTransferItem(null);
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Unable to transfer stock right now.');
     } finally {
       setIsSaving(false);
     }
@@ -655,28 +713,45 @@ export function DepartmentInventoryPage() {
                             >
                               <RefreshCw size={15} strokeWidth={2.5} />
                             </button>
-                            <button
-                              onClick={() => {
-                                setActiveReturnItem(item);
-                                setReturnData({ quantity: '', returnedBy: '', reason: '' });
-                                setIsReturnModalOpen(true);
-                              }}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
-                              title="Return"
-                            >
-                              <RotateCcw size={15} strokeWidth={2.5} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setActiveMaintenanceItem(item);
-                                setMaintenanceData({ reason: '', expectedDate: '' });
-                                setIsMaintenanceModalOpen(true);
-                              }}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all"
-                              title="Mark Under Maintenance"
-                            >
-                              <Wrench size={15} strokeWidth={2.5} />
-                            </button>
+                            {roleBand !== 'employee' && item.availableQuantity > 0 && (
+                              <button
+                                onClick={() => {
+                                  setActiveTransferItem(item);
+                                  setTransferData({ targetDepartment: '', quantity: '' });
+                                  setIsTransferModalOpen(true);
+                                }}
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700 rounded-lg transition-all"
+                                title="Transfer to Another Department"
+                              >
+                                <ArrowRightLeft size={15} strokeWidth={2.5} />
+                              </button>
+                            )}
+                            {item.trackingType === 'Returnable Asset' && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setActiveReturnItem(item);
+                                    setReturnData({ quantity: '', returnedBy: '', reason: '' });
+                                    setIsReturnModalOpen(true);
+                                  }}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+                                  title="Return"
+                                >
+                                  <RotateCcw size={15} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setActiveMaintenanceItem(item);
+                                    setMaintenanceData({ reason: '', expectedDate: '' });
+                                    setIsMaintenanceModalOpen(true);
+                                  }}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all"
+                                  title="Mark Under Maintenance"
+                                >
+                                  <Wrench size={15} strokeWidth={2.5} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -755,26 +830,42 @@ export function DepartmentInventoryPage() {
                         >
                           <RefreshCw size={13} /> Update
                         </button>
-                        <button
-                          onClick={() => {
-                            setActiveReturnItem(item);
-                            setReturnData({ quantity: '', returnedBy: '', reason: '' });
-                            setIsReturnModalOpen(true);
-                          }}
-                          className="flex-1 py-2 bg-white border border-slate-200 text-amber-700 rounded-xl text-[11px] hover:bg-amber-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
-                        >
-                          <RotateCcw size={13} /> Return
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveMaintenanceItem(item);
-                            setMaintenanceData({ reason: '', expectedDate: '' });
-                            setIsMaintenanceModalOpen(true);
-                          }}
-                          className="py-2 px-3 bg-white border border-slate-200 text-orange-600 rounded-xl text-[11px] hover:bg-orange-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
-                        >
-                          <Wrench size={14} />
-                        </button>
+                        {roleBand !== 'employee' && item.availableQuantity > 0 && (
+                          <button
+                            onClick={() => {
+                              setActiveTransferItem(item);
+                              setTransferData({ targetDepartment: '', quantity: '' });
+                              setIsTransferModalOpen(true);
+                            }}
+                            className="flex-1 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-[11px] hover:bg-indigo-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            <ArrowRightLeft size={13} /> Transfer
+                          </button>
+                        )}
+                        {item.trackingType === 'Returnable Asset' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setActiveReturnItem(item);
+                                setReturnData({ quantity: '', returnedBy: '', reason: '' });
+                                setIsReturnModalOpen(true);
+                              }}
+                              className="flex-1 py-2 bg-white border border-slate-200 text-amber-700 rounded-xl text-[11px] hover:bg-amber-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              <RotateCcw size={13} /> Return
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActiveMaintenanceItem(item);
+                                setMaintenanceData({ reason: '', expectedDate: '' });
+                                setIsMaintenanceModalOpen(true);
+                              }}
+                              className="py-2 px-3 bg-white border border-slate-200 text-orange-600 rounded-xl text-[11px] hover:bg-orange-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
+                            >
+                              <Wrench size={14} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -984,7 +1075,7 @@ export function DepartmentInventoryPage() {
                         </button>
                         <button type="button" onClick={() => setUpdateStock({ ...updateStock, actionType: 'decrease' })}
                           className={`flex-1 py-2 rounded-md text-[11px] font-pmedium transition-all ${updateStock.actionType === 'decrease' ? 'bg-white shadow-sm text-red-600 border border-slate-200' : 'text-slate-400'}`}>
-                          - Remove
+                          - Utilize
                         </button>
                       </div>
                     </div>
@@ -1021,6 +1112,85 @@ export function DepartmentInventoryPage() {
                     className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isSaving ? 'UPDATING...' : 'UPDATE STOCK'} <RefreshCw size={13} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Transfer Modal */}
+        {isTransferModalOpen && activeTransferItem && (
+          <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-2xl h-[85vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+              <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                    <ArrowRightLeft size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-pmedium text-slate-900">Transfer Stock</h3>
+                    <p className="text-[12px] text-slate-500">Move units from {deptLabel} to another department.</p>
+                  </div>
+                </div>
+                <button onClick={() => { setIsTransferModalOpen(false); setActiveTransferItem(null); }} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"><X size={18} /></button>
+              </div>
+
+              <form onSubmit={(e) => { e.preventDefault(); handleTransferStock(); }} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><ArrowRightLeft size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Transfer Details</span>
+                  </h4>
+                  <div className="flex items-center gap-3 bg-indigo-50/60 p-3 rounded-xl border border-indigo-100">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center"><Package size={14} /></div>
+                    <div>
+                      <p className="text-[13px] font-pmedium text-[#0F172A]">{activeTransferItem.name}</p>
+                      <span className="text-[10px] font-pmedium text-indigo-700">Available: {activeTransferItem.availableQuantity}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Source Department</label>
+                      <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 flex items-center gap-1.5"><Building2 size={12} className="text-slate-400" /> {deptLabel}</div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Target Department <span className="text-red-400">*</span></label>
+                      <select
+                        required
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
+                        value={transferData.targetDepartment}
+                        onChange={(e) => setTransferData({ ...transferData, targetDepartment: e.target.value })}
+                      >
+                        <option value="">Select target department</option>
+                        {otherDepartmentOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Quantity to Transfer <span className="text-red-400">*</span></label>
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        max={activeTransferItem.availableQuantity}
+                        placeholder={`Max: ${activeTransferItem.availableQuantity}`}
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        value={transferData.quantity}
+                        onChange={(e) => setTransferData({ ...transferData, quantity: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
+                  <button type="button" onClick={() => { setIsTransferModalOpen(false); setActiveTransferItem(null); }} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || !transferData.targetDepartment || !transferData.quantity || parseInt(transferData.quantity) > (activeTransferItem.availableQuantity || 0) || parseInt(transferData.quantity) <= 0}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-indigo-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSaving ? 'TRANSFERRING...' : 'CONFIRM TRANSFER'} <ArrowRightLeft size={13} strokeWidth={2.5} />
                   </button>
                 </div>
               </form>

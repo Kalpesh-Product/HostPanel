@@ -14,13 +14,18 @@ export interface BasicPageTourStep {
   selector?: string;
   text?: string;
   exactText?: boolean;
+  // Popover placement relative to the highlighted element. Defaults to "bottom"/"start".
+  // Override to "top" for elements that sit at the very bottom of a page, where a
+  // bottom-side popover would have no room and render off-screen.
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
 }
 
 interface TourRoute extends BasicPageTour {
   matches: (pathname: string) => boolean;
 }
 
-const BASIC_TOUR_VERSION = 5;
+const BASIC_TOUR_VERSION = 6;
 
 const exact = (path: string) => (pathname: string) =>
   pathname === path || pathname === `${path}/`;
@@ -71,82 +76,88 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-website-builder-editor",
-    version: 1,
+    version: 2,
     title: "Website editor",
-    description: "Build and update the selected website page. Review your content carefully before saving or publishing changes.",
-    formDescription: "Use the editor controls to update page content, images, links, and section settings.",
+    description: "Build and update your website. Each tab controls a different page. Your work is autosaved as a draft while you build.",
     steps: [
-      { selector: '[data-tour="page-content"] form', title: "Website content form", description: "Each section controls content that appears on the hosted website. Required fields must be valid before the page can be saved." },
-      { text: "Preview", title: "Preview changes", description: "Opens or refreshes the website preview so you can check layout and content before making the changes public." },
-      { text: "Save", title: "Save website", description: "Sends the current website content and media changes to the server. Wait for the success confirmation before leaving the editor." },
+      { selector: '[data-tour="wb-editor-header"]', title: "Editor header", description: "The heading shows whether you are creating a new website or editing an existing one. The badge on the right confirms the active editor mode." },
+      { selector: '[data-tour="wb-editor-draft-status"]', title: "Draft autosave", description: "Your progress is automatically saved as a draft while you work. If you leave and return later, your previous work is restored so you can continue where you left off." },
+      { selector: '[data-tour="wb-editor-page-tabs"]', title: "Website page tabs", description: "Each tab represents a page on your website. Click a tab to edit that page's content. The Home tab is always first. Other tabs like About Us, Products, Gallery, Testimonials, Contact, Partner, and Careers can be enabled or disabled from here." },
+      { selector: '[data-tour="wb-editor-home-content"]', title: "Home page sections", description: "The Home tab contains all the sections visitors see on your main page: Hero banner, About, Products showcase, Gallery, Testimonials, Contact, and Footer. Each section has its own toggle to show or hide it." },
+      { selector: '[data-tour="wb-editor-hero-section"]', title: "Hero section", description: "The Hero section is the first thing visitors see. Set your company name, tagline, CTA button text, logo, and hero images here. Upload multiple images for a carousel or one image for a static banner." },
+      { selector: '[data-tour="wb-editor-credits"]', title: "Credit balance", description: "Shows how many publish credits you have remaining. The first publish is free. Each subsequent update uses one credit from your monthly balance." },
+      { selector: '[data-tour="wb-editor-preview"]', title: "Preview your website", description: "Opens a live preview of your website so you can check the layout, content, and images before making changes public. Always preview before publishing.", side: "top" },
+      { selector: '[data-tour="wb-editor-reset"]', title: "Reset the form", description: "Clears everything you have entered and starts fresh. This cannot be undone. Use it only when you want to rebuild the entire website from scratch.", side: "top" },
+      { selector: '[data-tour="wb-editor-publish"]', title: "Publish or submit", description: "When you are satisfied with your website, click this button to publish it live. A confirmation dialog will appear to prevent accidental publishes. After publishing, your website is live at its public URL.", side: "top" },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/(dynamic\/create-website|edit-website|edit-theme)(\/|$)/.test(path),
+    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/(dynamic\/create-website|edit-website)(\/|$)/.test(path),
   },
   {
     id: "basic-website-theme",
-    version: 1,
+    version: 2,
     title: "Website themes",
-    description: "Browse the available designs, preview a theme, and select the one you want to use for your website.",
-    recordsDescription: "These are the available theme choices. Open a preview before committing to a design.",
+    description: "Browse available designs, preview a theme in detail, and select the one you want for your website.",
     steps: [
-      { selector: '[data-tour="page-content"] input', title: "Find a suitable theme", description: "Use the available search or category controls to narrow the theme choices for your business type." },
-      { text: "Preview", title: "Preview a theme", description: "Opens the selected design so you can inspect its pages and layout before using it." },
-      { text: "Select", title: "Select the theme", description: "Chooses this design as the starting point for your website and continues to the website setup flow." },
-      { text: "Load More", title: "Load more themes", description: "Displays the next group of available themes without losing the themes already shown." },
+      { selector: '[data-tour="page-content"] h1, [data-tour="page-content"] h2', title: "Theme browser", description: "Scroll through the available website themes. Each theme is designed for a specific business type like co-working, co-living, cafe, or hostel. Your workspace vertical is highlighted by default." },
+      { selector: '[data-tour="page-content"] input', title: "Filter themes", description: "Use the search or category controls to narrow the theme choices for your business type. Only themes matching your workspace category will appear." },
+      { text: "Preview", title: "Preview a theme", description: "Opens the selected design so you can inspect its full pages and layout before committing. Check the hero, about, products, and contact sections." },
+      { text: "Select", title: "Select the theme", description: "Confirms this design as the starting point for your website and moves you to the content editor where you can customize every section." },
+      { text: "Load More", title: "Load more themes", description: "Displays the next group of available themes without losing the ones already shown. Keep browsing until you find the right design." },
     ],
     matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/(select-theme|view-theme|live-demo)\/?/.test(path),
   },
   {
     id: "basic-website-leads",
-    version: 1,
+    version: 2,
     title: "Website leads",
-    description: "Review enquiries submitted through your hosted website and follow up using the available contact information.",
-    recordsDescription: "Each row is a website enquiry. Use its details and actions to review and follow up with the lead.",
+    description: "Review enquiries submitted through your live website and follow up with potential customers.",
     steps: [
-      { text: "Pending", exactText: true, title: "Filter by lead stage", description: "The stage buttons limit the table to leads in that workflow state. All restores the complete list." },
-      { selector: 'input[placeholder="Search by name, email, phone..."]', title: "Search leads", description: "Finds leads using their name, email address, or phone number." },
-      { selector: 'button[aria-label^="View details for"]', title: "Open lead details", description: "The eye button opens the full enquiry. From that panel you can review the message and update the lead to Rejected or Closed." },
+      { selector: '[data-tour="page-content"] h2, [data-tour="page-content"] h1', title: "Leads dashboard", description: "This page collects every enquiry submitted through your website contact forms. Each lead includes the visitor name, email, phone, message, and the date it was received." },
+      { text: "Pending", exactText: true, title: "Filter by lead stage", description: "The stage buttons filter the table to show only leads in that workflow state. Use Pending for new enquiries, Rejected for spam or irrelevant ones, Closed for followed-up leads, and All to see everything." },
+      { selector: 'input[placeholder="Search by name, email, phone..."]', title: "Search leads", description: "Find a specific lead by typing the visitor name, email address, or phone number. Results update as you type." },
+      { selector: 'button[aria-label^="View details for"]', title: "Open lead details", description: "The eye button opens the full enquiry in a detail panel. From there you can read the complete message and update the lead status to Rejected or Closed after following up." },
     ],
     matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/(dynamic\/)?leads\/?$/.test(path),
   },
   {
     id: "basic-website-reviews",
-    version: 1,
+    version: 2,
     title: "Website reviews",
-    description: "Review customer feedback submitted through your website and control which approved reviews are displayed publicly.",
-    recordsDescription: "Use the review list and row actions to inspect feedback and manage its website visibility.",
+    description: "Moderate customer feedback submitted through your website and control which reviews are displayed publicly.",
     steps: [
-      { text: "Pending", exactText: true, title: "Filter review status", description: "Changes the list between pending, approved, and rejected review submissions." },
-      { selector: 'input[placeholder="Search by name, source, description..."]', title: "Search reviews", description: "Filters reviews using the reviewer, review source, or submitted description." },
-      { selector: '[data-tour="page-content"] table', title: "Review list", description: "The table shows moderation status and whether an approved website review is enabled for public display." },
-      { selector: '[data-tour="page-content"] table tbody button', title: "Review details", description: "The eye action opens the full feedback. Pending reviews can be approved or rejected; approved website reviews can also be enabled or disabled publicly." },
+      { selector: '[data-tour="page-content"] h2, [data-tour="page-content"] h1', title: "Review moderation", description: "This page shows all customer reviews submitted through your website. Your job is to approve genuine reviews so they appear publicly, and reject spam or inappropriate ones." },
+      { text: "Pending", exactText: true, title: "Filter review status", description: "Switch between Pending (awaiting your decision), Approved (live on your website), and Rejected (hidden from visitors). Use All to see every review regardless of status." },
+      { selector: 'input[placeholder="Search by name, source, description..."]', title: "Search reviews", description: "Find a specific review by the reviewer name, review source, or the submitted description text." },
+      { selector: '[data-tour="page-content"] table', title: "Review list", description: "The table shows each review with its moderation status and whether an approved review is currently enabled for public display on your website." },
+      { selector: '[data-tour="page-content"] table tbody button', title: "Review details and actions", description: "The eye button opens the full review. Pending reviews can be approved or rejected. Approved reviews can also be toggled on or off for public display, giving you full control over what visitors see." },
     ],
     matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/dynamic\/reviews\/?$/.test(path),
   },
   {
     id: "basic-website-careers",
-    version: 1,
+    version: 2,
     title: "Website careers",
-    description: "Manage the job openings shown on your hosted careers page and review their publishing status.",
-    recordsDescription: "The job list shows current openings and provides actions to view, edit, publish, or close them.",
+    description: "Manage job openings shown on your website careers page and control their publishing status.",
     steps: [
-      { text: "JOB OPENINGS", exactText: true, title: "Job openings", description: "Shows the roles managed for the hosted careers page, including their vacancy and publishing status." },
-      { selector: 'input[placeholder="Search by title, department..."]', title: "Search openings", description: "Filters job openings by role title or department." },
-      { text: "PUBLISH JOB", title: "Publish a job opening", description: "Opens the complete job form. Publish to Website makes the finished opening available on the hosted careers page." },
-      { text: "Edit", exactText: true, title: "Edit an opening", description: "Loads the selected job into the same form so its role details, vacancies, description, and website status can be updated." },
+      { selector: '[data-tour="page-content"] h2, [data-tour="page-content"] h1', title: "Careers management", description: "This page manages the job openings that appear on your website careers page. Create openings, set their details, and publish them to make them visible to job seekers." },
+      { text: "JOB OPENINGS", exactText: true, title: "Job openings list", description: "Shows all roles managed for your hosted careers page, including their vacancy count and current publishing status. Each opening can be viewed, edited, published, or closed." },
+      { selector: 'input[placeholder="Search by title, department..."]', title: "Search openings", description: "Find a specific job opening by its role title or department name." },
+      { text: "PUBLISH JOB", title: "Publish a job opening", description: "Opens the complete job form where you fill in the role title, department, description, and vacancies. Toggle Publish to Website to make the finished opening appear on your live careers page." },
+      { text: "Edit", exactText: true, title: "Edit an opening", description: "Loads the selected job into the form so you can update its role details, vacancies, description, and website publishing status." },
     ],
     matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/dynamic\/careers\/?$/.test(path),
   },
   {
     id: "basic-website-builder",
-    version: 1,
+    version: 2,
     title: "Website Builder",
-    description: "Create your hosted website, manage its leads and reviews, and set up career openings — all from one place.",
+    description: "Create your hosted website, manage its leads and reviews, and set up career openings from one place.",
     steps: [
-      { selector: '[data-tour="wb-create-edit"]', title: "Create or edit your website", description: "If you haven't created a website yet, this card starts the setup — you'll start with basic template, add your content, and publish. If a website already exists, the same card opens the editor so you can update pages, images, and settings." },
-      { selector: '[data-tour="wb-leads"]', title: "Website Leads — track enquiries", description: "Every time someone submits a contact form or enquiry on your website, it lands here. You can see the lead's name, email, phone, and message, then follow up directly. Filter by Pending, Rejected, or Closed to stay organized." },
-      { selector: '[data-tour="wb-reviews"]', title: "Website Reviews — moderate feedback", description: "Customer reviews submitted through your website appear here. Approve good reviews to display them publicly on your site, or reject inappropriate ones. You control what visitors see." },
-      { selector: '[data-tour="wb-careers"]', title: "Careers — manage job openings", description: "Create and publish job openings that appear on your website's careers page. Add role title, department, description, and vacancies, then publish to make them live. Locked until your website is created." },
+      { selector: '[data-tour="page-content"] h2', title: "Website Builder hub", description: "This is your website management dashboard. From here you can create or edit your website, track enquiries from visitors, moderate customer reviews, and manage job openings for your careers page." },
+      { selector: '[data-tour="wb-create-edit"]', title: "Create or edit your website", description: "If you have not created a website yet, this card starts the setup wizard where you choose your design, add content, and publish. If a website already exists, the same card opens the editor so you can update any page, image, or setting." },
+      { selector: '[data-tour="wb-leads"]', title: "Website Leads", description: "Every time someone submits a contact form or enquiry on your live website, it appears here. You can see the lead name, email, phone, and message, then follow up directly. Filter by Pending, Rejected, or Closed to stay organized." },
+      { selector: '[data-tour="wb-reviews"]', title: "Website Reviews", description: "Customer reviews submitted through your website appear here. Approve good reviews to display them publicly on your site, or reject inappropriate ones. You control what visitors see." },
+      { selector: '[data-tour="wb-careers"]', title: "Careers", description: "Create and publish job openings that appear on your website careers page. Add role title, department, description, and vacancies, then publish to make them live. This card is locked until your website is created for the first time." },
     ],
     matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder(?:\/dynamic)?$/.test(path),
   },
@@ -256,17 +267,6 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: 'button[aria-label^="View details for"]', title: "View issue details", description: "Opens the complete request, status history, attachments, and available follow-up actions for that support issue." },
     ],
     matches: exact("/company-settings/customer-support"),
-  },
-  {
-    id: "basic-wono-nomad",
-    version: 1,
-    title: "Nomads Listings",
-    description: "Manage how your workspace is presented to the Nomads Listings audience and open your listing tools.",
-    steps: [
-      { text: "Listings", exactText: true, title: "Listings", description: "Opens your public workspace listings. From there you can add a listing, edit its details, and check the Basic-plan listing limit." },
-      { text: "Reviews", exactText: true, title: "Nomad reviews", description: "Opens reviews connected to the Nomads presence so you can inspect the feedback associated with the workspace." },
-    ],
-    matches: exact("/company-settings/wono-nomad"),
   },
   {
     id: "basic-visitor-add",
