@@ -4243,7 +4243,7 @@ export function MeetingRoomsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={goToResourcePricing}
+                  onClick={() => goToResourcePricing()}
                   className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-amber-800 shadow-sm ring-1 ring-amber-200 transition-all hover:bg-amber-100"
                 >
                   <Tag size={13} /> Add Resources <ArrowRight size={13} />
@@ -5205,7 +5205,7 @@ export function MeetingRoomsPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={goToResourcePricing}
+                    onClick={() => goToResourcePricing()}
                     className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]"
                   >
                     <Tag size={14} /> Add Meeting Resources <ArrowRight size={14} />

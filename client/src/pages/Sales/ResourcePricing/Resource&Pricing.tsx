@@ -2239,11 +2239,12 @@ export default function PricingPackagesPage() {
                         </div>
                       ) : (
                         <div className="mt-2 space-y-2 text-[12px] font-pmedium leading-relaxed text-blue-950">
-                          <p>Add the bookable meeting space first so meeting and walk-in bookings can use it immediately.</p>
+                          <p>Before creating meeting or walk-in bookings, add a bookable meeting space so it becomes available for selection during the booking process.</p>
                           <ul className="list-disc pl-4 space-y-1 text-blue-900/90">
-                            <li>Choose <span className="font-pmedium">Meeting Room</span> or <span className="font-pmedium">Conference Room</span>.</li>
-                            <li>Enter the hourly price and the credit rate shown on booking screens.</li>
-                            <li>Save the resource, then return to booking to select it.</li>
+                            <li>Select the resource type: <span className="font-pmedium">Meeting Room</span> or <span className="font-pmedium">Conference Room</span>.</li>
+                            <li>Enter the hourly price and credit rate that will be displayed on the booking screens</li>
+                            <li>Save the meeting space.</li>
+                            <li>Return to the booking page and select the newly created resource to start accepting bookings.</li>
                           </ul>
                         </div>
                       )}

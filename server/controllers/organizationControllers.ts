@@ -159,6 +159,43 @@ const reapplyDepartmentManagerGrants = async (workspaceId, department) => {
   }
 };
 
+// A custom department's module toggles are authoritative for its linked
+// manager/admin roster. Remove deselected modules unless another linked
+// department still grants them, then add the currently selected defaults.
+const syncDepartmentLeadershipGrants = async (workspaceId, department, removedModuleIds = []) => {
+  const removedIds = new Set(
+    (Array.isArray(removedModuleIds) ? removedModuleIds : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean),
+  );
+  const members = await WorkspaceMember.find({
+    workspace: workspaceId,
+    departments: department._id,
+    isActive: true,
+  })
+    .populate('role')
+    .exec();
+
+  for (const member of members) {
+    const roleBand = getRoleBand(member.role);
+    if (roleBand !== 'manager' && roleBand !== 'admin') continue;
+
+    const departmentDefaultIds = await computeDepartmentDefaultModuleIds(member.departments, roleBand);
+    const departmentDefaultSet = new Set(departmentDefaultIds.map((id) => String(id)));
+    const preservedGrants = (Array.isArray(member.grantedModules) ? member.grantedModules : []).filter((id) => {
+      const normalizedId = String(id || '').trim();
+      return !removedIds.has(normalizedId) || departmentDefaultSet.has(normalizedId);
+    });
+    const roleAdditions = roleBand === 'manager' ? MANAGER_DEFAULT_ORG_GRANT_IDS : [];
+    member.grantedModules = mergeGrantedModules(preservedGrants, [
+      ...BASELINE_MODULE_IDS,
+      ...departmentDefaultIds,
+      ...roleAdditions,
+    ]);
+    await member.save();
+  }
+};
+
 const canManageDepartmentsByRole = (role = "") => getRoleBand(role) === "owner";
 const ORG_MODULE_ADMIN_ROLES = new Set(["owner", "super_admin"]);
 
@@ -222,6 +259,37 @@ const isProfessionalPlan = (workspace: any) =>
 // included — matches the Nomads pricing page's "Up to 5 Users" copy for
 // Professional. Custom plan has no such cap.
 const PROFESSIONAL_PLAN_MAX_USERS = 5;
+const DEFAULT_DEPARTMENT_NAMES = new Set(
+  DEFAULT_DEPARTMENTS.map((department) => department.name.trim().toLowerCase()),
+);
+const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "technology"]);
+const isCustomDepartmentName = (departmentName: unknown) => {
+  const normalizedName = String(departmentName || "").trim().toLowerCase();
+  return Boolean(normalizedName) && !DEFAULT_DEPARTMENT_NAMES.has(normalizedName);
+};
+
+const isDepartmentAllowedForWorkspacePlan = (workspace: any, departmentName: unknown) => {
+  if (!isProfessionalPlan(workspace)) return true;
+  const normalizedName = String(departmentName || "").trim().toLowerCase();
+  return PROFESSIONAL_DEPARTMENT_NAMES.has(normalizedName) || isCustomDepartmentName(normalizedName);
+};
+
+const getWorkspaceDepartmentModuleIds = (workspace: any) => {
+  const catalog = buildWorkspaceModuleCatalog({
+    selectedPlan: workspace?.selectedPlan || "basic",
+    enabledModuleIds: Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : [],
+  });
+  const departmentSection = (catalog?.sections || []).find((section: any) => section?.sectionId === "department-accesses");
+  const ids = new Set<string>();
+  for (const group of departmentSection?.items || []) {
+    for (const tab of group?.tabs || []) {
+      const id = String(tab?.id || "").trim();
+      if (id && tab?.unlockedInWorkspace === true) ids.add(id);
+    }
+  }
+  return ids;
+};
+
 
 const buildLinkedWorkspaceOptions = async (workspace) => {
   if (!workspace?.owner) return [];
@@ -446,7 +514,12 @@ export const getOrganizationOverview = async (req, res, next) => {
             selectedPlan: workspace.selectedPlan || "basic",
             enabledModuleIds: Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : [],
           },
-          departments: restrictedDepts.map((d: any) => ({ id: toId(d._id), name: d.name, isActive: true })),
+          departments: restrictedDepts.map((d: any) => ({
+            id: toId(d._id),
+            name: d.name,
+            isActive: true,
+            moduleIds: Array.isArray(d.moduleIds) ? d.moduleIds : [],
+          })),
           teamMembers: selfEntry ? [selfEntry] : [],
           linkedWorkspaces: [],
           accessRestricted: true,
@@ -512,6 +585,10 @@ export const getOrganizationOverview = async (req, res, next) => {
           (dept: any) => toId(dept?._id || dept) === toId(department._id),
         ),
       );
+      const departmentRosterMembers = departmentMembers.filter((member) => {
+        const roleBand = getRoleBand(member.role);
+        return roleBand === 'manager' || roleBand === 'admin' || roleBand === 'employee';
+      });
 
       const managerMember = department?.managerUser
         ? members.find((member) => toId(member.user?._id) === toId(department.managerUser))
@@ -525,14 +602,16 @@ export const getOrganizationOverview = async (req, res, next) => {
         moduleIds: Array.isArray(department?.moduleIds) ? department.moduleIds : [],
         managerUserId: toId(department?.managerUser),
         managerName: managerMember?.user?.name || "",
-        adminUserIds: departmentMembers.map((m) => toId(m.user?._id)),
-        employeeUserIds: departmentMembers.map((m) => toId(m.user?._id)),
-        employeeCount: departmentMembers.length,
-        employees: departmentMembers.map((member) => ({
+        adminUserIds: departmentRosterMembers.filter((m) => getRoleBand(m.role) === "admin").map((m) => toId(m.user?._id)),
+        employeeUserIds: departmentRosterMembers.filter((m) => getRoleBand(m.role) === "employee").map((m) => toId(m.user?._id)),
+        employeeCount: departmentRosterMembers.length,
+        employees: departmentRosterMembers.map((member) => ({
           id: toId(member._id),
           userId: toId(member.user?._id),
           name: member.user?.name || "",
           email: member.user?.email || "",
+          employeeId: employeeIdByMemberId.get(String(member._id)) || "",
+          joinedAt: member.createdAt || null,
           role: toRoleLabel(member.role),
           status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
           departmentNames: Array.isArray(member.departments)
@@ -660,18 +739,21 @@ export const saveOrganizationDepartment = async (req, res, next) => {
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
-    const isEditAction = Boolean(String(req.params.departmentId || req.body?.departmentId || "").trim());
     if (!canManageDepartmentsByRole(actorMembership.role)) {
       return res.status(403).json({ message: "Only founder can manage departments." });
     }
 
-    const departmentId = req.params.departmentId || req.body?.departmentId;
+    const departmentId = String(req.params.departmentId || req.body?.departmentId || "").trim();
     const name = String(req.body?.name || "").trim();
     const description = String(req.body?.description || "").trim();
     const isActive = req.body?.isActive !== false;
-    const moduleIds = Array.isArray(req.body?.moduleIds)
-      ? req.body.moduleIds.map((item) => String(item || "").trim()).filter(Boolean)
+    const hasModuleIdsPayload = Array.isArray(req.body?.moduleIds);
+    const moduleIds = hasModuleIdsPayload
+      ? Array.from(new Set(req.body.moduleIds.map((item) => String(item || "").trim()).filter(Boolean)))
       : [];
+    const hasMemberAssignmentPayload =
+      Array.isArray(req.body?.adminUserIds) || Array.isArray(req.body?.employeeUserIds);
+    const hasManagerPayload = Object.prototype.hasOwnProperty.call(req.body || {}, "managerUserId");
     const managerUserId = String(req.body?.managerUserId || "").trim();
     const adminUserIds = Array.isArray(req.body?.adminUserIds)
       ? req.body.adminUserIds.map((item) => String(item || "").trim()).filter(Boolean)
@@ -680,27 +762,81 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       ? req.body.employeeUserIds.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
 
-    if (!name) {
-      return res.status(400).json({ message: "Department name is required." });
+    if (name.length < 2 || name.length > 80) {
+      return res.status(400).json({ message: "Department name must contain 2 to 80 characters." });
+    }
+    if (description.length > 240) {
+      return res.status(400).json({ message: "Department description cannot exceed 240 characters." });
+    }
+    if (!departmentId && isBasicPlan(workspace)) {
+      return res.status(403).json({ message: "Custom departments are available on Professional and Custom plans." });
+    }
+    if (departmentId && !isDepartmentAllowedForWorkspacePlan(workspace, name)) {
+      return res.status(403).json({ message: "This department is not enabled for the Professional plan." });
     }
 
+    const duplicateCandidates = await Department.find({ workspaceId: workspace._id })
+      .select("_id name")
+      .lean();
+    const existingCustomDepartment = duplicateCandidates.find((department) =>
+      isCustomDepartmentName(department?.name),
+    );
+    if (!departmentId && existingCustomDepartment) {
+      return res.status(409).json({
+        message: "Only one custom department can be created. Edit the existing custom department instead.",
+      });
+    }
+    if (
+      departmentId &&
+      isCustomDepartmentName(name) &&
+      existingCustomDepartment &&
+      String(existingCustomDepartment._id) !== departmentId
+    ) {
+      return res.status(409).json({
+        message: "Only one custom department can exist in a workspace.",
+      });
+    }
+
+    const duplicateName = duplicateCandidates.find(
+      (department) => String(department?.name || "").trim().toLowerCase() === name.toLowerCase(),
+    );
+    if (duplicateName && String(duplicateName._id) !== departmentId) {
+      return res.status(409).json({ message: "A department with this name already exists." });
+    }
+    if (!departmentId && (hasMemberAssignmentPayload || hasManagerPayload)) {
+      return res.status(400).json({ message: "Create the department first, then assign users from Add User." });
+    }
+
+    if (hasModuleIdsPayload) {
+      const assignableModuleIds = getWorkspaceDepartmentModuleIds(workspace);
+      if (moduleIds.some((id) => !assignableModuleIds.has(id))) {
+        return res.status(400).json({ message: "One or more selected core modules are not enabled for this workspace." });
+      }
+    }
+    if (!departmentId && moduleIds.length === 0) {
+      return res.status(400).json({ message: "Select at least one core module." });
+    }
+
+    let savedDepartment;
     if (departmentId) {
       const existing = await Department.findOne({ _id: departmentId, workspaceId: workspace._id });
       if (!existing) {
         return res.status(404).json({ message: "Department not found." });
       }
+      const previousModuleIds = Array.isArray(existing.moduleIds) ? [...existing.moduleIds] : [];
       existing.name = name;
       existing.description = description;
       existing.isActive = isActive;
-      existing.moduleIds = moduleIds;
-      existing.managerUser = managerUserId || null;
+      if (hasModuleIdsPayload) existing.moduleIds = moduleIds;
+      if (hasManagerPayload) existing.managerUser = managerUserId || null;
       await existing.save();
+      savedDepartment = existing;
 
       const allMemberUserIds = [...new Set([...adminUserIds, ...employeeUserIds])];
       const currentDeptMembers = await WorkspaceMember.find({ workspace: workspace._id, departments: existing._id }).select("user").lean();
       const currentMemberUserIds = currentDeptMembers.map((m) => String(m.user));
       const toAdd = allMemberUserIds.filter((uid) => !currentMemberUserIds.includes(uid));
-      const toRemove = currentMemberUserIds.filter((uid) => !allMemberUserIds.includes(uid));
+      const toRemove = hasMemberAssignmentPayload ? currentMemberUserIds.filter((uid) => !allMemberUserIds.includes(uid)) : [];
       if (toAdd.length > 0) {
         await WorkspaceMember.updateMany({ workspace: workspace._id, user: { $in: toAdd } }, { $addToSet: { departments: existing._id } });
       }
@@ -731,23 +867,27 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       // and/or role band "manager"), so without this a manager assigned before
       // moduleIds were configured would never see the update after the founder
       // later fills in the department's module list.
-      await reapplyDepartmentManagerGrants(workspace._id, existing);
+      if (hasModuleIdsPayload) {
+        const selectedModuleIds = new Set(moduleIds.map((id) => String(id)));
+        const removedModuleIds = previousModuleIds.filter((id) => !selectedModuleIds.has(String(id)));
+        await syncDepartmentLeadershipGrants(workspace._id, existing, removedModuleIds);
+      }
     } else {
-      const created = await Department.create({
+      savedDepartment = await Department.create({
         name,
         description,
         workspaceId: workspace._id,
         isActive,
         moduleIds,
-        managerUser: managerUserId || null,
+        managerUser: null,
       });
 
       const allMemberUserIds = [...new Set([...adminUserIds, ...employeeUserIds])];
       if (allMemberUserIds.length > 0) {
-        await WorkspaceMember.updateMany({ workspace: workspace._id, user: { $in: allMemberUserIds } }, { $addToSet: { departments: created._id } });
+        await WorkspaceMember.updateMany({ workspace: workspace._id, user: { $in: allMemberUserIds } }, { $addToSet: { departments: savedDepartment._id } });
       }
 
-      const adminDefaultIds = await computeDepartmentDefaultModuleIds([created._id], "admin");
+      const adminDefaultIds = await computeDepartmentDefaultModuleIds([savedDepartment._id], "admin");
       if (adminUserIds.length > 0) {
         await Promise.all(
           adminUserIds.map(async (uid) => {
@@ -760,8 +900,21 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       }
     }
 
-    return res.status(200).json({ message: "Department saved successfully." });
-  } catch (error) {
+    return res.status(departmentId ? 200 : 201).json({
+      message: departmentId ? "Department saved successfully." : "Department created successfully.",
+      data: {
+        department: {
+          id: String(savedDepartment._id),
+          name: savedDepartment.name,
+          description: savedDepartment.description || "",
+          moduleIds: Array.isArray(savedDepartment.moduleIds) ? savedDepartment.moduleIds : [],
+        },
+      },
+    });
+  } catch (error: any) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "A department with this name already exists." });
+    }
     next(error);
   }
 };
@@ -803,13 +956,13 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
       workspace: workspace._id,
       user: managerUserId,
       isActive: true,
-    });
+    }).populate("role");
     if (!membership) {
       return res.status(404).json({ message: "Member not found in this workspace." });
     }
 
+    const previousManagerUserId = String(department.managerUser || "").trim();
     department.managerUser = managerUserId;
-    await department.save();
 
     // Promote the member's role to "manager" if they are currently below that level
     const currentRoleBand = getRoleBand(membership?.role || "");
@@ -820,10 +973,8 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
       }
     }
 
-    // Add this department to the manager's department list if not already there
-    if (!membership.departments.some((d) => String(d) === String(department._id))) {
-      membership.departments.push(department._id);
-    }
+    // A department manager belongs to exactly one department.
+    membership.departments = [department._id];
 
     // Grant baseline (common + extra-common + key apps) modules, this
     // department's full module set (including manager-only modules), and the
@@ -843,6 +994,24 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
       ...MANAGER_DEFAULT_ORG_GRANT_IDS,
     ]);
 
+    await department.save();
+
+    if (previousManagerUserId && previousManagerUserId !== managerUserId) {
+      const previousManager = await WorkspaceMember.findOne({
+        workspace: workspace._id,
+        user: previousManagerUserId,
+        isActive: true,
+      }).populate("role");
+      if (previousManager && getRoleBand(previousManager.role) === "manager") {
+        const employeeRole = await Role.findOne({ name: "employee" }).lean();
+        if (employeeRole) previousManager.role = employeeRole._id;
+        previousManager.departments = (previousManager.departments || []).filter(
+          (departmentId) => String(departmentId?._id || departmentId) !== String(department._id),
+        );
+        await previousManager.save();
+        await ensureEmployeeProfileForMember({ workspace, member: previousManager });
+      }
+    }
     await membership.save();
 
     return res.status(200).json({ message: "Department manager assigned successfully." });
@@ -966,6 +1135,12 @@ export const inviteOrganizationMember = async (req, res, next) => {
     if (!name || !email) {
       return res.status(400).json({ message: "Name and email are required." });
     }
+    if (name.length > 80) {
+      return res.status(400).json({ message: "Name cannot exceed 80 characters." });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Enter a valid work email address." });
+    }
 
     const existingUserWithEmail = await HostUser.findOne({ email }).select("_id").lean();
     if (existingUserWithEmail) {
@@ -1057,12 +1232,11 @@ export const inviteOrganizationMember = async (req, res, next) => {
           { name: deptIdOrName, workspaceId: workspace._id }
         ]
       });
-      if (!dept && !mongoose.isValidObjectId(deptIdOrName)) {
-        dept = await Department.create({
-          name: deptIdOrName,
-          workspaceId: workspace._id,
-          isActive: true,
-        });
+      if (!dept) {
+        return res.status(400).json({ message: "Select a valid existing department." });
+      }
+      if (!isDepartmentAllowedForWorkspacePlan(workspace, dept.name)) {
+        return res.status(403).json({ message: "This department is not enabled for the Professional plan." });
       }
       if (dept) {
         resolvedDepartmentIds.push(dept._id);
@@ -1091,6 +1265,30 @@ export const inviteOrganizationMember = async (req, res, next) => {
         });
       }
     }
+    if (normalizedInviteRole === "manager") {
+      const managerDepartmentId = uniqueResolvedDepartmentIds[0];
+      const targetDepartment = await Department.findOne({
+        _id: managerDepartmentId,
+        workspaceId: workspace._id,
+      })
+        .select("managerUser")
+        .lean();
+      const existingDepartmentManagers = await WorkspaceMember.find({
+        workspace: workspace._id,
+        departments: managerDepartmentId,
+        isActive: true,
+      })
+        .select("role")
+        .populate("role")
+        .lean()
+        .exec();
+      const hasExistingManager = Boolean(targetDepartment?.managerUser)
+        || existingDepartmentManagers.some((member) => getRoleBand(member?.role || "") === "manager");
+      if (hasExistingManager) {
+        return res.status(409).json({ message: "This department already has a manager assigned." });
+      }
+    }
+
 
     const company = await Company.findById(user.company).lean().exec();
     if (!company) {
@@ -1192,6 +1390,13 @@ export const inviteOrganizationMember = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    if (normalizedInviteRole === "manager") {
+      await Department.updateOne(
+        { _id: uniqueResolvedDepartmentIds[0], workspaceId: workspace._id },
+        { $set: { managerUser: targetUser._id } },
+      );
+    }
 
     await ensureEmployeeProfileForMember({
       workspace,
@@ -1385,6 +1590,9 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
+    if (getRoleBand(actorMembership.role) !== "owner") {
+      return res.status(403).json({ message: "Only the workspace founder can promote or demote members." });
+    }
 
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
@@ -1411,30 +1619,50 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     for (const deptId of requestedDepartmentIds) {
       if (!deptId || !mongoose.isValidObjectId(deptId)) continue;
       const dept = await Department.findOne({ _id: deptId, workspaceId: workspace._id });
+      if (dept && !isDepartmentAllowedForWorkspacePlan(workspace, dept.name)) {
+        return res.status(403).json({ message: "This department is not enabled for the Professional plan." });
+      }
       if (dept) {
         resolvedDepartmentIds.push(dept._id);
       }
     }
 
-    const isSuperAdminToAdmin = previousRoleBand === "super_admin" && nextRoleBand === "admin";
-    const isAdminToManager = previousRoleBand === "admin" && nextRoleBand === "manager";
-    const isManagerToAdmin = previousRoleBand === "manager" && nextRoleBand === "admin";
-
-    if ((isSuperAdminToAdmin || isManagerToAdmin) && resolvedDepartmentIds.length === 0) {
+    if (nextRoleBand === "admin" && resolvedDepartmentIds.length === 0) {
+      return res.status(400).json({ message: "Select at least one department for this role change." });
+    }
+    if ((nextRoleBand === "manager" || nextRoleBand === "employee") && resolvedDepartmentIds.length !== 1) {
       return res.status(400).json({
-        message: "Select at least one department for this role change.",
+        message: nextRoleBand === "manager"
+          ? "Manager role requires exactly one department."
+          : "Employee role requires exactly one department.",
       });
     }
 
-    if (isAdminToManager && resolvedDepartmentIds.length !== 1) {
-      return res.status(400).json({
-        message: "Manager role requires exactly one department.",
-      });
+    if (nextRoleBand === "manager") {
+      const managerDepartmentId = resolvedDepartmentIds[0];
+      const targetDepartment = await Department.findOne({
+        _id: managerDepartmentId,
+        workspaceId: workspace._id,
+      }).select("managerUser").lean();
+      const competingManagers = await WorkspaceMember.find({
+        workspace: workspace._id,
+        departments: managerDepartmentId,
+        isActive: true,
+        _id: { $ne: member._id },
+      }).select("role").populate("role").lean();
+      const hasCompetingManager = Boolean(
+        targetDepartment?.managerUser && String(targetDepartment.managerUser) !== String(member.user),
+      ) || competingManagers.some((candidate) => getRoleBand(candidate?.role || "") === "manager");
+      if (hasCompetingManager) {
+        return res.status(409).json({ message: "This department already has a manager assigned." });
+      }
     }
 
     member.role = targetRoleDoc._id;
-    if (isSuperAdminToAdmin || isAdminToManager || isManagerToAdmin) {
+    if (["admin", "manager", "employee"].includes(nextRoleBand)) {
       member.departments = resolvedDepartmentIds;
+    } else if (nextRoleBand === "super_admin") {
+      member.departments = [];
     }
 
     // Recompute default module grants for the new department/role combo.
@@ -1459,6 +1687,18 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     ]);
 
     await member.save();
+    if (previousRoleBand === "manager" && nextRoleBand !== "manager") {
+      await Department.updateMany(
+        { workspaceId: workspace._id, managerUser: member.user },
+        { $set: { managerUser: null } },
+      );
+    }
+    if (nextRoleBand === "manager") {
+      await Department.updateOne(
+        { _id: resolvedDepartmentIds[0], workspaceId: workspace._id },
+        { $set: { managerUser: member.user } },
+      );
+    }
 
     await ensureEmployeeProfileForMember({
       workspace,
@@ -1661,18 +1901,40 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
 
 export const transferOrganizationMember = async (req, res, next) => {
   try {
-    const { workspace } = await getCurrentWorkspace(req.user);
+    const { user: actor, workspace } = await getCurrentWorkspace(req.user);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role")
+      .populate("role")
+      .lean();
+    const actorRoleBand = getRoleBand(actorMembership?.role || "");
+    if (!actorMembership || !["owner", "super_admin"].includes(actorRoleBand)) {
+      return res.status(403).json({ message: "Only the workspace founder or Super Admin can transfer members." });
+    }
 
     const targetWorkspaceId = String(req.body?.targetWorkspaceId || "").trim();
     if (!targetWorkspaceId) return res.status(400).json({ message: "Target workspace is required." });
 
+    if (targetWorkspaceId === toId(workspace._id)) {
+      return res.status(400).json({ message: "Select a different workspace for this transfer." });
+    }
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
       workspace: workspace._id,
       isActive: true,
-    });
+    }).populate("role");
     if (!member) return res.status(404).json({ message: "Member not found." });
+    if (actorRoleBand === "super_admin" && ["owner", "super_admin"].includes(getRoleBand(member.role))) {
+      return res.status(403).json({ message: "Super Admin can transfer Admin, Manager, or Employee accounts only." });
+    }
+
+    if (toId(member.user) === toId(actor._id)) {
+      return res.status(400).json({ message: "Founder access must be transferred through the ownership transfer action." });
+    }
 
     const targetWorkspace = await Workspace.findOne({
       _id: targetWorkspaceId,
@@ -1682,7 +1944,10 @@ export const transferOrganizationMember = async (req, res, next) => {
     if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
 
     const nextRoleStr = normalizeRoleForStorage(req.body?.role || getRoleName(member.role));
-    let targetRoleDoc = await Role.findOne({ name: nextRoleStr });
+    let targetRoleDoc = await Role.findOne({
+      name: nextRoleStr,
+      workspaceId: { $in: [targetWorkspace._id, null] },
+    }).sort({ workspaceId: -1 });
     if (!targetRoleDoc) {
       targetRoleDoc = await Role.create({
         name: nextRoleStr,
@@ -1706,9 +1971,10 @@ export const transferOrganizationMember = async (req, res, next) => {
       {
         $set: {
           role: targetRoleDoc._id,
-          departments: uniqueResolvedDepartmentIds,
+          departments: resolvedDepartmentIds,
           status: "joined",
           isActive: true,
+          isPrimary: true,
           grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
         },
         $push: {
@@ -1732,7 +1998,24 @@ export const transferOrganizationMember = async (req, res, next) => {
 
     member.isActive = false;
     member.status = "disabled";
+    member.isPrimary = false;
     await member.save();
+
+    await EmployeeProfile.updateOne(
+      {
+        workspaceId: workspace._id,
+        $or: [
+          { linkedWorkspaceMemberId: member._id },
+          { linkedUserId: member.user },
+        ],
+      },
+      { $set: { status: "inactive", isActive: false } },
+    ).exec();
+
+    await HostUser.updateOne(
+      { _id: member.user, primaryWorkspace: workspace._id },
+      { $set: { primaryWorkspace: targetWorkspace._id } },
+    ).exec();
 
     return res.status(200).json({ message: "Member transferred successfully." });
   } catch (error) {
@@ -1742,18 +2025,38 @@ export const transferOrganizationMember = async (req, res, next) => {
 
 export const linkOrganizationMember = async (req, res, next) => {
   try {
-    const { workspace } = await getCurrentWorkspace(req.user);
+    const { user: actor, workspace } = await getCurrentWorkspace(req.user);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role")
+      .populate("role")
+      .lean();
+    const actorRoleBand = getRoleBand(actorMembership?.role || "");
+    if (!actorMembership || !["owner", "super_admin"].includes(actorRoleBand)) {
+      return res.status(403).json({ message: "Only the workspace founder or Super Admin can add unit access." });
+    }
 
     const targetWorkspaceId = String(req.body?.targetWorkspaceId || "").trim();
     if (!targetWorkspaceId) return res.status(400).json({ message: "Target workspace is required." });
+    if (targetWorkspaceId === toId(workspace._id)) {
+      return res.status(400).json({ message: "Select a different workspace to add access." });
+    }
 
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
       workspace: workspace._id,
       isActive: true,
-    });
+    })
+      .populate("role")
+      .populate("departments");
     if (!member) return res.status(404).json({ message: "Member not found." });
+    if (actorRoleBand === "super_admin" && ["owner", "super_admin"].includes(getRoleBand(member.role))) {
+      return res.status(403).json({ message: "Super Admin can add unit access for Admin, Manager, or Employee accounts only." });
+    }
 
     const targetWorkspace = await Workspace.findOne({
       _id: targetWorkspaceId,
@@ -1762,14 +2065,47 @@ export const linkOrganizationMember = async (req, res, next) => {
     });
     if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
 
+    const roleName = normalizeRoleForStorage(getRoleName(member.role));
+    let targetRoleDoc = await Role.findOne({
+      name: roleName,
+      workspaceId: { $in: [targetWorkspace._id, null] },
+    }).sort({ workspaceId: -1 });
+    if (!targetRoleDoc) {
+      targetRoleDoc = await Role.create({
+        name: roleName,
+        workspaceId: targetWorkspace._id,
+        permissions: [],
+      });
+    }
+
+    await ensureWorkspaceDepartments(targetWorkspace);
+    const sourceDepartmentNames = (Array.isArray(member.departments) ? member.departments : [])
+      .map((department: any) => String(department?.name || "").trim().toLowerCase())
+      .filter(Boolean);
+    const targetDepartments = sourceDepartmentNames.length
+      ? await Department.find({
+        workspaceId: targetWorkspace._id,
+        isActive: true,
+      })
+        .select("_id name")
+        .lean()
+        .exec()
+      : [];
+    const targetDepartmentIds = targetDepartments
+      .filter((department: any) =>
+        sourceDepartmentNames.includes(String(department?.name || "").trim().toLowerCase()),
+      )
+      .map((department: any) => department._id);
+
     const linkedMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
         $set: {
-          role: member.role,
-          departments: Array.isArray(member.departments) ? member.departments : [],
+          role: targetRoleDoc._id,
+          departments: targetDepartmentIds,
           status: "joined",
           isActive: true,
+          isPrimary: false,
           grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
         },
       },
@@ -1792,6 +2128,9 @@ export const transferOrganizationOwnership = async (req, res, next) => {
   try {
     const { user, workspace } = await getCurrentWorkspace(req.user);
     if (!user || !workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    if (toId(workspace.owner) !== toId(user._id)) {
+      return res.status(403).json({ message: "Only the current founder can transfer founder access." });
+    }
 
     const targetMember = await WorkspaceMember.findOne({
       _id: req.body?.memberId,
@@ -1838,9 +2177,22 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     if (previousOwner) {
       previousOwner.role = "super_admin";
       await previousOwner.save();
+      const previousOwnerExistingMembership = await WorkspaceMember.findOne({
+        workspace: workspace._id,
+        user: previousOwner._id,
+      })
+        .select("grantedModules")
+        .lean();
+      const formerFounderSuperAdminGrants = mergeGrantedModules(
+        previousOwnerExistingMembership?.grantedModules,
+        [
+          ...BASELINE_MODULE_IDS,
+          ...(Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : []),
+        ],
+      );
       const previousOwnerMembership = await WorkspaceMember.findOneAndUpdate(
         { workspace: workspace._id, user: previousOwner._id },
-        { $set: { role: superAdminRole._id, isActive: true, status: "joined" } },
+        { $set: { role: superAdminRole._id, departments: [], grantedModules: formerFounderSuperAdminGrants, isActive: true, status: "joined" } },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
       await ensureEmployeeProfileForMember({
