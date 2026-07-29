@@ -64,6 +64,9 @@ export const createCompanyListing = async (req, res) => {
       description,
       latitude,
       longitude,
+      city,
+      state,
+      country,
       inclusions,
       about,
       address,
@@ -98,16 +101,25 @@ export const createCompanyListing = async (req, res) => {
       parsedReviews = JSON.parse(reviews);
     }
 
+    // Each listing has its own location — a host can run several locations
+    // of the same product type in different cities — so prefer whatever the
+    // listing form submitted, only falling back to the host's registered
+    // company address when the form left it blank.
+    const resolvedCity = String(city || "").trim() || company.companyCity;
+    const resolvedState = String(state || "").trim() || company.companyState;
+    const resolvedCountry = String(country || "").trim() || company.companyCountry;
+
     // Workspace Setup never asks the host for a continent, so most Host
     // Company records have it blank — Nomads requires it on every listing,
-    // so derive it from country when it's missing.
+    // so derive it from the listing's own country.
     const resolvedContinent =
-      company.companyContinent || getContinentForCountry(company.companyCountry);
+      getContinentForCountry(resolvedCountry) ||
+      (resolvedCountry === company.companyCountry ? company.companyContinent : null);
 
     if (!resolvedContinent) {
       return res.status(400).json({
         message:
-          "Could not determine continent for this listing — please set the company's country in Workspace Settings first.",
+          "Could not determine continent for this listing — please check the selected country.",
       });
     }
 
@@ -118,7 +130,13 @@ export const createCompanyListing = async (req, res) => {
     const effectiveNomadsCompanyId = company.linkedNomadsCompanyId || company.companyId;
 
     const selectedPlan = await getNomadListingPlan(userId);
-    const listingLimit = selectedPlan === "custom" ? null : selectedPlan === "professional" ? 4 : 2;
+    // Basic: 2 product types, 4 listings total. Professional: 3 product
+    // types, 9 listings total. Listings can be distributed across the
+    // allowed product types however the host likes (e.g. 3+1, or 3+3+3) —
+    // the type limit only gates adding a BRAND NEW product type, not adding
+    // another location under a type that's already in use.
+    const listingLimit = selectedPlan === "custom" ? null : selectedPlan === "professional" ? 9 : 4;
+    const productTypeLimit = selectedPlan === "custom" ? null : selectedPlan === "professional" ? 3 : 2;
     let existingListings = [];
     try {
       const listingsResponse = await axios.get(
@@ -155,15 +173,20 @@ export const createCompanyListing = async (req, res) => {
     }
 
     const normalizedRequestedType = normalizeListingType(companyType);
-    if (
-      normalizedRequestedType &&
-      existingListings.some(
-        (listing) => normalizeListingType(listing?.companyType) === normalizedRequestedType,
-      )
-    ) {
+    const existingTypes = new Set(
+      existingListings
+        .map((listing) => normalizeListingType(listing?.companyType))
+        .filter(Boolean),
+    );
+    const isBrandNewType = normalizedRequestedType && !existingTypes.has(normalizedRequestedType);
+
+    if (isBrandNewType && productTypeLimit !== null && existingTypes.size >= productTypeLimit) {
+      const planName = selectedPlan === "professional" ? "Professional" : "Basic";
       return res.status(409).json({
-        code: "NOMAD_LISTING_TYPE_EXISTS",
-        message: "This Nomad listing type has already been added.",
+        code: "NOMAD_LISTING_TYPE_LIMIT_REACHED",
+        message: `${planName} plan allows only ${productTypeLimit} product types. Add another listing under an existing type, or upgrade your plan.`,
+        typeLimit: productTypeLimit,
+        usedTypes: existingTypes.size,
       });
     }
 
@@ -176,9 +199,9 @@ export const createCompanyListing = async (req, res) => {
       registeredEntityName: company.registeredEntityName,
       companyId: effectiveNomadsCompanyId,
       logo: company.logo,
-      city: company.companyCity,
-      state: company.companyState,
-      country: company.companyCountry,
+      city: resolvedCity,
+      state: resolvedState,
+      country: resolvedCountry,
       continent: resolvedContinent,
       website: company.websiteLink,
       companyType: companyType,
@@ -218,7 +241,7 @@ export const createCompanyListing = async (req, res) => {
       (company.companyName || "unnamed").replace(/[^\w\- ]+/g, "").trim() ||
       "unnamed";
 
-    const folderPath = `nomads/${pathCompanyType}/${company.companyCountry}/${safeCompanyName}`;
+    const folderPath = `nomads/${pathCompanyType}/${resolvedCountry}/${safeCompanyName}`;
 
     if (req.files?.length > 0) {
       const imageFiles = req.files.filter((f) => f.fieldname === "images");
@@ -340,6 +363,9 @@ export const editCompanyListing = async (req, res) => {
       description,
       latitude,
       longitude,
+      city,
+      state,
+      country,
       inclusions,
       about,
       address,
@@ -365,6 +391,13 @@ export const editCompanyListing = async (req, res) => {
       return res.status(404).json({ message: "Company not found" });
     }
 
+    const normalizedCountry = String(country || "").trim();
+    // Only recompute continent when the country actually changed — leaves
+    // the listing's stored continent untouched otherwise.
+    const resolvedContinent = normalizedCountry
+      ? getContinentForCountry(normalizedCountry)
+      : undefined;
+
     const updateData = {
       businessId,
       companyType,
@@ -376,6 +409,10 @@ export const editCompanyListing = async (req, res) => {
       description,
       latitude,
       longitude,
+      city,
+      state,
+      country,
+      continent: resolvedContinent,
       inclusions,
       about,
       address,

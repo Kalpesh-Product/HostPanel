@@ -60,6 +60,8 @@ export default function NomadListingsOverview() {
     isAtLimit,
     isPending,
     limitMessage,
+    typeLimit,
+    usedTypes,
   } = useNomadListingCapacity(companyId);
 
   const activeListings = listings.filter((l) => l.isActive).length;
@@ -139,7 +141,7 @@ export default function NomadListingsOverview() {
           )}
 
           {/* STAT CARDS */}
-          <div data-tour="nomad-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
+          <div data-tour="nomad-summary" className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Listings</p>
@@ -160,6 +162,13 @@ export default function NomadListingsOverview() {
                 <p className="text-[15px] font-pmedium text-slate-900">{inactiveListings}</p>
               </div>
               <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><XCircle size={16} /></div>
+            </div>
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
+              <div className="min-w-0">
+                <p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Product Types</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{typeLimit === null ? usedTypes : `${usedTypes}/${typeLimit}`}</p>
+              </div>
+              <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><Layers size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
@@ -220,7 +229,7 @@ export default function NomadListingsOverview() {
                   <div className="text-[11px] font-pmedium text-slate-500 whitespace-nowrap">
                     {limit === null
                       ? `${totalListings} listings added · Unlimited plan`
-                      : `${totalListings}/${limit} listings added · ${remaining} left`}
+                      : `${totalListings}/${limit} listings · ${typeLimit === null ? usedTypes : `${usedTypes}/${typeLimit}`} product types`}
                   </div>
                   <div data-tour="nomad-search" className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />

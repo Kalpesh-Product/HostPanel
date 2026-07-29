@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useRef } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { Country, State, City } from "country-state-city";
 import {
   TextField,
   MenuItem,
@@ -72,6 +73,11 @@ const NomadListing = () => {
     isAtLimit,
     addedTypes,
     limitMessage,
+    typeLimit,
+    usedTypes,
+    remainingTypes,
+    canAddNewType,
+    typeLimitMessage,
     refetchListings,
   } = useNomadListingCapacity(listingCompanyId);
 
@@ -81,6 +87,7 @@ const NomadListing = () => {
     reset,
     getValues,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     mode: "onChange",
@@ -95,6 +102,9 @@ const NomadListing = () => {
       description: "",
       latitude: "",
       longitude: "",
+      country: "",
+      state: "",
+      city: "",
       inclusions: [],
       about: "",
       address: "",
@@ -147,10 +157,9 @@ const NomadListing = () => {
       toast.error(limitMessage, { position: "bottom-right" });
       return;
     }
-    if (addedTypes.has(normalizeNomadListingType(values.companyType))) {
-      toast.error("This Nomad listing type has already been added.", {
-        position: "bottom-right",
-      });
+    const isBrandNewType = !addedTypes.has(normalizeNomadListingType(values.companyType));
+    if (isBrandNewType && !canAddNewType) {
+      toast.error(typeLimitMessage, { position: "bottom-right" });
       return;
     }
 
@@ -172,6 +181,9 @@ const NomadListing = () => {
     fd.set("about", values.about);
     fd.set("address", values.address);
     fd.set("mapUrl", values.mapUrl);
+    fd.set("country", values.country);
+    fd.set("state", values.state);
+    fd.set("city", values.city);
 
     // ✅ inclusions as comma-separated string
     const inclusionsArr = Array.isArray(values.inclusions)
@@ -210,6 +222,9 @@ const NomadListing = () => {
       description: "",
       latitude: "",
       longitude: "",
+      country: "",
+      state: "",
+      city: "",
       inclusions: [],
       about: "",
       address: "",
@@ -271,19 +286,26 @@ const NomadListing = () => {
                   error={!!errors.companyType}
                 >
                   {companyTypes.map((type) => {
-                    const alreadyAdded = addedTypes.has(normalizeNomadListingType(type));
+                    const normalizedType = normalizeNomadListingType(type);
+                    const isBrandNewType = !addedTypes.has(normalizedType);
+                    const disabledForTypeLimit = isBrandNewType && !canAddNewType;
                     return (
                       <MenuItem
                         key={type}
                         value={type.toLowerCase()}
-                        disabled={alreadyAdded}
+                        disabled={disabledForTypeLimit}
                         className="font-pmedium"
                       >
                         <span className="flex w-full items-center justify-between gap-4 font-pmedium">
                           <span>{type}</span>
-                          {alreadyAdded && (
+                          {!isBrandNewType && (
                             <span className="text-[10px] font-pmedium uppercase tracking-wide text-emerald-600">
-                              Already added
+                              Added
+                            </span>
+                          )}
+                          {disabledForTypeLimit && (
+                            <span className="text-[10px] font-pmedium uppercase tracking-wide text-rose-600">
+                              Type limit reached
                             </span>
                           )}
                         </span>
@@ -308,6 +330,14 @@ const NomadListing = () => {
                         : "Delete one to add another."
                     }`}
             </p>
+            {typeLimit !== null && (
+              <p className="mt-1 text-[11px] font-pmedium text-slate-500">
+                {usedTypes}/{typeLimit} product types used
+                {remainingTypes > 0
+                  ? ` · ${remainingTypes} new type${remainingTypes === 1 ? "" : "s"} available`
+                  : " · add more locations under an existing type, or upgrade to unlock another type"}
+              </p>
+            )}
           </div>
           <div className="mb-4 md:mb-0">
             {/* Inclusions */}
@@ -505,6 +535,118 @@ const NomadListing = () => {
                   fullWidth
                 />
               )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Country — each listing has its own location, independent of
+                the host's registered company address. */}
+            <Controller
+              name="country"
+              control={control}
+              rules={{ required: "Country is required" }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  select
+                  size="small"
+                  label="Country"
+                  fullWidth
+                  error={!!errors.country}
+                  helperText={errors?.country?.message}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    setValue("state", "");
+                    setValue("city", "");
+                  }}
+                >
+                  {Country.getAllCountries().map((c) => (
+                    <MenuItem key={c.isoCode} value={c.name}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* State */}
+            <Controller
+              name="state"
+              control={control}
+              rules={{ required: "State is required" }}
+              render={({ field }) => {
+                const countryName = watch("country");
+                const countryObj = Country.getAllCountries().find(
+                  (c) => c.name === countryName,
+                );
+                const states = countryObj
+                  ? State.getStatesOfCountry(countryObj.isoCode)
+                  : [];
+                return (
+                  <TextField
+                    {...field}
+                    select
+                    size="small"
+                    label="State"
+                    fullWidth
+                    disabled={!countryObj}
+                    error={!!errors.state}
+                    helperText={errors?.state?.message}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      setValue("city", "");
+                    }}
+                  >
+                    {states.map((s) => (
+                      <MenuItem key={s.isoCode} value={s.name}>
+                        {s.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                );
+              }}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* City */}
+            <Controller
+              name="city"
+              control={control}
+              rules={{ required: "City is required" }}
+              render={({ field }) => {
+                const countryName = watch("country");
+                const stateName = watch("state");
+                const countryObj = Country.getAllCountries().find(
+                  (c) => c.name === countryName,
+                );
+                const stateObj =
+                  countryObj &&
+                  State.getStatesOfCountry(countryObj.isoCode).find(
+                    (s) => s.name === stateName,
+                  );
+                const cities =
+                  countryObj && stateObj
+                    ? City.getCitiesOfState(countryObj.isoCode, stateObj.isoCode)
+                    : [];
+                return (
+                  <TextField
+                    {...field}
+                    select
+                    size="small"
+                    label="City"
+                    fullWidth
+                    disabled={!stateObj}
+                    error={!!errors.city}
+                    helperText={errors?.city?.message}
+                  >
+                    {cities.map((c) => (
+                      <MenuItem key={c.name} value={c.name}>
+                        {c.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                );
+              }}
             />
           </div>
           <div className="mb-4 md:mb-0">

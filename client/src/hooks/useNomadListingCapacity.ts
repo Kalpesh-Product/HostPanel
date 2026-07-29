@@ -3,9 +3,20 @@ import useAxiosPrivate from "./useAxiosPrivate";
 
 export type NomadListingPlan = "basic" | "professional" | "custom";
 
+// Basic: 2 product types, 4 listings total. Professional: 3 product types,
+// 9 listings total. Listings can be distributed across the allowed product
+// types however the host likes (e.g. 3+1, or 3+3+3) — TYPE_LIMITS only gates
+// adding a BRAND NEW product type, not adding another location under a type
+// that's already in use.
 const PLAN_LIMITS: Record<NomadListingPlan, number | null> = {
+  basic: 4,
+  professional: 9,
+  custom: null,
+};
+
+const TYPE_LIMITS: Record<NomadListingPlan, number | null> = {
   basic: 2,
-  professional: 4,
+  professional: 3,
   custom: null,
 };
 
@@ -37,6 +48,14 @@ export const getNomadListingLimitMessage = (
   limit === null
     ? ""
     : `${plan === "professional" ? "Professional" : "Basic"} plan allows only ${limit} Nomad listings. Delete one to add another.`;
+
+export const getNomadListingTypeLimitMessage = (
+  plan: NomadListingPlan,
+  typeLimit: number | null,
+) =>
+  typeLimit === null
+    ? ""
+    : `${plan === "professional" ? "Professional" : "Basic"} plan allows only ${typeLimit} product types. Add another listing under an existing type, or upgrade your plan.`;
 
 export default function useNomadListingCapacity(companyId: string) {
   const axios = useAxiosPrivate();
@@ -97,6 +116,13 @@ export default function useNomadListingCapacity(companyId: string) {
     ).filter(Boolean),
   );
 
+  const typeLimit = TYPE_LIMITS[plan];
+  const usedTypes = addedTypes.size;
+  const remainingTypes = typeLimit === null ? null : Math.max(typeLimit - usedTypes, 0);
+  // Adding another location under a type that's already in use never
+  // touches the type limit — it only gates a brand new type.
+  const canAddNewType = typeLimit === null || usedTypes < typeLimit;
+
   return {
     plan,
     limit,
@@ -105,8 +131,13 @@ export default function useNomadListingCapacity(companyId: string) {
     isAtLimit,
     listings,
     addedTypes,
+    typeLimit,
+    usedTypes,
+    remainingTypes,
+    canAddNewType,
     isPending: isPlanPending || isListingsPending,
     refetchListings,
     limitMessage: getNomadListingLimitMessage(plan, limit),
+    typeLimitMessage: getNomadListingTypeLimitMessage(plan, typeLimit),
   };
 }
