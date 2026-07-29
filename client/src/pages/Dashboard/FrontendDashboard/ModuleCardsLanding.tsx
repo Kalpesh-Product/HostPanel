@@ -178,7 +178,7 @@ const ADD_ON_SECTION_ORDER: SectionType[] = [
   "founder-core-modules",
 ];
 
-const DEFAULT_SECTION_ROUTES: Record<string, string> = {
+export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   dashboard: "/dashboard",
   tickets: "/tickets",
   "company-profile": "/profile/company-profile",
@@ -226,7 +226,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "it-system-access": "/it/system-access",
 };
 
-const ICON_BY_ID: Record<string, ElementType> = {
+export const ICON_BY_ID: Record<string, ElementType> = {
   dashboard: LayoutDashboard,
   "company-profile": Building2,
   "my-profile": UserCog,

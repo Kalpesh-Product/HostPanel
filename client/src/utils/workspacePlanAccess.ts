@@ -108,7 +108,17 @@ export const getWorkspacePlan = (user: unknown): PlanType => {
 // Organization Management, Access Grants, Unit Management, Sales Architecture,
 // and Profile Details. Basic plan has no real departments at all — those
 // workspaces only ever have a Founder and (optionally) one Super Admin, see
-// BASIC_PLAN_PSEUDO_DEPARTMENTS below. Custom plan is unrestricted (full catalog).
+// BASIC_PLAN_PSEUDO_DEPARTMENTS below. Professional includes Sales, Technology, and workspace-created custom departments. Custom is unrestricted.
+const DEFAULT_DEPARTMENT_NAMES = new Set([
+  "hr",
+  "administration",
+  "sales",
+  "finance",
+  "maintenance",
+  "technology",
+  "it",
+]);
+
 const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "technology"]);
 
 export const getPlanAllowedDepartmentNames = (plan: PlanType): Set<string> | null => {
@@ -118,9 +128,14 @@ export const getPlanAllowedDepartmentNames = (plan: PlanType): Set<string> | nul
 };
 
 export const isDepartmentAllowedForPlan = (plan: PlanType, departmentName: unknown = ""): boolean => {
+  const normalizedName = String(departmentName || "").trim().toLowerCase();
   const allowed = getPlanAllowedDepartmentNames(plan);
+  if (plan !== "custom" && !normalizedName) return false;
   if (allowed === null) return true;
-  return allowed.has(String(departmentName || "").trim().toLowerCase());
+  if (plan === "professional") {
+    return allowed.has(normalizedName) || !DEFAULT_DEPARTMENT_NAMES.has(normalizedName);
+  }
+  return allowed.has(normalizedName);
 };
 
 // Not real departments — used only where a UI needs to offer "which department"

@@ -429,7 +429,11 @@ export default function AccessGrantsPage() {
   const isReadOnlySession = Boolean(auth?.impersonation);
   const currentUser = (auth?.user ?? null) as Record<string, any> | null;
   const currentRole = normalizeRole(String(currentUser?.workspaceMembership?.role || currentUser?.role || ''));
-  const canEditAccessGrants = currentRole === 'owner' || currentRole === 'founder';
+  const isFounderRole = currentRole === 'owner' || currentRole === 'founder';
+  const isSuperAdminRole = currentRole === 'super_admin';
+  const canEditAccessGrants = isFounderRole;
+  const canManageCrossUnitAccess = isFounderRole || isSuperAdminRole;
+  const canManageAnyAccess = canEditAccessGrants || canManageCrossUnitAccess;
   const canManageModuleAccess =
     currentRole === 'owner' || currentRole === 'founder' || currentRole === 'super_admin';
 
@@ -571,11 +575,17 @@ export default function AccessGrantsPage() {
   }, [loadAccessGrants]);
 
   const users = useMemo(() => members, [members]);
+  const workspacePlan = getWorkspacePlan({ selectedPlan: workspace?.selectedPlan });
   const transferWorkspaceOptions = useMemo(
     () => linkedWorkspaces.filter((item) => !item?.isCurrentWorkspace),
     [linkedWorkspaces],
   );
-  const canTransferMembers = canEditAccessGrants && transferWorkspaceOptions.length > 0;
+  const selectedUserRole = normalizeRole(selectedUser?.rawRole || '');
+  const canManageSelectedUserAcrossUnits = Boolean(selectedUser) && (
+    isFounderRole || !['owner', 'founder', 'super_admin'].includes(selectedUserRole)
+  );
+  const canTransferMembers =
+    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && transferWorkspaceOptions.length > 0;
   const linkWorkspaceOptions = useMemo(() => {
     const activeWorkspaceIds = new Set(
       Array.isArray(selectedUser?.workspaceAccesses)
@@ -585,8 +595,9 @@ export default function AccessGrantsPage() {
 
     return transferWorkspaceOptions.filter((item) => !activeWorkspaceIds.has(String(item.id)));
   }, [selectedUser, transferWorkspaceOptions]);
-  const canLinkMembers = canEditAccessGrants && linkWorkspaceOptions.length > 0;
-  const isDemoteDisabled = true;
+  const canLinkMembers =
+    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && linkWorkspaceOptions.length > 0;
+  const isDemoteDisabled = false;
   const selectedTransferWorkspace = useMemo(
     () => transferWorkspaceOptions.find((item) => String(item.id) === String(workspaceTransferForm.targetWorkspaceId)) || null,
     [transferWorkspaceOptions, workspaceTransferForm.targetWorkspaceId],
@@ -595,7 +606,6 @@ export default function AccessGrantsPage() {
     () => TRANSFER_ROLE_OPTIONS.find((option) => option.value === workspaceTransferForm.role) || TRANSFER_ROLE_OPTIONS[0],
     [workspaceTransferForm.role],
   );
-  const workspacePlan = getWorkspacePlan({ selectedPlan: workspace?.selectedPlan });
   const selectedTransferWorkspacePlan = getWorkspacePlan({ selectedPlan: selectedTransferWorkspace?.selectedPlan });
   const selectedTransferDepartmentOptions = (
     Array.isArray(selectedTransferWorkspace?.departments) ? selectedTransferWorkspace.departments : []
@@ -1216,6 +1226,25 @@ export default function AccessGrantsPage() {
     try {
       const response = await transferOrganizationOwnership(axiosPrivate, { memberId: targetMemberId });
       await reloadFromResponse(response);
+      setAuth((previous) => {
+        const previousUser = (previous.user || {}) as Record<string, any>;
+        return {
+          ...previous,
+          user: {
+            ...previousUser,
+            role: 'super_admin',
+            isOwner: false,
+            isFounder: false,
+            workspaceMembership: {
+              ...(previousUser.workspaceMembership || {}),
+              role: 'super_admin',
+              isOwner: false,
+              isFounder: false,
+              isActive: true,
+            },
+          },
+        };
+      });
       setShowTransferDialog(false);
       setShowTransferWarning(false);
       setShowDetailPanel(false);
@@ -1311,7 +1340,11 @@ export default function AccessGrantsPage() {
   ];
 
   const ownerName = currentUser?.fullName || currentUser?.name || 'Founder';
-  const accessGrantsModeLabel = canEditAccessGrants ? 'Founder edit access' : 'Read-only access';
+  const accessGrantsModeLabel = canEditAccessGrants
+    ? 'Founder edit access'
+    : canManageCrossUnitAccess
+      ? 'Super Admin unit access'
+      : 'Read-only access';
 
   const [statusFilter, setStatusFilter] = useState('All');
 
@@ -1543,7 +1576,7 @@ export default function AccessGrantsPage() {
                                     onClick={() => handleOpenDetails(user)}
                                     type="button"
                                     className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                                    title={canEditAccessGrants ? 'Manage Role' : 'View Role'}
+                                    title={canEditAccessGrants ? 'Manage Role' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
                                   >
                                     <UserCog size={15} strokeWidth={2.5} />
                                   </button>
@@ -1574,7 +1607,7 @@ export default function AccessGrantsPage() {
                 <div>
                   <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Access Control</p>
                   <h2 className="text-[13px] sm:text-sm font-pmedium text-white mt-1">
-                    {canEditAccessGrants ? 'Manage Access' : 'View Access'} - {selectedUser.name}
+                    {canManageAnyAccess ? 'Manage Access' : 'View Access'} - {selectedUser.name}
                   </h2>
                 </div>
                 <button
@@ -1716,11 +1749,11 @@ export default function AccessGrantsPage() {
 
                     {!canEditAccessGrants && (
                       <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
-                        Super-admins can review access details here, but only the workspace founder can promote, demote, or transfer founder access.
+                        Super Admins can add or transfer unit access for employees. Only the workspace founder can promote, demote, or transfer founder access.
                       </div>
                     )}
 
-                    {nextLowerRole && (
+                    {canEditAccessGrants && nextLowerRole && (
                       <button
                         title={isDemoteDisabled ? 'Demote is disabled.' : ''}
                         onClick={handleDemote}
@@ -1742,7 +1775,7 @@ export default function AccessGrantsPage() {
                       </button>
                     )}
 
-                    {nextHigherRole && (
+                    {canEditAccessGrants && nextHigherRole && (
                       <button
                         onClick={handlePromote}
                         disabled={isSaving || !canEditAccessGrants}
@@ -1766,7 +1799,7 @@ export default function AccessGrantsPage() {
                       {canTransferMembers && (
                         <button
                           onClick={() => handleOpenWorkspaceTransferDialog(selectedUser)}
-                        disabled={isSaving || !canEditAccessGrants}
+                        disabled={isSaving || !canManageCrossUnitAccess}
                         className="w-full p-3 bg-white hover:bg-indigo-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
                       >
                         <div className="flex items-center justify-between gap-4">
@@ -1787,7 +1820,7 @@ export default function AccessGrantsPage() {
                       {canLinkMembers && (
                         <button
                           onClick={() => handleOpenWorkspaceLinkDialog(selectedUser)}
-                          disabled={isSaving || !canEditAccessGrants}
+                          disabled={isSaving || !canManageCrossUnitAccess}
                           className="w-full p-3 bg-white hover:bg-sky-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
                         >
                           <div className="flex items-center justify-between gap-4">

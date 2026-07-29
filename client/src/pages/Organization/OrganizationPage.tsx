@@ -107,6 +107,12 @@ type DepartmentOption = {
 type CoreModuleOption = {
   id: string;
   name: string;
+  group?: string;
+};
+
+type CreatedDepartmentNotice = {
+  id: string;
+  name: string;
 };
 
 const getDepartmentToneClass = (dept: DepartmentOption) => {
@@ -122,6 +128,16 @@ const normalizeDepartmentLabel = (value = '') => {
   }
   const definition = getDepartmentDefinition(normalized);
   return definition?.label || normalized;
+};
+
+const isCustomDepartmentOption = (department: DepartmentOption | null | undefined) => {
+  const normalizedName = String(department?.name || '').trim().toLowerCase();
+  if (!normalizedName) return false;
+  return !OWNER_DEPARTMENT_CATALOG.some(
+    (catalogDepartment) =>
+      catalogDepartment.label.toLowerCase() === normalizedName ||
+      catalogDepartment.key.toLowerCase() === normalizedName,
+  );
 };
 
 const formatModuleLabel = (value = '') =>
@@ -155,6 +171,9 @@ type TeamMemberFormData = {
 };
 
 const SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES = new Set(['manager', 'employee']);
+const isValidWorkEmail = (value = '') =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim().toLowerCase());
+
 
 const getTeamMemberDepartmentHelperText = (role = '') => {
   const normalizedRole = String(role || '').trim().toLowerCase();
@@ -264,6 +283,8 @@ export function OrganizationPage() {
   const [isSavingDepartments, setIsSavingDepartments] = useState(false);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
+  const [isCreatingDepartment, setIsCreatingDepartment] = useState(false);
+  const [createdDepartmentNotice, setCreatedDepartmentNotice] = useState<CreatedDepartmentNotice | null>(null);
   const [accessTogglePendingMemberId, setAccessTogglePendingMemberId] = useState('');
 
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
@@ -273,12 +294,10 @@ export function OrganizationPage() {
   const [workspacePlan, setWorkspacePlan] = useState('basic');
   const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
   const [newDepartmentForm, setNewDepartmentForm] = useState({
+    departmentId: '',
     name: '',
     description: '',
     moduleIds: [] as string[],
-    managerUserId: '',
-    adminUserIds: [] as string[],
-    employeeUserIds: [] as string[],
   });
 
   const permissionSchema = {
@@ -312,14 +331,31 @@ export function OrganizationPage() {
       const nextWorkspaceDepartments = Array.isArray(payload?.workspace?.organizationDepartments)
         ? payload.workspace.organizationDepartments
         : [];
-      const nextAvailableCoreModules = Array.isArray(payload?.workspace?.availableCoreModules)
-        ? payload.workspace.availableCoreModules
-            .map((item: any) => ({
-              id: String(item?.id || '').trim(),
-              name: String(item?.name || item?.label || '').trim(),
-            }))
-            .filter((item: CoreModuleOption) => item.id && item.name)
+      const moduleSections = Array.isArray(moduleMapPayload?.moduleMap?.sections)
+        ? moduleMapPayload.moduleMap.sections
+        : Array.isArray(payload?.workspace?.moduleMap?.sections)
+          ? payload.workspace.moduleMap.sections
+          : [];
+      const departmentModuleSection = moduleSections.find((section: any) => section?.sectionId === 'department-accesses');
+      const mappedDepartmentCoreModules = (departmentModuleSection?.items || []).flatMap((group: any) =>
+        (group?.tabs || [])
+          .filter((tab: any) => tab?.unlockedInWorkspace === true)
+          .map((tab: any) => ({
+            id: String(tab?.id || '').trim(),
+            name: String(tab?.label || tab?.name || '').trim(),
+            group: String(group?.label || group?.name || 'Available Modules').trim(),
+          })),
+      ).filter((item: CoreModuleOption) => item.id && item.name);
+      const fallbackCoreModules = Array.isArray(payload?.workspace?.availableCoreModules)
+        ? payload.workspace.availableCoreModules.map((item: any) => ({
+            id: String(item?.id || '').trim(),
+            name: String(item?.name || item?.label || '').trim(),
+            group: String(item?.group || 'Available Modules').trim(),
+          })).filter((item: CoreModuleOption) => item.id && item.name)
         : [];
+      const nextAvailableCoreModules = mappedDepartmentCoreModules.length > 0
+        ? mappedDepartmentCoreModules
+        : fallbackCoreModules;
       const nextWorkspacePlan = String(payload?.workspace?.selectedPlan || 'basic').trim().toLowerCase();
       const nextDepartments = Array.isArray(payload.departments) ? payload.departments : [];
       const roleSnapshot = String(
@@ -423,7 +459,7 @@ export function OrganizationPage() {
         setIsLoading(false);
       }
     }
-  }, [axiosPrivate, currentUser?.workspaceMembership?.role, currentUser?.role]);
+  }, [axiosPrivate, currentUser?._id, currentUser?.email, currentUser?.id, currentUser?.workspaceMembership?.role, currentUser?.role]);
 
   useEffect(() => {
     const syncCurrentUser = () => {
@@ -459,13 +495,13 @@ export function OrganizationPage() {
     setShowEmployeeModal(false);
     setShowAssignManagerModal(false);
     setShowTeamMemberModal(false);
+    setCreatedDepartmentNotice(null);
+    setIsCreatingDepartment(false);
     setNewDepartmentForm({
+      departmentId: '',
       name: '',
       description: '',
       moduleIds: [],
-      managerUserId: '',
-      adminUserIds: [],
-      employeeUserIds: [],
     });
 
     if (currentUser?.id || currentUser?._id) {
@@ -587,8 +623,16 @@ export function OrganizationPage() {
   ).length;
   const professionalPlanLimitReached =
     isProfessionalPlanWorkspace && activeMemberCount >= professionalPlanMaxUsers;
+  const isCustomPlanWorkspace = workspacePlan === 'custom';
+  const canManageCustomDepartment =
+    (isProfessionalPlanWorkspace || isCustomPlanWorkspace) && canManageDepartments && canCreateDepartmentByAccess;
+  const customWorkspaceDepartment = departments.find((department) =>
+    isCustomDepartmentOption(department) && !String(department.id || department._id || '').startsWith('virtual-'),
+  ) || null;
+  const canCreateCustomDepartment = canManageCustomDepartment && !customWorkspaceDepartment;
+  const isEditingCustomDepartment = Boolean(newDepartmentForm.departmentId);
   // Department availability (Basic: none, Founder/Super Admin only; Professional:
-  // Sales + Technology only; Custom: full catalog) lives in workspacePlanAccess.ts
+  // Sales + Technology plus workspace-created departments; Custom: full catalog) lives in workspacePlanAccess.ts
   // (isDepartmentAllowedForPlan, imported above) so every department dropdown in
   // the app agrees on what's selectable for a given plan.
 
@@ -598,7 +642,14 @@ export function OrganizationPage() {
   const normalizedTeamMemberRole = String(teamMemberFormData.role || '').trim().toLowerCase();
   const isSingleDepartmentTeamMemberRole = SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(normalizedTeamMemberRole);
   const inviteDepartmentOptions = departments.filter((dept) => isDepartmentAllowedForPlan(workspacePlan, dept.name));
+  const enabledDepartmentCount = inviteDepartmentOptions.length;
+  const normalizedEmployeeEmail = String(employeeFormData.email || '').trim().toLowerCase();
+  const isEmployeeEmailAlreadyUsed = Boolean(normalizedEmployeeEmail) && teamMembers.some(
+    (member) => String(member.email || '').trim().toLowerCase() === normalizedEmployeeEmail,
+  );
+  const isEmployeeEmailValid = isValidWorkEmail(normalizedEmployeeEmail);
   const normalizedTeamMemberEmail = String(teamMemberFormData.email || '').trim().toLowerCase();
+  const isTeamMemberEmailValid = isValidWorkEmail(normalizedTeamMemberEmail);
   const isTeamMemberEmailAlreadyUsed = Boolean(normalizedTeamMemberEmail) && teamMembers.some(
     (member) => String(member.email || '').trim().toLowerCase() === normalizedTeamMemberEmail,
   );
@@ -627,21 +678,37 @@ export function OrganizationPage() {
     );
   const shouldShowTransferredReferences =
     canManageDepartments && workspaceCount > 1 && hasTransferredRecords;
-  const workspaceModuleOptions = useMemo(() => {
-    const uniqueIds = Array.from(
-      new Set(
-        (Array.isArray(workspaceEnabledModuleIds) ? workspaceEnabledModuleIds : [])
-          .map((item) => String(item || '').trim())
-          .filter(Boolean),
-      ),
+  const workspaceModuleOptions = useMemo(() =>
+    Array.from(
+      new Map(
+        availableCoreModules
+          .filter((module) => module.id && module.name)
+          .map((module) => [module.id, module] as const),
+      ).values(),
+    ),
+  [availableCoreModules]);
+  const workspaceModuleGroups = useMemo(() => {
+    const groups = new Map<string, CoreModuleOption[]>();
+    workspaceModuleOptions.forEach((module) => {
+      const groupName = module.group || 'Available Modules';
+      groups.set(groupName, [...(groups.get(groupName) || []), module]);
+    });
+    return Array.from(groups.entries());
+  }, [workspaceModuleOptions]);
+  const getDepartmentModuleLabels = (department: DepartmentOption) =>
+    (Array.isArray(department?.moduleIds) ? department.moduleIds : []).map((moduleId) =>
+      workspaceModuleOptions.find((module) => module.id === moduleId)?.name || formatModuleLabel(moduleId),
     );
-    return uniqueIds.map((id) => ({
-      id,
-      name:
-        availableCoreModules.find((module) => module.id === id)?.name ||
-        formatModuleLabel(id),
-    }));
-  }, [workspaceEnabledModuleIds, availableCoreModules]);
+  const selectedDepartmentManager = selectedDepartment?.employees?.find((member) => {
+    const memberUserId = String(member.userId || member.id || '').trim();
+    const managerUserId = String(selectedDepartment.managerUserId || selectedDepartment.managerId || '').trim();
+    return (managerUserId && memberUserId === managerUserId) || normalizeRoleValue(member.role) === 'manager';
+  });
+  const selectedDepartmentMembers = (selectedDepartment?.employees || []).filter((member) => {
+    const role = normalizeRoleValue(member.role);
+    return role === 'manager' || role === 'employee' || role === 'admin' || role === 'admin-manager';
+  });
+
   const formatJoinedDate = (value) => {
     if (!value) {
       return '-';
@@ -803,33 +870,60 @@ export function OrganizationPage() {
   };
 
   const openDepartmentModal = (department: DepartmentOption | null = null) => {
-    setExpandedDepartmentKey(department?.name || '');
+    if (department && isCustomDepartmentOption(department)) {
+      setNewDepartmentForm({
+        departmentId: String(department.id || department._id || '').trim(),
+        name: String(department.name || ''),
+        description: String(department.description || ''),
+        moduleIds: Array.isArray(department.moduleIds) ? [...department.moduleIds] : [],
+      });
+      setExpandedDepartmentKey(department.name || '');
+    } else {
+      setNewDepartmentForm({ departmentId: '', name: '', description: '', moduleIds: [] });
+      setExpandedDepartmentKey('');
+    }
     setShowDepartmentModal(true);
   };
 
   const handleAddEmployee = async () => {
     if (isAddingEmployee) return;
-    if (selectedDepartment && employeeFormData.name && employeeFormData.email) {
-      setIsAddingEmployee(true);
-      try {
-        await inviteOrganizationMember(axiosPrivate, {
-          fullName: employeeFormData.name,
-          email: employeeFormData.email,
-          role: 'employee',
-          departments: [selectedDepartment.id || ''],
-        });
-        await loadOrganization(selectedDepartment.id || '');
-        setEmployeeFormData({ name: '', email: '' });
-        setShowEmployeeModal(false);
-        setActiveTab('users');
-        toast.success(`Invite sent to ${employeeFormData.name}.`);
-      } catch (error) {
-        console.error("Failed to add employee", error);
-        toast.error('Failed to send invite. Please try again.');
-      } finally {
-        setIsAddingEmployee(false);
-      }
+    if (!selectedDepartment || !employeeFormData.name.trim() || !normalizedEmployeeEmail) return;
+    if (!isEmployeeEmailValid) {
+      toast.error('Enter a valid work email address.');
+      return;
     }
+    if (isEmployeeEmailAlreadyUsed) {
+      toast.error('Email already used. Try using a different email.');
+      return;
+    }
+
+    setIsAddingEmployee(true);
+    try {
+      await inviteOrganizationMember(axiosPrivate, {
+        fullName: employeeFormData.name.trim(),
+        email: normalizedEmployeeEmail,
+        role: 'employee',
+        departments: [selectedDepartment.id || ''],
+      });
+      await loadOrganization(selectedDepartment.id || '');
+      setEmployeeFormData({ name: '', email: '' });
+      setShowEmployeeModal(false);
+      toast.success(`Invite sent to ${employeeFormData.name.trim()}.`);
+    } catch (error) {
+      console.error("Failed to add employee", error);
+      toast.error((error as any)?.response?.data?.message || 'Failed to send invite. Please try again.');
+    } finally {
+      setIsAddingEmployee(false);
+    }
+  };
+
+  const openInviteForDepartment = (department: DepartmentOption, role: 'manager' | 'employee' = 'manager') => {
+    const departmentId = String(department.id || department._id || '').trim();
+    if (!departmentId) return;
+    setSelectedDepartment(department);
+    setTeamMemberFormData({ name: '', email: '', role, departments: [departmentId] });
+    setCreatedDepartmentNotice(null);
+    setShowTeamMemberModal(true);
   };
 
   const handleOpenTeamMemberModal = () => {
@@ -860,6 +954,11 @@ export function OrganizationPage() {
           : teamMemberFormData.role === 'admin-manager'
             ? 'admin_manager'
             : teamMemberFormData.role;
+      if (!isTeamMemberEmailValid) {
+        toast.error('Enter a valid work email address.');
+        return;
+      }
+
 
       if (isTeamMemberEmailAlreadyUsed) {
         toast.error('Email already used. Try using a different email.');
@@ -1106,54 +1205,72 @@ export function OrganizationPage() {
   };
 
   const handleCreateDepartmentForFounder = async () => {
-    if (!canManageDepartments) {
-      toast.error('Only founder can create departments.');
+    if (isCreatingDepartment) return;
+    if (!canManageCustomDepartment) {
+      toast.error('Custom departments are available to the founder on Professional and Custom plans.');
       return;
     }
 
-    if (!newDepartmentForm.name.trim()) {
-      toast.error('Department name is required.');
+    const editingDepartmentId = String(newDepartmentForm.departmentId || '').trim();
+    if (!editingDepartmentId && customWorkspaceDepartment) {
+      toast.error('Only one custom department can be created. Edit the existing custom department instead.');
       return;
     }
 
+    const departmentName = newDepartmentForm.name.trim();
+    const description = newDepartmentForm.description.trim();
+    if (departmentName.length < 2) {
+      toast.error('Department name must contain at least 2 characters.');
+      return;
+    }
+    if (departmentName.length > 80) {
+      toast.error('Department name cannot exceed 80 characters.');
+      return;
+    }
+    if (description.length > 240) {
+      toast.error('Department description cannot exceed 240 characters.');
+      return;
+    }
+    if (departments.some((department) => {
+      const departmentId = String(department.id || department._id || '').trim();
+      return departmentId !== editingDepartmentId &&
+        String(department.name || '').trim().toLowerCase() === departmentName.toLowerCase();
+    })) {
+      toast.error('A department with this name already exists.');
+      return;
+    }
     if (newDepartmentForm.moduleIds.length === 0) {
       toast.error('Select at least one core module.');
       return;
     }
 
+    setIsCreatingDepartment(true);
     try {
-      const founderAndSuperAdminIds = teamMembers
-        .filter((member) => {
-          const role = normalizeRoleValue(member.role);
-          return role === 'owner' || role === 'founder' || role === 'super-admin' || role === 'super_admin';
-        })
-        .map((member) => String(member.userId || member.id || '').trim())
-        .filter(Boolean);
-      const mergedAdminUserIds = Array.from(
-        new Set([...(newDepartmentForm.adminUserIds || []), ...founderAndSuperAdminIds]),
-      );
-      await saveOrganizationDepartment(axiosPrivate, {
-        name: newDepartmentForm.name.trim(),
-        description: newDepartmentForm.description.trim(),
+      const response = await saveOrganizationDepartment(axiosPrivate, {
+        departmentId: editingDepartmentId || undefined,
+        name: departmentName,
+        description,
         moduleIds: newDepartmentForm.moduleIds,
-        managerUserId: newDepartmentForm.managerUserId || '',
-        adminUserIds: mergedAdminUserIds,
-        employeeUserIds: newDepartmentForm.employeeUserIds,
         isActive: true,
       });
-      toast.success('Department created successfully.');
-      setNewDepartmentForm({
-        name: '',
-        description: '',
-        moduleIds: [],
-        managerUserId: '',
-        adminUserIds: [],
-        employeeUserIds: [],
-      });
-      await loadOrganization(null);
+      const savedDepartment = response?.data?.data?.department || {};
+      const savedDepartmentId = String(savedDepartment.id || editingDepartmentId).trim();
+      await loadOrganization(savedDepartmentId || null);
+      setShowDepartmentModal(false);
+      setNewDepartmentForm({ departmentId: '', name: '', description: '', moduleIds: [] });
+
+      if (editingDepartmentId) {
+        setCreatedDepartmentNotice(null);
+        toast.success('Custom department and module access updated.');
+      } else {
+        setCreatedDepartmentNotice({ id: savedDepartmentId, name: departmentName });
+        toast.success('Department created. Add a manager or employee from Add User.');
+      }
     } catch (error) {
-      console.error('Failed to create department', error);
-      toast.error('Failed to create department.');
+      console.error('Failed to save custom department', error);
+      toast.error((error as any)?.response?.data?.message || 'Failed to save custom department.');
+    } finally {
+      setIsCreatingDepartment(false);
     }
   };
 
@@ -1216,7 +1333,7 @@ export function OrganizationPage() {
           <div className="min-w-0">
             <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Total Depts</p>
             <p className={`text-[15px] font-pmedium ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
-              {canAccessDepartmentsTab ? departments.length : '--'}
+              {canAccessDepartmentsTab ? enabledDepartmentCount : '--'}
             </p>
           </div>
           <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Building2 size={16}/></div>
@@ -1511,8 +1628,8 @@ export function OrganizationPage() {
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50/50">
             <div>
-              <h3 className="text-[13px] font-bold text-slate-900">Transferred References</h3>
-              <p className="text-xs font-medium text-slate-500 mt-0.5">
+              <h3 className="text-[13px] font-pmedium text-slate-900">Transferred References</h3>
+              <p className="text-xs font-pmedium text-slate-500 mt-0.5">
                 These users are no longer counted in this workspace and are shown here only for record keeping.
               </p>
             </div>
@@ -1594,67 +1711,105 @@ export function OrganizationPage() {
       {/* ========================================== */}
       {activeTab === 'departments' && view === 'list' && (
         <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Departments</h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Review existing departments and enable the ones that were missed during setup.
+              <p className="mt-1 text-xs font-pmedium text-slate-500">
+                {isProfessionalPlanWorkspace
+                  ? 'Professional includes Sales and Technology, plus one editable custom department.'
+                  : 'Review department leadership, team members, and the core modules assigned to each department.'}
               </p>
             </div>
             {canCreateDepartmentByAccess ? (
               <button
                 type="button"
-                onClick={() => openDepartmentModal(null)}
-                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                title={customWorkspaceDepartment ? 'Edit the custom department and its modules' : canCreateCustomDepartment ? 'Create the one allowed custom department' : 'Department management is unavailable.'}
+                disabled={!canManageCustomDepartment}
+                onClick={() => openDepartmentModal(customWorkspaceDepartment)}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
               >
-                <Plus size={13} strokeWidth={3} /> CREATE DEPARTMENT
+                {customWorkspaceDepartment ? <Wrench size={13} /> : <Plus size={13} strokeWidth={3} />}
+                {customWorkspaceDepartment ? 'EDIT CUSTOM DEPARTMENT' : 'CREATE DEPARTMENT'}
               </button>
             ) : null}
-
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-7">
-           {departments.map((dept) => (
-            <div key={dept.id} onClick={() => { setSelectedDepartment(dept); setView('detail'); }} className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col relative cursor-pointer">
-              <div className={`h-2 w-full ${getDepartmentToneClass(dept)}`}></div>
-              <div className="p-3.5 flex flex-col flex-1">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-[15px] font-pmedium text-slate-900 transition-colors">{dept.name}</h3>
-                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{dept.description}</p>
-                  </div>
-                  </div>
-                
-                <div className="mt-auto pt-2.5 border-t border-slate-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className={statusPillClass("Manager")}>Manager</span>
-                    <span className={`text-[11px] font-bold px-2 py-1 rounded-md ${dept.managerName ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                      {dept.managerName || 'Unassigned'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={statusPillClass("Team Size")}>Team Size</span>
-                    <span className="font-bold text-slate-800 text-[11px]">{dept.employeeCount} <span className="text-slate-400 text-[10px] font-medium">Staff</span></span>
-                  </div>
-                    <div className="space-y-2">
-                      <span className={statusPillClass("Selected Members")}>Selected Members</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(dept.employees || []).slice(0, 3).map((employee) => (
-                          <span key={employee.id} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">
-                            {employee.employeeId ? `${employee.employeeId} - ` : ''}{employee.name}
-                          </span>
-                        ))}
-                      {(dept.employees || []).length > 3 && (
-                        <span className={statusPillClass("+")}>
-                          +{(dept.employees || []).length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
+          {createdDepartmentNotice ? (
+            <div className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 size={19} className="mt-0.5 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="text-[12px] font-pmedium text-emerald-900">{createdDepartmentNotice.name} was created successfully.</p>
+                  <p className="mt-1 text-[11px] font-pmedium text-emerald-700">Use Add User to invite its one manager or add employees. The selected core modules are granted to its manager with the common modules.</p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const department = departments.find((item) => String(item.id || item._id || '') === createdDepartmentNotice.id)
+                    || departments.find((item) => String(item.name || '').trim().toLowerCase() === createdDepartmentNotice.name.toLowerCase());
+                  if (department) openInviteForDepartment(department, 'manager');
+                }}
+                className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-pmedium text-white transition-colors hover:bg-emerald-700"
+              >
+                ADD MANAGER
+              </button>
             </div>
-          ))}
+          ) : null}
+
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {inviteDepartmentOptions.map((dept) => {
+              const isAllowedDepartment = isDepartmentAllowedForPlan(workspacePlan, dept.name);
+              const departmentModuleLabels = getDepartmentModuleLabels(dept);
+              return (
+                <button
+                  type="button"
+                  key={dept.id || dept._id || dept.name}
+                  disabled={!isAllowedDepartment}
+                  title={!isAllowedDepartment ? `${normalizeDepartmentLabel(dept.name)} is available on the Custom plan.` : `Open ${normalizeDepartmentLabel(dept.name)}`}
+                  onClick={() => { setSelectedDepartment(dept); setView('detail'); }}
+                  className={`relative flex min-h-[230px] flex-col overflow-hidden rounded-[1.5rem] border bg-white text-left shadow-sm transition-all ${
+                    isAllowedDepartment
+                      ? 'cursor-pointer border-slate-100 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md'
+                      : 'cursor-not-allowed border-slate-200 bg-slate-50/80 opacity-65'
+                  }`}
+                >
+                  <span className={`h-2 w-full ${isAllowedDepartment ? getDepartmentToneClass(dept) : 'bg-slate-300'}`} />
+                  <span className="flex flex-1 flex-col p-4">
+                    <span className="mb-3 flex items-start justify-between gap-3">
+                      <span>
+                        <span className="block text-[15px] font-pmedium text-slate-900">{normalizeDepartmentLabel(dept.name)}</span>
+                        <span className="mt-1 block text-[11px] font-pmedium leading-relaxed text-slate-500">{dept.description || 'Custom workspace department'}</span>
+                      </span>
+                      <span className={`rounded-lg px-2 py-1 text-[9px] font-pmedium uppercase tracking-wider ${isAllowedDepartment ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
+                        {isAllowedDepartment ? 'Enabled' : <><Lock size={10} className="mr-1 inline" />Custom only</>}
+                      </span>
+                    </span>
+
+                    <span className="mb-3 block rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                      <span className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Core Modules</span>
+                      <span className="mt-2 flex flex-wrap gap-1.5">
+                        {departmentModuleLabels.length > 0 ? departmentModuleLabels.slice(0, 3).map((moduleLabel) => (
+                          <span key={`${dept.id}-${moduleLabel}`} className="rounded-md bg-white px-2 py-1 text-[9px] font-pmedium text-slate-600 shadow-sm">{moduleLabel}</span>
+                        )) : <span className="text-[10px] font-pmedium text-slate-400">No core modules configured</span>}
+                        {departmentModuleLabels.length > 3 ? <span className="rounded-md bg-blue-50 px-2 py-1 text-[9px] font-pmedium text-blue-700">+{departmentModuleLabels.length - 3}</span> : null}
+                      </span>
+                    </span>
+
+                    <span className="mt-auto grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                      <span>
+                        <span className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Manager</span>
+                        <span className={`mt-1 block truncate text-[11px] font-pmedium ${dept.managerName ? 'text-emerald-700' : 'text-amber-600'}`}>{dept.managerName || 'Not assigned'}</span>
+                      </span>
+                      <span>
+                        <span className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Members</span>
+                        <span className="mt-1 block text-[11px] font-pmedium text-slate-800">{dept.employeeCount || 0} members</span>
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1675,44 +1830,59 @@ export function OrganizationPage() {
               <div>
                 <div className="flex items-center gap-2.5 mb-1.5">
                   <div className={`w-2 h-6 rounded-full ${getDepartmentToneClass(selectedDepartment)}`}></div>
-                  <h1 className="text-xl font-black text-slate-900">{selectedDepartment.name}</h1>
+                  <h1 className="text-xl font-pmedium text-slate-900">{normalizeDepartmentLabel(selectedDepartment.name)}</h1>
                 </div>
                 <p className="text-[12px] text-slate-500 max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
               </div>
-              <div className="flex gap-2.5 w-full md:w-auto">
-                {canAssignManagerByAccess ? (
-                  <button
-                    onClick={() => setShowAssignManagerModal(true)}
-                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[12px] transition-all shadow-sm hover:bg-slate-50"
-                  >
-                    Assign Manager
+              <div className="flex w-full flex-wrap gap-2.5 md:w-auto">
+                {isCustomDepartmentOption(selectedDepartment) && canManageCustomDepartment ? (
+                  <button type="button" onClick={() => openDepartmentModal(selectedDepartment)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-[11px] font-pmedium text-blue-700 transition-colors hover:bg-blue-100 md:flex-none">
+                    <Wrench size={14} /> Edit Department
                   </button>
                 ) : null}
-                <button
-                  onClick={() => setShowEmployeeModal(true)}
-                  disabled={!canInviteUsersByAccess}
-                  className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-pmedium text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <UserPlus size={16}/> Add Employee
+                {canInviteUsersByAccess && !selectedDepartment.managerName ? (
+                  <button type="button" onClick={() => openInviteForDepartment(selectedDepartment, 'manager')} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-[11px] font-pmedium text-blue-700 transition-colors hover:bg-blue-100 md:flex-none">
+                    <UserPlus size={14} /> Invite Manager
+                  </button>
+                ) : null}
+                {canAssignManagerByAccess ? (
+                  <button type="button" onClick={() => setShowAssignManagerModal(true)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-pmedium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 md:flex-none">
+                    {selectedDepartment.managerName ? 'Change Manager' : 'Assign Existing'}
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => setShowEmployeeModal(true)} disabled={!canInviteUsersByAccess} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[11px] font-pmedium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 md:flex-none">
+                  <UserPlus size={14}/> Add Employee
                 </button>
               </div>
             </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-100">
-               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                 <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-2">Assigned Manager</p>
-                 {selectedDepartment.managerName ? (
-                   <p className="font-bold text-emerald-700 flex items-center gap-2"><CheckCircle2 size={16}/> {selectedDepartment.managerName}</p>
-                 ) : (
-                   <p className="font-bold text-amber-600 flex items-center gap-2"><AlertCircle size={16}/> Action Required</p>
-                 )}
-               </div>
-               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                 <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-1.5">Manager Transfer</p>
-                 <p className="font-bold text-slate-800 leading-relaxed text-[12px]">
-                   Change the department head when a manager leaves or access needs to move to another department lead.
-                 </p>
-               </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <p className="mb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Department Manager</p>
+                {selectedDepartment.managerName ? (
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-[11px] font-pmedium text-emerald-700">{getInitials(selectedDepartment.managerName)}</div>
+                    <div>
+                      <p className="flex items-center gap-1.5 text-[12px] font-pmedium text-emerald-700"><CheckCircle2 size={14}/> {selectedDepartment.managerName}</p>
+                      <p className="mt-0.5 text-[10px] font-pmedium text-slate-500">{selectedDepartmentManager?.email || 'Primary department lead'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="flex items-center gap-2 text-[12px] font-pmedium text-amber-600"><AlertCircle size={15}/> No manager assigned</p>
+                )}
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Core Modules</p>
+                  <span className="text-[10px] font-pmedium text-blue-600">{getDepartmentModuleLabels(selectedDepartment).length} selected</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {getDepartmentModuleLabels(selectedDepartment).length > 0 ? getDepartmentModuleLabels(selectedDepartment).map((moduleLabel) => (
+                    <span key={`detail-module-${moduleLabel}`} className="rounded-md border border-blue-100 bg-white px-2 py-1 text-[9px] font-pmedium text-blue-700">{moduleLabel}</span>
+                  )) : <span className="text-[10px] font-pmedium text-slate-400">No department-specific modules configured.</span>}
+                </div>
+                <p className="mt-2 text-[9px] font-pmedium text-slate-500">Common modules are added automatically. The manager receives these department modules.</p>
+              </div>
             </div>
             {Array.isArray(selectedDepartment.actingManagers) && selectedDepartment.actingManagers.length > 0 ? (
               <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
@@ -1721,8 +1891,8 @@ export function OrganizationPage() {
                   {selectedDepartment.actingManagers.map((assignment) => (
                     <div key={assignment.id || assignment.assignedUserId} className="flex items-center gap-3 rounded-2xl bg-white border border-blue-100 px-4 py-3">
                       <div>
-                        <p className="font-bold text-slate-900 text-sm">{assignment.assignedUserName}</p>
-                        <p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest">
+                        <p className="font-pmedium text-slate-900 text-sm">{assignment.assignedUserName}</p>
+                        <p className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">
                           {(assignment.assignedBaseRole || 'acting-manager').replace(/_/g, ' ')}
                         </p>
                       </div>
@@ -1745,13 +1915,14 @@ export function OrganizationPage() {
           {/* Dept Employee Table */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="text-[13px] font-bold text-slate-900">Department Roster</h3>
+              <h3 className="text-[13px] font-pmedium text-slate-900">Department Members</h3>
+              <span className={statusPillClass(selectedDepartmentMembers.length)}>{selectedDepartmentMembers.length} Members</span>
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-5 py-4">Employee Info</th>
+                    <th className="px-5 py-4">Member Info</th>
                     <th className="px-5 py-4">Employee ID</th>
                     <th className="px-5 py-4">Role</th>
                     <th className="px-5 py-4">Contact Details</th>
@@ -1759,7 +1930,7 @@ export function OrganizationPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
-                  {(selectedDepartment?.employees ?? []).map((emp) => (
+                  {selectedDepartmentMembers.map((emp) => (
                     <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -1785,8 +1956,8 @@ export function OrganizationPage() {
                       <td className="px-5 py-4 text-[12px] font-pmedium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
                     </tr>
                   ))}
-                  {(selectedDepartment?.employees?.length ?? 0) === 0 && (
-                    <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium"><Users size={32} className="mx-auto mb-3 opacity-30"/>No personnel assigned.</td></tr>
+                  {selectedDepartmentMembers.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium"><Users size={32} className="mx-auto mb-3 opacity-30"/>No manager, admin, or employee is linked to this department.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1795,7 +1966,7 @@ export function OrganizationPage() {
 
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="text-[13px] font-bold text-slate-900">Transferred From This Department</h3>
+              <h3 className="text-[13px] font-pmedium text-slate-900">Transferred From This Department</h3>
                 <span className={statusPillClass((selectedDepartment as any)?.transferredEmployees?.length || 0)}>
                 {(selectedDepartment as any)?.transferredEmployees?.length || 0} Recorded
               </span>
@@ -1849,46 +2020,44 @@ export function OrganizationPage() {
 
         {/* 2. Add Employee to Roster Modal */}
       {showEmployeeModal && selectedDepartment && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[2.5rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">
-            <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-3 font-pmedium backdrop-blur-sm">
+          <div className="flex w-full max-w-xl animate-in flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl duration-200 zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-blue-50/30 p-5 sm:p-6">
               <div>
-                <h2 className="text-xl font-pmedium text-primary">Add Employee</h2>
-                <p className="text-xs text-[#2563EB] font-medium mt-1">Invite directly into {selectedDepartment.name}</p>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-[#2563EB] p-1.5 text-white"><UserPlus size={16} /></span>
+                  <h2 className="text-lg font-pmedium text-primary">Add Department Employee</h2>
+                </div>
+                <p className="mt-1 text-[11px] font-pmedium text-slate-500">The invite will be assigned directly to {normalizeDepartmentLabel(selectedDepartment.name)}.</p>
               </div>
-              <button onClick={() => setShowEmployeeModal(false)} className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"><X size={18} /></button>
+              <button type="button" onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700 disabled:opacity-50"><X size={16} /></button>
             </div>
-            <div className="p-6 sm:p-8 space-y-4">
-              <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+            <div className="space-y-5 p-5 sm:p-6">
+              <div className="grid grid-cols-2 gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
                 <div>
-                  <p className="text-[11px] font-pmedium uppercase tracking-widest text-blue-600">Default Role</p>
-                  <p className="text-sm font-semibold text-slate-800 mt-1">Employee</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Role</p>
+                  <p className="mt-1 text-[12px] font-pmedium text-slate-800">Employee</p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-pmedium uppercase tracking-widest text-blue-600">Default Department</p>
-                  <p className="text-sm font-semibold text-slate-800 mt-1">{selectedDepartment.name}</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Department</p>
+                  <p className="mt-1 truncate text-[12px] font-pmedium text-slate-800">{normalizeDepartmentLabel(selectedDepartment.name)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-1.5 col-span-2">
-                  <label className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name *</label>
-                  <input type="text" placeholder="John Doe" value={employeeFormData.name} onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Email Address *</label>
-                  <input type="email" placeholder="john@company.com" value={employeeFormData.email} onChange={(e) => setEmployeeFormData({ ...employeeFormData, email: e.target.value })} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Full Name *</label>
+                <input type="text" maxLength={80} autoComplete="name" placeholder="Enter employee name" value={employeeFormData.name} onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Work Email *</label>
+                <input type="email" autoComplete="email" placeholder="name@company.com" value={employeeFormData.email} onChange={(e) => setEmployeeFormData({ ...employeeFormData, email: e.target.value })} aria-invalid={Boolean(normalizedEmployeeEmail) && (!isEmployeeEmailValid || isEmployeeEmailAlreadyUsed)} className={`w-full rounded-xl border bg-slate-50 px-3.5 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:bg-white focus:ring-4 ${Boolean(normalizedEmployeeEmail) && (!isEmployeeEmailValid || isEmployeeEmailAlreadyUsed) ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-[#2563EB] focus:ring-blue-500/10'}`} />
+                {normalizedEmployeeEmail && !isEmployeeEmailValid ? <p className="flex items-center gap-1 text-[10px] font-pmedium text-red-600"><AlertCircle size={12} /> Enter a valid work email address.</p> : null}
+                {isEmployeeEmailAlreadyUsed ? <p className="flex items-center gap-1 text-[10px] font-pmedium text-red-600"><AlertCircle size={12} /> Email already used. Try another email.</p> : null}
               </div>
             </div>
-            <div className="p-5 sm:p-6 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-sm hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
-              <button onClick={handleAddEmployee} disabled={!employeeFormData.name || !employeeFormData.email || isAddingEmployee} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-                {isAddingEmployee ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                    Sending...
-                  </>
-                ) : 'Send Invite'}
+            <div className="flex gap-2.5 border-t border-slate-100 bg-slate-50 p-4 sm:p-5">
+              <button type="button" onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[12px] font-pmedium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+              <button type="button" onClick={handleAddEmployee} disabled={!employeeFormData.name.trim() || !normalizedEmployeeEmail || !isEmployeeEmailValid || isEmployeeEmailAlreadyUsed || isAddingEmployee} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-[12px] font-pmedium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                {isAddingEmployee ? <><Loader2 size={15} className="animate-spin" /> Sending...</> : <><Send size={14} /> Send Invite</>}
               </button>
             </div>
           </div>
@@ -1896,168 +2065,81 @@ export function OrganizationPage() {
       )}
 
       {showDepartmentModal && (
-        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[2.5rem] max-w-6xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]">
-            <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/50 flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-3 font-pmedium backdrop-blur-sm">
+          <div className="flex max-h-[90vh] w-full max-w-4xl animate-in flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl duration-200 zoom-in-95">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/30 p-5 sm:p-6">
               <div>
-                <h2 className="text-xl font-pmedium text-primary">Manage Departments</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Use the same platform department set from workspace setup. Enabled departments stay active, disabled ones stay hidden, and module configuration follows the same state.
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-[#2563EB] p-1.5 text-white"><Building2 size={16} /></span>
+                  <h2 className="text-lg font-pmedium text-primary">{isEditingCustomDepartment ? 'Edit Custom Department' : 'Create Custom Department'}</h2>
+                </div>
+                <p className="mt-1 text-[11px] font-pmedium text-slate-500">{isEditingCustomDepartment ? 'Update its public name and enable or disable available modules.' : 'Create the one custom department allowed for this workspace and select its modules.'}</p>
               </div>
-              <button
-                onClick={() => {
-                  setShowDepartmentModal(false);
-                  setExpandedDepartmentKey('');
-                }}
-                className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors border border-slate-200 shrink-0"
-              >
-                <X size={18} />
-              </button>
+              <button type="button" onClick={() => setShowDepartmentModal(false)} disabled={isCreatingDepartment} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700 disabled:opacity-50"><X size={16} /></button>
             </div>
 
-            <div className="p-5 sm:p-6 lg:p-8 overflow-y-auto">
-              {canManageDepartments && canCreateDepartmentByAccess ? (
-                <div className="mt-5 rounded-[20px] border border-blue-100 bg-blue-50/40 px-4 py-4 sm:rounded-[22px]">
-                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Create Department (Founder)</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <input
-                      type="text"
-                      placeholder="Department name"
-                      value={newDepartmentForm.name}
-                      onChange={(e) => setNewDepartmentForm((current) => ({ ...current, name: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Description"
-                      value={newDepartmentForm.description}
-                      onChange={(e) => setNewDepartmentForm((current) => ({ ...current, description: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                    />
-                  </div>
-                  <p className="mt-3 text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Core Modules</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {workspaceModuleOptions.map((module) => {
-                      const selected = newDepartmentForm.moduleIds.includes(module.id);
-                      return (
-                        <button
-                          type="button"
-                          key={`create-dept-module-${module.id}`}
-                          onClick={() =>
-                            setNewDepartmentForm((current) => ({
-                              ...current,
-                              moduleIds: selected
-                                ? current.moduleIds.filter((id) => id !== module.id)
-                                : [...current.moduleIds, module.id],
-                            }))
-                          }
-                          className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold ${selected ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-200 bg-white text-slate-600'}`}
-                        >
-                          {module.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    <select
-                      value={newDepartmentForm.managerUserId}
-                      onChange={(e) => setNewDepartmentForm((current) => ({ ...current, managerUserId: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                    >
-                      <option value="">Manager (optional)</option>
-                      {teamMembers.map((member) => (
-                        <option key={`manager-opt-${member.userId || member.id}`} value={member.userId || member.id}>
-                          {member.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (!value) return;
-                        setNewDepartmentForm((current) => ({
-                          ...current,
-                          adminUserIds: current.adminUserIds.includes(value)
-                            ? current.adminUserIds
-                            : [...current.adminUserIds, value],
-                        }));
-                      }}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                    >
-                      <option value="">Add admin</option>
-                      {teamMembers.map((member) => (
-                        <option key={`admin-opt-${member.userId || member.id}`} value={member.userId || member.id}>
-                          {member.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (!value) return;
-                        setNewDepartmentForm((current) => ({
-                          ...current,
-                          employeeUserIds: current.employeeUserIds.includes(value)
-                            ? current.employeeUserIds
-                            : [...current.employeeUserIds, value],
-                        }));
-                      }}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 font-pmedium text-primary"
-                    >
-                      <option value="">Add employee</option>
-                      {teamMembers.map((member) => (
-                        <option key={`employee-opt-${member.userId || member.id}`} value={member.userId || member.id}>
-                          {member.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {newDepartmentForm.adminUserIds.map((id) => (
-                      <span key={`admin-badge-${id}`} className="rounded-full bg-white px-2 py-1 text-slate-600 border border-slate-200">
-                        Admin: {teamMembers.find((member) => String(member.userId || member.id) === id)?.name || id}
-                      </span>
-                    ))}
-                    {newDepartmentForm.employeeUserIds.map((id) => (
-                      <span key={`employee-badge-${id}`} className="rounded-full bg-white px-2 py-1 text-slate-600 border border-slate-200">
-                        Employee: {teamMembers.find((member) => String(member.userId || member.id) === id)?.name || id}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCreateDepartmentForFounder}
-                    className="mt-3 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium uppercase tracking-wider text-white hover:bg-blue-700"
-                  >
-                    Create Department
-                  </button>
+            <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
+              {!canManageCustomDepartment ? (
+                <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-[11px] font-pmedium text-amber-800">
+                  <Lock size={16} className="mt-0.5 shrink-0" /> The founder can manage one custom department on Professional and Custom plans.
                 </div>
-              ) : (
-                <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                  You do not have access to create departments.
+              ) : null}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Department Name *</label>
+                  <input type="text" maxLength={80} placeholder="e.g. Customer Success" value={newDepartmentForm.name} onChange={(e) => setNewDepartmentForm((current) => ({ ...current, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+                  <p className="text-[9px] font-pmedium text-slate-400">This name is visible to every workspace user in department lists and assignments.</p>
                 </div>
-              )}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description</label>
+                  <textarea maxLength={240} rows={3} placeholder="Briefly explain this department's responsibility" value={newDepartmentForm.description} onChange={(e) => setNewDepartmentForm((current) => ({ ...current, description: e.target.value }))} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+                  <p className="text-right text-[9px] font-pmedium text-slate-400">{newDepartmentForm.description.length}/240</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Core Modules *</p>
+                    <p className="mt-1 text-[10px] font-pmedium text-slate-400">Enable or disable any available department module. Professional combines the available Sales and Technology modules here.</p>
+                  </div>
+                  <span className="w-fit rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium text-blue-700">{newDepartmentForm.moduleIds.length} Selected</span>
+                </div>
+                <div className="mt-3 space-y-3">
+                  {workspaceModuleGroups.map(([groupName, modules]) => (
+                    <div key={`custom-module-group-${groupName}`} className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="mb-2 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">{groupName}</p>
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {modules.map((module) => {
+                          const selected = newDepartmentForm.moduleIds.includes(module.id);
+                          return (
+                            <button type="button" key={`create-dept-module-${module.id}`} onClick={() => setNewDepartmentForm((current) => ({ ...current, moduleIds: selected ? current.moduleIds.filter((id) => id !== module.id) : [...current.moduleIds, module.id] }))} className={`flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2 text-left text-[10px] font-pmedium transition-all ${selected ? 'border-[#2563EB] bg-blue-50 text-blue-800 shadow-sm' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-blue-200 hover:bg-blue-50/40'}`}>
+                              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${selected ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-300 bg-white text-transparent'}`}><CheckSquare size={12} /></span>
+                              {module.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {workspaceModuleOptions.length === 0 ? <p className="mt-3 rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-[10px] font-pmedium text-slate-400">No enabled workspace modules are available for custom department assignment.</p> : null}
+              </div>
+
+              <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                <Shield size={16} className="mt-0.5 shrink-0 text-[#2563EB]" />
+                <div>
+                  <p className="text-[10px] font-pmedium text-blue-900">Access after saving</p>
+                  <p className="mt-1 text-[10px] font-pmedium leading-relaxed text-blue-700">Founder and Super Admin keep full workspace visibility. Invite the one department manager from Add User; that manager receives common modules plus the core modules selected here. Employees can then be added to the same department.</p>
+                </div>
+              </div>
             </div>
 
-            <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
-              <button
-                onClick={() => {
-                  setShowDepartmentModal(false);
-                  setExpandedDepartmentKey('');
-                }}
-                className="w-full sm:w-auto px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-sm hover:bg-slate-50 transition-colors shadow-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateDepartmentForFounder}
-                disabled={!canManageDepartments || !canCreateDepartmentByAccess}
-                className="w-full sm:w-auto px-5 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-              >
-                Create Department
+            <div className="flex gap-2.5 border-t border-slate-100 bg-slate-50 p-4 sm:justify-end sm:p-5">
+              <button type="button" onClick={() => setShowDepartmentModal(false)} disabled={isCreatingDepartment} className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[12px] font-pmedium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50 sm:flex-none">Cancel</button>
+              <button type="button" onClick={handleCreateDepartmentForFounder} disabled={!canManageCustomDepartment || isCreatingDepartment || newDepartmentForm.name.trim().length < 2 || newDepartmentForm.moduleIds.length === 0} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-[12px] font-pmedium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none">
+                {isCreatingDepartment ? <><Loader2 size={15} className="animate-spin" /> Saving...</> : isEditingCustomDepartment ? <><Wrench size={14} /> Save Changes</> : <><Plus size={14} /> Create Department</>}
               </button>
             </div>
           </div>
@@ -2073,7 +2155,7 @@ export function OrganizationPage() {
           <div className="bg-white rounded-[2.5rem] max-w-lg w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">
             <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Department Leadership</h2>
+                <h2 className="text-xl font-pmedium text-slate-900">Department Leadership</h2>
                 <p className="text-xs text-slate-500 mt-1">Manage primary and acting leadership for {selectedDepartment.name}</p>
               </div>
               <button onClick={() => setShowAssignManagerModal(false)} className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"><X size={18} /></button>
@@ -2084,7 +2166,7 @@ export function OrganizationPage() {
                 {selectedDepartment.employees?.filter((tm) => ['manager', 'admin', 'super_admin', 'super-admin'].includes(normalizeRoleValue(tm.role)) && tm.status !== 'invited').length === 0 ? (
                   <div className="text-center py-10">
                     <Shield size={32} className="mx-auto text-slate-300 mb-3"/>
-                    <p className="text-sm font-bold text-slate-600">No department personnel available.</p>
+                    <p className="text-sm font-pmedium text-slate-600">No department personnel available.</p>
                     <p className="text-xs text-slate-500 mt-1">Add users to this department first.</p>
                   </div>
                 ) : (
@@ -2095,17 +2177,17 @@ export function OrganizationPage() {
                         onClick={() => handleAssignManagerToDepartment(manager.userId || manager.id, manager.name)}
                       className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center gap-4 ${selectedDepartment.managerId === manager.id || selectedDepartment.managerUserId === manager.userId ? 'border-[#2563EB] bg-blue-50/50' : 'border-slate-200 bg-white hover:border-[#2563EB] hover:shadow-sm'}`}
                     >
-                      <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center text-white font-bold text-sm ${selectedDepartment.managerId === manager.id || selectedDepartment.managerUserId === manager.userId ? 'bg-[#2563EB]' : 'bg-slate-300'}`}>
+                      <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center text-white font-pmedium text-sm ${selectedDepartment.managerId === manager.id || selectedDepartment.managerUserId === manager.userId ? 'bg-[#2563EB]' : 'bg-slate-300'}`}>
                         {manager.name?.charAt(0)}
                       </div>
                         <div>
-                          <div className="font-bold text-slate-900 text-sm">{manager.name}</div>
+                          <div className="font-pmedium text-slate-900 text-sm">{manager.name}</div>
                           {manager.employeeId && (
                             <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
                               {manager.employeeId}
                             </div>
                           )}
-                          <div className="text-[12px] text-slate-500 font-medium">{manager.email}</div>
+                          <div className="text-[12px] text-slate-500 font-pmedium">{manager.email}</div>
                         </div>
                       {(selectedDepartment.managerId === manager.id || selectedDepartment.managerUserId === manager.userId) && <CheckCircle2 className="ml-auto text-[#2563EB]" size={20}/>}
                     </div>
@@ -2123,7 +2205,7 @@ export function OrganizationPage() {
                     {actingManagerCandidates.length === 0 ? (
                       <div className="text-center py-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50">
                         <Shield size={28} className="mx-auto text-slate-300 mb-3"/>
-                        <p className="text-sm font-bold text-slate-600">No eligible acting-manager candidates.</p>
+                        <p className="text-sm font-pmedium text-slate-600">No eligible acting-manager candidates.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -2137,12 +2219,12 @@ export function OrganizationPage() {
                               key={`acting-${member.id}`}
                               className={`p-4 rounded-2xl border transition-all flex items-center gap-4 ${isAssigned ? 'border-blue-200 bg-blue-50/60' : 'border-slate-200 bg-white'}`}
                             >
-                              <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center text-white font-bold text-sm ${isAssigned ? 'bg-[#2563EB]' : 'bg-slate-300'}`}>
+                              <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center text-white font-pmedium text-sm ${isAssigned ? 'bg-[#2563EB]' : 'bg-slate-300'}`}>
                                 {member.name ? member.name.charAt(0) : (member.email ? member.email.charAt(0) : '')}
                               </div>
                               <div className="min-w-0">
-                                <div className="font-bold text-slate-900 text-sm">{member.name}</div>
-                                <div className="text-[12px] text-slate-500 font-medium">{member.email}</div>
+                                <div className="font-pmedium text-slate-900 text-sm">{member.name}</div>
+                                <div className="text-[12px] text-slate-500 font-pmedium">{member.email}</div>
                               </div>
                               {isAssigned ? (
                                 <button
@@ -2305,15 +2387,18 @@ export function OrganizationPage() {
                     placeholder="Enter work email"
                     value={teamMemberFormData.email}
                     onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, email: e.target.value })}
-                    aria-invalid={isTeamMemberEmailAlreadyUsed}
+                    aria-invalid={Boolean(normalizedTeamMemberEmail) && (!isTeamMemberEmailValid || isTeamMemberEmailAlreadyUsed)}
                     className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:ring-4 outline-none transition-all ${
-                      isTeamMemberEmailAlreadyUsed
+                      Boolean(normalizedTeamMemberEmail) && (!isTeamMemberEmailValid || isTeamMemberEmailAlreadyUsed)
                         ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10'
                         : 'border-slate-200 focus:border-[#2563EB] focus:ring-blue-500/10'
                     }`}
                   />
+                  {normalizedTeamMemberEmail && !isTeamMemberEmailValid && (
+                    <p className="flex items-center gap-1 text-[10px] font-pmedium text-red-600"><AlertCircle size={12} /> Enter a valid work email address.</p>
+                  )}
                   {isTeamMemberEmailAlreadyUsed && (
-                    <p className="flex items-center gap-1 text-[10px] font-medium text-red-600">
+                    <p className="flex items-center gap-1 text-[10px] font-pmedium text-red-600">
                       <AlertCircle size={12} /> Email already used. Try using a different email.
                     </p>
                   )}
@@ -2350,11 +2435,11 @@ export function OrganizationPage() {
                    <option value="super-admin" disabled={!canInviteSuperAdmin}>Super Admin</option>
                 </select>
                 {isBasicPlanWorkspace ? (
-                  <p className="text-[11px] text-amber-600 font-medium">
+                  <p className="text-[11px] text-amber-600 font-pmedium">
                     Basic plan only allows the founder to add one additional user, as Super Admin.
                   </p>
                 ) : !canInviteSuperAdmin && (
-                  <p className="text-[11px] text-amber-600 font-medium">
+                  <p className="text-[11px] text-amber-600 font-pmedium">
                     Only the founder can create a new Super Admin account.
                   </p>
                 )}
@@ -2402,13 +2487,14 @@ export function OrganizationPage() {
                       {getTeamMemberDepartmentHelperText(teamMemberFormData.role)}
                     </p>
                     {isProfessionalPlanWorkspace && (
-                      <p className="text-[11px] text-amber-600 font-medium -mt-1">
-                        Professional plan only allows Sales and Technology departments - upgrade to Custom for the rest.
+                      <p className="text-[11px] text-amber-600 font-pmedium -mt-1">
+                        Professional includes Sales, Technology, and custom departments created in Organization Management.
                       </p>
                     )}
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {inviteDepartmentOptions.map((dept) => {
                       const departmentId = String(dept.id || '').trim();
+                      const isPlanAllowedDepartment = isDepartmentAllowedForPlan(workspacePlan, dept.name);
                       const isSelected = departmentId ? teamMemberFormData.departments.includes(departmentId) : false;
                       const hasAssignedManager = Boolean(String(dept.managerUserId || dept.managerId || '').trim()) || Boolean(
                         dept.employees?.some((member) => {
@@ -2418,13 +2504,14 @@ export function OrganizationPage() {
                         }),
                       );
                       const isManagerDepartmentDisabled = normalizedTeamMemberRole === 'manager' && hasAssignedManager;
+                      const isDepartmentDisabled = !isPlanAllowedDepartment || isManagerDepartmentDisabled;
                       return (
                         <button
                           key={dept.id}
                           type="button"
-                          disabled={isManagerDepartmentDisabled}
+                          disabled={isDepartmentDisabled}
                           onClick={() => {
-                            if (!departmentId || isManagerDepartmentDisabled) return;
+                            if (!departmentId || isDepartmentDisabled) return;
                             setTeamMemberFormData((current) => {
                               const alreadySelected = current.departments.includes(departmentId);
                               if (SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(current.role)) {
@@ -2444,7 +2531,7 @@ export function OrganizationPage() {
                           className={`flex min-h-[54px] w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
                             isSelected
                               ? 'border-blue-300 bg-blue-50 text-blue-800 shadow-sm'
-                              : isManagerDepartmentDisabled
+                              : isDepartmentDisabled
                                 ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
                                 : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/40'
                           }`}
@@ -2459,12 +2546,17 @@ export function OrganizationPage() {
                           <span className="min-w-0 flex-1">
                             <span className="block text-[12px] font-pmedium">{normalizeDepartmentLabel(dept.name)}</span>
                             {normalizedTeamMemberRole === 'manager' && hasAssignedManager && (
-                              <span className="mt-0.5 block text-[9px] font-medium uppercase tracking-wide text-amber-600">
+                              <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-amber-600">
                                 Manager already assigned
                               </span>
                             )}
+                            {!isPlanAllowedDepartment && (
+                              <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-slate-500">
+                                Custom plan only
+                              </span>
+                            )}
                           </span>
-                          {isManagerDepartmentDisabled && <Lock size={13} className="shrink-0 text-slate-400" />}
+                          {isDepartmentDisabled && <Lock size={13} className="shrink-0 text-slate-400" />}
                         </button>
                       );
                     })}
@@ -2485,7 +2577,7 @@ export function OrganizationPage() {
               ) : (
                 <div className="bg-blue-50/50 p-4 rounded-2xl flex gap-3 items-center border border-blue-100">
                    <div className="p-2 bg-white rounded-xl shadow-sm"><Crown className="text-[#2563EB]" size={20}/></div>
-                   <p className="text-[12px] font-medium text-slate-700 leading-relaxed">Super Admins automatically receive top-level access to ALL departments and platform modules.</p>
+                   <p className="text-[12px] font-pmedium text-slate-700 leading-relaxed">Super Admins automatically receive top-level access to ALL departments and platform modules.</p>
                 </div>
               )}
             </div>
@@ -2498,6 +2590,7 @@ export function OrganizationPage() {
                   isSendingInvite ||
                   !teamMemberFormData.name ||
                   !teamMemberFormData.email ||
+                  !isTeamMemberEmailValid ||
                   isTeamMemberEmailAlreadyUsed ||
                   !canAddUserOnCurrentPlan ||
                   (normalizedTeamMemberRole === 'admin' && teamMemberFormData.departments.length === 0) ||

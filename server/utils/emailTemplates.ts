@@ -46,7 +46,8 @@ export function formatLongDate(dateInput) {
   }).format(date);
 }
 
-const EMAIL_LOGO_URL = "https://www.wono.co/email-logo-wono.png";
+const EMAIL_LOGO_URL = "https://www.wono.co/email-logo-wono.svg";
+const EMAIL_LOGO_DARK_URL = "https://www.wono.co/email-logo-wono-dark.svg";
 
 /**
  * Shared shell for all WONO transactional emails: logo header, blue/white
@@ -232,6 +233,11 @@ export function renderNotificationEmail({
             .email-footer-bg { background-color:#1d5fa8; }
             .email-footer-text { color:#cfe3fb; }
             .email-footer-link { color:#eaf4ff; }
+            .email-header-bg { background-color:#ffffff; }
+            .email-tagline { color:#1f2733; }
+            .email-tagline-accent { color:#0BA9EF; }
+            .logo-light { display:inline-block; }
+            .logo-dark { display:none; }
             @media (prefers-color-scheme: dark) {
               .email-bg { background-color:#0b1220 !important; }
               .email-card { background-color:#111a2b !important; border-color:#1f2c46 !important; }
@@ -247,6 +253,11 @@ export function renderNotificationEmail({
               .email-footer-bg { background-color:#0c2b57 !important; }
               .email-footer-text { color:#a9c6ee !important; }
               .email-footer-link { color:#7db6f5 !important; }
+              .email-header-bg { background-color:#111a2b !important; }
+              .email-tagline { color:#d7deea !important; }
+              .email-tagline-accent { color:#5fc4ff !important; }
+              .logo-light { display:none !important; }
+              .logo-dark { display:inline-block !important; }
             }
           </style>
         </head>
@@ -256,10 +267,11 @@ export function renderNotificationEmail({
               <td style="background:linear-gradient(90deg,#0BA9EF,#1e40af);height:5px;line-height:5px;font-size:0;">&nbsp;</td>
             </tr>
             <tr>
-              <td style="background:#ffffff;padding:26px 32px;text-align:center;border-bottom:1px solid #eef2f8;">
-                <img src="${EMAIL_LOGO_URL}" alt="WONO" width="140" height="40" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;height:40px;width:140px;" />
-                <p style="margin:8px 0 0;font-size:12px;font-weight:500;letter-spacing:0.2px;color:#1f2733;">
-                  <span style="color:#1f2733;">W</span><span style="color:#0BA9EF;">o</span><span style="color:#1f2733;">rld of N</span><span style="color:#0BA9EF;">o</span><span style="color:#1f2733;">mads</span>
+              <td class="email-header-bg" style="background:#ffffff;padding:26px 32px;text-align:center;border-bottom:1px solid #eef2f8;">
+                <img src="${EMAIL_LOGO_URL}" alt="WONO" width="140" height="40" class="logo-light" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;height:40px;width:140px;" />
+                <img src="${EMAIL_LOGO_DARK_URL}" alt="WONO" width="140" height="40" class="logo-dark" style="display:none;margin:0 auto;border:0;outline:none;text-decoration:none;height:40px;width:140px;" />
+                <p class="email-tagline" style="margin:8px 0 0;font-size:12px;font-weight:500;letter-spacing:0.2px;color:#1f2733;">
+                  <span class="email-tagline">W</span><span class="email-tagline-accent">o</span><span class="email-tagline">rld of N</span><span class="email-tagline-accent">o</span><span class="email-tagline">mads</span>
                 </p>
               </td>
             </tr>

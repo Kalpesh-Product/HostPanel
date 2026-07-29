@@ -2,6 +2,11 @@ import { axiosPrivate } from "../utils/axios";
 
 const unwrap = <T = any>(response: any): T => response?.data?.data ?? response?.data ?? response;
 
+export const getMaintenanceOverview = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/maintenance/overview", { params });
+  return unwrap(response);
+};
+
 export const getMaintenanceSchedules = async (params?: Record<string, any>) => {
   const response = await axiosPrivate.get("/api/maintenance/schedules", { params });
   return unwrap(response);

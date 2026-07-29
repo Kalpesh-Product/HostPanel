@@ -529,13 +529,23 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     // Hand-synced with the client's isDepartmentAllowedForPlan in
     // client/src/utils/workspacePlanAccess.ts — keep both in lockstep.
     // Basic workspaces have no real departments (Founder/Super Admin only);
-    // Professional is Sales + Technology only; Custom is unrestricted.
+    // Professional includes Sales + Technology plus workspace-created departments; Custom is unrestricted.
+    const DEFAULT_DEPARTMENT_NAMES = new Set([
+      "hr",
+      "administration",
+      "sales",
+      "finance",
+      "maintenance",
+      "technology",
+      "it",
+    ]);
     const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "technology"]);
     const isDepartmentAllowedForWorkspacePlan = (plan: unknown, name: unknown) => {
       const normalizedPlan = String(plan || "basic").trim().toLowerCase();
       if (normalizedPlan === "basic") return false;
       if (normalizedPlan === "professional") {
-        return PROFESSIONAL_DEPARTMENT_NAMES.has(String(name || "").trim().toLowerCase());
+        const normalizedName = String(name || "").trim().toLowerCase();
+        return PROFESSIONAL_DEPARTMENT_NAMES.has(normalizedName) || !DEFAULT_DEPARTMENT_NAMES.has(normalizedName);
       }
       return true;
     };
