@@ -1,4 +1,4 @@
-const COUNTRIES_NOW_BASE_URL = "https://countriesnow.space/api/v0.1/countries";
+import { Country, State, City } from "country-state-city";
 
 type ApiResponse<T> = {
   error?: boolean;
@@ -17,32 +17,10 @@ function normalizeOptions(values: string[] = []) {
   ).sort((a, b) => a.localeCompare(b));
 }
 
-async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
-  if (!response.ok) {
-    throw new Error(
-      payload?.msg ||
-        payload?.message ||
-        `Location request failed with status ${response.status}.`,
-    );
-  }
-  if (payload?.error) {
-    throw new Error(payload?.msg || "Location request failed.");
-  }
-  return payload || {};
-}
-
 export async function getCountries() {
-  const response = await fetch(`${COUNTRIES_NOW_BASE_URL}/positions`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-  });
-
-  const payload = await parseResponse<Array<{ name?: string }>>(response);
-  const countries = (Array.isArray(payload?.data) ? payload.data : [])
-    .map((item) => String(item?.name || "").trim())
+  const countries = Country.getAllCountries()
+    .map((item) => String(item.name || "").trim())
     .filter(Boolean);
-
   return normalizeOptions(countries);
 }
 
@@ -50,18 +28,13 @@ export async function getStates(country: string) {
   const normalizedCountry = String(country || "").trim();
   if (!normalizedCountry) return [];
 
-  const response = await fetch(`${COUNTRIES_NOW_BASE_URL}/states`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ country: normalizedCountry }),
-  });
+  const countryRecord = Country.getAllCountries().find(
+    (item) => item.name.toLowerCase() === normalizedCountry.toLowerCase(),
+  );
+  if (!countryRecord?.isoCode) return [];
 
-  const payload = await parseResponse<{ states?: Array<{ name?: string }> }>(response);
-  const states = (Array.isArray(payload?.data?.states) ? payload.data.states : [])
-    .map((item) => String(item?.name || "").trim())
+  const states = State.getStatesOfCountry(countryRecord.isoCode)
+    .map((item) => String(item.name || "").trim())
     .filter(Boolean);
 
   return normalizeOptions(states);
@@ -72,20 +45,19 @@ export async function getCities(country: string, state: string) {
   const normalizedState = String(state || "").trim();
   if (!normalizedCountry || !normalizedState) return [];
 
-  const response = await fetch(`${COUNTRIES_NOW_BASE_URL}/state/cities`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      country: normalizedCountry,
-      state: normalizedState,
-    }),
-  });
+  const countryRecord = Country.getAllCountries().find(
+    (item) => item.name.toLowerCase() === normalizedCountry.toLowerCase(),
+  );
+  if (!countryRecord?.isoCode) return [];
 
-  const payload = await parseResponse<string[]>(response);
-  const cities = Array.isArray(payload?.data) ? payload.data : [];
+  const stateRecord = State.getStatesOfCountry(countryRecord.isoCode).find(
+    (item) => item.name.toLowerCase() === normalizedState.toLowerCase(),
+  );
+  if (!stateRecord?.isoCode) return [];
+
+  const cities = City.getCitiesOfState(countryRecord.isoCode, stateRecord.isoCode)
+    .map((item) => String(item.name || "").trim())
+    .filter(Boolean);
 
   return normalizeOptions(cities);
 }

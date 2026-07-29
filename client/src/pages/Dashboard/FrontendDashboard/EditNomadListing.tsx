@@ -111,7 +111,7 @@ const EditNomadListing = () => {
     enabled: !!companyId && !!businessId,
     queryFn: async () => {
       const res = await axios.get(
-        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}?companyType=${companyType}`,
+        `https://wono.co/api/company/get-listings/${companyId}?companyType=${companyType}`,
       );
       const all = Array.isArray(res.data) ? res.data : [];
       return all.find((x) => x.businessId === businessId) || null;

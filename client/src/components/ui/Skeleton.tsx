@@ -400,6 +400,49 @@ export function WebsiteLeadsSkeleton({ label = "Loading website leads" } = {}) {
   );
 }
 
+export function DepartmentFinanceSkeleton() {
+  return (
+    <div className="animate-pulse p-4 sm:p-6 lg:p-8 bg-[#F8FAFC] min-h-screen flex flex-col gap-6">
+      <div className="space-y-2">
+        <div className="h-8 w-72 rounded-lg bg-gray-200" />
+        <div className="h-4 w-48 rounded-md bg-gray-100" />
+        <div className="h-3 w-96 rounded-md bg-gray-100" />
+      </div>
+      <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-4 sm:p-5">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex flex-col gap-3 max-w-xl">
+            <div className="h-10 w-48 rounded-xl bg-gray-200" />
+            <div className="h-10 w-48 rounded-xl bg-gray-200" />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="h-10 w-44 rounded-xl bg-gray-200" />
+            <div className="h-10 w-44 rounded-xl bg-gray-200" />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-32 rounded-3xl bg-gray-100" />
+        ))}
+      </div>
+      <div className="bg-white border border-gray-100 rounded-[2rem] shadow-sm flex-1 min-h-[500px]">
+        <div className="p-4 border-b border-gray-100 bg-gray-50/60">
+          <div className="flex gap-2 p-1.5 bg-gray-100 rounded-2xl w-96">
+            <div className="h-10 flex-1 rounded-xl bg-gray-200" />
+            <div className="h-10 flex-1 rounded-xl bg-gray-100" />
+            <div className="h-10 flex-1 rounded-xl bg-gray-100" />
+          </div>
+        </div>
+        <div className="p-6 space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-20 rounded-2xl bg-gray-100" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function HRLeaveRequestsProcessingSkeleton() {
   return (
     <div className="animate-pulse space-y-6 p-6">

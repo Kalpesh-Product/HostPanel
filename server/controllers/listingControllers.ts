@@ -122,7 +122,7 @@ export const createCompanyListing = async (req, res) => {
     let existingListings = [];
     try {
       const listingsResponse = await axios.get(
-        `https://wononomadsbe.vercel.app/api/company/get-listings/${encodeURIComponent(effectiveNomadsCompanyId)}`,
+        `https://wono.co/api/company/get-listings/${encodeURIComponent(effectiveNomadsCompanyId)}`,
         { params: { t: Date.now() } },
       );
       existingListings = Array.isArray(listingsResponse.data) ? listingsResponse.data : [];
@@ -257,7 +257,7 @@ export const createCompanyListing = async (req, res) => {
 
     try {
       const response = await axios.post(
-        "https://wononomadsbe.vercel.app/api/company/create-company",
+        "https://wono.co/api/company/create-company",
         listingData,
       );
 
@@ -278,7 +278,7 @@ export const createCompanyListing = async (req, res) => {
       if (newBusinessId) {
         try {
           await axios.patch(
-            "https://wononomadsbe.vercel.app/api/company/activate-product",
+            "https://wono.co/api/company/activate-product",
             { businessId: newBusinessId, status: false },
           );
         } catch (deactivateErr) {
@@ -438,7 +438,7 @@ export const editCompanyListing = async (req, res) => {
     // ---------- REMOTE UPDATE (NO DELETION YET) ----------
     try {
       const response = await axios.patch(
-        "https://wononomadsbe.vercel.app/api/company/update-company",
+        "https://wono.co/api/company/update-company",
         updateData,
       );
 
@@ -505,7 +505,7 @@ export const activateProduct = async (req, res, next) => {
     }
 
     const response = await axios.patch(
-      "https://wononomadsbe.vercel.app/api/company/activate-product",
+      "https://wono.co/api/company/activate-product",
       {
         businessId,
         status,
@@ -526,7 +526,7 @@ export const activateProduct = async (req, res, next) => {
 export const getAllCompanyListings = async (req, res) => {
   try {
     const response = await axios.get(
-      "https://wononomadsbe.vercel.app/api/company/companies",
+      "https://wono.co/api/company/companies",
     );
 
     if (!response.data) {
@@ -542,7 +542,7 @@ export const getAllCompanyListings = async (req, res) => {
 export const getCompanyListings = async (req, res) => {
   try {
     const response = await axios.get(
-      "https://wononomadsbe.vercel.app/api/company/companies",
+      "https://wono.co/api/company/companies",
     );
 
     if (!response.data) {

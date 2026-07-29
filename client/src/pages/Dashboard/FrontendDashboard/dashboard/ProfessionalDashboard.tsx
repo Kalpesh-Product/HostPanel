@@ -338,7 +338,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
               badgeColor={statusBadgeColor(v.status || "")}
               time={humanRelTime(v.checkInAt || v.createdAt)}
             />
-          )) : <p className="text-content text-gray-400 text-center py-6">No recent visitors</p>}
+          )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent visitors</p></div>}
         </SectionCard>
         <DonutWidget title="Visitor Type" series={visitorDonut.series} labels={visitorDonut.labels} colors={visitorDonut.colors} centerLabel="Visitors" />
       </div>
@@ -348,7 +348,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
         <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/meetings/meeting-rooms">
           {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
             <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
-          )) : <p className="text-content text-gray-400 text-center py-6">No recent bookings</p>}
+          )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent bookings</p></div>}
         </SectionCard>
         <DonutWidget title="Booking Status" series={bookingDonut.series} labels={bookingDonut.labels} colors={bookingDonut.colors} centerLabel="Bookings" />
       </div>
@@ -358,7 +358,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
         <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/company-settings/customer-support">
           {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
             <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
-          )) : <p className="text-content text-gray-400 text-center py-6">No recent tickets</p>}
+          )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent tickets</p></div>}
         </SectionCard>
         <DonutWidget title="Ticket Status" series={ticketDonut.series} labels={ticketDonut.labels} colors={ticketDonut.colors} centerLabel="Tickets" />
       </div>
@@ -380,7 +380,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
                   {t.status || "—"}
                 </span>
               </div>
-            )) : <p className="col-span-2 text-content text-gray-400 text-center py-6">No tenant data</p>}
+            )) : <div className="col-span-2 min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tenant data</p></div>}
           </div>
         </SectionCard>
         <DonutWidget title="Tenant Status" series={tenantDonut.series} labels={tenantDonut.labels} colors={tenantDonut.colors} centerLabel="Tenants" />

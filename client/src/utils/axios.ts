@@ -1,19 +1,14 @@
 import axios from "axios";
 
-// export const api = axios.create({
-//   baseURL: import.meta.env.VITE_DEV_LINK,
-// });
-
-// export const axiosPrivate = axios.create({
-//   baseURL: import.meta.env.VITE_DEV_LINK,
-//   withCredentials: true,
-// });
+const baseURL = import.meta.env.MODE === "production"
+  ? import.meta.env.VITE_PROD_LINK
+  : import.meta.env.VITE_DEV_LINK;
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_PROD_LINK,
+  baseURL,
 });
 
 export const axiosPrivate = axios.create({
-  baseURL: import.meta.env.VITE_PROD_LINK,
+  baseURL,
   withCredentials: true,
 });

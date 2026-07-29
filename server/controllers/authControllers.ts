@@ -91,6 +91,13 @@ const normalizePlan = (plan: string) => {
 };
 
 const extractInviteIdentity = (decoded: any) => {
+  const inviteCompanyId = String(
+    decoded?.companyId ||
+      decoded?.leadId ||
+      decoded?.userInfo?.companyId ||
+      decoded?.userInfo?.leadId ||
+      "",
+  ).trim();
   const inviteEmail =
     decoded?.inviteEmail || decoded?.email || decoded?.userInfo?.email || "";
   const firstName = decoded?.firstName || decoded?.userInfo?.firstName || "";
@@ -173,6 +180,7 @@ const extractInviteIdentity = (decoded: any) => {
       .filter(Boolean);
 
   return {
+    inviteCompanyId,
     inviteEmail,
     inviteName,
     selectedPlan,
@@ -313,23 +321,31 @@ const resolveCompanyForActiveWorkspace = async (user: any, activeMembership: any
   );
 };
 
-const ensureInviteUserRecord = async (inviteEmail: string, inviteName: string) => {
+const ensureInviteUserRecord = async (
+  inviteEmail: string,
+  inviteName: string,
+  inviteCompanyId: string = "",
+) => {
   const normalizedEmail = normalizeInviteEmail(inviteEmail);
   let user = await HostUser.findOne({ email: normalizedEmail }).exec();
   if (user) return user;
 
-  const company = await Company.findOne({}).lean().exec();
-  if (!company?._id || !company?.companyId) {
-    throw new Error("INVITE_COMPANY_NOT_FOUND");
-  }
+  // The invite token carries the companyId of the lead row the master panel
+  // already created (via sendInviteEmail) for this host. Reuse it so
+  // completeWorkspaceSetup later updates that same row instead of minting a
+  // brand-new company — which orphaned the original lead (with its
+  // sales-selected plan) and left two companies for the same host.
+  const normalizedInviteCompanyId = String(inviteCompanyId || "").trim();
+  const matchedCompany = normalizedInviteCompanyId
+    ? await Company.findOne({ companyId: normalizedInviteCompanyId }).lean().exec()
+    : null;
 
-  const fallbackCompanyId = `${company.companyId}-dev-${Date.now()
-    .toString()
-    .slice(-6)}`;
+  const resolvedCompanyId =
+    matchedCompany?.companyId || normalizedInviteCompanyId || `lead-${crypto.randomUUID()}`;
 
   user = await HostUser.create({
-    company: company._id,
-    companyId: fallbackCompanyId,
+    company: matchedCompany?._id || undefined,
+    companyId: resolvedCompanyId,
     name: inviteName,
     email: normalizedEmail,
     isActive: true,
@@ -915,6 +931,7 @@ export const getRegisterPrefill = async (req, res, next) => {
 
     const decoded = decodeSignupInviteToken(token);
     const {
+      inviteCompanyId,
       inviteEmail,
       inviteName,
       selectedPlan,
@@ -931,7 +948,7 @@ export const getRegisterPrefill = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid invite token payload." });
     }
 
-    const user = await ensureInviteUserRecord(inviteEmail, inviteName);
+    const user = await ensureInviteUserRecord(inviteEmail, inviteName, inviteCompanyId);
 
     if (user.password) {
       return res.status(409).json({
@@ -993,7 +1010,7 @@ export const startRegisterWithOtp = async (req, res, next) => {
     if (strengthMessage) return res.status(400).json({ message: strengthMessage });
 
     const decoded = decodeSignupInviteToken(token);
-    const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
+    const { inviteCompanyId, inviteEmail, inviteName } = extractInviteIdentity(decoded);
 
     if (!inviteEmail || !inviteName) {
       return res.status(400).json({ message: "Invalid invite token payload." });
@@ -1004,7 +1021,7 @@ export const startRegisterWithOtp = async (req, res, next) => {
         .json({ message: "Invite details mismatch for this registration link." });
     }
 
-    const user = await ensureInviteUserRecord(inviteEmail, inviteName);
+    const user = await ensureInviteUserRecord(inviteEmail, inviteName, inviteCompanyId);
 
     if (user.password) {
       return res.status(409).json({
@@ -1218,7 +1235,7 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
     if (!otp) return res.status(400).json({ message: "OTP is required." });
 
     const decoded = decodeSignupInviteToken(token);
-    const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
+    const { inviteCompanyId, inviteEmail, inviteName } = extractInviteIdentity(decoded);
 
     if (!inviteEmail || !inviteName)
       return res.status(400).json({ message: "Invalid invite token payload." });
@@ -1253,7 +1270,7 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid OTP." });
     }
 
-    const user = await ensureInviteUserRecord(inviteEmail, inviteName);
+    const user = await ensureInviteUserRecord(inviteEmail, inviteName, inviteCompanyId);
 
     if (user.password) {
       return res.status(409).json({

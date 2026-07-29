@@ -177,17 +177,6 @@ function buildTimeOptions(minTime = '00:00', maxTime = '23:55', stepMinutes = BO
   return options;
 }
 
-function getCurrentTimeInputValue(date = new Date()): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
-function getTodayInputValue(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function getLaterTimeInputValue(...values: string[]): string {
   const validValues = values.map((value) => timeToMinutes(value)).filter((v): v is number => v !== null);
   if (validValues.length === 0) return '';
@@ -568,8 +557,8 @@ export default function TenantMeetingRoomBookingPage() {
     event.preventDefault();
     if (!selectedRoom) return;
 
-    const todayVal = getTodayInputValue();
-    const currentTimeVal = getCurrentTimeInputValue();
+    const todayVal = getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
+    const currentTimeVal = getWorkspaceTime(new Date(), workspacePreferences.timezone);
     const selectedDateKey = normalizeDateKey(bookingForm.date);
     const currentTimeMinutes = timeToMinutes(currentTimeVal);
     const selectedStartMinutes = timeToMinutes(bookingForm.startTime);

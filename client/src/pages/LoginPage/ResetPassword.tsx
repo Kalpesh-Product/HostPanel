@@ -18,6 +18,8 @@ import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { useMutation } from "@tanstack/react-query";
 
+const RESET_PASSWORD_HEADING = "Reset Password";
+
 const ResetPassword = () => {
   const { auth, setAuth } = useAuth();
   const axios = useAxiosPrivate();
@@ -31,6 +33,8 @@ const ResetPassword = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordReuseError, setPasswordReuseError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [typedHeading, setTypedHeading] = useState("");
+  const [isFormVisible, setIsFormVisible] = useState(false);
   const refresh = useRefresh();
   const { token } = useParams();
   const location = useLocation();
@@ -46,6 +50,24 @@ const ResetPassword = () => {
       navigate("/forgot-password", { replace: true });
     }
   }, [isForgotPasswordFlow, resetSessionToken, navigate]);
+
+  useEffect(() => {
+    setTypedHeading("");
+    setIsFormVisible(false);
+
+    let headingIndex = 0;
+    const headingInterval = setInterval(() => {
+      headingIndex += 1;
+      setTypedHeading(RESET_PASSWORD_HEADING.slice(0, headingIndex));
+
+      if (headingIndex >= RESET_PASSWORD_HEADING.length) {
+        clearInterval(headingInterval);
+        setIsFormVisible(true);
+      }
+    }, 7);
+
+    return () => clearInterval(headingInterval);
+  }, []);
 
   const { mutate: submitReset, isPending: isResetPending } = useMutation({
     mutationFn: async (data) => {
@@ -165,7 +187,7 @@ const ResetPassword = () => {
 
             {/* Desktop Buttons */}
             {/* <div className="hidden md:flex gap-4">
-          <a href="https://wonofe.vercel.app">
+          <a href="https://wono.co">
             <button type="button" className="bg-white text-black py-2 px-4 rounded-full uppercase">
               Sign In
             </button>
@@ -235,7 +257,7 @@ const ResetPassword = () => {
           <div className="flex flex-col w-full items-center gap-6">
             <div>
               <a
-                href="https://wonofe.vercel.app"
+                href="https://wono.co"
                 className="block px-10 py-2 uppercase bg-white text-black mx-auto w-max rounded-full"
               >
                 Sign In
@@ -255,7 +277,7 @@ const ResetPassword = () => {
       </Drawer>
       {/* Header */}
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding min-h-screen">
-        <h1 className="text-center text-4xl font-bold">RESET PASSWORD</h1>
+        <h1 className="text-center text-4xl font-play min-h-[3rem]">{typedHeading}</h1>
         <div className="loginDividingContainer shrink-container">
           <div className="w-5/6 md:w-2/3">
             <Container
@@ -269,8 +291,9 @@ const ResetPassword = () => {
                 onSubmit={onSubmit}
                 noValidate
                 autoComplete="off"
+                className={isFormVisible ? "visible" : "invisible"}
               >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* <Grid item xs={12}>
                     <TextField
                       label="Email"
@@ -382,18 +405,18 @@ const ResetPassword = () => {
                   </Link>
                 </div> */}
                 <div className="flex">
-                  <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
+                  <div className="flex flex-col justify-center w-full items-center gap-6 mt-6">
                     <Grid item xs={12}>
                       <div className="centerInPhone">
                         <button
                           disabled={!canSubmitReset}
                           type="submit"
-                          className="loginButtonStyling text-decoration-none text-subtitle w-40"
+                          className="loginButtonStyling text-decoration-none text-subtitle font-medium w-40"
                         >
                           {isResetPending ? (
                             <CircularProgress size={20} color="white" />
                           ) : (
-                            "RESET"
+                            "Reset"
                           )}
                         </button>
                         {/* <button

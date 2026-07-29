@@ -32,3 +32,10 @@ export const extractDepartmentLabel = (value: string): string => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
   return label;
 };
+
+export const titleCase = (value: string): string => {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};

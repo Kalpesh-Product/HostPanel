@@ -163,18 +163,15 @@ export default function usePageTour() {
   const attemptedRef = useRef<string>("");
 
   const user = auth?.user as Record<string, any> | null;
-  const workspaceScope = String(
-    user?.workspaceMembership?.workspace ||
-      user?.primaryWorkspace ||
-      user?.workspaceId ||
-      user?._id ||
+  const userScope = String(
+    user?._id ||
       user?.id ||
       user?.email ||
       "anonymous",
   );
   const progressQueryKey = useMemo(
-    () => ["page-tour-progress", workspaceScope],
-    [workspaceScope],
+    () => ["page-tour-progress", userScope],
+    [userScope],
   );
   const currentTour = useMemo(
     () => {
@@ -295,7 +292,7 @@ export default function usePageTour() {
       auth?.impersonation
     ) return;
 
-    const attemptKey = `${workspaceScope}:${currentTour.id}:${currentTour.version}`;
+    const attemptKey = `${userScope}:${currentTour.id}:${currentTour.version}`;
     if (attemptedRef.current === attemptKey) return;
     attemptedRef.current = attemptKey;
 
@@ -321,7 +318,7 @@ export default function usePageTour() {
     isProgressLoading,
     progress,
     startCurrentTour,
-    workspaceScope,
+    userScope,
   ]);
 
   useEffect(() => () => {

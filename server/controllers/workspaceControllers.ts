@@ -356,7 +356,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
     });
 
     return res.status(201).json({
-      message: "Workspace created successfully.",
+      message: "Unit created successfully.",
       workspace,
       user: buildAuthUserPayload(
         updatedUser,

@@ -5,13 +5,17 @@ import {
   Mail, Phone, MapPin, CheckCircle2, AlertTriangle, Clock, Eye,
   ChevronDown, UserCog, ToggleLeft, ToggleRight, Building2, FileText, DollarSign,
   LayoutGrid, Loader2,
-  IndianRupee
+  Banknote
 } from 'lucide-react';
 import { getTenantCompany, addTenantCompanyEmployee, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
 import { getBookingsByTenantCompany } from '../../../services/meeting-room-bookings';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
+import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
+
+let currentWorkspaceCurrency = 'INR';
 
 // ---------------------------------------------------------------------------
 // Constants & Helpers
@@ -27,7 +31,7 @@ const TABS = [
 ];
 
 function fmt(n = 0) {
-  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(Number(n || 0)));
+  return formatWorkspaceCurrency(Math.round(Number(n || 0)), currentWorkspaceCurrency, { maximumFractionDigits: 0 });
 }
 function fmtDate(v) {
   if (!v) return '-'; const d = new Date(v); return isNaN(d.getTime()) ? v : new Intl.DateTimeFormat('en-IN', { year: 'numeric', month: 'short', day: '2-digit' }).format(d);
@@ -98,9 +102,9 @@ function TenantBillingDetails({ tenant }) {
   const depStatus = tenant.billingDetails?.securityDepositPaidStatus || 'Pending';
   return (
     <div className="grid grid-cols-2 gap-4">
-      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p><p className="text-xs font-pmedium text-slate-900 mt-1">{monthlyRent > 0 ? `₹${fmt(monthlyRent)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Amount</p><p className="text-xs font-pmedium text-slate-900 mt-1">{totalAmt > 0 ? `₹${fmt(totalAmt)}` : 'N/A'}</p></div>
-      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Security Deposit</p><p className="text-xs font-pmedium text-slate-900 mt-1">{secDep > 0 ? `₹${fmt(secDep)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p><p className="text-xs font-pmedium text-slate-900 mt-1">{monthlyRent > 0 ? `${fmt(monthlyRent)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Amount</p><p className="text-xs font-pmedium text-slate-900 mt-1">{totalAmt > 0 ? `${fmt(totalAmt)}` : 'N/A'}</p></div>
+      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Security Deposit</p><p className="text-xs font-pmedium text-slate-900 mt-1">{secDep > 0 ? `${fmt(secDep)}` : 'N/A'}</p></div>
       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Deposit Status</p><p className="text-xs font-pmedium text-slate-900 mt-1">{depStatus}</p></div>
     </div>
   );
@@ -131,6 +135,8 @@ export default function TenantCompanyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const currentUser = useFreshCurrentUser();
+  const workspacePreferences = useWorkspacePreferences();
+  currentWorkspaceCurrency = workspacePreferences.currency;
 
   const [tenant, setTenant] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -314,19 +320,19 @@ export default function TenantCompanyDetailPage() {
             {/* ---- STAT CARDS ---- */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                <div className="min-w-0"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Base Credits</p><p className="text-[15px] font-pmedium text-slate-900">{fmt(ca)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Base Credits</p><p className="text-[15px] font-pmedium text-slate-900">{(ca)}</p></div>
                 <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><CreditCard size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
-                <div className="min-w-0"><p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Purchased</p><p className="text-[15px] font-pmedium text-violet-600">+{fmt(pc)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Purchased</p><p className="text-[15px] font-pmedium text-violet-600">+{(pc)}</p></div>
                 <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><Plus size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-                <div className="min-w-0"><p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Credits Used</p><p className="text-[15px] font-pmedium text-blue-600">{fmt(cu)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Credits Used</p><p className="text-[15px] font-pmedium text-blue-600">{(cu)}</p></div>
                 <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><History size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-                <div className="min-w-0"><p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Remaining</p><p className="text-[15px] font-pmedium text-emerald-600">{fmt(cr)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Remaining</p><p className="text-[15px] font-pmedium text-emerald-600">{(cr)}</p></div>
                 <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
               </div>
             </div>
@@ -375,15 +381,15 @@ export default function TenantCompanyDetailPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Plan Type</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.planType || tenant.packageName || 'N/A'}</p></div>
                       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Package</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.packageName || tenant.packageDetails?.packageName || 'N/A'}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p><p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(ca)}</p></div>
-                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Credits</p><p className="text-xs font-pmedium text-slate-900 mt-1">{(ca)}</p></div>
+                      <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Total Seats</p><p className="text-xs font-pmedium text-slate-900 mt-1">{(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p></div>
                       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.spaceAssigned?.openDesks || tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0}</p></div>
                       <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p><p className="text-xs font-pmedium text-slate-900 mt-1">{tenant.spaceAssigned?.cabinDesks || tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0}</p></div>
                     </div>
                   </div>
 
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><IndianRupee size={14} /> Billing Snapshot</h3>
+                    <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><Banknote size={14} /> Billing Snapshot</h3>
                     <TenantBillingDetails tenant={tenant} />
                   </div>
                 </div>
@@ -457,19 +463,19 @@ export default function TenantCompanyDetailPage() {
                       {/* Credits summary (replace Total Meeting Credits) */}
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Base Credits</p>
-                        <p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(ca)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">{(ca)}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Purchased Credits</p>
-                        <p className="text-xs font-pmedium text-slate-900 mt-1">+{fmt(pc)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">+{(pc)}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credit Used</p>
-                        <p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(cu)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">{(cu)}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Remaining Credits</p>
-                        <p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(cr)}</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">{(cr)}</p>
                       </div>
                     </div>
                   </div>
@@ -613,7 +619,7 @@ export default function TenantCompanyDetailPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Credit Utilization</p>
-                      <p className="text-[15px] font-pmedium text-slate-900">{fmt(cu)} of {fmt(ca + pc)} used</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{(cu)} of {(ca + pc)} used</p>
                     </div>
                     <div className="p-2 rounded-2xl bg-blue-50 text-blue-600"><CreditCard size={20} /></div>
                   </div>
@@ -622,7 +628,7 @@ export default function TenantCompanyDetailPage() {
                       style={{ width: `${ca + pc > 0 ? Math.min(100, (cu / (ca + pc)) * 100) : 0}%` }} />
                   </div>
                   <div className="flex justify-between mt-3 text-[10px] font-pmedium">
-                    <span className="text-slate-500">Remaining: {fmt(cr)}</span>
+                    <span className="text-slate-500">Remaining: {(cr)}</span>
                     <span className="text-slate-700">{ca + pc > 0 ? Math.round((cu / (ca + pc)) * 100) : 0}% utilized</span>
                   </div>
                 </div>
@@ -656,16 +662,16 @@ export default function TenantCompanyDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 sm:p-5 bg-slate-50/30 border-b border-slate-100/60">
                     <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
                       <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Used This Month</p>
-                      <p className="text-sm font-black text-red-500">{fmt(mStats.used)}</p>
+                      <p className="text-sm font-black text-red-500">{(mStats.used)}</p>
                     </div>
                     <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
                       <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Refunded This Month</p>
-                      <p className="text-sm font-black text-emerald-600">{fmt(mStats.refunded)}</p>
+                      <p className="text-sm font-black text-emerald-600">{(mStats.refunded)}</p>
                     </div>
                     <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
                       <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Net Used</p>
                       <p className={`text-sm font-black ${mStats.net > 0 ? 'text-red-500' : mStats.net < 0 ? 'text-emerald-600' : 'text-slate-700'}`}>
-                        {mStats.net > 0 ? '-' : mStats.net < 0 ? '+' : ''}{fmt(Math.abs(mStats.net))}
+                        {mStats.net > 0 ? '-' : mStats.net < 0 ? '+' : ''}{(Math.abs(mStats.net))}
                       </p>
                     </div>
                   </div>
@@ -680,18 +686,18 @@ export default function TenantCompanyDetailPage() {
                         <tbody className="divide-y divide-slate-100/60">
                           {fch.map((e, i) => (
                             <tr key={e.id || i} className="hover:bg-slate-50/50 transition-colors group">
-                              <td className="px-5 py-4 text-[10px] font-pmedium text-slate-500">{fmtDate(e.date)}</td>
+                              <td className="px-5 py-4 text-[10px] font-pmedium text-slate-500">{(Date(e.date))}</td>
                               <td className="px-5 py-4">
                                 <p className="text-xs font-pmedium text-slate-900">{e.roomName || e.resource || e.type || 'Transaction'}</p>
                                 {e.bookedBy && <p className="text-[10px] text-slate-500">Host: {e.bookedBy}</p>}
                               </td>
                               <td className="px-5 py-4 text-right text-xs font-black text-red-500">
-                                {!isCreditEntry(e.type) && (e.used || e.debited) ? fmt(e.used || e.debited) : '-'}
+                                {!isCreditEntry(e.type) && (e.used || e.debited) ? (e.used || e.debited) : '-'}
                               </td>
                               <td className="px-5 py-4 text-right text-xs font-black text-emerald-600">
-                                {isCreditEntry(e.type) ? fmt(getEntryCreditAmount(e)) : '-'}
+                                {isCreditEntry(e.type) ? (getEntryCreditAmount(e)) : '-'}
                               </td>
-                              <td className="px-5 py-4 text-right text-xs font-black text-slate-700">{fmt(e.remainingCredits ?? 0)}</td>
+                              <td className="px-5 py-4 text-right text-xs font-black text-slate-700">{(e.remainingCredits ?? 0)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -722,17 +728,17 @@ export default function TenantCompanyDetailPage() {
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <LayoutGrid className="mb-1 text-blue-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Open Desks</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.spaceAssigned?.openDesks || tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0)}</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{(tenant.spaceAssigned?.openDesks || tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Building2 className="mb-1 text-purple-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Cabin Desks</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.spaceAssigned?.cabinDesks || tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0)}</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{(tenant.spaceAssigned?.cabinDesks || tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Users className="mb-1 text-sky-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Total Seats</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{fmt(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p>
                   </div>
                 </div>
 
@@ -1092,7 +1098,7 @@ export default function TenantCompanyDetailPage() {
               </div>
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
                 <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits Used</p>
-                <p className="text-lg font-black mt-1 text-red-500">{fmt(viewBk.bookingCredits || 0)}</p>
+                <p className="text-lg font-black mt-1 text-red-500">{(viewBk.bookingCredits || 0)}</p>
               </div>
             </div>
             <div className="flex justify-end border-t border-slate-100 p-5">

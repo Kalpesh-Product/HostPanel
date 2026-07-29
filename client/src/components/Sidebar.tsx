@@ -142,7 +142,7 @@ interface RoleAccessContext {
   grantedModules: string[];
 }
 
-const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 
 const readWorkspaceSetup = (): WorkspaceSetupState => {
   try {
@@ -1484,7 +1484,7 @@ useEffect(() => {
         )}
 
         {isSidebarHydrated && planLabel === "basic" && (
-          <div className="px-4 pt-3">
+          <div className="px-4 pt-2">
             <div className="border-t border-black/10 pt-2 space-y-1">
               <NavGroup
                 item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
@@ -1498,7 +1498,7 @@ useEffect(() => {
         )}
 
         {isSidebarHydrated && (
-          <div className="px-4 pt-3">
+          <div className="px-4 pt-2">
             <div className="border-t border-black/10 pt-2 space-y-1">
               {generalData.map((item) => (
                 <NavGroup

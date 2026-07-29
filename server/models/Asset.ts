@@ -1,5 +1,16 @@
 import mongoose from "mongoose";
 
+const assetAllocationSchema = new mongoose.Schema(
+    {
+        departmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Department", required: true },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "HostUser", default: null },
+        quantity: { type: Number, required: true, min: 1 },
+        note: { type: String, default: "", trim: true, maxlength: 1000 },
+        assignedAt: { type: Date, default: Date.now },
+    },
+    { _id: true }
+);
+
 const assetSchema = new mongoose.Schema(
     {
         workspaceId: {
@@ -93,6 +104,7 @@ const assetSchema = new mongoose.Schema(
             default: null,
             index: true,
         },
+        allocations: { type: [assetAllocationSchema], default: [] },
 
         vendor: {
             type: String,
@@ -189,6 +201,8 @@ assetSchema.index({ workspaceId: 1, category: 1, createdAt: -1 });
 assetSchema.index({ workspaceId: 1, departmentId: 1, createdAt: -1 });
 assetSchema.index({ workspaceId: 1, assignedToUserId: 1, createdAt: -1 });
 assetSchema.index({ workspaceId: 1, assignedToDepartmentId: 1, createdAt: -1 });
+assetSchema.index({ workspaceId: 1, "allocations.departmentId": 1, createdAt: -1 });
+assetSchema.index({ workspaceId: 1, "allocations.userId": 1, createdAt: -1 });
 
 export const Asset =
     mongoose.models.Asset || mongoose.model("Asset", assetSchema);

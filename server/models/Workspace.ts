@@ -94,6 +94,7 @@ const workspaceSchema = new mongoose.Schema(
       businessHours: {
         start: { type: String, default: "09:00" },
         end: { type: String, default: "22:00" },
+        is24Hours: { type: Boolean, default: false },
       },
       // When false (default), tax + payment methods are derived from the
       // location's country/state at read time so each country charges its own

@@ -11,7 +11,7 @@ const NOMADS_API_BASE_URL = sanitizeValue(
   process.env.NOMADS_API_BASE_URL ||
     process.env.REVIEW_API_BASE_URL ||
     (process.env.NODE_ENV === "production"
-      ? "https://wononomadsbe.vercel.app"
+      ? "https://wono.co"
       : "http://localhost:3000"),
 ).replace(/\/+$/, "").replace(/\/api$/i, "");
 const nomadsApiUrl = (path) =>

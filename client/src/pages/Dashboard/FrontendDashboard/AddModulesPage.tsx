@@ -105,7 +105,7 @@ type AddOnModuleCard = ModuleCard & {
   subgroupLabel?: string;
 };
 
-const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://wonomasterbe.vercel.app";
+const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 
 const ADD_ON_TOP_LEVEL_ORDER = [
   { key: "common-modules", label: "Common Modules", roman: "I" },

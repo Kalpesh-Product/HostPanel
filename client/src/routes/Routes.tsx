@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
+import { getStoredUser } from "../lib/auth-session";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
 import LoginPage from "../pages/LoginPage/LoginPage";
@@ -129,6 +130,7 @@ import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
 import { InventoryPage } from "../pages/Inventory/InventoryPage";
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
 import { FinancePage } from "../pages/Finance/FinancePage";
+import { DepartmentFinancePageV2 } from "../pages/Finance/DepartmentFinancePageV2";
 import { TasksPage } from "../pages/Tasks/TasksPage";
 import { LeaveRequestsPage } from "../pages/LeaveRequests/LeaveRequestsPage";
 
@@ -179,6 +181,13 @@ import NotFoundPage from "../pages/NotFoundPage";
 
 // Placeholder for DepartmentWiseBulkUpload (does not exist yet)
 const DepartmentWiseBulkUpload = () => <div>DepartmentWiseBulkUpload - Coming Soon</div>;
+
+function FinanceRoute() {
+  const user = getStoredUser();
+  const role = String(user?.workspaceMembership?.role || user?.role || '').trim().toLowerCase();
+  const isFounderOrSuperAdmin = role === 'owner' || role === 'super_admin' || role === 'super-admin' || role === 'founder';
+  return isFounderOrSuperAdmin ? <FinancePage /> : <DepartmentFinancePageV2 />;
+}
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -587,7 +596,7 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "extra-common-modules/finance-management",
-                element: <FinancePage />,
+                element: <FinanceRoute />,
               },
               {
                 path: "extra-common-modules/reports",

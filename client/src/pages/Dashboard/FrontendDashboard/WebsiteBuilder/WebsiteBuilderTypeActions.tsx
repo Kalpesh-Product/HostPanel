@@ -52,12 +52,16 @@ const isSameCompanyTemplate = ({
     .toLowerCase();
   const normalizedBusinessName = String(businessName || "").trim().toLowerCase();
 
-  // Cascade instead of early-return: templates are sometimes stored with a
-  // companyId from a different source than the one in the session (e.g. base
-  // host-company id vs workspace-suffixed id), so a companyId mismatch must
-  // still fall through to the workspace/business-name checks.
-  if (companyId && websiteCompanyId === String(companyId).trim()) return true;
-  if (workspaceId && websiteWorkspaceId === String(workspaceId).trim()) return true;
+  // Ownership identifiers are authoritative. A display-name match must never
+  // override an explicit company/workspace mismatch.
+  if (companyId && websiteCompanyId) {
+    return websiteCompanyId === String(companyId).trim();
+  }
+  if (workspaceId && websiteWorkspaceId) {
+    return websiteWorkspaceId === String(workspaceId).trim();
+  }
+
+  // Keep name matching only for legacy templates that have no ownership ids.
   if (normalizedBusinessName && websiteCompanyName === normalizedBusinessName)
     return true;
   return false;
@@ -105,6 +109,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   // when workspaceBusinessName resolves asynchronously after the first API call already
   // found/didn't find a website.
   const hasCheckedWebsiteRef = useRef(false);
+  const checkedCompanyContextRef = useRef("");
   // const [workspacePlan, setWorkspacePlan] = useState("");
   const builderBasePath = location.pathname.includes("/company-settings/website-builder")
     ? "/company-settings/website-builder"
@@ -112,15 +117,27 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
 
   const contextCompanyId = String(auth?.user?.companyId || "").trim();
   const reduxCompanyId = String(selectedCompany?.companyId || "").trim();
-  // Always prioritize actively selected company context over stale localStorage user payloads.
-  const companyId = reduxCompanyId || contextCompanyId || "";
+  // selectedCompany is persisted and can survive logout/login. Ignore it when
+  // it belongs to a different company than the newly authenticated host.
+  const selectedCompanyIsInAuthScope =
+    !contextCompanyId ||
+    !reduxCompanyId ||
+    reduxCompanyId === contextCompanyId;
+  const scopedSelectedCompany = selectedCompanyIsInAuthScope
+    ? selectedCompany
+    : null;
+  const companyId =
+    String(scopedSelectedCompany?.companyId || "").trim() ||
+    contextCompanyId ||
+    "";
   const selectedVertical = normalizeVerticalKey(localStorage.getItem("selectedVertical"));
   const workspaceId =
-    selectedCompany?.workspaceId ||
+    scopedSelectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
     auth?.user?.workspaceId ||
     "";
 
+  const companyContextKey = `${companyId}::${workspaceId}`;
   useEffect(() => {
     const fetchWorkspaceData = async () => {
       try {
@@ -147,13 +164,19 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
 
   useEffect(() => {
     const checkExistingWebsite = async () => {
+      if (checkedCompanyContextRef.current !== companyContextKey) {
+        checkedCompanyContextRef.current = companyContextKey;
+        hasCheckedWebsiteRef.current = false;
+        setExistingWebsite(null);
+      }
+
       // Dynamic-only mode: keep existing website lookup enabled.
       // Guard: once we've got a result (found or not found), don't re-run when
       // workspaceBusinessName resolves asynchronously and re-triggers this effect.
       if (hasCheckedWebsiteRef.current) return;
 
       const businessName = String(
-        selectedCompany?.companyName ||
+        scopedSelectedCompany?.companyName ||
           workspaceBusinessName ||
           auth?.user?.companyName ||
           "",
@@ -254,10 +277,11 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
     companyId,
     auth?.user?.primaryWorkspace,
     auth?.user?.companyName,
-    selectedCompany?.companyName,
+    scopedSelectedCompany?.companyName,
     workspaceBusinessName,
     isWorkspaceDataLoading,
     workspaceId,
+    companyContextKey,
     type,
   ]);
 
@@ -336,7 +360,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
     // }
     try {
       const businessName = String(
-        selectedCompany?.companyName ||
+        scopedSelectedCompany?.companyName ||
           workspaceBusinessName ||
           auth?.user?.companyName ||
           "",
