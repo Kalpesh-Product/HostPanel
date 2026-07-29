@@ -10,7 +10,7 @@ import Footer from "../../components/Footer";
 import { CircularProgress } from "@mui/material";
 import { Drawer } from "@mui/material";
 import { IoCloseSharp } from "react-icons/io5";
-import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import logo from "../../assets/WONO_LOGO_Black_TP.svg";
 import { useMutation } from "@tanstack/react-query";
 
 interface ForgotPasswordData {

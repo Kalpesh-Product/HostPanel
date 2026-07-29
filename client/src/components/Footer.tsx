@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import logo from "../assets/WONO_LOGO_Black_TP.png";
+import logo from "../assets/WONO_LOGO_Black_TP.svg";
 import { FaTwitter, FaLinkedinIn } from "react-icons/fa";
 import { FaGlobe, FaRupeeSign, FaFacebookF, FaInstagram } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";

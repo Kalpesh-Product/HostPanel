@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Country, State } from "country-state-city";
 import { Autocomplete, TextField } from "@mui/material";
 import Footer from "../../components/Footer";
-import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import logo from "../../assets/WONO_LOGO_Black_TP.svg";
 import { toast } from "sonner";
 import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";

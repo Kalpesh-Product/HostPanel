@@ -1,7 +1,7 @@
 import React from "react";
 import { ArrowRight, Check, CheckCircle2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import logo from "../../assets/WONO_LOGO_Black_TP.svg";
 import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";

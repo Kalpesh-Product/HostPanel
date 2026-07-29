@@ -6,7 +6,7 @@ import Footer from "../../components/Footer";
 import { api, axiosPrivate } from "../../utils/axios";
 import { showSuccessAlert } from "../../utils/alerts";
 import { writeInviteOnboardingState } from "../../utils/inviteOnboarding";
-import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import logo from "../../assets/WONO_LOGO_Black_TP.svg";
 import "./ClientLogin.css";
 import "./ClientSpecialClasses.css";
 

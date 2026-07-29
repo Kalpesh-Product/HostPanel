@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import Footer from "../../components/Footer";
 import { api } from "../../utils/axios";
 import type { InviteType, PlanType } from "../../utils/inviteOnboarding";
-import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import logo from "../../assets/WONO_LOGO_Black_TP.svg";
 import "./ClientLogin.css";
 import "./ClientSpecialClasses.css";
 

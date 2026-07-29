@@ -7,7 +7,7 @@ import useAuth from "../../hooks/useAuth";
 import useLogout from "../../hooks/useLogout";
 import { switchWorkspaceSession } from "../../services/workspace-session";
 import Footer from "../../components/Footer";
-import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import logo from "../../assets/WONO_LOGO_Black_TP.svg";
 
 type WorkspaceOption = {
   id: string;
