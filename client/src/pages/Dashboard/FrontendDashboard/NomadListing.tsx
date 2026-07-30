@@ -292,7 +292,7 @@ const NomadListing = () => {
                     return (
                       <MenuItem
                         key={type}
-                        value={type.toLowerCase()}
+                        value={type.toLowerCase().replace(/\s+/g, "")}
                         disabled={disabledForTypeLimit}
                         className="font-pmedium"
                       >

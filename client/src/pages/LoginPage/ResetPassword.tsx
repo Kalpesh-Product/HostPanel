@@ -253,14 +253,14 @@ const ResetPassword = () => {
             </React.Fragment>
           ))} */}
 
-          {/* Sign In button */}
+          {/* Login button */}
           <div className="flex flex-col w-full items-center gap-6">
             <div>
               <a
                 href="https://wono.co"
                 className="block px-10 py-2 uppercase bg-white text-black mx-auto w-max rounded-full"
               >
-                Sign In
+                Login
               </a>
             </div>
             <hr className="w-[75%]" />
@@ -431,7 +431,7 @@ const ResetPassword = () => {
                     <p className="text-[0.9rem]">
                       Already have an account?{" "}
                       <Link to="/" className="underline hover:text-primary">
-                        Sign In
+                        Login
                       </Link>
                     </p>
                   </div>

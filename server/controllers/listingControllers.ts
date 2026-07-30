@@ -627,7 +627,31 @@ export const requestCompaniesListing = async (req, res) => {
       });
     }
 
+    const requestedTypes = Array.isArray(req.body?.types)
+      ? [...new Set(req.body.types.map((t) => normalizeListingType(t)).filter(Boolean))]
+      : [];
+
+    if (!requestedTypes.length) {
+      return res.status(400).json({
+        message: "Select at least one product type to request.",
+      });
+    }
+
+    const selectedPlan = await getNomadListingPlan(String(req.user));
+    const productTypeLimit =
+      selectedPlan === "custom" ? null : selectedPlan === "professional" ? 3 : 2;
+
+    if (productTypeLimit !== null && requestedTypes.length > productTypeLimit) {
+      const planName = selectedPlan === "professional" ? "Professional" : "Basic";
+      return res.status(409).json({
+        code: "NOMAD_LISTING_TYPE_LIMIT_REACHED",
+        message: `${planName} plan allows only ${productTypeLimit} product types. Select up to ${productTypeLimit}, or upgrade your plan.`,
+        typeLimit: productTypeLimit,
+      });
+    }
+
     company.companiesListingRequestedAt = new Date();
+    company.companiesListingRequestedTypes = requestedTypes;
     await company.save();
 
     return res.status(200).json({

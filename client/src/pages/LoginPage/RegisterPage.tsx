@@ -119,7 +119,7 @@ export default function RegisterPage() {
     !(isSubmitting || (!isTokenMissing && isLoadingPrefill)) &&
     !registrationSuccess;
 
-  // Redirect to sign in after successful registration
+  // Redirect to login after successful registration
   useEffect(() => {
     if (!registrationSuccess) return;
     const timer = setTimeout(() => {
@@ -252,8 +252,8 @@ export default function RegisterPage() {
               </h1>
               <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">
                 {isTenantInvite
-                  ? `You are now registered as a team member of ${tenantPrefill?.companyName || "your company"}. Use the same credentials to sign in.`
-                  : "Redirecting to Sign In page. Use the same credentials to sign in."}
+                  ? `You are now registered as a team member of ${tenantPrefill?.companyName || "your company"}. Use the same credentials to login.`
+                  : "Redirecting to Login page. Use the same credentials to login."}
               </p>
               <p className="mt-4 text-[12px] text-[#6b7fa7] font-medium">
                 Redirecting in a few seconds...
@@ -413,7 +413,7 @@ export default function RegisterPage() {
                     <p className="text-[0.9rem]">
                       Already have an account?{" "}
                       <Link to="/" className="underline hover:text-primary">
-                        Sign In
+                        Login
                       </Link>
                     </p>
                   </div>

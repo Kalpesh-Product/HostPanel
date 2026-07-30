@@ -64,7 +64,7 @@ export default function RegisterOtpVerification() {
           ? { otp }
           : { email: emailInput, otp };
       const response = await api.post(endpoint, payload);
-      // Clear any pre-existing session so user lands on Sign In instead of auto-login.
+      // Clear any pre-existing session so user lands on Login instead of auto-login.
       try {
         await axiosPrivate.get("/api/auth/logout");
       } catch {
@@ -112,8 +112,8 @@ export default function RegisterOtpVerification() {
       }
       const successMessage =
         flow === "tenant-register" && companyName
-          ? `You are now registered as a team member of ${companyName}. Use the same credentials to sign in.`
-          : response.data?.message || "Registration successful. Redirecting to Sign In...";
+          ? `You are now registered as a team member of ${companyName}. Use the same credentials to login.`
+          : response.data?.message || "Registration successful. Redirecting to Login...";
       await showSuccessAlert(successMessage);
       navigate("/", { replace: true });
     } catch (error: any) {
@@ -256,7 +256,7 @@ export default function RegisterOtpVerification() {
                     <p className="text-[0.9rem]">
                       Already have an account?{" "}
                       <Link to="/" className="underline hover:text-primary">
-                        Sign In
+                        Login
                       </Link>
                     </p>
                   </div>

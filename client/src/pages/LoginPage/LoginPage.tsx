@@ -20,7 +20,7 @@ import { setStoredTenantRole } from "../../lib/tenant-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearUserSessionData } from "../../utils/clearUserSessionData";
 
-const SIGN_IN_HEADING = "Sign In";
+const SIGN_IN_HEADING = "Login";
 
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
@@ -353,14 +353,14 @@ const LoginPage = () => {
             </React.Fragment>
           ))} */}
 
-          {/* Sign In button */}
+          {/* Login button */}
           <div className="flex flex-col w-full items-center gap-6">
             <div>
               <a
                 href="https://wono.co"
                 className="block px-10 py-2 uppercase bg-white text-black mx-auto w-max rounded-full"
               >
-                Sign In
+                Login
               </a>
             </div>
             <hr className="w-[75%]" />
@@ -459,7 +459,7 @@ const LoginPage = () => {
                           {loading ? (
                             <CircularProgress size={20} color="white" />
                           ) : (
-                            "Sign In"
+                            "Login"
                           )}
                         </button>
                         {/* <button

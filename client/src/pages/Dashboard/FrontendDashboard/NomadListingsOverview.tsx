@@ -8,13 +8,9 @@ import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
 import { CheckCircle2, Edit3, Layers, ListChecks, Plus, Search, Target, XCircle } from "lucide-react";
 import { statusPillClass } from '../../../lib/status-pill';
-import useNomadListingCapacity from "../../../hooks/useNomadListingCapacity";
-
-function formatDate(raw) {
-  if (!raw) return "—";
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "2-digit" });
-}
+import useNomadListingCapacity, {
+  normalizeNomadListingType,
+} from "../../../hooks/useNomadListingCapacity";
 
 function getInitials(value) {
   return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "N";
@@ -26,6 +22,7 @@ export default function NomadListingsOverview() {
   const { auth } = useAuth();
   const user = auth?.user;
   const [requestSent, setRequestSent] = useState(Boolean(user?.companiesListingRequested));
+  const [requestedTypes, setRequestedTypes] = useState([]);
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,7 +37,9 @@ export default function NomadListingsOverview() {
 
   const { mutate: requestCompaniesListing, isPending: isRequesting } = useMutation({
     mutationFn: async () => {
-      const res = await axios.post("/api/listings/request-companies-listing");
+      const res = await axios.post("/api/listings/request-companies-listing", {
+        types: requestedTypes,
+      });
       return res.data;
     },
     onSuccess: (data) => {
@@ -66,6 +65,35 @@ export default function NomadListingsOverview() {
 
   const activeListings = listings.filter((l) => l.isActive).length;
   const inactiveListings = listings.filter((l) => !l.isActive).length;
+
+  // Distinct product types among the host's own existing listings — the
+  // set staff can be asked to activate a subset of.
+  const availableTypes = useMemo(() => {
+    const seen = new Map();
+    listings.forEach((l) => {
+      const normalized = normalizeNomadListingType(l?.companyType);
+      if (normalized && !seen.has(normalized)) {
+        seen.set(normalized, l.companyType);
+      }
+    });
+    return Array.from(seen.entries()).map(([normalized, label]) => ({ normalized, label }));
+  }, [listings]);
+
+  const toggleRequestedType = (normalized) => {
+    setRequestedTypes((prev) => {
+      if (prev.includes(normalized)) {
+        return prev.filter((t) => t !== normalized);
+      }
+      if (typeLimit !== null && prev.length >= typeLimit) {
+        toast.error(
+          `You can select up to ${typeLimit} product types on your current plan.`,
+          { position: "bottom-right" },
+        );
+        return prev;
+      }
+      return [...prev, normalized];
+    });
+  };
 
   const filteredListings = useMemo(() => {
     let result = listings;
@@ -119,23 +147,53 @@ export default function NomadListingsOverview() {
 
           {/* REQUEST BANNER */}
           {!isLinkedToExistingCompany && !!listings.length && (
-            <div data-tour="nomad-request-banner" className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-blue-200 bg-blue-50">
-              <div className="font-pmedium text-gray-700">
-                {requestSent ? (
-                  <>Your request is pending review by our team.</>
-                ) : (
-                  <>Want your listing to also appear on our public Companies directory? Request to have it reviewed and listed.</>
+            <div data-tour="nomad-request-banner" className="flex flex-col gap-3 p-4 rounded-2xl border border-blue-200 bg-blue-50">
+              <div className="flex items-center justify-between gap-4">
+                <div className="font-pmedium text-gray-700">
+                  {requestSent ? (
+                    <>Your request is pending review by our team.</>
+                  ) : (
+                    <>Want your listing to also appear on our public Companies directory? Pick which product types you'd like activated{typeLimit !== null ? ` (up to ${typeLimit} on your plan)` : ""} and request review.</>
+                  )}
+                </div>
+                {!requestSent && (
+                  <button
+                    type="button"
+                    disabled={isRequesting || !requestedTypes.length}
+                    onClick={() => requestCompaniesListing()}
+                    className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                  >
+                    {isRequesting ? "Sending..." : "Request to be listed"}
+                  </button>
                 )}
               </div>
-              {!requestSent && (
-                <button
-                  type="button"
-                  disabled={isRequesting}
-                  onClick={() => requestCompaniesListing()}
-                  className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
-                >
-                  {isRequesting ? "Sending..." : "Request to be listed"}
-                </button>
+              {!requestSent && !!availableTypes.length && (
+                <div className="flex flex-wrap gap-3">
+                  {availableTypes.map(({ normalized, label }) => {
+                    const checked = requestedTypes.includes(normalized);
+                    const disabled =
+                      !checked && typeLimit !== null && requestedTypes.length >= typeLimit;
+                    return (
+                      <label
+                        key={normalized}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-pmedium capitalize cursor-pointer transition-colors ${
+                          checked
+                            ? "border-blue-500 bg-blue-100 text-blue-700"
+                            : "border-slate-200 bg-white text-slate-600"
+                        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-blue-600"
+                          checked={checked}
+                          disabled={disabled}
+                          onChange={() => toggleRequestedType(normalized)}
+                        />
+                        {label}
+                      </label>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -265,16 +323,17 @@ export default function NomadListingsOverview() {
                       <th className="px-5 py-4">Sr No</th>
                       <th className="px-5 py-4">Company Name</th>
                       <th className="px-5 py-4">Type</th>
+                      <th className="px-5 py-4">Country</th>
+                      <th className="px-5 py-4">State</th>
                       <th className="px-5 py-4">City</th>
                       <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Date</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredListings.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-5 py-16 text-center">
+                        <td colSpan={8} className="px-5 py-16 text-center">
                           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mx-auto"><Target size={28} /></div>
                           <p className="text-slate-400 font-pmedium">No listings found.</p>
                         </td>
@@ -299,15 +358,18 @@ export default function NomadListingsOverview() {
                             <span className="text-[12px] font-pmedium text-slate-600 capitalize">{item.companyType || "—"}</span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-pmedium text-slate-600">{item.city || item.country || "—"}</span>
+                            <span className="text-[12px] font-pmedium text-slate-600">{item.country || "—"}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-[12px] font-pmedium text-slate-600">{item.state || "—"}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-[12px] font-pmedium text-slate-600">{item.city || "—"}</span>
                           </td>
                           <td className="px-5 py-4">
                             <span className={statusPillClass(item.isActive ? "Active" : "Inactive")}>
                               {item.isActive ? "Active" : "Inactive"}
                             </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <p className="text-[12px] font-pmedium text-slate-700">{formatDate(item.createdAt)}</p>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
