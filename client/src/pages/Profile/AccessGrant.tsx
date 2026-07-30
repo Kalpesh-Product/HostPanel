@@ -462,6 +462,8 @@ export default function AccessGrantsPage() {
   const [memberAccessTarget, setMemberAccessTarget] = useState<MappedMember | null>(null);
   const [memberAccessDraft, setMemberAccessDraft] = useState<MemberAccessDraft>({});
   const [expandedAccessModules, setExpandedAccessModules] = useState<Record<string, boolean>>({});
+  // isTargetEmployee to select employee and manager roles, to restrict access to core modules for these roles
+  const isTargetEmployee = !!memberAccessTarget && (normalizeRole(memberAccessTarget.rawRole) === 'employee' || normalizeRole(memberAccessTarget.rawRole) === 'manager');
   const [expandedDepartmentGroups, setExpandedDepartmentGroups] = useState<Record<string, boolean>>({});
   const [members, setMembers] = useState<MappedMember[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
@@ -1862,7 +1864,9 @@ export default function AccessGrantsPage() {
               </div>
 
               <div className="max-h-[68vh] space-y-3 overflow-y-auto bg-slate-50 p-4">
-                {workspaceAccessSections.map((section, sectionIndex) => (
+                 {/* hide founder core modules for target employee */}
+                {workspaceAccessSections.map((section, sectionIndex) =>
+                isTargetEmployee && normalizeModuleKey(section.key) === 'founder-core-modules' ? null : (
                   <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-xl border border-slate-200 bg-white p-3">
                     <h4 className="mb-2 text-[11px] font-pmedium uppercase tracking-wider text-slate-500">{section.title}</h4>
                     <div className="space-y-2">
@@ -1990,6 +1994,8 @@ export default function AccessGrantsPage() {
                         })
                       ) : (
                       section.modules.map((module) => {
+                        // Check if the current section is the "founder-core-modules" section
+                        const isCoreModuleSection = normalizeModuleKey(section.key) === 'founder-core-modules';
                         const checked = isModuleCheckedFromDraft(module.id, memberAccessDraft?.db || {}, false);
                         const childModules = getModuleChildren(module.id);
                         const hasChildren = childModules.length > 0;
@@ -2018,7 +2024,8 @@ export default function AccessGrantsPage() {
                                   <p className="text-[10px] text-slate-500">{module.description}</p>
                                 </div>
                               </div>
-                              <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule(module.id)} />
+                               {/* Disable the switch if the user cannot manage module access or if the target employee is trying to access a core module section */}
+                              <Switch checked={checked} disabled={!canManageModuleAccess  || (isTargetEmployee && isCoreModuleSection)} onCheckedChange={() => toggleMemberModule(module.id)} />
                             </div>
                             {hasChildren && isExpanded ? (
                               <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
@@ -2051,9 +2058,10 @@ export default function AccessGrantsPage() {
                                             <p className="text-[10px] text-slate-500">{child.description}</p>
                                           </div>
                                         </div>
+                                        {/* Disable the switch if the user cannot manage module access, if the parent module is not checked, or if the target employee is trying to access a core module section */}
                                         <Switch
                                           checked={childChecked}
-                                          disabled={!canManageModuleAccess || !checked}
+                                          disabled={!canManageModuleAccess || !checked || (isTargetEmployee && isCoreModuleSection)}
                                           onCheckedChange={() => toggleMemberChildModule(child.id)}
                                         />
                                       </div>
@@ -2067,9 +2075,10 @@ export default function AccessGrantsPage() {
                                                   <p className="text-[10px] font-pmedium text-slate-800">{subtab.label}</p>
                                                   <p className="text-[10px] text-slate-500">{subtab.description}</p>
                                                 </div>
+                                                {/* Disable the switch if the user cannot manage module access, if the parent module or child module is not checked, or if the target employee is trying to access a core module section */}
                                                 <Switch
                                                   checked={subtabChecked}
-                                                  disabled={!canManageModuleAccess || !checked || !childChecked}
+                                                  disabled={!canManageModuleAccess || !checked || !childChecked || (isTargetEmployee && isCoreModuleSection)}
                                                   onCheckedChange={() => toggleMemberChildModule(subtab.id)}
                                                 />
                                               </div>
