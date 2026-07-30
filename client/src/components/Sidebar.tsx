@@ -798,6 +798,8 @@ useEffect(() => {
   );
   const currentRole = normalizeRole(roleAccessContext.role);
   const isFounderRole = currentRole === "founder" || currentRole === "owner";
+  // Check if the current user has super admin privileges
+  const isSuperAdmin = currentRole === "super_admin";
   const isWorkspaceManagementUnlocked =
     planLabel === "professional" && workspaceCount > 1;
   const enabledIds = new Set([
@@ -1196,7 +1198,8 @@ useEffect(() => {
   })
   .filter((section) => {
     if (section.items.length === 0) return false;
-    if (section.key === "founder-core-modules" && !isFounderRole) return false;
+    // only founder/owner/super_admin can see the founder core modules section
+    if (section.key === "founder-core-modules" && !isFounderRole && !isSuperAdmin) return false;
     return true;
   });
 
