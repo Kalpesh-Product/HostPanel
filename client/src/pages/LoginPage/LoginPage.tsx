@@ -255,7 +255,7 @@ const LoginPage = () => {
         <div className="min-w-[75%] max-w-[80rem] lg:max-w-[80rem] mx-0 md:mx-auto px-6 sm:px-6 lg:px-0 ">
           <div className=" flex justify-between items-center py-3 ">
             {/* Logo */}
-            <a href="https://wono.co">
+            <a href="https://host.wono.co/">
               <img src={logo} alt="wono" className="w-36 h-10" />
             </a>
 
@@ -283,7 +283,7 @@ const LoginPage = () => {
         </div> */}
 
             {/* Become a Host / Become a Nomad */}
-            <div className="flex items-center gap-6 sm:gap-10">
+            <div className="hidden lg:flex items-center gap-6 sm:gap-10">
               <button
                 type="button"
                 onClick={() => (window.location.href = "https://host.wono.co")}
