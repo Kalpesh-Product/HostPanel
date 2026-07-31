@@ -481,7 +481,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           user: req.user,
           isActive: true,
         })
-          .populate("user", "name email isActive")
+          .populate("user", "name email isActive isDeleted")
           .populate("role")
           .populate("departments")
           .lean()
@@ -496,6 +496,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           employeeId: "",
           role: toRoleLabel(selfMember.role),
           status: resolveMemberStatus(selfMember.isActive !== false, selfMember.user?.inviteStatus),
+          accountDeleted: Boolean(selfMember.user?.isDeleted),
           departmentNames: Array.isArray(selfMember.departments)
             ? selfMember.departments.map((d: any) => d.name || String(d))
             : [],
@@ -530,7 +531,7 @@ export const getOrganizationOverview = async (req, res, next) => {
     const activeDepartments = await ensureWorkspaceDepartments(workspace);
 
     const members = await WorkspaceMember.find({ workspace: workspace._id })
-      .populate("user", "name email isActive inviteStatus")
+      .populate("user", "name email isActive inviteStatus isDeleted")
       .populate("role")
       .populate("departments")
       .lean()
@@ -614,6 +615,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           joinedAt: member.createdAt || null,
           role: toRoleLabel(member.role),
           status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
+          accountDeleted: Boolean(member.user?.isDeleted),
           departmentNames: Array.isArray(member.departments)
             ? member.departments.map((d: any) => d.name || String(d))
             : [],
@@ -647,6 +649,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       employeeId: employeeIdByMemberId.get(String(member._id)) || "",
       role: toRoleLabel(member.role),
       status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
+      accountDeleted: Boolean(member.user?.isDeleted),
       departmentNames: Array.isArray(member.departments)
         ? member.departments.map((d: any) => d.name || String(d))
         : [],
@@ -1063,6 +1066,21 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       if (activeMemberCount >= PROFESSIONAL_PLAN_MAX_USERS) {
         return res.status(400).json({
           message: "Only 5 users can be enabled at a time. Disable one user to enable another.",
+        });
+      }
+    }
+
+    // A deleted account stays disabled — its workspace access can only be
+    // turned off, never re-enabled, even if the founder toggles it.
+    if (nextIsActive) {
+      const linkedUser = await HostUser.findById(member.user)
+        .select("isDeleted")
+        .lean()
+        .exec();
+      if (linkedUser?.isDeleted) {
+        return res.status(400).json({
+          message:
+            "This account has been deleted and cannot be re-enabled. Only its access can be disabled.",
         });
       }
     }
@@ -1664,6 +1682,17 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       return res.status(400).json({ message: "You cannot change your own role." });
     }
 
+    const linkedUser = await HostUser.findById(member.user)
+      .select("isDeleted")
+      .lean()
+      .exec();
+    if (linkedUser?.isDeleted) {
+      return res.status(400).json({
+        message:
+          "This account has been deleted and cannot have its role changed.",
+      });
+    }
+
     const previousRoleBand = getRoleBand(member.role);
     if (previousRoleBand === "owner") {
       return res.status(403).json({ message: "Transfer ownership instead to change the founder's role." });
@@ -1835,6 +1864,17 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       isActive: true,
     }).populate("departments");
     if (!member) return res.status(404).json({ message: "Member not found." });
+
+    const linkedUser = await HostUser.findById(member.user)
+      .select("isDeleted")
+      .lean()
+      .exec();
+    if (linkedUser?.isDeleted) {
+      return res.status(400).json({
+        message:
+          "This account has been deleted and cannot have its access changed.",
+      });
+    }
 
     // Managers may only manage employee-level access, only for members who
     // share at least one department with them, and only for that shared

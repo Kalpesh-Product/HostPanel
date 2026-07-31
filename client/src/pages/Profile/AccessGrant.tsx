@@ -6,7 +6,6 @@ import {
   Search,
   ChevronDown,
   X,
-  CheckCircle,
   AlertCircle,
   ArrowRight,
   ArrowRightLeft,
@@ -54,6 +53,7 @@ interface MappedMember {
   roleGroup: string;
   department: string;
   status: string;
+  accountDeleted?: boolean;
   departments: string[];
   grantedModules: string[];
   enabledModules: string[];
@@ -381,6 +381,7 @@ function mapOverviewMember(member: Record<string, unknown> = {}): MappedMember {
     roleGroup: getRoleGroup(String(member.role || '')),
     department: getDepartmentLabel(member as { departmentNames?: string[]; departments?: string[] }),
     status: String(member.status || 'joined'),
+    accountDeleted: Boolean(member.accountDeleted),
     departments: Array.isArray(member.departmentNames)
       ? (member.departmentNames as string[])
       : Array.isArray(member.departments)
@@ -552,6 +553,9 @@ export default function AccessGrantsPage() {
     [linkedWorkspaces],
   );
   const selectedUserRole = normalizeRole(selectedUser?.rawRole || '');
+  const selectedUserLocked =
+    Boolean(selectedUser?.accountDeleted) ||
+    String(selectedUser?.status || '').trim().toLowerCase() === 'disabled';
   const canManageSelectedUserAcrossUnits = Boolean(selectedUser) && (
     isFounderRole || !['owner', 'founder', 'super_admin'].includes(selectedUserRole)
   );
@@ -1362,6 +1366,8 @@ export default function AccessGrantsPage() {
                         rowUserId &&
                         currentUserId === rowUserId;
                       const isUserDisabled = String(user.status || '').trim().toLowerCase() === 'disabled';
+                      const isAccountDeleted = Boolean(user.accountDeleted);
+                      const isAccessLocked = isUserDisabled || isAccountDeleted;
                       const normalizedDepartments = Array.isArray(user.departments)
                         ? user.departments.filter(Boolean)
                         : [];
@@ -1414,14 +1420,18 @@ export default function AccessGrantsPage() {
                                     <button
                                       onClick={() => openMemberAccessDialog(user)}
                                       type="button"
-                                      disabled={!canManageModuleAccess}
-                                      aria-disabled={isUserDisabled || !canManageModuleAccess}
+                                      disabled={!canManageModuleAccess || isAccessLocked}
+                                      aria-disabled={isAccessLocked || !canManageModuleAccess}
                                       className={`p-1.5 rounded-lg transition-all disabled:opacity-55 disabled:cursor-not-allowed ${
-                                        isUserDisabled
+                                        isAccessLocked
                                           ? 'bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed'
                                           : 'bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
                                       }`}
-                                      title={isUserDisabled ? 'Enable the user to manage sidebar access' : 'Manage Sidebar Access'}
+                                      title={isAccountDeleted
+                                        ? 'Account deleted — access cannot be managed'
+                                        : isUserDisabled
+                                          ? 'Enable the user to manage sidebar access'
+                                          : 'Manage Sidebar Access'}
                                     >
                                       <Shield size={15} strokeWidth={2.5} />
                                     </button>
@@ -1429,13 +1439,18 @@ export default function AccessGrantsPage() {
                                   <button
                                     onClick={() => handleOpenDetails(user)}
                                     type="button"
-                                    aria-disabled={isUserDisabled}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      isUserDisabled
+                                    disabled={!canManageModuleAccess || isAccessLocked}
+                                    aria-disabled={isAccessLocked || !canManageModuleAccess}
+                                    className={`p-1.5 rounded-lg transition-all disabled:opacity-55 disabled:cursor-not-allowed ${
+                                      isAccessLocked
                                         ? 'bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed'
                                         : 'bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
                                     }`}
-                                    title={isUserDisabled ? 'Enable the user to manage role' : (canEditAccessGrants ? 'Manage Role' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role')}
+                                    title={isAccountDeleted
+                                      ? 'Account deleted — role cannot be managed'
+                                      : isUserDisabled
+                                        ? 'Enable the user to change their role'
+                                        : canEditAccessGrants ? 'Manage Role' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
                                   >
                                     <UserCog size={15} strokeWidth={2.5} />
                                   </button>
@@ -1498,9 +1513,25 @@ export default function AccessGrantsPage() {
                 <div className="space-y-3">
                     <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wider">Available Actions</h3>
 
-                    <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
-                      To promote, demote, or change this user's role, use Change Role in Organization Management.
-                    </div>
+                    {canEditAccessGrants && (
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                        To promote, demote, or change this user's role, use Change Role in Organization Management.
+                      </div>
+                    )}
+
+                    {!canEditAccessGrants && (
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                        Super Admins can add or transfer unit access for employees. Only the workspace founder can promote, demote, or transfer founder access.
+                      </div>
+                    )}
+
+                    {selectedUserLocked && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
+                        {selectedUser?.accountDeleted
+                          ? 'This account has been deleted. Its access is locked and can no longer be changed.'
+                          : 'This user is disabled. Enable their access first to change their role.'}
+                      </div>
+                    )}
 
                       {canTransferMembers && (
                         <button
