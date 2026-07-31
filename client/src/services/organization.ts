@@ -55,6 +55,11 @@ export const toggleOrganizationMemberStatus = (
   memberId: string,
 ) => axiosPrivate.patch(`/api/organization/members/${memberId}/status`);
 
+export const cancelOrganizationInvite = (
+  axiosPrivate: AxiosInstance,
+  memberId: string,
+) => axiosPrivate.delete(`/api/organization/members/${memberId}/invite`);
+
 export const assignOrganizationActingManager = (
   axiosPrivate: AxiosInstance,
   departmentId: string,

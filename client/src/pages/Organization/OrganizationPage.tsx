@@ -4,7 +4,7 @@ import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
   Mail, Calendar, Briefcase, Shield, Send, DollarSign, Wrench,
   CheckCircle2, Search, Crown, CheckSquare, ChevronDown,
-  Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2, Eye
+  Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2, Eye, ArrowUpDown
 } from 'lucide-react';
 import { Switch } from '@mui/material';
 import useAuth from '../../hooks/useAuth';
@@ -14,6 +14,7 @@ import { OrganizationSkeleton } from '../../components/ui/Skeleton';
 import {
   assignOrganizationActingManager,
   assignOrganizationDepartmentManager,
+  cancelOrganizationInvite,
   getOrganizationOverview,
   inviteOrganizationMember,
   removeOrganizationActingManager,
@@ -286,10 +287,18 @@ export function OrganizationPage() {
   const [isCreatingDepartment, setIsCreatingDepartment] = useState(false);
   const [createdDepartmentNotice, setCreatedDepartmentNotice] = useState<CreatedDepartmentNotice | null>(null);
   const [accessTogglePendingMemberId, setAccessTogglePendingMemberId] = useState('');
+  const [cancelInvitePendingMemberId, setCancelInvitePendingMemberId] = useState('');
 
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [viewingMember, setViewingMember] = useState<TeamMember | null>(null);
+  const [inviteToRemove, setInviteToRemove] = useState<TeamMember | null>(null);
+  const [roleChangeTarget, setRoleChangeTarget] = useState<TeamMember | null>(null);
+  const [roleChangeForm, setRoleChangeForm] = useState<{ role: string; departments: string[] }>({
+    role: 'employee',
+    departments: [],
+  });
+  const [isSavingRoleChange, setIsSavingRoleChange] = useState(false);
   const [transferredTeamMembers, setTransferredTeamMembers] = useState<TeamMember[]>([]);
   const [workspacePlan, setWorkspacePlan] = useState('basic');
   const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
@@ -534,7 +543,6 @@ export function OrganizationPage() {
   }, [currentUser?.id, currentUser?._id, selectedDepartment?.id, loadOrganization]);
 
   // --- LOGIC ---
-  const totalEmployees = departments.reduce((sum, dept) => sum + (dept.employeeCount || 0), 0);
   const normalizeRoleValue = (role) => (role || '').toString().trim().toLowerCase().replace(/_/g, '-');
   const normalizeAccessKey = (value = '') => String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
   const currentUserRole = (currentUser?.workspaceMembership?.role || currentUser?.role || '')
@@ -555,6 +563,7 @@ export function OrganizationPage() {
   const canInviteSuperAdmin = isFounderRole || isFounderFromTeamRecord;
   const canManageDepartments = isFounderRole || isFounderFromTeamRecord;
   const canManageActingAssignments = canManageDepartments || currentUserRole === 'super-admin';
+  const canRemoveInvitedMemberByAccess = isFounderRole || isFounderFromTeamRecord || currentUserRole === 'super-admin';
   const currentMemberGrantedKeys = new Set(
     (Array.isArray(currentMemberGrantedModuleIds) ? currentMemberGrantedModuleIds : [])
       .map((item) => normalizeAccessKey(String(item || '')))
@@ -587,8 +596,7 @@ export function OrganizationPage() {
     hasOrgModuleAccess && hasDepartmentsTabGrant;
   const canInviteUsersByAccess =
     hasOrgModuleAccess && currentMemberGrantedKeys.has('org-users-invite-member');
-  const canChangeRoleByAccess =
-    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-users-change-role');
+  const canChangeRoleByAccess = isFounderRole || isFounderFromTeamRecord || currentUserRole === 'super-admin';
   const canToggleAccessByAccess =
     hasOrgModuleAccess && currentMemberGrantedKeys.has('org-users-toggle-access');
   const canCreateDepartmentByAccess =
@@ -620,6 +628,9 @@ export function OrganizationPage() {
   const professionalPlanMaxUsers = 5;
   const activeMemberCount = teamMembers.filter(
     (member) => (member.status || '').toLowerCase() !== 'disabled',
+  ).length;
+  const disabledMemberCount = teamMembers.filter(
+    (member) => (member.status || '').toLowerCase() === 'disabled',
   ).length;
   const professionalPlanLimitReached =
     isProfessionalPlanWorkspace && activeMemberCount >= professionalPlanMaxUsers;
@@ -1046,13 +1057,44 @@ export function OrganizationPage() {
     }
   };
 
-  const handleRoleChange = (member: TeamMember, nextRole: string) => {
-    if (!canChangeRoleByAccess) {
-      toast.error('You do not have access to change roles.');
+  const requestCancelInvite = (member: TeamMember) => {
+    if (!canRemoveInvitedMemberByAccess) {
+      toast.error('Only the founder or a super admin can remove invited members.');
       return;
     }
-    const memberId = String(member.id || '').trim();
-    if (!memberId) return;
+    setInviteToRemove(member);
+  };
+
+  const handleCancelInvite = async (id: string) => {
+    setCancelInvitePendingMemberId(id);
+    try {
+      await cancelOrganizationInvite(axiosPrivate, id);
+      toast.success('Invite removed. This email can be invited again.');
+      setInviteToRemove(null);
+      await loadOrganization(selectedDepartment?.id || null);
+    } catch (error) {
+      console.error("Failed to cancel invite", error);
+      const cancelInviteErrorMessage = (error as any)?.response?.data?.message;
+      toast.error(cancelInviteErrorMessage || 'Failed to remove invited member.');
+    } finally {
+      setCancelInvitePendingMemberId('');
+    }
+  };
+
+  const openRoleChangeModal = (member: TeamMember) => {
+    if (!canChangeRoleByAccess) {
+      toast.error('Only the founder or a super admin can change roles.');
+      return;
+    }
+    if (isBasicPlanWorkspace) {
+      toast.error("Role changes aren't needed on the Basic plan.");
+      return;
+    }
+    const normalizedCurrentRole = normalizeRoleValue(member.role);
+    if (normalizedCurrentRole === 'owner' || normalizedCurrentRole === 'founder') {
+      toast.error("Transfer ownership instead to change the founder's role.");
+      return;
+    }
 
     const departmentIds = (Array.isArray(member.departmentNames) ? member.departmentNames : [])
       .map((departmentName) =>
@@ -1064,18 +1106,53 @@ export function OrganizationPage() {
       )
       .filter((id): id is string => Boolean(id));
 
-    updateOrganizationMemberRole(axiosPrivate, memberId, {
-      role: nextRole,
+    setRoleChangeForm({
+      role: SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(normalizedCurrentRole) || normalizedCurrentRole === 'admin'
+        ? normalizedCurrentRole
+        : normalizedCurrentRole === 'super-admin'
+          ? 'super-admin'
+          : 'employee',
       departments: departmentIds,
-    })
-      .then(() => {
-        toast.success('Member role updated.');
-        return loadOrganization(selectedDepartment?.id || null);
-      })
-      .catch((error) => {
-        console.error('Failed to update role', error);
-        toast.error(error?.response?.data?.message || 'Failed to update role.');
+    });
+    setRoleChangeTarget(member);
+  };
+
+  const submitRoleChange = async () => {
+    if (!roleChangeTarget) return;
+    const memberId = String(roleChangeTarget.id || '').trim();
+    if (!memberId) return;
+
+    const nextRole = roleChangeForm.role;
+    const nextDepartments = roleChangeForm.departments;
+
+    if (nextRole === 'admin' && nextDepartments.length === 0) {
+      toast.error('Select at least one department for this role.');
+      return;
+    }
+    if ((nextRole === 'manager' || nextRole === 'employee') && nextDepartments.length !== 1) {
+      toast.error(
+        nextRole === 'manager'
+          ? 'Manager role requires exactly one department.'
+          : 'Employee role requires exactly one department.',
+      );
+      return;
+    }
+
+    setIsSavingRoleChange(true);
+    try {
+      await updateOrganizationMemberRole(axiosPrivate, memberId, {
+        role: nextRole,
+        departments: nextRole === 'super-admin' ? [] : nextDepartments,
       });
+      toast.success('Member role updated.');
+      setRoleChangeTarget(null);
+      await loadOrganization(selectedDepartment?.id || null);
+    } catch (error) {
+      console.error('Failed to update role', error);
+      toast.error((error as any)?.response?.data?.message || 'Failed to update role.');
+    } finally {
+      setIsSavingRoleChange(false);
+    }
   };
 
   const handleDepartmentToggle = (deptId) => {
@@ -1324,10 +1401,24 @@ export function OrganizationPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
           <div className="min-w-0">
-            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Platform Users</p>
+            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Platform Users</p>
             <p className="text-[15px] font-pmedium text-slate-900">{teamMembers.length}</p>
           </div>
           <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Shield size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Enabled Users</p>
+            <p className="text-[15px] font-pmedium text-slate-900">{activeMemberCount}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><UserCheck size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Disabled Users</p>
+            <p className="text-[15px] font-pmedium text-slate-900">{disabledMemberCount}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><UserX size={16}/></div>
         </div>
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
           <div className="min-w-0">
@@ -1338,45 +1429,6 @@ export function OrganizationPage() {
           </div>
           <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Building2 size={16}/></div>
         </div>
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-          <div className="min-w-0">
-            <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Global Headcount</p>
-            <p className={`text-[15px] font-pmedium ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
-              {canAccessDepartmentsTab ? totalEmployees : '--'}
-            </p>
-          </div>
-          <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Users size={16}/></div>
-        </div>
-        <button
-          type="button"
-          title={addUserHoverMessage}
-          disabled={!canAddUserOnCurrentPlan}
-          className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all text-left w-full border-l-4 border-l-emerald-500 ${
-            canAddUserOnCurrentPlan
-              ? 'hover:shadow-md cursor-pointer'
-              : 'opacity-60 cursor-not-allowed'
-          }`}
-          onClick={handleOpenTeamMemberModal}>
-          <div className="min-w-0">
-            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Quick Action</p>
-            <p className="text-[15px] font-pmedium text-slate-900 flex items-center gap-1.5">
-              {!canAddUserOnCurrentPlan ? <Lock size={12} /> : null}
-              Add User
-            </p>
-            {/* <p className="text-[10px] font-pmedium text-slate-400 mt-1">{addUserHoverMessage}</p>
-            {isBasicPlanWorkspace && (
-              <p className="text-[10px] font-pmedium text-slate-400 mt-0.5">
-                {activeSuperAdminCount} of {basicPlanAdditionalUserLimit} additional user added
-              </p>
-            )}
-            {isProfessionalPlanWorkspace && (
-              <p className="text-[10px] font-pmedium text-slate-400 mt-0.5">
-                {activeMemberCount} of {professionalPlanMaxUsers} users added
-              </p>
-            )} */}
-          </div>
-          <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><UserPlus size={16}/></div>
-        </button>
       </div>
 
       
@@ -1607,13 +1659,39 @@ export function OrganizationPage() {
                       })()}
                     </td>
                     <td className="px-5 py-4 text-center">
-                      <button
-                        title="View Details"
-                        onClick={() => setViewingMember(member)}
-                        className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
-                      >
-                        <Eye size={15} />
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          title="View Details"
+                          onClick={() => setViewingMember(member)}
+                          className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        {normalizeRoleValue(member.role) !== 'owner' && member.status !== 'disabled' && canChangeRoleByAccess ? (
+                          <button
+                            title={isBasicPlanWorkspace ? "Role changes aren't needed on the Basic plan" : "Change Role"}
+                            disabled={isBasicPlanWorkspace}
+                            onClick={() => openRoleChangeModal(member)}
+                            className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:border-slate-200/60 disabled:hover:bg-white"
+                          >
+                            <ArrowUpDown size={15} />
+                          </button>
+                        ) : null}
+                        {(member.status === 'invited' || member.status === 'invite_sent') && canRemoveInvitedMemberByAccess ? (
+                          <button
+                            title="Remove invited member"
+                            disabled={cancelInvitePendingMemberId === member.id}
+                            onClick={() => requestCancelInvite(member)}
+                            className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cancelInvitePendingMemberId === member.id ? (
+                              <Loader2 size={15} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={15} />
+                            )}
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 )})}
@@ -2359,6 +2437,234 @@ export function OrganizationPage() {
         </div>
       )}
 
+      {inviteToRemove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-3 font-pmedium backdrop-blur-sm">
+          <div className="flex w-full max-w-md animate-in flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl duration-200 zoom-in-95">
+            <div className="flex items-start justify-between gap-4 border-b border-rose-100 bg-rose-50/60 p-5 sm:p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-pmedium text-slate-900">Remove Invited Member</h2>
+                  <p className="mt-1 text-[11px] font-pmedium text-slate-500">{inviteToRemove.name || inviteToRemove.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInviteToRemove(null)}
+                disabled={cancelInvitePendingMemberId === inviteToRemove.id}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700 disabled:opacity-50"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 p-5 sm:p-6">
+              <p className="text-sm text-slate-600">
+                This person hasn't registered yet. Removing them will free up their seat and cancel their invite link.
+              </p>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-[12px] font-pmedium text-amber-800">
+                Their current invite email will stop working — you'll need to send a brand new invite if you want them to join later.
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 border-t border-slate-100 bg-slate-50 p-4 sm:p-5">
+              <button
+                type="button"
+                onClick={() => setInviteToRemove(null)}
+                disabled={cancelInvitePendingMemberId === inviteToRemove.id}
+                className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[12px] font-pmedium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancelInvite(String(inviteToRemove.id || ''))}
+                disabled={cancelInvitePendingMemberId === inviteToRemove.id}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-[12px] font-pmedium text-white shadow-sm transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancelInvitePendingMemberId === inviteToRemove.id ? (
+                  <><Loader2 size={15} className="animate-spin" /> Removing...</>
+                ) : (
+                  <><Trash2 size={15} /> Remove Invite</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {roleChangeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-3 font-pmedium backdrop-blur-sm">
+          <div className="flex max-h-[90vh] w-full max-w-xl animate-in flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl duration-200 zoom-in-95">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/30 p-5 sm:p-6">
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-[#2563EB] p-1.5 text-white"><ArrowUpDown size={16} /></span>
+                <div>
+                  <h2 className="text-lg font-pmedium text-primary">Change Role</h2>
+                  <p className="mt-1 text-[11px] font-pmedium text-slate-500">{roleChangeTarget.name || roleChangeTarget.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRoleChangeTarget(null)}
+                disabled={isSavingRoleChange}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700 disabled:opacity-50"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Platform Role *</label>
+                <select
+                  value={roleChangeForm.role}
+                  onChange={(e) => {
+                    const nextRole = e.target.value;
+                    setRoleChangeForm((current) => ({
+                      role: nextRole,
+                      departments:
+                        nextRole === 'super-admin'
+                          ? []
+                          : nextRole === 'manager'
+                            ? []
+                            : nextRole === 'employee'
+                              ? current.departments.slice(0, 1)
+                              : current.departments,
+                    }));
+                  }}
+                  disabled={isBasicPlanWorkspace}
+                  className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <option value="employee" disabled={isBasicPlanWorkspace}>Department Employee</option>
+                  <option value="manager" disabled={isBasicPlanWorkspace || inviteDepartmentOptions.length === 0}>Department Manager</option>
+                  <option value="admin" disabled={isBasicPlanWorkspace}>Department Admin</option>
+                  <option value="super-admin" disabled={!canInviteSuperAdmin}>Super Admin</option>
+                </select>
+                {isBasicPlanWorkspace ? (
+                  <p className="text-[11px] font-pmedium text-amber-600">Role changes aren't needed on the Basic plan.</p>
+                ) : !canInviteSuperAdmin ? (
+                  <p className="text-[11px] font-pmedium text-amber-600">Only the founder can promote someone to Super Admin.</p>
+                ) : inviteDepartmentOptions.length === 0 ? (
+                  <p className="text-[11px] font-pmedium text-amber-600">Add a unit (department) before assigning the Manager role.</p>
+                ) : null}
+              </div>
+
+              {roleChangeForm.role !== 'super-admin' ? (
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
+                    Assign Department
+                    <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[#2563EB]">{roleChangeForm.departments.length} Selected</span>
+                  </label>
+                  <p className="-mt-1 text-[11px] text-slate-500">{getTeamMemberDepartmentHelperText(roleChangeForm.role)}</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {inviteDepartmentOptions.map((dept) => {
+                      const departmentId = String(dept.id || '').trim();
+                      const isPlanAllowedDepartment = isDepartmentAllowedForPlan(workspacePlan, dept.name);
+                      const isSelected = departmentId ? roleChangeForm.departments.includes(departmentId) : false;
+                      const hasAssignedManager =
+                        (Boolean(String(dept.managerUserId || dept.managerId || '').trim()) &&
+                          String(dept.managerUserId || dept.managerId || '') !== String(roleChangeTarget.userId || roleChangeTarget.id || '')) ||
+                        Boolean(
+                          dept.employees?.some((employeeMember) => {
+                            const employeeRole = normalizeRoleValue(employeeMember.role);
+                            const employeeStatus = String(employeeMember.status || '').toLowerCase();
+                            const isSameMember =
+                              String(employeeMember.userId || employeeMember.id || '') ===
+                              String(roleChangeTarget.userId || roleChangeTarget.id || '');
+                            return employeeRole === 'manager' && employeeStatus !== 'disabled' && !isSameMember;
+                          }),
+                        );
+                      const isManagerDepartmentDisabled = roleChangeForm.role === 'manager' && hasAssignedManager;
+                      const isDepartmentDisabled = !isPlanAllowedDepartment || isManagerDepartmentDisabled;
+                      return (
+                        <button
+                          key={dept.id}
+                          type="button"
+                          disabled={isDepartmentDisabled}
+                          onClick={() => {
+                            if (!departmentId || isDepartmentDisabled) return;
+                            setRoleChangeForm((current) => {
+                              const alreadySelected = current.departments.includes(departmentId);
+                              if (SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(current.role)) {
+                                return { ...current, departments: alreadySelected ? [] : [departmentId] };
+                              }
+                              return {
+                                ...current,
+                                departments: alreadySelected
+                                  ? current.departments.filter((id) => id !== departmentId)
+                                  : [...current.departments, departmentId],
+                              };
+                            });
+                          }}
+                          className={`flex min-h-[54px] w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                            isSelected
+                              ? 'border-blue-300 bg-blue-50 text-blue-800 shadow-sm'
+                              : isDepartmentDisabled
+                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/40'
+                          }`}
+                        >
+                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                            isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-300 bg-white text-transparent'
+                          }`}>
+                            <CheckSquare size={13} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[12px] font-pmedium">{normalizeDepartmentLabel(dept.name)}</span>
+                            {isManagerDepartmentDisabled ? (
+                              <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-amber-600">Manager already added</span>
+                            ) : null}
+                            {!isPlanAllowedDepartment ? (
+                              <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-slate-500">Custom plan only</span>
+                            ) : null}
+                          </span>
+                          {isDepartmentDisabled ? <Lock size={13} className="shrink-0 text-slate-400" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                  <div className="rounded-xl bg-white p-2 shadow-sm"><Crown className="text-[#2563EB]" size={20} /></div>
+                  <p className="text-[12px] font-pmedium leading-relaxed text-slate-700">Super Admins automatically receive top-level access to ALL departments and platform modules.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2.5 border-t border-slate-100 bg-slate-50 p-4 sm:p-5">
+              <button
+                type="button"
+                onClick={() => setRoleChangeTarget(null)}
+                disabled={isSavingRoleChange}
+                className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[12px] font-pmedium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitRoleChange}
+                disabled={
+                  isSavingRoleChange ||
+                  (roleChangeForm.role === 'admin' && roleChangeForm.departments.length === 0) ||
+                  (SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(roleChangeForm.role) && roleChangeForm.departments.length !== 1)
+                }
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-[12px] font-pmedium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSavingRoleChange ? (
+                  <><Loader2 size={15} className="animate-spin" /> Saving...</>
+                ) : (
+                  <><ArrowUpDown size={15} /> Update Role</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTeamMemberModal && (
         <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
           <div className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">
@@ -2430,7 +2736,7 @@ export function OrganizationPage() {
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
                 >
                    <option value="employee" disabled={isBasicPlanWorkspace}>Department Employee</option>
-                   <option value="manager" disabled={isBasicPlanWorkspace}>Department Manager</option>
+                   <option value="manager" disabled={isBasicPlanWorkspace || inviteDepartmentOptions.length === 0}>Department Manager</option>
                    <option value="admin" disabled={isBasicPlanWorkspace}>Department Admin</option>
                    <option value="super-admin" disabled={!canInviteSuperAdmin}>Super Admin</option>
                 </select>
@@ -2547,7 +2853,7 @@ export function OrganizationPage() {
                             <span className="block text-[12px] font-pmedium">{normalizeDepartmentLabel(dept.name)}</span>
                             {normalizedTeamMemberRole === 'manager' && hasAssignedManager && (
                               <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-amber-600">
-                                Manager already assigned
+                                Manager already added
                               </span>
                             )}
                             {!isPlanAllowedDepartment && (

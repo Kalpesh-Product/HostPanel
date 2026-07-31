@@ -122,8 +122,10 @@ const Header = ({
             (currentUserEmail && memberEmail === currentUserEmail)
           );
         });
-        if (me?.departmentNames && Array.isArray(me.departmentNames) && me.departmentNames.length > 0) {
+        if (me?.departmentNames && Array.isArray(me.departmentNames) && me.departmentNames.length === 1) {
           setDepartmentName(me.departmentNames[0]);
+        } else {
+          setDepartmentName("");
         }
       } catch {
         // Ignore errors

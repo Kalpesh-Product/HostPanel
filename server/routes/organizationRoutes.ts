@@ -4,6 +4,7 @@ import {
   getDepartments,
   assignOrganizationActingManager,
   assignOrganizationDepartmentManager,
+  cancelOrganizationInvite,
   getOrganizationOverview,
   inviteOrganizationMember,
   linkOrganizationMember,
@@ -29,6 +30,7 @@ router.delete(
   removeOrganizationActingManager,
 );
 router.post("/members/invite", inviteOrganizationMember);
+router.delete("/members/:memberId/invite", cancelOrganizationInvite);
 router.patch("/members/:memberId/status", toggleOrganizationMemberStatus);
 router.patch("/members/:memberId/role", updateOrganizationMemberRole);
 router.patch("/members/:memberId/access", updateOrganizationMemberAccess);

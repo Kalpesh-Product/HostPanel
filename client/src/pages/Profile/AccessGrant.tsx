@@ -60,20 +60,6 @@ interface MappedMember {
   workspaceAccesses: WorkspaceAccess[];
 }
 
-interface RoleActionWarning {
-  type: 'promote' | 'demote' | string;
-  title?: string;
-  message?: string;
-  note?: string;
-  nextRole?: string;
-  requiresDepartments?: boolean;
-  departmentMode?: 'single' | 'multi' | string;
-  departmentIds?: string[];
-  rawRole?: string;
-  departments?: string[];
-  [key: string]: unknown;
-}
-
 interface WorkspaceTransferForm {
   targetWorkspaceId: string;
   role: string;
@@ -333,22 +319,6 @@ function getRoleRank(role = '') {
   return 0;
 }
 
-function getNextHigherRole(role = '') {
-  const group = getRoleGroup(role);
-  if (group === 'Employee') return 'manager';
-  if (group === 'Manager') return 'admin';
-  if (group === 'Admin') return 'super_admin';
-  return null;
-}
-
-function getNextLowerRole(role = '') {
-  const group = getRoleGroup(role);
-  if (group === 'Super-Admin') return 'admin';
-  if (group === 'Admin') return 'manager';
-  if (group === 'Manager') return 'employee';
-  return null;
-}
-
 function getTransferRoleValue(role = '') {
   const group = getRoleGroup(role);
 
@@ -441,7 +411,6 @@ export default function AccessGrantsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDetailPanel, setShowDetailPanel] = useState(false);
   const [selectedUser, setSelectedUser] = useState<MappedMember | null>(null);
-  const [roleActionWarning, setRoleActionWarning] = useState<RoleActionWarning | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showTransferWarning, setShowTransferWarning] = useState(false);
   const [transferTargetUserId, setTransferTargetUserId] = useState('');
@@ -599,7 +568,6 @@ export default function AccessGrantsPage() {
   }, [selectedUser, transferWorkspaceOptions]);
   const canLinkMembers =
     canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && linkWorkspaceOptions.length > 0;
-  const isDemoteDisabled = false;
   const selectedTransferWorkspace = useMemo(
     () => transferWorkspaceOptions.find((item) => String(item.id) === String(workspaceTransferForm.targetWorkspaceId)) || null,
     [transferWorkspaceOptions, workspaceTransferForm.targetWorkspaceId],
@@ -881,6 +849,30 @@ export default function AccessGrantsPage() {
     });
   };
 
+  const isSectionFullySelected = (section: { modules: Array<{ id: string }> }) => {
+    const db = memberAccessDraft?.db || {};
+    return section.modules.length > 0 && section.modules.every((module) => Boolean(db[module.id]));
+  };
+
+  const toggleSectionSelectAll = (section: { modules: Array<{ id: string }> }) => {
+    if (!memberAccessTarget || section.modules.length === 0) {
+      return;
+    }
+
+    const nextValue = !isSectionFullySelected(section);
+    setMemberAccessDraft((current) => {
+      const db = current?.db || {};
+      const nextDb: Record<string, boolean> = { ...db };
+      section.modules.forEach((module) => {
+        nextDb[module.id] = nextValue;
+        collectChildIds(module.id).forEach((childId) => {
+          nextDb[childId] = nextValue;
+        });
+      });
+      return { ...current, db: nextDb };
+    });
+  };
+
   const toggleMemberChildModule = (moduleId: string) => {
     if (!memberAccessTarget) {
       return;
@@ -984,8 +976,11 @@ export default function AccessGrantsPage() {
   };
 
   const handleOpenDetails = (user: MappedMember) => {
+    if (String(user?.status || '').trim().toLowerCase() === 'disabled') {
+      toast.error('Enable the user to manage role.');
+      return;
+    }
     setSelectedUser(user);
-    setRoleActionWarning(null);
     setShowDetailPanel(true);
   };
 
@@ -1062,147 +1057,6 @@ export default function AccessGrantsPage() {
 
     const currentUserPayload = payload.currentUser as Record<string, unknown> | null | undefined;
     refreshCurrentUserSession((currentUserPayload as any)?.user || currentUserPayload || null);
-  };
-
-  const handlePromote = async () => {
-    if (!canEditAccessGrants) {
-      toast.error('Only the workspace founder can change access grants.');
-      return;
-    }
-
-    if (!selectedUser || selectedUser.roleGroup === 'Founder') {
-      return;
-    }
-
-    const nextRole = getNextHigherRole(selectedUser.rawRole);
-    if (!nextRole) {
-      toast.info('No higher role is available for this user.');
-      return;
-    }
-
-    if (!roleActionWarning || roleActionWarning.type !== 'promote') {
-      const isManagerToAdmin = normalizeRole(selectedUser.rawRole) === 'manager' && normalizeRole(nextRole) === 'admin';
-      const selectedDepartmentIds = currentWorkspaceDepartmentOptions
-        .filter((department) =>
-          Array.isArray(selectedUser?.departments) &&
-          selectedUser.departments.some((name) => String(name || '').trim().toLowerCase() === department.name.toLowerCase()),
-        )
-        .map((department) => department.id);
-      setRoleActionWarning({
-        type: 'promote',
-        nextRole,
-        title: `Confirm promotion for ${selectedUser.name}`,
-        message: `${selectedUser.name} will be promoted to ${getRoleLabel(nextRole)}.`,
-        note: isManagerToAdmin
-          ? "Select departments this admin should manage."
-          : "This will expand the user's access to the next role level.",
-        requiresDepartments: isManagerToAdmin,
-        departmentMode: 'multi',
-        departmentIds: selectedDepartmentIds,
-      });
-      return;
-    }
-
-    const requiresDepartments = Boolean(roleActionWarning.requiresDepartments);
-    const departmentIds = Array.isArray(roleActionWarning.departmentIds) ? roleActionWarning.departmentIds.filter(Boolean) : [];
-    if (requiresDepartments && departmentIds.length === 0) {
-      toast.error('Select at least one department for this role change.');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, {
-        role: roleActionWarning.nextRole || nextRole,
-        departments: requiresDepartments ? departmentIds : [],
-      });
-      await reloadFromResponse(response);
-      setShowDetailPanel(false);
-      setSelectedUser(null);
-      setRoleActionWarning(null);
-      toast.success(`${selectedUser.name} promoted to ${getRoleLabel(roleActionWarning.nextRole || nextRole)}.`);
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to promote user right now.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDemote = async () => {
-    if (!canEditAccessGrants) {
-      toast.error('Only the workspace founder can change access grants.');
-      return;
-    }
-
-    if (!selectedUser || selectedUser.roleGroup === 'Founder') {
-      return;
-    }
-
-    const nextRole = getNextLowerRole(selectedUser.rawRole);
-    if (!nextRole) {
-      toast.info('No lower role is available for this user.');
-      return;
-    }
-
-    if (!roleActionWarning || roleActionWarning.type !== 'demote') {
-      const currentNormalizedRole = normalizeRole(selectedUser.rawRole);
-      const nextNormalizedRole = normalizeRole(nextRole);
-      const isSuperAdminToAdmin = currentNormalizedRole === 'super_admin' && nextNormalizedRole === 'admin';
-      const isAdminToManager = currentNormalizedRole === 'admin' && nextNormalizedRole === 'manager';
-      const selectedDepartmentIds = currentWorkspaceDepartmentOptions
-        .filter((department) =>
-          Array.isArray(selectedUser?.departments) &&
-          selectedUser.departments.some((name) => String(name || '').trim().toLowerCase() === department.name.toLowerCase()),
-        )
-        .map((department) => department.id);
-      setRoleActionWarning({
-        type: 'demote',
-        nextRole,
-        title: `Confirm demotion for ${selectedUser.name}`,
-        message: `${selectedUser.name} will be demoted to ${getRoleLabel(nextRole)}.`,
-        note: isSuperAdminToAdmin
-          ? 'Select departments this admin can access after demotion.'
-          : isAdminToManager
-            ? 'Select one department this manager can access.'
-            : "This will reduce the user's access to the next lower role level.",
-        requiresDepartments: isSuperAdminToAdmin || isAdminToManager,
-        departmentMode: isAdminToManager ? 'single' : 'multi',
-        departmentIds:
-          isAdminToManager
-            ? [selectedDepartmentIds[0] || currentWorkspaceDepartmentOptions[0]?.id || ''].filter(Boolean)
-            : selectedDepartmentIds,
-      });
-      return;
-    }
-
-    const requiresDepartments = Boolean(roleActionWarning.requiresDepartments);
-    const isSingleDepartmentMode = roleActionWarning.departmentMode === 'single';
-    const departmentIds = Array.isArray(roleActionWarning.departmentIds) ? roleActionWarning.departmentIds.filter(Boolean) : [];
-    if (requiresDepartments && departmentIds.length === 0) {
-      toast.error('Select at least one department for this role change.');
-      return;
-    }
-    if (requiresDepartments && isSingleDepartmentMode && departmentIds.length !== 1) {
-      toast.error('Select exactly one department for manager access.');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, {
-        role: roleActionWarning.nextRole || nextRole,
-        departments: requiresDepartments ? departmentIds : [],
-      });
-      await reloadFromResponse(response);
-      setShowDetailPanel(false);
-      setSelectedUser(null);
-      setRoleActionWarning(null);
-      toast.success(`${selectedUser.name} demoted to ${getRoleLabel(roleActionWarning.nextRole || nextRole)}.`);
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to demote user right now.');
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleTransferOwnership = async () => {
@@ -1327,8 +1181,6 @@ export default function AccessGrantsPage() {
     }
   };
 
-  const nextHigherRole = selectedUser ? getNextHigherRole(selectedUser.rawRole) : null;
-  const nextLowerRole = selectedUser ? getNextLowerRole(selectedUser.rawRole) : null;
   const workspaceDepartmentCount = Array.isArray(workspace?.organizationDepartments)
     ? workspace.organizationDepartments.length
     : 0;
@@ -1577,8 +1429,13 @@ export default function AccessGrantsPage() {
                                   <button
                                     onClick={() => handleOpenDetails(user)}
                                     type="button"
-                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                                    title={canEditAccessGrants ? 'Manage Role' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
+                                    aria-disabled={isUserDisabled}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      isUserDisabled
+                                        ? 'bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
+                                    }`}
+                                    title={isUserDisabled ? 'Enable the user to manage role' : (canEditAccessGrants ? 'Manage Role' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role')}
                                   >
                                     <UserCog size={15} strokeWidth={2.5} />
                                   </button>
@@ -1616,7 +1473,6 @@ export default function AccessGrantsPage() {
                   onClick={() => {
                     setShowDetailPanel(false);
                     setSelectedUser(null);
-                    setRoleActionWarning(null);
                   }}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors border border-white/5"
                 >
@@ -1639,164 +1495,12 @@ export default function AccessGrantsPage() {
                   </div>
                 </div>
 
-                {roleActionWarning ? (
-                  <div className="space-y-3">
-                    <div className={`rounded-[1.2rem] border p-4 sm:p-4 ${roleActionWarning.type === 'promote' ? 'border-emerald-200 bg-emerald-50/80' : 'border-amber-200 bg-amber-50/80'}`}>
-                      <div className="flex items-start gap-4">
-                        <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${roleActionWarning.type === 'promote' ? 'bg-emerald-600' : 'bg-amber-500'}`}>
-                          <AlertCircle className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="space-y-3">
-                          <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${roleActionWarning.type === 'promote' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                            Final Confirmation
-                          </p>
-                          <p className={`text-base font-bold ${roleActionWarning.type === 'promote' ? 'text-emerald-950' : 'text-amber-950'}`}>
-                            {roleActionWarning.title}
-                          </p>
-                          <p className={`text-sm leading-relaxed ${roleActionWarning.type === 'promote' ? 'text-emerald-900/80' : 'text-amber-900/80'}`}>
-                            {roleActionWarning.message}
-                          </p>
-                          <p className={`text-xs font-medium ${roleActionWarning.type === 'promote' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                            {roleActionWarning.note}
-                          </p>
-                          {roleActionWarning.requiresDepartments && (
-                            <div className="space-y-2 rounded-xl border border-white/70 bg-white/80 p-3">
-                              <label className="block text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">
-                                Department Access
-                              </label>
-                              {roleActionWarning.departmentMode === 'single' ? (
-                                <select
-                                  value={(roleActionWarning.departmentIds?.[0] || '')}
-                                  onChange={(event) =>
-                                    setRoleActionWarning((current) => current ? ({
-                                      ...current,
-                                      departmentIds: event.target.value ? [event.target.value] : [],
-                                    }) : null)
-                                  }
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                >
-                                  <option value="">Select one department</option>
-                                  {currentWorkspaceDepartmentOptions.map((department) => (
-                                    <option key={department.id} value={department.id}>
-                                      {department.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <div className="max-h-36 space-y-1 overflow-auto rounded-lg border border-slate-200 bg-white p-2">
-                                  {currentWorkspaceDepartmentOptions.map((department) => {
-                                    const isChecked = Array.isArray(roleActionWarning.departmentIds)
-                                      ? roleActionWarning.departmentIds.includes(department.id)
-                                      : false;
-                                    return (
-                                      <label key={department.id} className="flex items-center gap-2 rounded px-1.5 py-1 text-sm text-slate-700 hover:bg-slate-50">
-                                        <input
-                                          type="checkbox"
-                                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                          checked={isChecked}
-                                          onChange={(event) =>
-                                            setRoleActionWarning((current) => current ? ({
-                                              ...current,
-                                              departmentIds: event.target.checked
-                                                ? [...(Array.isArray(current.departmentIds) ? current.departmentIds : []), department.id]
-                                                : (Array.isArray(current.departmentIds) ? current.departmentIds : []).filter((id) => id !== department.id),
-                                            }) : null)
-                                          }
-                                        />
-                                        <span>{department.name}</span>
-                                      </label>
-                                    );
-                                  })}
-                                  {currentWorkspaceDepartmentOptions.length === 0 && (
-                                    <div className="px-1 py-2 text-sm text-slate-400">No departments available.</div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-white border border-slate-100 px-3 py-2.5 shadow-sm">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Ready to continue?</p>
-                        <p className="text-xs text-slate-500">Use confirm only if you want to apply the role update.</p>
-                      </div>
-                      <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">
-                        Second step
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-1">
-                      <button
-                        onClick={() => setRoleActionWarning(null)}
-                        disabled={isSaving || !canEditAccessGrants}
-                        className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg font-medium transition-colors text-sm disabled:opacity-60"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={roleActionWarning.type === 'promote' ? handlePromote : handleDemote}
-                        disabled={isSaving || !canEditAccessGrants || (roleActionWarning.type === 'demote' && isDemoteDisabled)}
-                        className={`px-4 py-2 text-white rounded-lg font-pmedium transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
-                      >
-                        {isSaving ? 'Saving...' : roleActionWarning.type === 'promote' ? 'Confirm Promote' : 'Confirm Demote'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
+                <div className="space-y-3">
                     <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wider">Available Actions</h3>
 
-                    {!canEditAccessGrants && (
-                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
-                        Super Admins can add or transfer unit access for employees. Only the workspace founder can promote, demote, or transfer founder access.
-                      </div>
-                    )}
-
-                    {canEditAccessGrants && nextLowerRole && (
-                      <button
-                        title={isDemoteDisabled ? 'Demote is disabled.' : ''}
-                        onClick={handleDemote}
-                        disabled={isSaving || !canEditAccessGrants || isDemoteDisabled}
-                        className="w-full p-3 bg-white hover:bg-amber-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
-                      >
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-9 h-9 bg-amber-100 group-hover:bg-amber-200 rounded-xl flex items-center justify-center transition-colors">
-                              <AlertCircle className="w-4 h-4 text-amber-600" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-[13px] text-slate-900">Demote User</div>
-                              <div className="text-xs text-slate-500 mt-0.5">Lower this user's role by one level</div>
-                            </div>
-                          </div>
-                          <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-amber-500 transition-colors" />
-                        </div>
-                      </button>
-                    )}
-
-                    {canEditAccessGrants && nextHigherRole && (
-                      <button
-                        onClick={handlePromote}
-                        disabled={isSaving || !canEditAccessGrants}
-                        className="w-full p-3 bg-white hover:bg-emerald-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
-                      >
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-9 h-9 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-[13px] text-slate-900">Promote User</div>
-                              <div className="text-xs text-slate-500 mt-0.5">Raise this user to the next role level</div>
-                            </div>
-                          </div>
-                          <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
-                        </div>
-                      </button>
-                    )}
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                      To promote, demote, or change this user's role, use Change Role in Organization Management.
+                    </div>
 
                       {canTransferMembers && (
                         <button
@@ -1839,11 +1543,10 @@ export default function AccessGrantsPage() {
                           </div>
                         </button>
                       )}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
+          </div>
         )}
 
         {showMemberAccessDialog && memberAccessTarget && (
@@ -1868,7 +1571,19 @@ export default function AccessGrantsPage() {
                 {workspaceAccessSections.map((section, sectionIndex) =>
                 isTargetEmployee && normalizeModuleKey(section.key) === 'founder-core-modules' ? null : (
                   <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <h4 className="mb-2 text-[11px] font-pmedium uppercase tracking-wider text-slate-500">{section.title}</h4>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h4 className="text-[11px] font-pmedium uppercase tracking-wider text-slate-500">{section.title}</h4>
+                      {section.modules.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionSelectAll(section)}
+                          disabled={!canManageModuleAccess || (isTargetEmployee && normalizeModuleKey(section.key) === 'founder-core-modules')}
+                          className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:text-blue-800 transition-colors disabled:text-slate-300 disabled:cursor-not-allowed"
+                        >
+                          {isSectionFullySelected(section) ? 'Deselect All' : 'Select All'}
+                        </button>
+                      ) : null}
+                    </div>
                     <div className="space-y-2">
                       {normalizeModuleKey(section.key) === 'department-accesses' ? (
                         groupDepartmentModules(section.modules).map((group) => {

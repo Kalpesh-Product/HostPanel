@@ -2818,7 +2818,8 @@ export function MeetingRoomsPage() {
     if (activeTab === 'invites') return [];
     return visibleBookings.filter((booking) => {
       const matchesTab = isBookingInActiveTab(booking);
-      const matchesSearch = (booking.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (booking.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = (booking.roomName || '').toLowerCase().includes(q) || (booking.bookedByName || '').toLowerCase().includes(q) || (booking.purpose || '').toLowerCase().includes(q);
       const displayStatus = getBookingDisplayStatus(booking);
       const matchesStatus = statusFilter === 'all' || (statusFilter === 'rescheduled' ? isRescheduledBooking(booking) : displayStatus === statusFilter);
       const matchesDateRange = doesBookingOverlapDateRange(booking, bookingDateFrom, bookingDateTo);
@@ -2847,7 +2848,8 @@ export function MeetingRoomsPage() {
           const matchesClient = getExternalClientName(b).toLowerCase().includes(q);
           const matchesRoom = (b.roomName || '').toLowerCase().includes(q);
           const matchesCode = ((b as any).bookingCode || '').toLowerCase().includes(q);
-          if (!matchesClient && !matchesRoom && !matchesCode) return false;
+          const matchesPurpose = (b.purpose || '').toLowerCase().includes(q);
+          if (!matchesClient && !matchesRoom && !matchesCode && !matchesPurpose) return false;
         }
         if (externalPaymentFilter !== 'all') {
           if ((b as any).paymentStatus !== externalPaymentFilter) return false;
@@ -2883,7 +2885,7 @@ export function MeetingRoomsPage() {
     return receivedInvites.filter((invite) => {
       if (isEmployeeProfile && invite.status === 'accepted') return false;
       const inviteName = resolveInviteDisplayName(invite);
-      const matchesSearch = (invite.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (invite.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase()) || inviteName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = (invite.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (invite.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase()) || inviteName.toLowerCase().includes(searchQuery.toLowerCase()) || ((invite as any).purpose || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || invite.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -4353,7 +4355,7 @@ export function MeetingRoomsPage() {
                     <input
                       type="text"
                       value={mainBookingTab === 'external_booking' ? externalSearchQuery : searchQuery}
-                      placeholder={mainBookingTab === 'external_booking' ? 'Search clients, rooms, or booking codes...' : 'Search rooms or hosts...'}
+                      placeholder={mainBookingTab === 'external_booking' ? 'Search clients, rooms, purpose, or booking codes...' : 'Search rooms, hosts, or purpose...'}
                       className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
                       onChange={(e) => mainBookingTab === 'external_booking' ? setExternalSearchQuery(e.target.value) : setSearchQuery(e.target.value)}
                     />

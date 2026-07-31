@@ -573,7 +573,7 @@ const CreateWorkspacePage: React.FC = () => {
                   placeholder="Enter Unique unit name"
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
                 {workspaceNameStatus !== "idle" ? (
                   <p
@@ -596,7 +596,7 @@ const CreateWorkspacePage: React.FC = () => {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   disabled={isCompanyNameLocked}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
 
@@ -610,7 +610,7 @@ const CreateWorkspacePage: React.FC = () => {
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                   disabled={isBrandNameLocked}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
             </div>
@@ -629,7 +629,7 @@ const CreateWorkspacePage: React.FC = () => {
                 placeholder="Enter your address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
               />
             </div>
 
@@ -706,7 +706,7 @@ const CreateWorkspacePage: React.FC = () => {
                         borderRadius: "12px",
                         backgroundColor: "#f2f4f8",
                         fontSize: "10px",
-                        color: "#334155",
+                        color: "#000000",
                         paddingLeft: "6px",
                         paddingRight: "8px",
                         alignItems: "center",
@@ -727,7 +727,7 @@ const CreateWorkspacePage: React.FC = () => {
                       "& .MuiOutlinedInput-input": {
                         padding: "4px 8px",
                         "&::placeholder": {
-                          color: "#8d99ad",
+                          color: "#000000",
                           opacity: 1,
                         },
                       },
@@ -770,11 +770,9 @@ const CreateWorkspacePage: React.FC = () => {
                   value={stateName}
                   onChange={(e) => setStateName(e.target.value)}
                   disabled={!country || isStatesLoading || hasLockedInviteState}
-                  className={`${workspaceSelectClassName} ${
-                    stateName ? "text-[#334155]" : "text-[#8d99ad]"
-                  }`}
+                  className={`${workspaceSelectClassName} text-black`}
                   style={{
-                    WebkitTextFillColor: stateName ? "#334155" : "#8d99ad",
+                    WebkitTextFillColor: "#000000",
                   }}
                 >
                   <option value="">
@@ -807,11 +805,9 @@ const CreateWorkspacePage: React.FC = () => {
                   disabled={
                     !country || !stateName || isCitiesLoading || hasLockedInviteCity
                   }
-                  className={`${workspaceSelectClassName} ${
-                    city ? "text-[#334155]" : "text-[#8d99ad]"
-                  }`}
+                  className={`${workspaceSelectClassName} text-black`}
                   style={{
-                    WebkitTextFillColor: city ? "#334155" : "#8d99ad",
+                    WebkitTextFillColor: "#000000",
                   }}
                 >
                   <option value="">
@@ -843,9 +839,9 @@ const CreateWorkspacePage: React.FC = () => {
                     setIsBusinessTypeOpen((prev) => !prev);
                   }}
                   disabled={hasLockedInviteBusinessTypes}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 >
-                  <span className={businessTypes.length ? "text-[#334155]" : "text-[#8d99ad]"}>
+                  <span className="text-black">
                     {businessTypeLabel}
                   </span>
                   <ChevronDown size={16} className="shrink-0 text-[#8d99ad]" />
@@ -888,9 +884,7 @@ const CreateWorkspacePage: React.FC = () => {
                       setTimezone(event.target.value);
                     }}
                     disabled={!country}
-                  className={`${workspaceSelectClassName} ${
-                    timezone ? "text-[#334155]" : "text-[#8d99ad]"
-                  }`}
+                  className={`${workspaceSelectClassName} text-black`}
                 >
                   <option value="">Select timezone</option>
                   {timezoneOptions.map((item) => (
@@ -916,9 +910,7 @@ const CreateWorkspacePage: React.FC = () => {
                   value={currency}
                   onChange={(event) => setCurrency(event.target.value)}
                   disabled={!country}
-                  className={`${workspaceSelectClassName} ${
-                    currency ? "text-[#334155]" : "text-[#8d99ad]"
-                  }`}
+                  className={`${workspaceSelectClassName} text-black`}
                 >
                   <option value="">Select currency</option>
                   {currencyOptions.map((item) => (

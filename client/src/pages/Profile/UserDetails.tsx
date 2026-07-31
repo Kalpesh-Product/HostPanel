@@ -749,9 +749,11 @@ export default function UserDetails() {
                 <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700">
                   <ShieldCheck size={14} /> {profileRole}
                 </span>
-                {/* <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
-                  <Building size={14} /> {profileDepartment}
-                </span> */}
+                {profileDepartment && profileDepartment !== "-" ? (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
+                    <Building size={14} /> {profileDepartment}
+                  </span>
+                ) : null}
                 <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
                   profileStatus === "active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white/80 text-slate-600"
                 }`}>

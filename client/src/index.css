@@ -21,6 +21,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background-color: #ffffff;
+}
+
 /* Staff "View As" read-only sessions (see MainLayout.tsx / PrimaryButton.tsx):
    PrimaryButton disables itself in JS, but plenty of forms use a plain
    native submit button. Belt-and-braces so those can't fire a write either. */

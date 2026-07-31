@@ -1469,6 +1469,61 @@ export const inviteOrganizationMember = async (req, res, next) => {
   }
 };
 
+export const cancelOrganizationInvite = async (req, res, next) => {
+  try {
+    const { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const actorMembership = await resolveMembershipByWorkspace(
+      workspace._id,
+      req.user,
+      "role grantedModules departments",
+    );
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    const actorRoleBand = getRoleBand(actorMembership.role);
+    if (actorRoleBand !== "owner" && actorRoleBand !== "super_admin") {
+      return res.status(403).json({
+        message: "Only the founder or a super admin can remove invited members.",
+      });
+    }
+
+    const member = await WorkspaceMember.findOne({
+      _id: req.params.memberId,
+      workspace: workspace._id,
+    });
+    if (!member) {
+      return res.status(404).json({ message: "Member not found." });
+    }
+
+    const targetUser = await HostUser.findById(member.user);
+    if (!targetUser) {
+      return res.status(404).json({ message: "Invited user not found." });
+    }
+    if (targetUser.password || ["registered", "joined"].includes(targetUser.inviteStatus)) {
+      return res.status(400).json({
+        message: "This person has already registered and can no longer be removed.",
+      });
+    }
+
+    await Department.updateMany(
+      { workspaceId: workspace._id, managerUser: targetUser._id },
+      { $set: { managerUser: null } },
+    );
+    await EmployeeProfile.deleteOne({ linkedWorkspaceMemberId: member._id, workspaceId: workspace._id });
+    await WorkspaceMember.deleteOne({ _id: member._id });
+    await HostUser.deleteOne({ _id: targetUser._id });
+
+    return res.status(200).json({
+      message: "Invite removed. This email can be invited again.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const assignOrganizationActingManager = async (req, res, next) => {
   try {
     const { workspace } = await getCurrentWorkspace(req.user);
@@ -1590,8 +1645,12 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
-    if (getRoleBand(actorMembership.role) !== "owner") {
-      return res.status(403).json({ message: "Only the workspace founder can promote or demote members." });
+    const actorRoleBand = getRoleBand(actorMembership.role);
+    if (actorRoleBand !== "owner" && actorRoleBand !== "super_admin") {
+      return res.status(403).json({ message: "Only the founder or a super admin can promote or demote members." });
+    }
+    if (isBasicPlan(workspace)) {
+      return res.status(403).json({ message: "Role changes aren't needed on the Basic plan." });
     }
 
     const member = await WorkspaceMember.findOne({
@@ -1601,9 +1660,20 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     }).populate("role").populate("departments");
     if (!member) return res.status(404).json({ message: "Member not found." });
 
+    if (String(member.user) === String(req.user)) {
+      return res.status(400).json({ message: "You cannot change your own role." });
+    }
+
     const previousRoleBand = getRoleBand(member.role);
+    if (previousRoleBand === "owner") {
+      return res.status(403).json({ message: "Transfer ownership instead to change the founder's role." });
+    }
+
     const nextRoleStr = normalizeRoleForStorage(req.body?.role || getRoleName(member.role));
     const nextRoleBand = getRoleBand(nextRoleStr);
+    if (nextRoleBand === "owner") {
+      return res.status(400).json({ message: "Use ownership transfer to make someone the founder." });
+    }
 
     let targetRoleDoc = await Role.findOne({ name: nextRoleStr });
     if (!targetRoleDoc) {
@@ -1658,6 +1728,10 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       }
     }
 
+    const previousDepartmentIds = (Array.isArray(member.departments) ? member.departments : []).map(
+      (d) => d?._id || d,
+    );
+
     member.role = targetRoleDoc._id;
     if (["admin", "manager", "employee"].includes(nextRoleBand)) {
       member.departments = resolvedDepartmentIds;
@@ -1665,8 +1739,24 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       member.departments = [];
     }
 
-    // Recompute default module grants for the new department/role combo.
-    // Additive only — never strips a manual grant/add-on the founder set by hand.
+    // Recompute default module grants for the new department/role combo, and
+    // strip whichever *previous*-role auto-grants no longer apply (e.g. a
+    // demoted admin loses their old department's module set, a demoted super
+    // admin loses the workspace-wide grant) — manual grants/add-ons that were
+    // never part of an auto-grant set are left untouched either way.
+    const previousDepartmentDefaultIds = await computeDepartmentDefaultModuleIds(
+      previousDepartmentIds,
+      previousRoleBand,
+    );
+    const previousSuperAdminDefaultIds =
+      previousRoleBand === "super_admin"
+        ? (Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : [])
+        : [];
+    const previousManagerOrgGrantIds = previousRoleBand === "manager" ? MANAGER_DEFAULT_ORG_GRANT_IDS : [];
+    const staleAutoGrantIds = new Set(
+      [...previousDepartmentDefaultIds, ...previousSuperAdminDefaultIds, ...previousManagerOrgGrantIds].map(toId),
+    );
+
     const nextDepartmentIds = (member.departments || []).map((d) => d?._id || d);
     const departmentDefaultIds = await computeDepartmentDefaultModuleIds(
       nextDepartmentIds,
@@ -1679,7 +1769,19 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     // A member promoted to department manager also needs the org-invite grant
     // so they can in turn add their own department's employees.
     const managerOrgGrantIds = nextRoleBand === "manager" ? MANAGER_DEFAULT_ORG_GRANT_IDS : [];
-    member.grantedModules = mergeGrantedModules(member.grantedModules, [
+    const nextAutoGrantIds = new Set(
+      [...BASELINE_MODULE_IDS, ...departmentDefaultIds, ...superAdminDefaultIds, ...managerOrgGrantIds].map(toId),
+    );
+
+    const retainedGrantedModules = (Array.isArray(member.grantedModules) ? member.grantedModules : []).filter(
+      (moduleId) => {
+        const normalized = toId(moduleId);
+        // Keep it unless it was only ever granted by the previous role's auto-grant
+        // and the new role's auto-grant no longer covers it.
+        return !staleAutoGrantIds.has(normalized) || nextAutoGrantIds.has(normalized);
+      },
+    );
+    member.grantedModules = mergeGrantedModules(retainedGrantedModules, [
       ...BASELINE_MODULE_IDS,
       ...departmentDefaultIds,
       ...superAdminDefaultIds,
@@ -1687,12 +1789,13 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     ]);
 
     await member.save();
-    if (previousRoleBand === "manager" && nextRoleBand !== "manager") {
-      await Department.updateMany(
-        { workspaceId: workspace._id, managerUser: member.user },
-        { $set: { managerUser: null } },
-      );
-    }
+    // Always clear any department this member currently manages before
+    // re-applying — covers demotion away from manager AND reassignment to a
+    // different department while staying in the manager band.
+    await Department.updateMany(
+      { workspaceId: workspace._id, managerUser: member.user },
+      { $set: { managerUser: null } },
+    );
     if (nextRoleBand === "manager") {
       await Department.updateOne(
         { _id: resolvedDepartmentIds[0], workspaceId: workspace._id },
