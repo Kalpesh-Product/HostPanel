@@ -154,6 +154,7 @@ type TeamMember = {
   employeeId?: string;
   role?: string;
   status?: string;
+  accountDeleted?: boolean;
   departmentNames?: string[];
   transferredToWorkspaceName?: string;
   transferredToWorkspaceLocation?: string;
@@ -1525,6 +1526,7 @@ export function OrganizationPage() {
                         const isOwner = member.role === 'owner';
                         const isSelf = member.userId && String(member.userId) === currentUserId;
                         const isProtectedSelf = isSelf && normalizeRoleValue(member.role) === 'super-admin';
+                        const isAccountDeleted = Boolean(member.accountDeleted);
 
                         if (memberStatus === 'invited' || memberStatus === 'invite_sent') {
                           return (
@@ -1561,12 +1563,13 @@ export function OrganizationPage() {
                           );
                         }
 
-                        const isAccessEnabled = memberStatus === 'joined';
+                        const isAccessEnabled = memberStatus === 'joined' && !isAccountDeleted;
                         const canToggle =
                           canToggleAccessByAccess &&
                           !isProtectedSelf &&
                           !isOwner &&
-                          ['joined', 'disabled'].includes(memberStatus);
+                          ['joined', 'disabled'].includes(memberStatus) &&
+                          !isAccountDeleted;
                         const isToggleLocked = !canToggle;
                         const toggleColor = isToggleLocked
                           ? 'bg-slate-300'
@@ -1598,9 +1601,11 @@ export function OrganizationPage() {
                             <span className={`text-[10px] font-pmedium ${isToggleLocked ? 'text-slate-500' : isAccessEnabled ? 'text-emerald-600' : 'text-rose-600'}`}>
                               {isProtectedSelf
                                 ? 'Self Protected'
-                                : isAccessEnabled
-                                  ? 'Access On'
-                                  : 'Access Off'}
+                                : isAccountDeleted
+                                  ? 'Account Deleted'
+                                  : isAccessEnabled
+                                    ? 'Access On'
+                                    : 'Access Off'}
                             </span>
                           </div>
                         );
