@@ -1577,7 +1577,13 @@ export default function AccessGrantsPage() {
                                   <button
                                     onClick={() => handleOpenDetails(user)}
                                     type="button"
-                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                    disabled={!canManageModuleAccess}
+                                    aria-disabled={isUserDisabled || !canManageModuleAccess}
+                                    className={`p-1.5 rounded-lg transition-all disabled:opacity-55 disabled:cursor-not-allowed ${
+  isUserDisabled
+    ? 'bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed'
+    : 'bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
+}`}
                                     title={canEditAccessGrants ? 'Manage Role' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
                                   >
                                     <UserCog size={15} strokeWidth={2.5} />
