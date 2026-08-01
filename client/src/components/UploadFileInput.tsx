@@ -4,6 +4,7 @@ import { TextField, IconButton, Avatar, Box } from "@mui/material";
 import { LuImageUp } from "react-icons/lu";
 import { MdDelete } from "react-icons/md";
 import MuiModal from "./MuiModal";
+import UploadLimitWarning from "./UploadLimitWarning";
 
 type PreviewType = "image" | "pdf" | "none" | "auto";
 
@@ -32,6 +33,7 @@ const UploadFileInput = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (value instanceof File) {
@@ -59,15 +61,21 @@ const UploadFileInput = ({
     if (file) {
       const ext = getExtension(file.name);
       if (!allowedExtensions.includes(ext)) {
-        alert(`Only ${allowedExtensions.join(", ")} files are allowed.`);
+        setWarning(`"${file.name}" was not added — only ${allowedExtensions.join(", ")} files are allowed.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
 
       if (isImage(ext) && file.size > MAX_IMAGE_SIZE_BYTES) {
-        alert(`Image size must not exceed ${MAX_IMAGE_SIZE_MB}MB.`);
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        setWarning(
+          `"${file.name}" is ${sizeMb}MB — images must be ${MAX_IMAGE_SIZE_MB}MB or smaller. Compress it and try again.`,
+        );
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
 
+      setWarning(null);
       onChange(file);
       setPreviewUrl(URL.createObjectURL(file));
 
@@ -169,6 +177,8 @@ const UploadFileInput = ({
           ),
         }}
       />
+
+      <UploadLimitWarning message={warning} onDismiss={() => setWarning(null)} />
 
       {previewUrl && (
         <>

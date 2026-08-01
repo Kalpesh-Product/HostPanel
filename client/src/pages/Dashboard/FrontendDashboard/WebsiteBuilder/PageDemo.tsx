@@ -615,7 +615,7 @@ const getLeadMetaForProduct = (product: any) => {
   };
 };
 
-const getProductContentItems = (draft: any, slug: string) => {
+const getProductContentItems = (draft: any, slug: string, page?: any) => {
   const normalized = normalizeSlug(slug);
   if (normalized.includes("meeting")) {
     return Array.isArray(draft?.meetingRooms)
@@ -632,6 +632,12 @@ const getProductContentItems = (draft: any, slug: string) => {
   }
   if (normalized.includes("hostel")) {
     return Array.isArray(draft?.dorms) ? draft.dorms : [];
+  }
+  // Custom pages: use this page's own products first (each page has its own
+  // list). Falls back to the shared Home "Our Products" list only for pages
+  // that predate per-page products.
+  if (Array.isArray(page?.subProducts) && page.subProducts.length) {
+    return page.subProducts.filter((item: any) => item?.enabled !== false);
   }
   return Array.isArray(draft?.products) ? draft.products : [];
 };
@@ -904,6 +910,14 @@ const PageDemo = () => {
       const resolveCardImage = (item: any, index: number) =>
         getMediaSrc(item?.cardImage) ||
         getMediaSrc(item?.homeCardImage) ||
+        // This page's own products (the ones actually shown on the page
+        // itself) are a more relevant fallback than a same-named-but-
+        // unrelated entry in the old shared/global products list below.
+        getMediaSrc(
+          (Array.isArray(item?.subProducts) ? item.subProducts : []).find(
+            (sp: any) => sp?.enabled !== false && getMediaSrc(sp?.images?.[0]),
+          )?.images?.[0],
+        ) ||
         productImageBySlug[normalizeSlug(item?.slug || item?.name || "")] ||
         getMediaSrc(products?.[index]?.images?.[0]) ||
         getMediaSrc(products?.[index]?.files?.[0]) ||
@@ -985,7 +999,7 @@ const PageDemo = () => {
 
   const selectedDetailItem = useMemo(() => {
     if (!currentItemSlug || !selectedProductPage) return null;
-    const contentItems = getProductContentItems(draft, selectedProductPage?.slug || selectedProductPage?.name || "");
+    const contentItems = getProductContentItems(draft, selectedProductPage?.slug || selectedProductPage?.name || "", selectedProductPage);
     const pool = contentItems.length ? contentItems : [selectedProductPage];
     return pool.find((item: any) => normalizeSlug(item?.title || item?.name || item?.heading || "") === currentItemSlug) || null;
   }, [currentItemSlug, selectedProductPage, draft]);
@@ -1590,7 +1604,7 @@ const PageDemo = () => {
     getMediaSrc(selectedProductPage?.cardImage) ||
     "";
   const selectedProductContentItems = selectedProductPage
-    ? getProductContentItems(draft, selectedProductPage?.slug || selectedProductPage?.name || "")
+    ? getProductContentItems(draft, selectedProductPage?.slug || selectedProductPage?.name || "", selectedProductPage)
     : [];
   const resolvedHomeHeroImage = heroImage || galleryItems[0] || "";
   const showHeroCarousel = heroImages.length > 1;

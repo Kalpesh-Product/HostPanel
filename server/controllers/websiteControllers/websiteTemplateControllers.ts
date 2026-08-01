@@ -175,6 +175,22 @@ const normalizeProductDropdownPages = (items = []) =>
       leadFormLabel: String(item?.leadFormLabel || "").trim(),
       faqs: Array.isArray(item?.faqs) ? item.faqs : [],
       inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
+      subProducts: Array.isArray(item?.subProducts)
+        ? item.subProducts.map((sp) => ({
+            name: String(sp?.name || "").trim(),
+            description: String(sp?.description || "").trim(),
+            cost: String(sp?.cost || "").trim(),
+            enabled: toBool(sp?.enabled, true),
+            images: Array.isArray(sp?.images)
+              ? sp.images
+                  .map((img) => ({
+                    id: String(img?.id || "").trim(),
+                    url: String(img?.url || "").trim(),
+                  }))
+                  .filter((img) => img.id || img.url)
+              : [],
+          }))
+        : [],
     };
 
     if (item?.heroImage && typeof item.heroImage === "object") {
@@ -1001,13 +1017,22 @@ export const saveTemplateDraft = async (req, res) => {
     }
 
     if (filesByField.logoCarouselLogos?.length) {
-      const uploaded = await uploadImagesForDraft(
-        filesByField.logoCarouselLogos,
-        `${baseFolder}/logoCarousel`,
-        12,
-      );
       if (!template.logoCarousel) template.logoCarousel = { enabled: false, title: "", logos: [] };
-      template.logoCarousel.logos = [...(template.logoCarousel.logos || []), ...uploaded];
+      // Cumulative cap (existing + new), not just this batch — autosave can
+      // fire multiple times in quick succession before the client swaps its
+      // File objects for the uploaded refs, so an uncapped append here can
+      // silently double-upload the same picked files across ticks.
+      const existingCount = (template.logoCarousel.logos || []).length;
+      const roomLeft = Math.max(0, 12 - existingCount);
+      const filesToUpload = filesByField.logoCarouselLogos.slice(0, roomLeft);
+      if (filesToUpload.length) {
+        const uploaded = await uploadImagesForDraft(
+          filesToUpload,
+          `${baseFolder}/logoCarousel`,
+          12,
+        );
+        template.logoCarousel.logos = [...(template.logoCarousel.logos || []), ...uploaded];
+      }
     }
 
     if (filesByField.aboutPageImages?.length) {
@@ -1073,6 +1098,26 @@ export const saveTemplateDraft = async (req, res) => {
           );
           template.productDropdownPages[i].homeCardImage = uploaded[0] || undefined;
         }
+
+        const pageSubProducts = template.productDropdownPages[i].subProducts || [];
+        for (let j = 0; j < pageSubProducts.length; j++) {
+          const subImages = filesByField[`subProductImages_${i}_${j}`] || [];
+          if (subImages.length) {
+            // Cumulative cap, same reasoning as the logo carousel above.
+            const existingCount = (pageSubProducts[j].images || []).length;
+            const roomLeft = Math.max(0, 5 - existingCount);
+            const filesToUpload = subImages.slice(0, roomLeft);
+            if (filesToUpload.length) {
+              const uploaded = await uploadImagesForDraft(
+                filesToUpload,
+                `${baseFolder}/subProducts/${i}_${j}`,
+                5,
+              );
+              pageSubProducts[j].images = [...(pageSubProducts[j].images || []), ...uploaded];
+            }
+          }
+        }
+        template.productDropdownPages[i].subProducts = pageSubProducts;
       }
     }
 
@@ -1790,6 +1835,7 @@ export const createTemplate = async (req, res, next) => {
     const heroFiles = filesByField.heroImages || [];
     const galleryFiles = filesByField.gallery || [];
     const logoFiles = filesByField.companyLogo || [];
+    const logoCarouselFiles = filesByField.logoCarouselLogos || [];
 
     // Company Logo: max 1
     if (logoFiles.length > 1) {
@@ -1872,6 +1918,32 @@ export const createTemplate = async (req, res, next) => {
       });
     }
 
+    // Trusted-by / logo carousel: max 12
+    if (logoCarouselFiles.length > 12) {
+      return res.status(400).json({
+        message: `Cannot exceed 12 trusted-by logos (received ${logoCarouselFiles.length}).`,
+      });
+    }
+
+    // Sub-products per product page: max 12 sub-products, max 5 images each
+    for (let pIdx = 0; pIdx < (productDropdownPages || []).length; pIdx++) {
+      const pageSubProducts = productDropdownPages[pIdx]?.subProducts || [];
+      const pageLabel = productDropdownPages[pIdx]?.name || `Page ${pIdx + 1}`;
+      if (pageSubProducts.length > 12) {
+        return res.status(400).json({
+          message: `Max 12 products allowed per page (${pageLabel}).`,
+        });
+      }
+      for (let sIdx = 0; sIdx < pageSubProducts.length; sIdx++) {
+        const subFiles = filesByField[`subProductImages_${pIdx}_${sIdx}`] || [];
+        if (subFiles.length > 5) {
+          return res.status(400).json({
+            message: `Max 5 images allowed per product (${pageLabel}, product ${sIdx + 1}).`,
+          });
+        }
+      }
+    }
+
     // Testimonials: max 1 image per testimonial
     for (let i = 0; i < testimonials.length; i++) {
       const tFiles = filesByField[`testimonialImages_${i}`] || [];
@@ -1922,6 +1994,18 @@ export const createTemplate = async (req, res, next) => {
         filesByField.gallery,
         `${baseFolder}/gallery`,
       );
+    }
+
+    // trusted-by / logo carousel
+    if (filesByField.logoCarouselLogos?.length) {
+      const uploadedLogos = await uploadImages(
+        filesByField.logoCarouselLogos,
+        `${baseFolder}/logoCarousel`,
+      );
+      if (!template.logoCarousel) {
+        template.logoCarousel = { enabled: false, title: "", logos: [] };
+      }
+      template.logoCarousel.logos = uploadedLogos;
     }
 
     if (filesByField.aboutPageImages?.length) {
@@ -1984,6 +2068,18 @@ export const createTemplate = async (req, res, next) => {
         );
         normalizedProductPages[i].homeCardImage = uploaded[0] || undefined;
       }
+
+      const pageSubProducts = normalizedProductPages[i].subProducts || [];
+      for (let j = 0; j < pageSubProducts.length; j++) {
+        const subFiles = filesByField[`subProductImages_${i}_${j}`] || [];
+        if (subFiles.length) {
+          pageSubProducts[j].images = await uploadImages(
+            subFiles,
+            `${baseFolder}/subProducts/${i}_${j}`,
+          );
+        }
+      }
+      normalizedProductPages[i].subProducts = pageSubProducts;
     }
     if (normalizedProductPages.length) {
       template.productDropdownPages = normalizedProductPages;
@@ -3026,6 +3122,43 @@ export const editTemplate = async (req, res, next) => {
       template.gallery.push(...newGallery);
     }
 
+    // === TRUSTED BY / LOGO CAROUSEL (max 12 total) ===
+    if (!template.logoCarousel) {
+      template.logoCarousel = { enabled: false, title: "", logos: [] };
+    }
+    const logoCarouselKeepIds = safeParse(req.body.logoCarouselImageIds, []);
+    if (req.body.logoCarouselImageIds !== undefined) {
+      const toDelete = (template.logoCarousel.logos || []).filter(
+        (img) => !logoCarouselKeepIds.includes(img.id),
+      );
+      await deleteImagesFromS3(toDelete);
+      template.logoCarousel.logos = (template.logoCarousel.logos || []).filter((img) =>
+        logoCarouselKeepIds.includes(img.id),
+      );
+    }
+    if (req.body.logoCarouselEnabled !== undefined) {
+      template.logoCarousel.enabled = toBool(req.body.logoCarouselEnabled, template.logoCarousel.enabled);
+    }
+    if (req.body.logoCarouselTitle !== undefined) {
+      template.logoCarousel.title = String(req.body.logoCarouselTitle || "").trim();
+    }
+
+    const newLogoCarouselFiles = filesByField.logoCarouselLogos || [];
+    const totalLogoCarouselCount = template.logoCarousel.logos.length + newLogoCarouselFiles.length;
+    if (totalLogoCarouselCount > 12) {
+      throw new Error(
+        `Cannot exceed 12 trusted-by logos (currently ${template.logoCarousel.logos.length}).`,
+      );
+    }
+    if (newLogoCarouselFiles.length) {
+      const newLogos = await uploadImages(
+        newLogoCarouselFiles,
+        `${baseFolder}/logoCarousel`,
+        12,
+      );
+      template.logoCarousel.logos.push(...newLogos);
+    }
+
     const aboutPageImageKeepIds = safeParse(req.body.aboutPageImageIds, []);
     if (req.body.aboutPageImageIds !== undefined) {
       const toDelete = (template.aboutPageImages || []).filter(
@@ -3127,6 +3260,41 @@ export const editTemplate = async (req, res, next) => {
           );
           normalizedPages[i].homeCardImage = uploaded[0] || undefined;
         }
+
+        // Products belonging to this page — keep existing images unless the
+        // client sent new files for that exact slot (subProductImages_i_j).
+        const pageSubProducts = normalizedPages[i].subProducts || [];
+        if (pageSubProducts.length > 12) {
+          throw new Error(
+            `Max 12 products allowed per page (${normalizedPages[i].name || `Page ${i + 1}`}).`,
+          );
+        }
+        const existingSubProducts = existing?.subProducts || [];
+        for (let j = 0; j < pageSubProducts.length; j++) {
+          const existingSub = existingSubProducts[j];
+          const subFiles = filesByField[`subProductImages_${i}_${j}`] || [];
+          const keptImages = existingSub?.images || [];
+          const totalSubImageCount = keptImages.length + subFiles.length;
+          if (totalSubImageCount > 5) {
+            throw new Error(
+              `Max 5 images allowed per product (${normalizedPages[i].name || `Page ${i + 1}`}, product ${j + 1}, currently ${keptImages.length}).`,
+            );
+          }
+          if (subFiles.length) {
+            // Append newly uploaded images to whatever this sub-product
+            // already has — replacing (delete-then-set) here would wipe out
+            // previously-saved images every time the user adds just one more.
+            const newImages = await uploadImages(
+              subFiles,
+              `${baseFolder}/subProducts/${i}_${j}`,
+              5,
+            );
+            pageSubProducts[j].images = [...keptImages, ...newImages];
+          } else {
+            pageSubProducts[j].images = keptImages;
+          }
+        }
+        normalizedPages[i].subProducts = pageSubProducts;
       }
       template.productDropdownPages = normalizedPages;
     }

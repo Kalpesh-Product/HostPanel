@@ -1180,6 +1180,15 @@ const buildSetupJourneyStep = ({ state, number, label }) => {
 const buildSetupJourneyArrow = () =>
   `<tr><td style="text-align:center;color:#8a93a3;font-size:14px;padding:0 0 2px;">&#8595;</td></tr>`;
 
+const resolveHostPanelFrontendUrl = () =>
+  String(
+    process.env.FRONTEND_PROD_LINK ||
+      process.env.CLIENT_URL ||
+      "http://localhost:3006",
+  )
+    .trim()
+    .replace(/\/+$/, "");
+
 const buildAccountReadyEmailBody = ({ email, loginUrl }) => `
   <tr>
     <td style="padding:24px 32px 0;">
@@ -1573,6 +1582,26 @@ export const verifyRegisterOtpDirect = async (req, res, next) => {
     });
 
     await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+
+    try {
+      const loginUrl = `${resolveHostPanelFrontendUrl()}/`;
+      await sendMail({
+        to: normalizedEmail,
+        subject: "Your WONO Account Is Ready",
+        html: renderNotificationEmail({
+          heroTitle: "Your WONO Account Is Ready",
+          heroSubtitle: "Your account has been created successfully.",
+          greetingHtml: `
+            <p style="margin:0 0 4px;">Hello ${payloadName},</p>
+            <p class="email-text" style="margin:0;">Thank you for completing your verification. Your WONO account has been successfully created and you can now log in to continue setting up your new business location.</p>
+            <p class="email-text" style="margin:8px 0 0;">It only takes two quick steps before you reach your dashboard.</p>
+          `,
+          bodyHtml: buildAccountReadyEmailBody({ email: normalizedEmail, loginUrl }),
+        }),
+      });
+    } catch (emailError) {
+      console.error("Failed to send account-ready email:", emailError?.message);
+    }
 
     return res.status(200).json({
       message: "Registration completed successfully. You can now sign in.",

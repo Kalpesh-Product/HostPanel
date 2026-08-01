@@ -42,6 +42,19 @@ const defaultProduct = {
   description: "",
 };
 
+// A custom product page's own products — separate from the top-level
+// `products` list (Home page's global "Our Products" section), so each page
+// gets its own items instead of all pages showing the same shared list.
+const defaultSubProduct = {
+  name: "",
+  description: "",
+  cost: "",
+  images: [],
+};
+
+const MAX_SUB_PRODUCTS_PER_PAGE = 12;
+const MAX_SUB_PRODUCT_IMAGES = 5;
+
 const defaultTestimonial = {
   name: "",
   jobPosition: "",
@@ -636,6 +649,15 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
         faqs: Array.isArray(item?.faqs) ? item.faqs : [],
         inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
+        subProducts: Array.isArray(item?.subProducts)
+          ? item.subProducts.map((sp: any) => ({
+              name: String(sp?.name || "").trim(),
+              description: String(sp?.description || "").trim(),
+              cost: String(sp?.cost || "").trim(),
+              enabled: sp?.enabled !== false,
+              images: Array.isArray(sp?.images) ? sp.images : [],
+            }))
+          : [],
       }))
     : [],
   productPages: Array.isArray(formValues?.productDropdownPages)
@@ -659,6 +681,17 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
         faqs: Array.isArray(item?.faqs) ? item.faqs : [],
         inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
+        subProducts: Array.isArray(item?.subProducts)
+          ? item.subProducts.map((sp: any) => ({
+              name: String(sp?.name || "").trim(),
+              description: String(sp?.description || "").trim(),
+              cost: String(sp?.cost || "").trim(),
+              enabled: sp?.enabled !== false,
+              images: (sp?.images || [])
+                .map((img: unknown) => getMediaUrlForPreview(img))
+                .filter(Boolean),
+            }))
+          : [],
       }))
     : [],
   inclusions: Array.isArray(formValues?.inclusions) ? formValues.inclusions : [],
@@ -744,6 +777,13 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
           homeCardImage: toMediaToken(item?.homeCardImage),
           heroImages: Array.isArray(item?.heroImages)
             ? item.heroImages.map((img: any) => toMediaToken(img)).filter(Boolean)
+            : [],
+          subProducts: Array.isArray(item?.subProducts)
+            ? item.subProducts.map((sp: any) =>
+                Array.isArray(sp?.images)
+                  ? sp.images.map((img: any) => toMediaToken(img)).filter(Boolean)
+                  : [],
+              )
             : [],
         }))
       : [],
@@ -866,6 +906,116 @@ const SectionToggle = ({
   />
 );
 
+// Products belonging to one specific product page. Rendered with
+// `key={<that page's stable id>}` by the caller so switching the active
+// page tab forces a full remount — a fresh, correctly-scoped useFieldArray
+// bound to a fixed name, rather than reusing one hook instance across a
+// changing name (which is not a supported useFieldArray pattern and is what
+// caused every page to show the same sub-products).
+const ProductPageSubProducts = ({
+  control,
+  pageIndex,
+  pageName,
+}: {
+  control: any;
+  pageIndex: number;
+  pageName: string;
+}) => {
+  const {
+    fields: subProductFields,
+    append: appendSubProduct,
+    remove: removeSubProduct,
+  } = useFieldArray({ control, name: `productDropdownPages.${pageIndex}.subProducts` });
+
+  return (
+    <div className="mt-3 grid grid-cols-1 gap-4">
+      <p className="text-xs text-slate-500">
+        Products shown only on this page ("{pageName || "this page"}"). Add at least 3.
+      </p>
+      {subProductFields.map((field, index) => (
+        <div
+          key={field.id}
+          className="border-t border-borderGray pt-4 first:border-0 first:pt-0"
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="font-pmedium">Product {index + 1}</span>
+            <div className="flex items-center gap-3">
+              <SectionToggle
+                name={`productDropdownPages.${pageIndex}.subProducts.${index}.enabled`}
+                control={control}
+              />
+              <button
+                type="button"
+                onClick={() => removeSubProduct(index)}
+                className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Controller
+              name={`productDropdownPages.${pageIndex}.subProducts.${index}.name`}
+              control={control}
+              render={({ field }) => (
+                <TextField {...field} size="small" label="Product Name" fullWidth />
+              )}
+            />
+            <Controller
+              name={`productDropdownPages.${pageIndex}.subProducts.${index}.cost`}
+              control={control}
+              render={({ field }) => (
+                <TextField {...field} size="small" label="Product Cost" fullWidth />
+              )}
+            />
+            <Controller
+              name={`productDropdownPages.${pageIndex}.subProducts.${index}.description`}
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Product Description"
+                  fullWidth
+                  inputProps={{ maxLength: 200 }}
+                  helperText={`${String(field.value || "").length}/200`}
+                />
+              )}
+            />
+          </div>
+          <div className="pt-3">
+            <Controller
+              name={`productDropdownPages.${pageIndex}.subProducts.${index}.images`}
+              control={control}
+              render={({ field }) => (
+                <UploadMultipleFilesInput
+                  {...field}
+                  label="Product Images"
+                  maxFiles={MAX_SUB_PRODUCT_IMAGES}
+                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                  id={`page-product-${pageIndex}-${index}.images`}
+                />
+              )}
+            />
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => appendSubProduct({ ...defaultSubProduct, images: [] })}
+        disabled={subProductFields.length >= MAX_SUB_PRODUCTS_PER_PAGE}
+        className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all w-fit disabled:text-slate-400 disabled:no-underline disabled:cursor-not-allowed"
+      >
+        + Add Product
+      </button>
+      {subProductFields.length >= MAX_SUB_PRODUCTS_PER_PAGE && (
+        <p className="text-xs text-amber-600">
+          Limit of {MAX_SUB_PRODUCTS_PER_PAGE} products reached for this page.
+        </p>
+      )}
+    </div>
+  );
+};
 
 const CreateWebsite = () => {
   const axios = useAxiosPrivate();
@@ -907,6 +1057,17 @@ const CreateWebsite = () => {
   const pendingDraftSnapshotRef = useRef("");
   const uploadedDraftFileKeysRef = useRef<Set<string>>(new Set());
   const pendingDraftFileKeysRef = useRef<string[]>([]);
+  // Holds the currently-scheduled (not yet fired) autosave timer, so an
+  // explicit Save/Update can cancel it. Without this, a queued autosave from
+  // just before the click can still fire afterward with pre-edit data (e.g.
+  // pre-deletion), overwriting what the explicit save just persisted.
+  const draftAutosaveTimeoutRef = useRef<number | null>(null);
+  // Synchronous double-submit guard for the main Save/Publish action. The
+  // button's `disabled` state only takes effect on the next render, which is
+  // late enough for a fast double-click (or double form-submit event) to
+  // fire two overlapping save requests — each uploading/appending the same
+  // images independently, which is how counts like 12 silently become 24.
+  const isSubmittingRef = useRef(false);
   // Prevents the checkExistingWebsite effect from re-triggering a navigate after it has
   // already redirected to /edit-website. Without this guard the effect fires again when
   // workspaceBusinessName resolves asynchronously, causing a flicker loop.
@@ -1476,6 +1637,20 @@ const CreateWebsite = () => {
                       enabled: String(name).toLowerCase().replace(/\s+/g, "-") === "home",
                     })),
             productDropdownPages: (() => {
+              // Sub-products' text fields come from the draft (may be
+              // ahead of the last save); their images always come from the
+              // persisted/saved version, same reasoning as hero/home-card
+              // images below — draft image data can't outlive the session
+              // as raw File objects, only the uploaded S3 refs can.
+              const reconcileSubProducts = (draftSubProducts: any, persistedSubProducts: any) =>
+                Array.isArray(draftSubProducts)
+                  ? draftSubProducts.map((sp: any, subIndex: number) => ({
+                      ...sp,
+                      images: Array.isArray(persistedSubProducts?.[subIndex]?.images)
+                        ? persistedSubProducts[subIndex].images
+                        : [],
+                    }))
+                  : [];
               const fromDraft =
                 Array.isArray(draftData?.productDropdownPages) &&
                 draftData.productDropdownPages.length
@@ -1492,6 +1667,7 @@ const CreateWebsite = () => {
                           ? persistedPage.heroImages
                           : [],
                         homeCardImage: persistedPage?.homeCardImage || null,
+                        subProducts: reconcileSubProducts(item?.subProducts, persistedPage?.subProducts),
                       };
                     })
                   : Array.isArray(found?.productDropdownPages) &&
@@ -1501,6 +1677,7 @@ const CreateWebsite = () => {
                         heroImage: item?.heroImage || null,
                         heroImages: Array.isArray(item?.heroImages) ? item.heroImages : [],
                         homeCardImage: item?.homeCardImage || null,
+                        subProducts: reconcileSubProducts(item?.subProducts, item?.subProducts),
                       }))
                     : null;
 
@@ -1561,10 +1738,16 @@ const CreateWebsite = () => {
             logoCarousel: {
               enabled: draftData?.logoCarousel?.enabled ?? found?.logoCarousel?.enabled ?? false,
               title: String(draftData?.logoCarousel?.title || found?.logoCarousel?.title || "").trim(),
-              logos: Array.isArray(draftData?.logoCarousel?.logos) && draftData.logoCarousel.logos.length
-                ? draftData.logoCarousel.logos
-                : Array.isArray(found?.logoCarousel?.logos)
-                  ? found.logoCarousel.logos
+              // Images always come from the persisted/published version, not
+              // the separately-stored draft snapshot — same reasoning as
+              // hero/sub-product images above. The draft snapshot can go
+              // stale relative to a more recent Update (e.g. an in-flight
+              // autosave resolving after a publish), and unlike text fields,
+              // a stale image list means deleted logos silently reappear.
+              logos: Array.isArray(found?.logoCarousel?.logos) && found.logoCarousel.logos.length
+                ? found.logoCarousel.logos
+                : Array.isArray(draftData?.logoCarousel?.logos)
+                  ? draftData.logoCarousel.logos
                   : [],
             },
             aboutPageIntro: String(draftData?.aboutPageIntro || found?.aboutPageIntro || "").trim(),
@@ -1871,6 +2054,9 @@ const CreateWebsite = () => {
   const [pendingRemoveProductPageIndex, setPendingRemoveProductPageIndex] = useState(null);
 
   const submitCreateWebsite = (values, e) => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+
     // const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
     console.log("SUBMITTING WITH VERTICAL:", selectedVertical);
 
@@ -2027,6 +2213,11 @@ const CreateWebsite = () => {
         appendFileIfPresent(`productPageHeroImages_${index}`, file);
       });
       appendFileIfPresent(`productPageHomeCardImage_${index}`, item?.homeCardImage);
+      (item?.subProducts || []).forEach((subProduct, subIndex) => {
+        (subProduct?.images || []).forEach((file) => {
+          appendFileIfPresent(`subProductImages_${index}_${subIndex}`, file);
+        });
+      });
     });
     fd.set("aboutTitle", String(values.aboutTitle || "").trim());
     fd.set("socials", JSON.stringify(normalizeSocials(values.socials)));
@@ -2129,6 +2320,26 @@ const CreateWebsite = () => {
     (values?.logoCarousel?.logos || []).forEach((file: any) => {
       if (file instanceof File) fd.append("logoCarouselLogos", file);
     });
+    // Ids of already-saved logos the user kept (didn't remove) — without this
+    // the server has no way to know a logo was deleted in the UI, so removed
+    // logos never actually get deleted server-side; they'd just keep
+    // accumulating on every save.
+    fd.set(
+      "logoCarouselImageIds",
+      JSON.stringify(
+        (values?.logoCarousel?.logos || [])
+          .filter((item: any) => !(item instanceof File) && item?.id)
+          .map((item: any) => item.id),
+      ),
+    );
+
+    // Cancel any queued autosave — otherwise it can still fire right after
+    // this explicit save with data captured before this submit (e.g. before
+    // a deletion), overwriting what this save just persisted.
+    if (draftAutosaveTimeoutRef.current !== null) {
+      window.clearTimeout(draftAutosaveTimeoutRef.current);
+      draftAutosaveTimeoutRef.current = null;
+    }
 
     if (effectiveEditMode) {
       updateWebsite(fd);
@@ -2263,6 +2474,17 @@ const CreateWebsite = () => {
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
         faqs: Array.isArray(item?.faqs) ? item.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim() })).filter((faq: any) => faq.question) : [],
         inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
+        subProducts: Array.isArray(item?.subProducts)
+          ? item.subProducts.map((sp: any) => ({
+              name: String(sp?.name || "").trim(),
+              description: String(sp?.description || "").trim(),
+              cost: String(sp?.cost || "").trim(),
+              enabled: sp?.enabled !== false,
+              images: (sp?.images || [])
+                .map((img: unknown) => getMediaUrlForPreview(img))
+                .filter(Boolean),
+            }))
+          : [],
       })),
       productDropdownPages: (formValues?.productDropdownPages || []).map((item: any, index: number) => ({
         name: String(item?.name || "").trim(),
@@ -2289,6 +2511,17 @@ const CreateWebsite = () => {
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
         faqs: Array.isArray(item?.faqs) ? item.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim() })).filter((faq: any) => faq.question) : [],
         inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
+        subProducts: Array.isArray(item?.subProducts)
+          ? item.subProducts.map((sp: any) => ({
+              name: String(sp?.name || "").trim(),
+              description: String(sp?.description || "").trim(),
+              cost: String(sp?.cost || "").trim(),
+              enabled: sp?.enabled !== false,
+              images: (sp?.images || [])
+                .map((img: unknown) => getMediaUrlForPreview(img))
+                .filter(Boolean),
+            }))
+          : [],
       })),
       menuItems: (formValues?.menuItems || []).map((item: any) => ({
         category: String(item?.category || "").trim(),
@@ -2386,6 +2619,63 @@ const CreateWebsite = () => {
     window.dispatchEvent(new Event("website-preview-draft-updated"));
   }, [getPreviewPayloadFromValues, values, prefillCompanyName]);
 
+  // After ANY successful save (draft autosave, Update, or Create), swap
+  // newly-uploaded File objects in form state for the server's saved
+  // {id,url} refs. Without this, a resubmit before the swap (e.g. clicking
+  // Update twice, or an autosave tick firing mid-upload) resends the exact
+  // same files, and server-side append-only logic (push, not replace) piles
+  // them on top of what's already saved — this is what causes counts like
+  // "uploaded 12, now showing 24" after saving more than once.
+  const syncSavedMediaIntoForm = (savedTemplate: any) => {
+    if (!savedTemplate) return;
+    // Founder images
+    if (Array.isArray(savedTemplate.founders) && savedTemplate.founders.length) {
+      const currentFounders = getValues("founders") || [];
+      const mergedFounders = currentFounders.map((founder: any, idx: number) => {
+        const savedFounder = savedTemplate.founders[idx];
+        if (savedFounder?.image?.url) {
+          return { ...founder, image: savedFounder.image };
+        }
+        return founder;
+      });
+      setValue("founders", mergedFounders, { shouldDirty: false });
+    }
+    // Logo carousel logos
+    if (Array.isArray(savedTemplate.logoCarousel?.logos) && savedTemplate.logoCarousel.logos.length) {
+      const currentLogos = getValues("logoCarousel.logos") || [];
+      const mergedLogos = savedTemplate.logoCarousel.logos.map((saved: any, idx: number) => {
+        const current = currentLogos[idx];
+        // Keep File objects if they're newer than saved; otherwise use saved S3 object
+        if (current instanceof File) return current;
+        return saved;
+      });
+      setValue("logoCarousel.logos", mergedLogos, { shouldDirty: false });
+    }
+    // Product page sub-products' images
+    if (Array.isArray(savedTemplate.productDropdownPages) && savedTemplate.productDropdownPages.length) {
+      const currentPages = getValues("productDropdownPages") || [];
+      const mergedPages = currentPages.map((page: any, pageIdx: number) => {
+        const savedSubProducts = savedTemplate.productDropdownPages[pageIdx]?.subProducts;
+        if (!Array.isArray(savedSubProducts) || !savedSubProducts.length) return page;
+        const currentSubProducts = page?.subProducts || [];
+        const mergedSubProducts = currentSubProducts.map((sp: any, subIdx: number) => {
+          const savedImages = savedSubProducts[subIdx]?.images;
+          if (!Array.isArray(savedImages) || !savedImages.length) return sp;
+          const currentImages = sp?.images || [];
+          const mergedImages = savedImages.map((saved: any, imgIdx: number) => {
+            const current = currentImages[imgIdx];
+            // Keep File objects if they're newer than saved; otherwise use saved S3 object
+            if (current instanceof File) return current;
+            return saved;
+          });
+          return { ...sp, images: mergedImages };
+        });
+        return { ...page, subProducts: mergedSubProducts };
+      });
+      setValue("productDropdownPages", mergedPages, { shouldDirty: false });
+    }
+  };
+
   const { mutate: saveWebsiteDraft } = useMutation({
     mutationKey: ["save-website-draft", prefillCompanyId || prefillCompanyName || selectedVertical],
     mutationFn: async (draftPayload: FormData) => {
@@ -2406,33 +2696,9 @@ const CreateWebsite = () => {
       setDraftStatus("saved");
 
       // Sync back persisted images from the saved template so the form reflects S3 URLs
-      // (founder images, logo carousel logos) rather than keeping stale File blobs.
-      const savedTemplate = data?.template;
-      if (savedTemplate) {
-        // Founder images
-        if (Array.isArray(savedTemplate.founders) && savedTemplate.founders.length) {
-          const currentFounders = getValues("founders") || [];
-          const mergedFounders = currentFounders.map((founder: any, idx: number) => {
-            const savedFounder = savedTemplate.founders[idx];
-            if (savedFounder?.image?.url) {
-              return { ...founder, image: savedFounder.image };
-            }
-            return founder;
-          });
-          setValue("founders", mergedFounders, { shouldDirty: false });
-        }
-        // Logo carousel logos
-        if (Array.isArray(savedTemplate.logoCarousel?.logos) && savedTemplate.logoCarousel.logos.length) {
-          const currentLogos = getValues("logoCarousel.logos") || [];
-          const mergedLogos = savedTemplate.logoCarousel.logos.map((saved: any, idx: number) => {
-            const current = currentLogos[idx];
-            // Keep File objects if they're newer than saved; otherwise use saved S3 object
-            if (current instanceof File) return current;
-            return saved;
-          });
-          setValue("logoCarousel.logos", mergedLogos, { shouldDirty: false });
-        }
-      }
+      // (founder images, logo carousel logos, sub-product images) rather than keeping
+      // stale File blobs that would otherwise get re-uploaded on the next save.
+      syncSavedMediaIntoForm(data?.template);
     },
     onError: () => {
       pendingDraftSnapshotRef.current = "";
@@ -2507,6 +2773,11 @@ const CreateWebsite = () => {
         (page?.heroImages || []).forEach((file: File) =>
           appendDraftFileOnce(`productPageHeroImages_${index}`, file),
         );
+        (page?.subProducts || []).forEach((subProduct: any, subIndex: number) => {
+          (subProduct?.images || []).forEach((file: File) =>
+            appendDraftFileOnce(`subProductImages_${index}_${subIndex}`, file),
+          );
+        });
       });
       (values?.menuItems || []).forEach((item: any, i: number) => {
         appendDraftFileOnce(`draftMenuItemImage_${i}`, item?.image as File | null);
@@ -2556,6 +2827,7 @@ const CreateWebsite = () => {
       pendingDraftFileKeysRef.current = pendingFileKeys;
       saveWebsiteDraft(fd);
     }, 1200);
+    draftAutosaveTimeoutRef.current = timeoutId;
 
     return () => window.clearTimeout(timeoutId);
   }, [
@@ -2569,7 +2841,7 @@ const CreateWebsite = () => {
     getPreviewPayloadFromValues,
   ]);
 
-  const { mutate: createWebsite, isLoading: isCreateWebsiteLoading } =
+  const { mutate: createWebsite, isPending: isCreateWebsiteLoading } =
     useMutation({
       mutationKey: ["create-website"],
       mutationFn: async (fd) => {
@@ -2579,6 +2851,7 @@ const CreateWebsite = () => {
         return res.data;
       },
       onSuccess: async (data) => {
+        isSubmittingRef.current = false;
         setIsRedirectingAfterCreate(true);
         setDraftStatus("idle");
         setDraftTemplateId("");
@@ -2586,6 +2859,7 @@ const CreateWebsite = () => {
         lastDraftSnapshotRef.current = "";
         uploadedDraftFileKeysRef.current.clear();
         pendingDraftFileKeysRef.current = [];
+        syncSavedMediaIntoForm(data?.template);
         const createdTemplateId = String(data?.template?._id || "").trim();
         const resolvedWorkspaceId = String(
           workspaceId || data?.template?.workspaceId || "",
@@ -2625,6 +2899,7 @@ const CreateWebsite = () => {
         );
       },
       onError: (err) => {
+        isSubmittingRef.current = false;
         setIsRedirectingAfterCreate(false);
         if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
           const resetDate = err?.response?.data?.resetDate
@@ -2655,7 +2930,7 @@ const CreateWebsite = () => {
       },
     });
 
-  const { mutate: updateWebsite, isLoading: isUpdateWebsiteLoading } =
+  const { mutate: updateWebsite, isPending: isUpdateWebsiteLoading } =
     useMutation({
       mutationKey: ["update-website"],
       mutationFn: async (fd) => {
@@ -2665,6 +2940,7 @@ const CreateWebsite = () => {
         return res.data;
       },
       onSuccess: async (data) => {
+        isSubmittingRef.current = false;
         setIsRedirectingAfterCreate(true);
         setDraftStatus("idle");
         setDraftTemplateId("");
@@ -2672,6 +2948,7 @@ const CreateWebsite = () => {
         lastDraftSnapshotRef.current = "";
         uploadedDraftFileKeysRef.current.clear();
         pendingDraftFileKeysRef.current = [];
+        syncSavedMediaIntoForm(data?.template);
         const updatedTemplateId = String(data?.template?._id || "").trim();
         const resolvedWorkspaceId = String(
           workspaceId || data?.template?.workspaceId || "",
@@ -2705,6 +2982,7 @@ const CreateWebsite = () => {
         window.dispatchEvent(new Event("credits:refresh"));
       },
       onError: (err) => {
+        isSubmittingRef.current = false;
         setIsRedirectingAfterCreate(false);
         if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
           const resetDate = err?.response?.data?.resetDate
@@ -3385,121 +3663,21 @@ const CreateWebsite = () => {
                             }
 
                             return (
-                              <div className="mt-3 grid grid-cols-1 gap-4">
-                                <Controller
-                                  name="productTitle"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <TextField
-                                      {...field}
-                                      size="small"
-                                      label="Products Section Title"
-                                      fullWidth
-                                      inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
-                                    />
-                                  )}
-                                />
-                                {productFields.map((field, index) => (
-                                  <div
-                                    key={`products-synced-${field.id}`}
-                                    className="border-t border-borderGray pt-4 first:border-0 first:pt-0"
-                                  >
-                                    <div className="mb-3 flex items-center justify-between gap-3">
-                                      <span className="font-pmedium">Product {index + 1}</span>
-                                      <div className="flex items-center gap-3">
-                                        <SectionToggle name={`products.${index}.enabled`} control={control} />
-                                        <button
-                                          type="button"
-                                          onClick={() => removeProduct(index)}
-                                          className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
-                                        >
-                                          Remove
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                      <Controller
-                                        name={`products.${index}.name`}
-                                        control={control}
-                                        render={({ field }) => (
-                                          <TextField
-                                            {...field}
-                                            size="small"
-                                            label="Product Name"
-                                            fullWidth
-                                          />
-                                        )}
-                                      />
-                                      <Controller
-                                        name={`products.${index}.type`}
-                                        control={control}
-                                        render={({ field }) => (
-                                          <TextField
-                                            {...field}
-                                            size="small"
-                                            label="Product Type"
-                                            fullWidth
-                                          />
-                                        )}
-                                      />
-                                      <Controller
-                                        name={`products.${index}.description`}
-                                        control={control}
-                                        render={({ field }) => (
-                                          <TextField
-                                            {...field}
-                                            size="small"
-                                            label="Product Description"
-                                            fullWidth
-                                            inputProps={{ maxLength: 200 }}
-                                            helperText={`${String(field.value || "").length}/200`}
-                                          />
-                                        )}
-                                      />
-                                      <Controller
-                                        name={`products.${index}.cost`}
-                                        control={control}
-                                        render={({ field }) => (
-                                          <TextField
-                                            {...field}
-                                            size="small"
-                                            label="Product Cost"
-                                            fullWidth
-                                          />
-                                        )}
-                                      />
-                                    </div>
-                                    <div className="pt-3">
-                                      <Controller
-                                        name={`products.${index}.files`}
-                                        control={control}
-                                        render={({ field }) => (
-                                          <UploadMultipleFilesInput
-                                            {...field}
-                                            label="Product Images"
-                                            maxFiles={10}
-                                            allowedExtensions={[
-                                              "jpg",
-                                              "jpeg",
-                                              "png",
-                                              "webp",
-                                              "pdf",
-                                            ]}
-                                            id={`products-synced-${index}.files`}
-                                          />
-                                        )}
-                                      />
-                                    </div>
-                                  </div>
-                                ))}
-                                <button
-                                  type="button"
-                                  onClick={() => appendProduct({ ...defaultProduct })}
-                                  className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all w-fit"
-                                >
-                                  + Add Product
-                                </button>
-                              </div>
+                              <ProductPageSubProducts
+                                // Deliberately just the tab index, not
+                                // productPageFields[...].id — that RHF-owned
+                                // id can churn whenever productDropdownPages
+                                // is replaced via setValue elsewhere (e.g.
+                                // the post-save sync-back), which would
+                                // force-remount this on every autosave and
+                                // create a save-loop. The tab index only
+                                // changes when the user actually switches
+                                // pages, which is the remount we want.
+                                key={activeProductPageTab}
+                                control={control}
+                                pageIndex={activeProductPageTab}
+                                pageName={watch(`productDropdownPages.${activeProductPageTab}.name`)}
+                              />
                             );
                           })()}
                         </div>

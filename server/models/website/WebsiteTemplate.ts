@@ -218,6 +218,26 @@ const templateSchema = new mongoose.Schema(
             ],
             default: [],
           },
+          // Own products for this page — deliberately separate from the
+          // top-level `products` (Home page's global "Our Products" list) so
+          // pages don't all show the same shared items.
+          subProducts: {
+            type: [
+              {
+                name: { type: String, default: "" },
+                description: { type: String, default: "" },
+                cost: { type: String, default: "" },
+                enabled: { type: Boolean, default: true },
+                images: [
+                  {
+                    id: { type: String },
+                    url: { type: String },
+                  },
+                ],
+              },
+            ],
+            default: [],
+          },
         },
       ],
       default: [],

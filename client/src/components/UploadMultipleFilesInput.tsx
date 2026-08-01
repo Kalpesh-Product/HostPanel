@@ -4,6 +4,7 @@ import { TextField, IconButton, Avatar, Box } from "@mui/material";
 import { LuImageUp } from "react-icons/lu";
 import { MdDelete } from "react-icons/md";
 import MuiModal from "./MuiModal";
+import UploadLimitWarning from "./UploadLimitWarning";
 
 type PreviewType = "image" | "pdf" | "none" | "auto";
 type MediaValue = File | { id?: string; url?: string; name?: string; enabled?: boolean };
@@ -48,6 +49,7 @@ const UploadMultipleFilesInput = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [openModal, setOpenModal] = useState(false);
   const [modalIndex, setModalIndex] = useState(0);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const getExtension = (fileName = "") =>
     fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() ?? "" : "";
@@ -115,10 +117,39 @@ const UploadMultipleFilesInput = ({
     const chosen = Array.from(event.target.files || []);
     if (!chosen.length) return;
 
+    const resetInput = () => {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const remainingSlots = Math.max(0, maxFiles - (value?.length || 0));
+
+    // Bulk-select over the section's remaining capacity: reject the whole
+    // batch and tell the user exactly how many to pick, rather than silently
+    // keeping only the first few — that's confusing when picking many at once.
+    if (remainingSlots <= 0) {
+      setWarning(
+        `This section already has the maximum of ${maxFiles} file${maxFiles === 1 ? "" : "s"}. Remove one before adding another.`,
+      );
+      resetInput();
+      return;
+    }
+
+    if (chosen.length > remainingSlots) {
+      setWarning(
+        `You selected ${chosen.length} files, but only ${remainingSlots} more can be added here (limit ${maxFiles} total). Select ${remainingSlots} or fewer and try again.`,
+      );
+      resetInput();
+      return;
+    }
+
+    const warnings: string[] = [];
+
     const allowedType = chosen.filter((file) => allowedExtensions.includes(getExtension(file.name)));
     const rejectedType = chosen.length - allowedType.length;
     if (rejectedType > 0) {
-      alert(`Only ${allowedExtensions.join(", ")} files are allowed.`);
+      warnings.push(
+        `${rejectedType} file${rejectedType === 1 ? " was" : "s were"} skipped — only ${allowedExtensions.join(", ")} files are allowed.`,
+      );
     }
 
     const filtered = allowedType.filter(
@@ -126,20 +157,17 @@ const UploadMultipleFilesInput = ({
     );
     const rejectedSize = allowedType.length - filtered.length;
     if (rejectedSize > 0) {
-      alert(`Image size must not exceed ${MAX_IMAGE_SIZE_MB}MB.`);
+      warnings.push(
+        `${rejectedSize} image${rejectedSize === 1 ? " was" : "s were"} skipped — each image must be ${MAX_IMAGE_SIZE_MB}MB or smaller.`,
+      );
     }
 
     const merged = dedupe([...(value || []), ...filtered]);
-    if (merged.length > maxFiles) {
-      alert(`You can upload up to ${maxFiles} files.`);
-    }
     const limited = merged.slice(0, maxFiles);
 
+    setWarning(warnings.length ? warnings.join(" ") : null);
     onChange?.(limited);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    resetInput();
   };
 
   const handleRemoveAt = (index: number) => {
@@ -245,6 +273,8 @@ const UploadMultipleFilesInput = ({
           ),
         }}
       />
+
+      <UploadLimitWarning message={warning} onDismiss={() => setWarning(null)} />
 
       {previews.length > 0 && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
