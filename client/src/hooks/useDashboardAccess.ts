@@ -163,8 +163,14 @@ export default function useDashboardAccess(): DashboardAccessResult {
         .filter(Boolean),
     );
     const allDepartments = Array.isArray(overviewData?.departments) ? overviewData.departments : [];
+    const normalizedRoleBand = normalizeRoleBand(rawRole);
+    const canSeeAllDepartments = normalizedRoleBand === "owner" || normalizedRoleBand === "super_admin";
     const departments = allDepartments
-      .filter((d: any) => myDepartmentNames.has(String(d?.name || "").trim().toLowerCase()))
+      .filter(
+        (d: any) =>
+          canSeeAllDepartments ||
+          myDepartmentNames.has(String(d?.name || "").trim().toLowerCase()),
+      )
       .map((d: any) => ({
         id: String(d?.id || d?._id || ""),
         name: String(d?.name || ""),
@@ -177,7 +183,7 @@ export default function useDashboardAccess(): DashboardAccessResult {
       hasModule: (id: string) => allIds.has(id),
       enabledModuleIds: allIds,
       workspaceName: String(data?.workspaceName || ""),
-      roleBand: normalizeRoleBand(rawRole),
+      roleBand: normalizedRoleBand,
       departmentNames: Array.isArray(me?.departmentNames) ? me.departmentNames : [],
       departments,
       grantedModuleIds,

@@ -142,6 +142,12 @@ interface RoleAccessContext {
   grantedModules: string[];
 }
 
+interface WorkspaceDepartmentAccess {
+  id: string;
+  name: string;
+  moduleIds: string[];
+}
+
 const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 
 const readWorkspaceSetup = (): WorkspaceSetupState => {
@@ -270,6 +276,15 @@ const departmentModules: NavNode[] = [
   },
 ];
 
+const DEFAULT_WORKSPACE_DEPARTMENT_NAMES = new Set([
+  "hr",
+  "administration",
+  "sales",
+  "finance",
+  "maintenance",
+  "technology",
+  "it",
+]);
 const generalData: NavNode[] = [
   { id: "profile", label: "Profile", icon: User, route: "/profile/company-profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
@@ -627,6 +642,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     departments: [],
     grantedModules: [],
   });
+  const [workspaceDepartments, setWorkspaceDepartments] = useState<WorkspaceDepartmentAccess[]>([]);
   const workspaceSetup = readWorkspaceSetup();
 
 const authUserId = String(
@@ -665,6 +681,7 @@ useEffect(() => {
         const orgPayload =
           orgResult.status === "fulfilled" ? orgResult.value?.data?.data || {} : {};
         const teamMembers = Array.isArray(orgPayload?.teamMembers) ? orgPayload.teamMembers : [];
+        const departments = Array.isArray(orgPayload?.departments) ? orgPayload.departments : [];
         const currentUserId = String(
           (auth.user as { id?: string; _id?: string } | null)?.id ||
           (auth.user as { id?: string; _id?: string } | null)?._id ||
@@ -711,6 +728,15 @@ useEffect(() => {
           departments: Array.isArray(me?.departmentNames) ? me.departmentNames : [],
           grantedModules: memberGranted,
         });
+        setWorkspaceDepartments(
+          departments.map((department: any) => ({
+            id: String(department?.id || department?._id || "").trim(),
+            name: String(department?.name || "").trim(),
+            moduleIds: Array.isArray(department?.moduleIds)
+              ? department.moduleIds.map((id: any) => String(id || "").trim()).filter(Boolean)
+              : [],
+          })),
+        );
       } catch {
         // Fallback remains local storage driven.
         if (!active) return;
@@ -723,6 +749,7 @@ useEffect(() => {
           departments: [],
           grantedModules: [],
         });
+        setWorkspaceDepartments([]);
       } finally {
         if (active) {
           setIsSidebarHydrated(true);
@@ -1095,6 +1122,94 @@ useEffect(() => {
     workspaceCount,
   ]);
 
+  const dynamicDepartmentItems = useMemo<NavNode[]>(() => {
+    if (!["professional", "custom"].includes(planLabel)) return [];
+
+    const canSeeDepartmentAccess =
+      isFounderRole ||
+      isSuperAdmin ||
+      currentRole === "admin" ||
+      currentRole === "manager";
+    if (!canSeeDepartmentAccess) return [];
+
+    const assignedDepartmentNames = new Set(
+      roleAccessContext.departments
+        .map((name) => String(name || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const moduleNavigation = new Map<
+      string,
+      { label: string; route?: string; icon?: ElementType }
+    >();
+
+    (workspaceAccessMap?.moduleMap?.sections || []).forEach((section) => {
+      (section?.items || []).forEach((item) => {
+        const itemId = String(item?.id || "").trim();
+        if (itemId) {
+          moduleNavigation.set(itemId, {
+            label: String(item?.label || itemId),
+            route: item?.route || ROUTE_BY_ID[itemId],
+            icon: ICON_BY_ID[itemId] || Boxes,
+          });
+        }
+        (item?.tabs || []).forEach((tab) => {
+          const tabId = String(tab?.id || "").trim();
+          if (!tabId) return;
+          moduleNavigation.set(tabId, {
+            label: String(tab?.label || tabId),
+            route: tab?.route || ROUTE_BY_ID[tabId],
+            icon: ICON_BY_ID[tabId] || Boxes,
+          });
+        });
+      });
+    });
+
+    return workspaceDepartments
+      .filter((department) => {
+        const normalizedName = department.name.trim().toLowerCase();
+        if (!normalizedName || DEFAULT_WORKSPACE_DEPARTMENT_NAMES.has(normalizedName)) {
+          return false;
+        }
+        return isFounderRole || isSuperAdmin || assignedDepartmentNames.has(normalizedName);
+      })
+      .map((department) => ({
+        id: "custom-department-" + (department.id || normalizeModuleToken(department.name)),
+        label: department.name,
+        icon: Building2,
+        defaultOpen: false,
+        children: department.moduleIds.map((moduleId) => {
+          const navigation = moduleNavigation.get(moduleId);
+          const workspaceUnlocked = workspaceEnabledCanonicalIds.has(moduleId);
+          const roleUnlocked =
+            isFounderRole || isSuperAdmin || roleAllowedModuleIds.has(moduleId);
+          const unlocked = workspaceUnlocked && roleUnlocked;
+          return {
+            id: moduleId,
+            label: navigation?.label || moduleId,
+            icon: navigation?.icon || Boxes,
+            route: navigation?.route,
+            disabled: !unlocked,
+            upgradeLocked: !workspaceUnlocked,
+            disabledTitle: !unlocked
+              ? workspaceUnlocked
+                ? "You do not have access to this module"
+                : "Upgrade plan to unlock this"
+              : undefined,
+          };
+        }),
+      }))
+      .filter((department) => Boolean(department.children?.length));
+  }, [
+    currentRole,
+    isFounderRole,
+    isSuperAdmin,
+    planLabel,
+    roleAccessContext.departments,
+    roleAllowedModuleIds,
+    workspaceAccessMap?.moduleMap?.sections,
+    workspaceDepartments,
+    workspaceEnabledCanonicalIds,
+  ]);
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
     workspaceAccessMap?.moduleMap?.sections || []
   ).map((section) => {
@@ -1165,7 +1280,11 @@ useEffect(() => {
               : undefined,
       };
     }).filter((item): item is NavNode => Boolean(item));
-    let sortedItems = sortEnabledFirst(mappedItems);
+    let sortedItems = sortEnabledFirst(
+      sectionKey === "department-accesses"
+        ? [...mappedItems, ...dynamicDepartmentItems]
+        : mappedItems,
+    );
     sortedItems = sortedItems.map((item) => {
       if (item.id === "website-leads" && sectionKey === "key-apps")
         return { ...item, label: "All Leads", icon: Magnet, route: "/company-settings/all-leads" };

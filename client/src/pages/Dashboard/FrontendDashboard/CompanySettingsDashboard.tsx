@@ -61,6 +61,15 @@ const WorkspaceClock = ({ workspaceName, timezone }: { workspaceName: string; ti
   );
 };
 
+const DEFAULT_WORKSPACE_DEPARTMENT_NAMES = new Set([
+  "hr",
+  "administration",
+  "sales",
+  "finance",
+  "maintenance",
+  "technology",
+  "it",
+]);
 const CompanySettingsDashboard = () => {
   const { auth } = useAuth();
   const location = useLocation();
@@ -125,6 +134,24 @@ const CompanySettingsDashboard = () => {
 
   // Only founder/super_admin see the plan-tier dashboard and the upgrade nudge.
   const isFounderOrSuperAdmin = access.roleBand === "owner" || access.roleBand === "super_admin";
+  const customDepartments = useMemo(
+    () =>
+      access.departments.filter(
+        (department) =>
+          !DEFAULT_WORKSPACE_DEPARTMENT_NAMES.has(
+            String(department.name || "").trim().toLowerCase(),
+          ),
+      ),
+    [access.departments],
+  );
+  const customDepartmentGrantedModuleIds = useMemo(
+    () =>
+      new Set([
+        ...access.grantedModuleIds,
+        ...customDepartments.flatMap((department) => department.moduleIds),
+      ]),
+    [access.grantedModuleIds, customDepartments],
+  );
   // Custom plan has no upgrade path
   const canUpgrade = isFounderOrSuperAdmin && access.plan !== "custom";
 
@@ -172,6 +199,15 @@ const CompanySettingsDashboard = () => {
             <ProfessionalDashboard onUpgradeClick={() => setShowUpgradeModal(true)} />
           )}
           {access.plan === "custom" && <CustomDashboard access={access} />}
+          {access.plan !== "basic" && customDepartments.length > 0 && (
+            <ModuleAccessDashboard
+              moduleMap={access.moduleMap}
+              grantedModuleIds={customDepartmentGrantedModuleIds}
+              roleBand={access.roleBand}
+              departments={customDepartments}
+              showCommonModules={false}
+            />
+          )}
         </>
       ) : (
         <ModuleAccessDashboard
