@@ -30,6 +30,7 @@ interface ModuleAccessDashboardProps {
   grantedModuleIds: Set<string>;
   roleBand: RoleBand;
   departments: { id: string; name: string; moduleIds: string[] }[];
+  showCommonModules?: boolean;
 }
 
 const toQuickLink = (id: string, label: string): QuickLinkItem | null => {
@@ -39,7 +40,12 @@ const toQuickLink = (id: string, label: string): QuickLinkItem | null => {
   return { icon, label, description: route.replace(/^\//, "").replace(/[-/]/g, " "), route, color: DEFAULT_COLOR };
 };
 
-const ModuleAccessDashboard = ({ moduleMap, grantedModuleIds, departments }: ModuleAccessDashboardProps) => {
+const ModuleAccessDashboard = ({
+  moduleMap,
+  grantedModuleIds,
+  departments,
+  showCommonModules = true,
+}: ModuleAccessDashboardProps) => {
   const sections = Array.isArray(moduleMap?.sections) ? moduleMap.sections : [];
 
   // Flattened id -> label, walking every section/tab so any module in the
@@ -81,20 +87,24 @@ const ModuleAccessDashboard = ({ moduleMap, grantedModuleIds, departments }: Mod
   const commonSections = sections.filter(
     (s) => s.sectionId === "common-modules" || s.sectionId === "extra-common-modules",
   );
-  const commonLinks = commonSections
-    .flatMap((s) => s.items || [])
-    .filter((item) => !item.isGroup && item.id !== "attendance" && grantedModuleIds.has(item.id))
-    .map((item) => toQuickLink(item.id, item.label || item.id))
-    .filter((link): link is QuickLinkItem => Boolean(link));
+  const commonLinks = showCommonModules
+    ? commonSections
+        .flatMap((s) => s.items || [])
+        .filter((item) => !item.isGroup && item.id !== "attendance" && grantedModuleIds.has(item.id))
+        .map((item) => toQuickLink(item.id, item.label || item.id))
+        .filter((link): link is QuickLinkItem => Boolean(link))
+    : [];
   const seenRoutes = new Set<string>();
   const dedupedCommonLinks = commonLinks.filter((link) => {
     if (seenRoutes.has(link.route)) return false;
     seenRoutes.add(link.route);
     return true;
   });
-  const commonStatCards = statCards.filter((c) => !allDeptModuleIds.has(c.moduleId));
+  const commonStatCards = showCommonModules
+    ? statCards.filter((c) => !allDeptModuleIds.has(c.moduleId))
+    : [];
 
-  const showAttendanceCard = grantedModuleIds.has("attendance");
+  const showAttendanceCard = showCommonModules && grantedModuleIds.has("attendance");
   const isEmpty = departmentSections.length === 0 && dedupedCommonLinks.length === 0 && commonStatCards.length === 0 && !showAttendanceCard;
 
   if (isEmpty) {

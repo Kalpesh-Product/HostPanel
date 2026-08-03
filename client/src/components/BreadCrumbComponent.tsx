@@ -620,6 +620,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/hr/attendance-review/:userId",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Attendance Review", path: "/hr/attendance-review" },
+      { label: "Employee Attendance" },
+    ],
+  },
+  {
     pattern: "/hr/leave-request-processing",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },

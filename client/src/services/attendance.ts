@@ -66,6 +66,16 @@ export const updateAttendanceGeofence = async (data: Record<string, any>) => {
   return unwrap(response);
 };
 
+export const getAttendanceSettings = async () => {
+  const response = await axiosPrivate.get("/api/attendance/settings");
+  return unwrap(response);
+};
+
+export const updateAttendanceSettings = async (data: Record<string, any>) => {
+  const response = await axiosPrivate.patch("/api/attendance/settings", data);
+  return unwrap(response);
+};
+
 export const reviewAttendanceCorrection = async (correctionId: string, action: string, reason?: string) => {
   const response = await axiosPrivate.patch(`/api/attendance/correction/${correctionId}/review`, { action, reason });
   return unwrap(response);

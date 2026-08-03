@@ -221,6 +221,7 @@ export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "maintenance-repair-logs": "/maintenance/repair-logs",
   "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
   "tech-website-builder": "/company-settings/website-builder",
+  "website-leads": "/company-settings/website-builder/leads",
   "website-review": "/company-settings/website-builder/dynamic/reviews",
   "it-repair-logs": "/it/repair-logs",
   "it-system-access": "/it/system-access",

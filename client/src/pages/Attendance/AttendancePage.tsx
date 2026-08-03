@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search, Eye, X, Calendar, Clock, CheckCircle2, XCircle, AlertCircle,
   MapPin, Camera, User, Building2, ChevronDown, Coffee, LogIn, LogOut,
-  RefreshCw, Edit3, Check, AlertTriangle, Circle, Users, Send
+  RefreshCw, Edit3, Check, AlertTriangle, Circle, Users, Send, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
@@ -15,6 +16,8 @@ import {
   getTeamAttendance,
   requestAttendanceCorrection,
   getEmployeeAttendanceHistory,
+  getAttendanceGeofence,
+  getAttendanceSettings,
 } from '@/services/attendance';
 import {
   canAccessAdminDashboard,
@@ -82,6 +85,11 @@ interface CorrectionEntry {
   rejectionReason?: string;
 }
 
+interface WeeklyHoursSummary {
+  workedHours: number;
+  targetHours: number | null;
+}
+
 interface AttendanceStats {
   present: number;
   absent: number;
@@ -90,6 +98,7 @@ interface AttendanceStats {
   total: number;
   workingDays: number;
   attendancePercentage: number;
+  weeklyHours?: WeeklyHoursSummary;
 }
 
 interface CorrectionForm {
@@ -243,10 +252,12 @@ const INITIAL_CORRECTION_FORM: CorrectionForm = {
 const DEFAULT_STATS: AttendanceStats = {
   present: 0, absent: 0, late: 0, halfDay: 0,
   total: 0, workingDays: 0, attendancePercentage: 0,
+  weeklyHours: { workedHours: 0, targetHours: null },
 };
 
 /* ── Component ── */
 export function AttendancePage() {
+  const navigate = useNavigate();
   const workspacePreferences = useWorkspacePreferences();
   const currentUser = getStoredUser();
   const actingContext = getStoredActingManagerContext(currentUser);
@@ -257,12 +268,14 @@ export function AttendancePage() {
   const isSuperAdminProfile = membershipRole === 'super-admin';
   const isAdminProfile = canAccessAdminDashboard(currentUser) || membershipRole === 'admin' || membershipRole === 'admin-manager';
 
+  const managedDepartments = getManagedDepartments(currentUser);
+
   const currentUserDepartments: any[] = [
     ...(Array.isArray(currentUser?.workspaceMembership?.departments) ? currentUser.workspaceMembership.departments : []),
     currentUser?.workspaceMembership?.department,
     currentUser?.department,
     currentUser?.workspace?.department,
-    ...getManagedDepartments(currentUser),
+    ...managedDepartments,
     actingContext?.departmentName,
   ].filter(Boolean);
 
@@ -312,6 +325,10 @@ export function AttendancePage() {
   const [myStats, setMyStats] = useState<AttendanceStats>(DEFAULT_STATS);
   const [teamRecords, setTeamRecords] = useState<TeamMemberAttendance[]>([]);
   const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
+
+  /* ── Attendance configuration (HR-set working hours, break, geofence) ── */
+  const [isAttendanceConfigured, setIsAttendanceConfigured] = useState(true);
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   /* ── Modal State ── */
   const [viewingEmployee, setViewingEmployee] = useState<any>(null);
@@ -398,8 +415,14 @@ export function AttendancePage() {
     return ['HR', 'Administration', 'Sales', 'IT', 'Tech', 'Finance', 'Maintenance'];
   }, [assignedDepartmentNames]);
 
-  const isDeptManager = assignedDepartmentNames.length > 0;
-  const canManageAttendance = isAdminProfile || isSuperAdminProfile || isOwnerProfile || isDeptManager;
+  // Only people who actually manage a department (or are HR by role/department
+  // assignment) get the Team Attendance tab - being merely assigned to a
+  // department as a regular member should not grant it.
+  const isDeptManager = managedDepartments.length > 0;
+  const isHrProfile = membershipRole.includes('hr') ||
+    assignedDepartmentNames.some((d) => normalizeRole(d) === 'hr' || normalizeRole(d).includes('human-resources'));
+  const canManageAttendance = isAdminProfile || isSuperAdminProfile || isOwnerProfile || isDeptManager || isHrProfile;
+  const isClockDisabledByConfig = isConfigLoaded && !isAttendanceConfigured;
 
   /* ── Effects ── */
   useEffect(() => {
@@ -420,7 +443,7 @@ export function AttendancePage() {
         setTeamRecords(Array.isArray(teamData.records) ? teamData.records : []);
         setAllRecords(Array.isArray(teamData.allRecords) ? teamData.allRecords : (Array.isArray(teamData.records) ? teamData.records : []));
       } catch (err: any) {
-        if (mounted) setErrorMessage(err?.message || 'Failed to load attendance data.');
+        if (mounted) setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to load attendance data.');
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -428,6 +451,35 @@ export function AttendancePage() {
     load();
     return () => { mounted = false; };
   }, [selectedMonth]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadConfig = async () => {
+      try {
+        const [geofenceRes, settingsRes] = await Promise.all([
+          getAttendanceGeofence().catch(() => null),
+          getAttendanceSettings().catch(() => null),
+        ]);
+        if (!mounted) return;
+        const geofence = geofenceRes?.data?.geofence || geofenceRes?.geofence || null;
+        const settings = settingsRes?.data?.settings || settingsRes?.settings || null;
+        const geofenceReady = Boolean(geofence?.enabled) && geofence?.latitude != null && geofence?.longitude != null;
+        const settingsReady = Boolean(
+          settings?.weeklyWorkingHours != null &&
+          settings?.workingHoursStart &&
+          settings?.workingHoursEnd &&
+          settings?.breakDurationMinutes != null,
+        );
+        setIsAttendanceConfigured(geofenceReady && settingsReady);
+      } catch {
+        if (mounted) setIsAttendanceConfigured(true);
+      } finally {
+        if (mounted) setIsConfigLoaded(true);
+      }
+    };
+    loadConfig();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     const syncWorkspaceCalendar = () => {
@@ -457,6 +509,10 @@ export function AttendancePage() {
 
   /* ── Clock Handlers ── */
   const handleClockAction = async (mode: 'in' | 'out') => {
+    if (isClockDisabledByConfig) {
+      setClockErrorMessage('Attendance is not configured for this workspace yet. Ask HR to set working hours and the geofence.');
+      return;
+    }
     setClockMode(mode);
     setShowClockModal(true);
     setCaptureOpenedAt(new Date());
@@ -583,7 +639,7 @@ export function AttendancePage() {
       }
       setCameraStreamActive(false);
     } catch (err: any) {
-      setClockErrorMessage(err?.message || 'Failed to record attendance.');
+      setClockErrorMessage(err?.response?.data?.message || err?.message || 'Failed to record attendance.');
     } finally {
       setIsClockLoading(false);
     }
@@ -596,7 +652,7 @@ export function AttendancePage() {
       await startBreakAttendance();
       setClockStatus('on_break');
     } catch (err: any) {
-      setClockErrorMessage(err?.message || 'Failed to start break.');
+      setClockErrorMessage(err?.response?.data?.message || err?.message || 'Failed to start break.');
     } finally {
       setIsClockLoading(false);
     }
@@ -609,7 +665,7 @@ export function AttendancePage() {
       await endBreakAttendance();
       setClockStatus('checked_in');
     } catch (err: any) {
-      setClockErrorMessage(err?.message || 'Failed to end break.');
+      setClockErrorMessage(err?.response?.data?.message || err?.message || 'Failed to end break.');
     } finally {
       setIsClockLoading(false);
     }
@@ -644,7 +700,7 @@ export function AttendancePage() {
       const res = await getMyAttendance({ month: selectedMonth });
       setMyRecords(Array.isArray(res?.data?.records) ? res.data.records : []);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to submit correction request.');
+      setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to submit correction request.');
     } finally {
       setIsSubmittingCorrection(false);
     }
@@ -685,11 +741,15 @@ export function AttendancePage() {
   /* ── Stats for tabs ── */
   const tabCards = useMemo(() => {
     if (activeTab === 'my-attendance') {
+      const weeklyHours = myStats.weeklyHours;
+      const weeklyHoursValue = weeklyHours?.targetHours != null
+        ? `${weeklyHours.workedHours}/${weeklyHours.targetHours} hrs`
+        : `${weeklyHours?.workedHours ?? 0} hrs`;
       return [
         { key: 'present', label: 'Present', value: myStats.present, color: 'emerald', icon: CheckCircle2 },
         { key: 'absent', label: 'Absent', value: myStats.absent, color: 'rose', icon: XCircle },
         { key: 'late', label: 'Late', value: myStats.late, color: 'amber', icon: AlertCircle },
-        { key: 'percentage', label: 'Attendance %', value: `${myStats.attendancePercentage}%`, color: 'blue', icon: Calendar },
+        { key: 'weekly-hours', label: 'Weekly Hours', value: weeklyHoursValue, color: 'blue', icon: Clock },
       ];
     }
     if (activeTab === 'team-attendance') {
@@ -774,6 +834,24 @@ export function AttendancePage() {
             </div>
           ) : null}
 
+          {isClockDisabledByConfig ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-pmedium text-amber-700 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} />
+                Attendance isn't configured for this workspace yet. Working hours, break duration, and the geofence must be set by HR before clock in/out will work.
+              </div>
+              {canManageAttendance && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/hr/attendance-review')}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white hover:bg-amber-700 transition-colors"
+                >
+                  <Settings size={12} /> Open Attendance Settings
+                </button>
+              )}
+            </div>
+          ) : null}
+
           {/* CLOCK IN/OUT CARD */}
           <div className="bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 border border-blue-100 rounded-2xl p-4 lg:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="flex items-center gap-4">
@@ -790,7 +868,7 @@ export function AttendancePage() {
               {clockStatus === 'checked_out' && (
                 <button
                   onClick={() => handleClockAction('in')}
-                  disabled={isClockLoading || isCapturing || isTodayCompleted}
+                  disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig}
                   className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                 >
                 {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
@@ -800,7 +878,7 @@ export function AttendancePage() {
                 <>
                   <button
                     onClick={handleStartBreak}
-                    disabled={isClockLoading || isTodayCompleted}
+                    disabled={isClockLoading || isTodayCompleted || isClockDisabledByConfig}
                     className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-pmedium text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Coffee size={14} />}
@@ -808,7 +886,7 @@ export function AttendancePage() {
                   </button>
                   <button
                     onClick={() => handleClockAction('out')}
-                    disabled={isClockLoading || isCapturing || isTodayCompleted}
+                    disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig}
                     className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-pmedium text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isCapturing ? <Camera size={14} className="animate-pulse" /> : isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogOut size={14} />}
@@ -819,7 +897,7 @@ export function AttendancePage() {
               {clockStatus === 'on_break' && (
                 <button
                   onClick={handleEndBreak}
-                  disabled={isClockLoading || isTodayCompleted}
+                  disabled={isClockLoading || isTodayCompleted || isClockDisabledByConfig}
                   className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-pmedium text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}

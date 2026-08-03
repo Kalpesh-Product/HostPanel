@@ -9,6 +9,7 @@ import {
   inviteOrganizationMember,
   linkOrganizationMember,
   removeOrganizationActingManager,
+  removeOrganizationMemberWorkspaceAccess,
   saveOrganizationDepartment,
   transferOrganizationMember,
   transferOrganizationOwnership,
@@ -36,6 +37,7 @@ router.patch("/members/:memberId/role", updateOrganizationMemberRole);
 router.patch("/members/:memberId/access", updateOrganizationMemberAccess);
 router.post("/members/:memberId/transfer", transferOrganizationMember);
 router.post("/members/:memberId/link-workspace", linkOrganizationMember);
+router.delete("/members/:memberId/workspace-access", removeOrganizationMemberWorkspaceAccess);
 router.post("/ownership/transfer", transferOrganizationOwnership);
 
 export default router;

@@ -45,8 +45,23 @@ export interface IAttendance extends Document {
     checkInSelfiePublicId?: string;
     checkInSelfieFolder?: string;
     checkInSelfieUploadedAt?: Date | null;
+    checkInLatitude?: number | null;
+    checkInLongitude?: number | null;
+    checkInDistanceMeters?: number | null;
     checkOutAt?: Date | null;
+    checkOutSelfieUrl?: string;
+    checkOutSelfiePublicId?: string;
+    checkOutSelfieFolder?: string;
+    checkOutSelfieUploadedAt?: Date | null;
+    checkOutLatitude?: number | null;
+    checkOutLongitude?: number | null;
+    checkOutDistanceMeters?: number | null;
     autoCheckoutAt?: Date | null;
+    // Snapshotted from workspace.attendanceSettings when this day's record is
+    // created, so status calculations stay consistent even if HR edits the
+    // settings mid-day.
+    workStartMinutes?: number | null;
+    halfDayThresholdSeconds?: number | null;
     punchSelfies: IAttendancePunchSelfie[];
     isActiveBreak: boolean;
     activeBreakStartedAt?: Date | null;
@@ -183,8 +198,20 @@ const attendanceSchema = new Schema<IAttendance>(
         checkInSelfiePublicId: { type: String, trim: true, default: "" },
         checkInSelfieFolder: { type: String, trim: true, default: "" },
         checkInSelfieUploadedAt: { type: Date, default: null },
+        checkInLatitude: { type: Number, default: null },
+        checkInLongitude: { type: Number, default: null },
+        checkInDistanceMeters: { type: Number, default: null },
         checkOutAt: { type: Date, default: null },
+        checkOutSelfieUrl: { type: String, trim: true, default: "" },
+        checkOutSelfiePublicId: { type: String, trim: true, default: "" },
+        checkOutSelfieFolder: { type: String, trim: true, default: "" },
+        checkOutSelfieUploadedAt: { type: Date, default: null },
+        checkOutLatitude: { type: Number, default: null },
+        checkOutLongitude: { type: Number, default: null },
+        checkOutDistanceMeters: { type: Number, default: null },
         autoCheckoutAt: { type: Date, default: null },
+        workStartMinutes: { type: Number, default: null },
+        halfDayThresholdSeconds: { type: Number, default: null },
         punchSelfies: { type: [attendancePunchSelfieSchema], default: [] },
         isActiveBreak: { type: Boolean, default: false },
         activeBreakStartedAt: { type: Date, default: null },
