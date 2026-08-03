@@ -235,6 +235,14 @@ function getManagedOrganizationDepartments(currentUser) {
     .filter(Boolean);
 }
 
+function resolveDepartmentName(department) {
+  if (department && typeof department === 'object') {
+    return String(department.name || department.department || '').trim();
+  }
+
+  return String(department || '').trim();
+}
+
 function normalizeAsset(asset) {
   return {
     ...asset,
@@ -334,14 +342,14 @@ export function TicketsPage() {
   const profile = {
     name: displayUserName,
     role: storedUser?.role || 'owner',
-    dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (storedUser?.workspaceMembership?.departments?.[0] || 'Executive')),
+    dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (resolveDepartmentName(storedUser?.workspaceMembership?.departments?.[0]) || 'Executive')),
   };
   const currentUserId = String(storedUser?._id || storedUser?.id || storedUser?.userId || '').trim();
   const currentUserDepartments = [
-    ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
-    storedUser?.workspaceMembership?.department,
-    storedUser?.department,
-    storedUser?.workspace?.department,
+    ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments.map(resolveDepartmentName) : []),
+    resolveDepartmentName(storedUser?.workspaceMembership?.department),
+    resolveDepartmentName(storedUser?.department),
+    resolveDepartmentName(storedUser?.workspace?.department),
     ...getManagedOrganizationDepartments(storedUser),
   ].filter(Boolean);
   const currentUserDepartmentKeys = useMemo(
@@ -360,9 +368,9 @@ export function TicketsPage() {
 
   function getAdminDepartments() {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
-      storedUser?.workspaceMembership?.department,
-      storedUser?.department,
+      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments.map(resolveDepartmentName) : []),
+      resolveDepartmentName(storedUser?.workspaceMembership?.department),
+      resolveDepartmentName(storedUser?.department),
     ].filter(Boolean);
 
     const seen = new Set();
@@ -488,7 +496,10 @@ export function TicketsPage() {
       return false;
     }
 
-    return true;
+    const assigneeId = ticket?.assigneeUserId ? String(ticket.assigneeUserId) : '';
+    const assignedTo = (ticket?.assignedTo || '').trim().toLowerCase();
+
+    return !assigneeId && /queue$/i.test(assignedTo) && ticket?.status === 'Open';
   }
 
   function isEmployeeMyTicket(ticket) {
