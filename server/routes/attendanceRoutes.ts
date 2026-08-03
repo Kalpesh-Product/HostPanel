@@ -5,6 +5,7 @@ import {
   createCorrectionRequest,
   endBreak,
   getAttendanceGeofenceConfig,
+  getAttendanceSettingsConfig,
   getEmployeeAttendanceHistoryForTeam,
   getHrAttendanceReview,
   getMyAttendance,
@@ -12,6 +13,7 @@ import {
   reviewCorrectionRequest,
   resolveAttendanceGeofenceUrl,
   updateAttendanceGeofenceConfig,
+  updateAttendanceSettingsConfig,
   startBreak,
 } from "../controllers/attendanceController.js";
 import { attendanceSelfieUpload } from "../middlewares/attendance-upload.middleware.js";
@@ -24,6 +26,8 @@ router.get("/hr/review", getHrAttendanceReview);
 router.get("/geofence", getAttendanceGeofenceConfig);
 router.post("/geofence/resolve", resolveAttendanceGeofenceUrl);
 router.patch("/geofence", updateAttendanceGeofenceConfig);
+router.get("/settings", getAttendanceSettingsConfig);
+router.patch("/settings", updateAttendanceSettingsConfig);
 router.get("/employee/:userId", getEmployeeAttendanceHistoryForTeam);
 router.get("/team/:userId/history", getEmployeeAttendanceHistoryForTeam);
 router.post("/check-in", attendanceSelfieUpload.single("selfie"), checkIn);

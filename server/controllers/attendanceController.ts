@@ -4,6 +4,7 @@ import {
   checkOutAttendance,
   endBreakAttendance,
   getAttendanceGeofence,
+  getAttendanceSettings,
   getEmployeeAttendanceHistory,
   getMyAttendanceHistory,
   getTeamAttendanceSnapshot,
@@ -11,6 +12,7 @@ import {
   reviewAttendanceCorrection,
   resolveAttendanceGeofenceLocation,
   updateAttendanceGeofence,
+  updateAttendanceSettings,
   startBreakAttendance,
 } from "../services/attendanceService.js";
 import { createNotification } from "../utils/notify.js";
@@ -238,6 +240,32 @@ export async function updateAttendanceGeofenceConfig(request, response, next) {
     response.status(200).json({
       success: true,
       message: "Attendance geofence updated successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAttendanceSettingsConfig(request, response, next) {
+  try {
+    const result = await getAttendanceSettings(request.user);
+    response.status(200).json({
+      success: true,
+      message: "Attendance settings loaded successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateAttendanceSettingsConfig(request, response, next) {
+  try {
+    const result = await updateAttendanceSettings(request.user, request.body);
+    response.status(200).json({
+      success: true,
+      message: "Attendance settings updated successfully.",
       data: result,
     });
   } catch (error) {

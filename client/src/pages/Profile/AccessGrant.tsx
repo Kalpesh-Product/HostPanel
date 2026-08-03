@@ -26,6 +26,7 @@ import { updateEmployeeAccess as updateEmployeeAccessRequest } from '../../servi
 import {
   getOrganizationOverview,
   linkOrganizationMember,
+  removeOrganizationMemberWorkspaceAccess,
   transferOrganizationMember,
   transferOrganizationOwnership,
   updateOrganizationMemberRole,
@@ -418,6 +419,8 @@ export default function AccessGrantsPage() {
   const [linkedWorkspaces, setLinkedWorkspaces] = useState<LinkedWorkspace[]>([]);
   const [showWorkspaceTransferDialog, setShowWorkspaceTransferDialog] = useState(false);
   const [showWorkspaceLinkDialog, setShowWorkspaceLinkDialog] = useState(false);
+  const [showWorkspaceRemoveDialog, setShowWorkspaceRemoveDialog] = useState(false);
+  const [workspaceRemoveTargetId, setWorkspaceRemoveTargetId] = useState('');
   const [workspaceTransferForm, setWorkspaceTransferForm] = useState<WorkspaceTransferForm>({
     targetWorkspaceId: '',
     role: 'employee',
@@ -572,6 +575,18 @@ export default function AccessGrantsPage() {
   }, [selectedUser, transferWorkspaceOptions]);
   const canLinkMembers =
     canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && linkWorkspaceOptions.length > 0;
+  const removableWorkspaceOptions = useMemo(
+    () =>
+      (Array.isArray(selectedUser?.workspaceAccesses) ? selectedUser.workspaceAccesses : []).filter(
+        (access) => String(access?.id || '') !== String(workspace?.id || ''),
+      ),
+    [selectedUser, workspace],
+  );
+  const canRemoveUnitAccess =
+    isFounderRole &&
+    Boolean(selectedUser) &&
+    !['owner', 'founder'].includes(selectedUserRole) &&
+    removableWorkspaceOptions.length > 0;
   const selectedTransferWorkspace = useMemo(
     () => transferWorkspaceOptions.find((item) => String(item.id) === String(workspaceTransferForm.targetWorkspaceId)) || null,
     [transferWorkspaceOptions, workspaceTransferForm.targetWorkspaceId],
@@ -1185,6 +1200,48 @@ export default function AccessGrantsPage() {
     }
   };
 
+  const handleOpenWorkspaceRemoveDialog = (user: MappedMember) => {
+    const currentWorkspaceId = String(workspace?.id || '');
+    const firstAdditionalAccess = (user.workspaceAccesses || []).find(
+      (access) => String(access?.id || '') !== currentWorkspaceId,
+    );
+
+    setSelectedUser(user);
+    setWorkspaceRemoveTargetId(String(firstAdditionalAccess?.id || ''));
+    setShowWorkspaceRemoveDialog(true);
+  };
+
+  const handleConfirmWorkspaceRemoval = async () => {
+    if (!canRemoveUnitAccess || !selectedUser || !workspaceRemoveTargetId) {
+      toast.error('Select an additional unit to remove.');
+      return;
+    }
+
+    const removedWorkspace = removableWorkspaceOptions.find(
+      (item) => String(item.id) === String(workspaceRemoveTargetId),
+    );
+
+    setIsSaving(true);
+    try {
+      const response = await removeOrganizationMemberWorkspaceAccess(
+        axiosPrivate,
+        selectedUser.id,
+        workspaceRemoveTargetId,
+      );
+      await reloadFromResponse(response);
+      setShowWorkspaceRemoveDialog(false);
+      setShowDetailPanel(false);
+      setWorkspaceRemoveTargetId('');
+      setSelectedUser(null);
+      toast.success(
+        selectedUser.name + "'s access to " + (removedWorkspace?.workspaceName || 'the selected unit') + ' was removed.',
+      );
+    } catch (error) {
+      toast.error((error as Error).message || 'Unable to remove unit access right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const workspaceDepartmentCount = Array.isArray(workspace?.organizationDepartments)
     ? workspace.organizationDepartments.length
     : 0;
@@ -1574,7 +1631,27 @@ export default function AccessGrantsPage() {
                           </div>
                         </button>
                       )}
-                </div>
+
+                      {canRemoveUnitAccess && (
+                        <button
+                          onClick={() => handleOpenWorkspaceRemoveDialog(selectedUser)}
+                          disabled={isSaving || isReadOnlySession}
+                          className="w-full p-3 bg-white hover:bg-red-50 text-left rounded-[1.1rem] transition-colors group border border-red-100 shadow-sm disabled:opacity-60"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-9 h-9 bg-red-100 group-hover:bg-red-200 rounded-xl flex items-center justify-center transition-colors">
+                                <UserX className="w-4 h-4 text-red-600" />
+                              </div>
+                              <div>
+                                <div className="font-semibold text-[13px] text-slate-900">Remove Unit Access</div>
+                                <div className="text-xs text-slate-500 mt-0.5">Founder only - remove one additional unit</div>
+                              </div>
+                            </div>
+                            <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-red-500 transition-colors" />
+                          </div>
+                        </button>
+                      )}                </div>
               </div>
             </div>
           </div>
@@ -1867,6 +1944,76 @@ export default function AccessGrantsPage() {
           </div>
         )}
 
+          {showWorkspaceRemoveDialog && selectedUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
+              <div className="my-6 w-full max-w-md overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
+                <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
+                  <div>
+                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-red-300">Remove Unit Access</p>
+                    <h2 className="mt-1 text-sm font-pmedium text-white">Remove access for {selectedUser.name}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWorkspaceRemoveDialog(false);
+                      setWorkspaceRemoveTargetId('');
+                    }}
+                    className="rounded-xl border border-white/5 p-2.5 transition-colors hover:bg-white/10"
+                  >
+                    <X className="h-5 w-5 text-slate-300" />
+                  </button>
+                </div>
+
+                <div className="space-y-3 bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
+                  <div>
+                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">
+                      Unit to remove
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={workspaceRemoveTargetId}
+                        onChange={(event) => setWorkspaceRemoveTargetId(event.target.value)}
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/10"
+                      >
+                        <option value="">Select unit</option>
+                        {removableWorkspaceOptions.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.workspaceName}{item.location ? ' - ' + item.location : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                    This removes only the selected additional unit. The user's current-unit access remains active. Founder access can never be removed here.
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 border-t border-slate-100/60 bg-white p-3 sm:p-3.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWorkspaceRemoveDialog(false);
+                      setWorkspaceRemoveTargetId('');
+                    }}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmWorkspaceRemoval}
+                    disabled={isSaving || isReadOnlySession || !workspaceRemoveTargetId}
+                    className="rounded-2xl bg-red-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {isSaving ? 'Removing...' : 'Remove Access'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {showWorkspaceLinkDialog && selectedUser && (
             <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
               <div className="my-6 w-full max-w-md overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">

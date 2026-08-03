@@ -11,6 +11,7 @@ import Company from "../models/Company.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
 import { renderNotificationEmail } from "../utils/emailTemplates.js";
+import { createNotification } from "../utils/notify.js";
 import {
   buildWorkspaceModuleCatalog,
   COMMON_MODULE_IDS,
@@ -42,6 +43,168 @@ const toId = (value) => String(value || "");
 // everyone by default, on top of whatever department/role defaults apply.
 const BASELINE_MODULE_IDS = [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS];
 
+const escapeEmailHtml = (value: any) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const notifyMemberAboutUnitChange = async ({
+  memberUser,
+  actorUserId,
+  notificationWorkspaceId,
+  sourceWorkspace,
+  targetWorkspace,
+  changeType,
+}: any) => {
+  if (!memberUser?._id || !targetWorkspace?._id) return;
+
+  const isTransfer = changeType === "transfer";
+  const sourceName = String(sourceWorkspace?.businessName || sourceWorkspace?.workspaceName || "your previous unit").trim();
+  const targetName = String(targetWorkspace?.businessName || targetWorkspace?.workspaceName || "your new unit").trim();
+  const title = isTransfer ? `Transferred to ${targetName}` : `Unit access added for ${targetName}`;
+  const description = isTransfer
+    ? `Your access has been transferred from ${sourceName} to ${targetName}. You can now sign in to ${targetName}, and you no longer have access to ${sourceName}.`
+    : `You now have access to ${targetName}. Your existing access to ${sourceName} remains active, so you can use both units.`;
+
+  await createNotification({
+    workspaceId: String(notificationWorkspaceId || targetWorkspace._id),
+    recipientUserId: String(memberUser._id),
+    actorUserId: actorUserId ? String(actorUserId) : null,
+    type: isTransfer ? "workspace_member_transferred" : "workspace_access_added",
+    category: "system",
+    title,
+    description,
+    entityType: "workspace",
+    entityId: String(targetWorkspace._id),
+    targetUrl: "/notifications",
+    data: {
+      changeType,
+      sourceWorkspaceId: String(sourceWorkspace?._id || ""),
+      sourceWorkspaceName: sourceName,
+      targetWorkspaceId: String(targetWorkspace._id),
+      targetWorkspaceName: targetName,
+    },
+    priority: "high",
+    allowSelf: true,
+  });
+
+  if (!memberUser.email) return;
+  const frontendBase = String(
+    process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173",
+  )
+    .trim()
+    .replace(/\/$/, "");
+
+  try {
+    await sendMail({
+      to: memberUser.email,
+      subject: title,
+      text: description,
+      html: renderNotificationEmail({
+        heroTitle: isTransfer ? "Unit Transfer Confirmed" : "Unit Access Added",
+        heroSubtitle: isTransfer
+          ? `Your WONO access has moved to ${escapeEmailHtml(targetName)}.`
+          : `You can now work in ${escapeEmailHtml(targetName)}.`,
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${escapeEmailHtml(memberUser.name || "there")},</p>
+          <p class="email-text" style="margin:0;">${escapeEmailHtml(description)}</p>
+        `,
+        detailRows: [
+          [isTransfer ? "Transferred From" : "Existing Unit", escapeEmailHtml(sourceName)],
+          [isTransfer ? "Transferred To" : "Added Unit", escapeEmailHtml(targetName)],
+          ["Access", isTransfer ? "New unit only" : "Both units"],
+        ],
+        ctaButton: {
+          label: "Open WONO Host Panel",
+          href: `${frontendBase}/`,
+        },
+        noteHtml: isTransfer
+          ? `You will not be able to use ${escapeEmailHtml(sourceName)} unless you are transferred back or unit access is added later.`
+          : `Your login remains the same. Use the workspace switcher to move between ${escapeEmailHtml(sourceName)} and ${escapeEmailHtml(targetName)}.`,
+      }),
+    });
+  } catch (mailError: any) {
+    console.error("Unit access email failed (membership change was still saved):", mailError?.message || mailError);
+  }
+};
+
+const notifyMemberAboutUnitRemoval = async ({
+  memberUser,
+  actorUserId,
+  remainingWorkspace,
+  removedWorkspace,
+}: any) => {
+  if (!memberUser?._id || !remainingWorkspace?._id || !removedWorkspace?._id) return;
+
+  const remainingName = String(
+    remainingWorkspace?.businessName || remainingWorkspace?.workspaceName || "your current unit",
+  ).trim();
+  const removedName = String(
+    removedWorkspace?.businessName || removedWorkspace?.workspaceName || "the removed unit",
+  ).trim();
+  const title = `Unit access removed for ${removedName}`;
+  const description =
+    `Your access to ${removedName} has been removed. Your access to ${remainingName} remains active.`;
+
+  await createNotification({
+    workspaceId: String(remainingWorkspace._id),
+    recipientUserId: String(memberUser._id),
+    actorUserId: actorUserId ? String(actorUserId) : null,
+    type: "workspace_access_removed",
+    category: "system",
+    title,
+    description,
+    entityType: "workspace",
+    entityId: String(removedWorkspace._id),
+    targetUrl: "/notifications",
+    data: {
+      changeType: "unit_access_removed",
+      remainingWorkspaceId: String(remainingWorkspace._id),
+      remainingWorkspaceName: remainingName,
+      removedWorkspaceId: String(removedWorkspace._id),
+      removedWorkspaceName: removedName,
+    },
+    priority: "high",
+    allowSelf: true,
+  });
+
+  if (!memberUser.email) return;
+  const frontendBase = String(
+    process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173",
+  )
+    .trim()
+    .replace(/\/$/, "");
+
+  try {
+    await sendMail({
+      to: memberUser.email,
+      subject: title,
+      text: description,
+      html: renderNotificationEmail({
+        heroTitle: "Unit Access Removed",
+        heroSubtitle: `Your access to ${escapeEmailHtml(removedName)} has changed.`,
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${escapeEmailHtml(memberUser.name || "there")},</p>
+          <p class="email-text" style="margin:0;">${escapeEmailHtml(description)}</p>
+        `,
+        detailRows: [
+          ["Removed Unit", escapeEmailHtml(removedName)],
+          ["Remaining Unit", escapeEmailHtml(remainingName)],
+        ],
+        ctaButton: {
+          label: "Open WONO Host Panel",
+          href: `${frontendBase}/`,
+        },
+        noteHtml: `Contact the founder if you still require access to ${escapeEmailHtml(removedName)}.`,
+      }),
+    });
+  } catch (mailError: any) {
+    console.error("Unit access removal email failed (access was still removed):", mailError?.message || mailError);
+  }
+};
 // Role bands that get a department's full moduleIds by default. Plain
 // employees get none of the department's modules automatically — a manager
 // (or founder/super admin) must explicitly hand-pick which of the
@@ -84,6 +247,30 @@ const computeDepartmentDefaultModuleIds = async (departmentIds = [], roleBand = 
 
 // Union merge — additive only, so manual grants/add-ons already on the
 // member are never dropped by a default-recompute.
+const computeMembershipDefaultModuleIds = async ({
+  workspace,
+  departmentIds = [],
+  roleBand = "employee",
+}: any) => {
+  const departmentDefaultIds = await computeDepartmentDefaultModuleIds(departmentIds, roleBand);
+  const superAdminDefaultIds =
+    roleBand === "super_admin" && Array.isArray(workspace?.enabledModuleIds)
+      ? workspace.enabledModuleIds
+      : [];
+  const managerOrgGrantIds = roleBand === "manager" ? MANAGER_DEFAULT_ORG_GRANT_IDS : [];
+
+  const result = new Set(
+    [
+      ...BASELINE_MODULE_IDS,
+      ...departmentDefaultIds,
+      ...superAdminDefaultIds,
+      ...managerOrgGrantIds,
+    ]
+      .map((item) => String(item || "").trim())
+      .filter(Boolean),
+  );
+  return Array.from(result);
+};
 const mergeGrantedModules = (existing = [], additions = []) => {
   const set = new Set(
     (Array.isArray(existing) ? existing : [])
@@ -537,6 +724,32 @@ export const getOrganizationOverview = async (req, res, next) => {
       .lean()
       .exec();
 
+    const inactiveMemberUserIds = members
+      .filter((member) => member.isActive === false)
+      .map((member) => member.user?._id)
+      .filter(Boolean);
+    const activeDestinationMemberships = inactiveMemberUserIds.length
+      ? await WorkspaceMember.find({
+          user: { $in: inactiveMemberUserIds },
+          workspace: { $ne: workspace._id },
+          isActive: true,
+          transferHistory: {
+            $elemMatch: {
+              fromWorkspaceId: workspace._id,
+            },
+          },
+        })
+          .select("user")
+          .lean()
+          .exec()
+      : [];
+    const transferredUserIds = new Set(
+      activeDestinationMemberships.map((member) => toId(member.user)),
+    );
+    const activeMembers = members.filter(
+      (member) => !(member.isActive === false && transferredUserIds.has(toId(member.user?._id))),
+    );
+
     const allActingManagers = await ActingManager.find({
       workspaceId: workspace._id,
       isActive: true,
@@ -563,7 +776,7 @@ export const getOrganizationOverview = async (req, res, next) => {
     // instead of the whole company, even though hasOrganizationAccess() above
     // already lets them past the Users tab gate.
     let visibleDepartments = activeDepartments;
-    let visibleMembers = members;
+    let visibleMembers = activeMembers;
     if (actorRoleBand === "manager") {
       const actorDepartmentIds = new Set(
         (Array.isArray(actorMembership.departments) ? actorMembership.departments : []).map((d) =>
@@ -573,7 +786,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       visibleDepartments = activeDepartments.filter((department) =>
         actorDepartmentIds.has(toId(department._id)),
       );
-      visibleMembers = members.filter((member) =>
+      visibleMembers = activeMembers.filter((member) =>
         (Array.isArray(member.departments) ? member.departments : []).some((dept: any) =>
           actorDepartmentIds.has(toId(dept?._id || dept)),
         ),
@@ -581,7 +794,7 @@ export const getOrganizationOverview = async (req, res, next) => {
     }
 
     const departments = visibleDepartments.map((department) => {
-      const departmentMembers = members.filter((member) =>
+      const departmentMembers = activeMembers.filter((member) =>
         (Array.isArray(member.departments) ? member.departments : []).some(
           (dept: any) => toId(dept?._id || dept) === toId(department._id),
         ),
@@ -592,7 +805,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       });
 
       const managerMember = department?.managerUser
-        ? members.find((member) => toId(member.user?._id) === toId(department.managerUser))
+        ? activeMembers.find((member) => toId(member.user?._id) === toId(department.managerUser))
         : null;
 
       return {
@@ -641,6 +854,51 @@ export const getOrganizationOverview = async (req, res, next) => {
       .lean()
       .exec();
 
+    const transferredTeamMembers = members
+      .filter((member) => member.isActive === false)
+      .map((member) => {
+        const destinationMemberships = linkedMemberships.filter(
+          (linkedMember: any) =>
+            toId(linkedMember.user) === toId(member.user?._id) &&
+            toId(linkedMember.workspace) !== toId(workspace._id),
+        );
+        const matchingTransfers = destinationMemberships.flatMap((destinationMember: any) =>
+          (Array.isArray(destinationMember.transferHistory) ? destinationMember.transferHistory : [])
+            .filter(
+              (entry: any) =>
+                toId(entry?.fromWorkspaceId) === toId(workspace._id) &&
+                toId(entry?.toWorkspaceId) === toId(destinationMember.workspace),
+            )
+            .map((entry: any) => ({ entry, destinationMember })),
+        );
+        const latestTransfer = matchingTransfers.sort(
+          (a: any, b: any) =>
+            new Date(b.entry?.transferredAt || 0).getTime() -
+            new Date(a.entry?.transferredAt || 0).getTime(),
+        )[0];
+        if (!latestTransfer) return null;
+
+        const destinationWorkspace = linkedWorkspaces.find(
+          (item) => String(item.id) === toId(latestTransfer.destinationMember.workspace),
+        );
+        return {
+          id: toId(member._id),
+          userId: toId(member.user?._id),
+          name: member.user?.name || "",
+          email: member.user?.email || "",
+          employeeId: employeeIdByMemberId.get(String(member._id)) || "",
+          role: toRoleLabel(member.role),
+          previousRole: toRoleLabel(member.role),
+          previousDepartments: Array.isArray(member.departments)
+            ? member.departments.map((department: any) => department?.name || String(department))
+            : [],
+          transferredToWorkspaceName:
+            destinationWorkspace?.workspaceName || destinationWorkspace?.businessName || "Linked Unit",
+          transferredToWorkspaceLocation: destinationWorkspace?.location || "",
+          transferredAt: latestTransfer.entry?.transferredAt || member.updatedAt,
+        };
+      })
+      .filter(Boolean);
     const teamMembers = visibleMembers.map((member) => ({
       id: toId(member._id),
       userId: toId(member.user?._id),
@@ -707,7 +965,7 @@ export const getOrganizationOverview = async (req, res, next) => {
         linkedWorkspaces,
         departments,
         teamMembers,
-        transferredTeamMembers: [],
+        transferredTeamMembers,
         metrics: {
           totalMembers: teamMembers.length,
           activeMembers: teamMembers.filter((member) => member.status === "joined").length,
@@ -2109,6 +2367,15 @@ export const transferOrganizationMember = async (req, res, next) => {
       }
     }
 
+    const targetRoleBand = getRoleBand(nextRoleStr);
+    const targetGrantedModules = await computeMembershipDefaultModuleIds({
+      workspace: targetWorkspace,
+      departmentIds: resolvedDepartmentIds,
+      roleBand: targetRoleBand,
+    });
+    const memberUser = await HostUser.findById(member.user).exec();
+    const sourceWasPrimary =
+      Boolean(member.isPrimary) || toId(memberUser?.primaryWorkspace) === toId(workspace._id);
     const transferredMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
@@ -2117,8 +2384,8 @@ export const transferOrganizationMember = async (req, res, next) => {
           departments: resolvedDepartmentIds,
           status: "joined",
           isActive: true,
-          isPrimary: true,
-          grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+          isPrimary: sourceWasPrimary,
+          grantedModules: targetGrantedModules,
         },
         $push: {
           transferHistory: {
@@ -2133,10 +2400,16 @@ export const transferOrganizationMember = async (req, res, next) => {
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
 
+    if (sourceWasPrimary) {
+      await WorkspaceMember.updateMany(
+        { user: member.user, _id: { $ne: transferredMembership._id } },
+        { $set: { isPrimary: false } },
+      ).exec();
+    }
     await ensureEmployeeProfileForMember({
       workspace: targetWorkspace,
       member: transferredMembership,
-      user: await HostUser.findById(member.user).exec(),
+      user: memberUser,
     });
 
     member.isActive = false;
@@ -2160,6 +2433,14 @@ export const transferOrganizationMember = async (req, res, next) => {
       { $set: { primaryWorkspace: targetWorkspace._id } },
     ).exec();
 
+    await notifyMemberAboutUnitChange({
+      memberUser,
+      actorUserId: actor._id,
+      notificationWorkspaceId: targetWorkspace._id,
+      sourceWorkspace: workspace,
+      targetWorkspace,
+      changeType: "transfer",
+    });
     return res.status(200).json({ message: "Member transferred successfully." });
   } catch (error) {
     next(error);
@@ -2207,6 +2488,17 @@ export const linkOrganizationMember = async (req, res, next) => {
       isActive: true,
     });
     if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
+    const existingTargetMembership = await WorkspaceMember.findOne({
+      workspace: targetWorkspace._id,
+      user: member.user,
+      isActive: true,
+    })
+      .select("_id")
+      .lean()
+      .exec();
+    if (existingTargetMembership) {
+      return res.status(409).json({ message: "This user already has access to the selected workspace." });
+    }
 
     const roleName = normalizeRoleForStorage(getRoleName(member.role));
     let targetRoleDoc = await Role.findOne({
@@ -2240,6 +2532,12 @@ export const linkOrganizationMember = async (req, res, next) => {
       )
       .map((department: any) => department._id);
 
+    const targetGrantedModules = await computeMembershipDefaultModuleIds({
+      workspace: targetWorkspace,
+      departmentIds: targetDepartmentIds,
+      roleBand: getRoleBand(roleName),
+    });
+    const memberUser = await HostUser.findById(member.user).exec();
     const linkedMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
@@ -2249,7 +2547,7 @@ export const linkOrganizationMember = async (req, res, next) => {
           status: "joined",
           isActive: true,
           isPrimary: false,
-          grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+          grantedModules: targetGrantedModules,
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -2258,15 +2556,125 @@ export const linkOrganizationMember = async (req, res, next) => {
     await ensureEmployeeProfileForMember({
       workspace: targetWorkspace,
       member: linkedMembership,
-      user: await HostUser.findById(member.user).exec(),
+      user: memberUser,
     });
 
+    await notifyMemberAboutUnitChange({
+      memberUser,
+      actorUserId: actor._id,
+      notificationWorkspaceId: workspace._id,
+      sourceWorkspace: workspace,
+      targetWorkspace,
+      changeType: "unit_access",
+    });
     return res.status(200).json({ message: "Workspace access added successfully." });
   } catch (error) {
     next(error);
   }
 };
 
+export const removeOrganizationMemberWorkspaceAccess = async (req, res, next) => {
+  try {
+    const { user: actor, workspace } = await getCurrentWorkspace(req.user);
+    if (!actor || !workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    if (toId(workspace.owner) !== toId(actor._id)) {
+      return res.status(403).json({ message: "Only the workspace founder can remove unit access." });
+    }
+
+    const targetWorkspaceId = String(req.body?.targetWorkspaceId || "").trim();
+    if (!targetWorkspaceId) {
+      return res.status(400).json({ message: "Unit to remove is required." });
+    }
+    if (targetWorkspaceId === toId(workspace._id)) {
+      return res.status(400).json({ message: "The user's current unit cannot be removed from here." });
+    }
+
+    const sourceMembership = await WorkspaceMember.findOne({
+      _id: req.params.memberId,
+      workspace: workspace._id,
+      isActive: true,
+    })
+      .populate("role")
+      .lean()
+      .exec();
+    if (!sourceMembership) {
+      return res.status(404).json({ message: "Member not found in the current unit." });
+    }
+    if (getRoleBand(sourceMembership.role) === "owner") {
+      return res.status(403).json({ message: "Founder unit access cannot be removed." });
+    }
+
+    const targetWorkspace = await Workspace.findOne({
+      _id: targetWorkspaceId,
+      owner: workspace.owner,
+      isActive: true,
+    });
+    if (!targetWorkspace) {
+      return res.status(404).json({ message: "Linked unit not found." });
+    }
+
+    const targetMembership = await WorkspaceMember.findOne({
+      workspace: targetWorkspace._id,
+      user: sourceMembership.user,
+      isActive: true,
+    }).populate("role");
+    if (!targetMembership) {
+      return res.status(404).json({ message: "This user does not have active access to the selected unit." });
+    }
+    if (getRoleBand(targetMembership.role) === "owner") {
+      return res.status(403).json({ message: "Founder unit access cannot be removed." });
+    }
+
+    const memberUser = await HostUser.findById(sourceMembership.user).exec();
+    const removedPrimaryAccess =
+      Boolean(targetMembership.isPrimary) ||
+      toId(memberUser?.primaryWorkspace) === toId(targetWorkspace._id);
+
+    targetMembership.isActive = false;
+    targetMembership.isPrimary = false;
+    targetMembership.status = "disabled";
+    await targetMembership.save();
+
+    await EmployeeProfile.updateOne(
+      {
+        workspaceId: targetWorkspace._id,
+        $or: [
+          { linkedWorkspaceMemberId: targetMembership._id },
+          { linkedUserId: sourceMembership.user },
+        ],
+      },
+      { $set: { status: "inactive", isActive: false } },
+    ).exec();
+
+    if (removedPrimaryAccess) {
+      await WorkspaceMember.updateMany(
+        { user: sourceMembership.user },
+        { $set: { isPrimary: false } },
+      ).exec();
+      await WorkspaceMember.updateOne(
+        { _id: sourceMembership._id },
+        { $set: { isPrimary: true } },
+      ).exec();
+      await HostUser.updateOne(
+        { _id: sourceMembership.user },
+        { $set: { primaryWorkspace: workspace._id } },
+      ).exec();
+    }
+
+    await notifyMemberAboutUnitRemoval({
+      memberUser,
+      actorUserId: actor._id,
+      remainingWorkspace: workspace,
+      removedWorkspace: targetWorkspace,
+    });
+
+    return res.status(200).json({ message: "Unit access removed successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
 export const transferOrganizationOwnership = async (req, res, next) => {
   try {
     const { user, workspace } = await getCurrentWorkspace(req.user);

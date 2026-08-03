@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Search, Eye, X, Clock, CheckCircle2, XCircle, AlertCircle,
   AlertTriangle, Users, Building2, ChevronDown, Calendar,
-  Filter, Check, Ban, Loader2, User, MapPin, Navigation,
+  Filter, Check, Ban, Loader2, User, MapPin, Navigation, Coffee, Settings,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -13,10 +13,11 @@ import { getEmployeeManagementOverview } from "@/services/hr";
 import {
   getHrAttendanceReview,
   getAttendanceGeofence,
+  getAttendanceSettings,
   resolveAttendanceGeofenceUrl,
   reviewAttendanceCorrection,
   updateAttendanceGeofence,
-  getEmployeeAttendanceHistory,
+  updateAttendanceSettings,
 } from "@/services/attendance";
 import { formatTime12h } from "@/utils/time";
 
@@ -101,6 +102,13 @@ interface GeofenceConfig {
   updatedAt?: string | null;
 }
 
+interface AttendanceSettingsConfig {
+  weeklyWorkingHours: number | null;
+  workingHoursStart: string;
+  workingHoursEnd: string;
+  breakDurationMinutes: number | null;
+}
+
 /* ───────────────────────────── Constants ───────────────────────────── */
 
 const MAIN_TABS: TabOption[] = [
@@ -178,15 +186,9 @@ function formatLongDate(value?: string): string {
   if (!value) return "--";
   const date = new Date(`${value}T12:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-  const day = date.getDate();
-  const suffix = day % 10 === 1 && day !== 11
-    ? "st"
-    : day % 10 === 2 && day !== 12
-      ? "nd"
-      : day % 10 === 3 && day !== 13
-        ? "rd"
-        : "th";
-  return `${day}${suffix} ${date.toLocaleDateString("en-US", { month: "long" })} ${date.getFullYear()}`;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${date.getFullYear()}`;
 }
 
 function getEmployeeInitials(name: string = ""): string {
@@ -317,124 +319,6 @@ function buildGeofenceIframeUrl(latitude: number | null, longitude: number | nul
 }
 
 /* ──────────────────────────────────────────────────────────────── */
-/*  EmployeeAttendanceDetailView (slide-in panel)                  */
-/* ──────────────────────────────────────────────────────────────── */
-
-interface EmployeeDetailViewProps {
-  open: boolean;
-  onClose: () => void;
-  employeeName: string;
-  department: string;
-  userId: string;
-  selectedDate: string;
-}
-
-function EmployeeAttendanceDetailView({
-  open, onClose, employeeName, department, userId, selectedDate,
-}: EmployeeDetailViewProps) {
-  const [history, setHistory] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open || !userId) return;
-    let cancelled = false;
-    setLoading(true);
-    getEmployeeAttendanceHistory(userId, { month: selectedDate.substring(0, 7) })
-      .then((data: any) => {
-        if (!cancelled) {
-          setHistory(Array.isArray(data) ? data : data?.records ? data.records : []);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setHistory([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [open, userId, selectedDate]);
-
-  const dayRecords = useMemo(
-    () => history.filter((r) => r.date?.startsWith(selectedDate)),
-    [history, selectedDate],
-  );
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", damping: 28, stiffness: 300 }}
-          className="fixed right-0 top-0 h-full w-full max-w-md bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col"
-        >
-          <div className="flex items-center justify-between p-4 border-b border-slate-100">
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold text-slate-900 truncate">{employeeName}</h3>
-              <p className="text-[11px] text-slate-500">{department} &middot; {selectedDate}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 size={24} className="text-slate-400 animate-spin" />
-              </div>
-            ) : dayRecords.length === 0 ? (
-              <div className="text-center py-20 text-slate-400 font-semibold text-[12px]">
-                No attendance records for this date.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {dayRecords.map((record, idx) => (
-                  <div key={record.id || record.recordId || idx} className="bg-slate-50 rounded-xl p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <StatusBadge status={record.status} />
-                      <span className="text-[11px] text-slate-400">{record.source || "Self"}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-[12px]">
-                      <div>
-                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Check In</p>
-                        <p className="font-semibold text-slate-800">{record.checkIn ? formatTime12h(record.checkIn) : "--"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Check Out</p>
-                        <p className="font-semibold text-slate-800">{record.checkOut ? formatTime12h(record.checkOut) : "--"}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                      <span className="text-[10px] text-slate-400">Total Hours</span>
-                      <span className="text-[12px] font-bold text-slate-800">{formatDuration(record.totalHours ?? record.workingHours)}</span>
-                    </div>
-                    {record.isLate && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5">
-                        <AlertTriangle size={12} /> Late by {record.lateMinutes || 0} min
-                      </div>
-                    )}
-                    {record.isEarlyDeparture && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-orange-600 bg-orange-50 rounded-lg px-2.5 py-1.5">
-                        <AlertTriangle size={12} /> Early departure by {record.earlyMinutes || 0} min
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────── */
 /*  Correction Detail Modal                                        */
 /* ──────────────────────────────────────────────────────────────── */
 
@@ -466,7 +350,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
             className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden"
           >
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Correction Request</h3>
+              <h3 className="text-sm font-pmedium text-slate-900">Correction Request</h3>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
                 <X size={16} />
               </button>
@@ -478,14 +362,14 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                   <User size={18} className="text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-slate-900">{record.employeeName}</p>
+                  <p className="text-[13px] font-pmedium text-slate-900">{record.employeeName}</p>
                   <p className="text-[11px] text-slate-500">{record.department}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <StatusBadge status={record.status} />
-                <span className="text-[11px] text-slate-400">{record.date}</span>
+                <span className="text-[11px] font-pmedium text-slate-400">{formatLongDate(record.date)}</span>
               </div>
 
               <div className="bg-slate-50 rounded-xl p-3 space-y-2">
@@ -496,19 +380,19 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 rounded-xl p-3">
                   <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Original Check In</p>
-                  <p className="text-[13px] font-bold text-slate-600">{record.originalCheckIn ? formatTime12h(record.originalCheckIn) : "--"}</p>
+                  <p className="text-[13px] font-pmedium text-slate-600">{record.originalCheckIn ? formatTime12h(record.originalCheckIn) : "--"}</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3">
                   <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Original Check Out</p>
-                  <p className="text-[13px] font-bold text-slate-600">{record.originalCheckOut ? formatTime12h(record.originalCheckOut) : "--"}</p>
+                  <p className="text-[13px] font-pmedium text-slate-600">{record.originalCheckOut ? formatTime12h(record.originalCheckOut) : "--"}</p>
                 </div>
                 <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
                   <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-wider mb-1">Requested Check In</p>
-                  <p className="text-[13px] font-bold text-amber-700">{record.requestedCheckIn ? formatTime12h(record.requestedCheckIn) : "--"}</p>
+                  <p className="text-[13px] font-pmedium text-amber-700">{record.requestedCheckIn ? formatTime12h(record.requestedCheckIn) : "--"}</p>
                 </div>
                 <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
                   <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-wider mb-1">Requested Check Out</p>
-                  <p className="text-[13px] font-bold text-amber-700">{record.requestedCheckOut ? formatTime12h(record.requestedCheckOut) : "--"}</p>
+                  <p className="text-[13px] font-pmedium text-amber-700">{record.requestedCheckOut ? formatTime12h(record.requestedCheckOut) : "--"}</p>
                 </div>
               </div>
 
@@ -580,6 +464,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
 
 export default function HRAttendanceReviewPage() {
   const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState("attendance-master");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -593,9 +478,6 @@ export default function HRAttendanceReviewPage() {
   });
 
   /* Detail view state */
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailEmployee, setDetailEmployee] = useState({ name: "", department: "", userId: "" });
-
   /* Correction modal state */
   const [correctionModal, setCorrectionModal] = useState<CorrectionRecord | null>(null);
   const [acting, setActing] = useState(false);
@@ -611,6 +493,21 @@ export default function HRAttendanceReviewPage() {
   const [geofenceMapUrl, setGeofenceMapUrl] = useState("");
   const [geofenceMapError, setGeofenceMapError] = useState("");
   const [geofencePreviewUrl, setGeofencePreviewUrl] = useState("");
+  const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSettingsConfig>({
+    weeklyWorkingHours: null,
+    workingHoursStart: "",
+    workingHoursEnd: "",
+    breakDurationMinutes: null,
+  });
+
+  const isAttendanceFullyConfigured = useMemo(() => {
+    const geofenceReady = geofenceConfig.enabled && geofenceConfig.latitude != null && geofenceConfig.longitude != null;
+    const settingsReady = attendanceSettings.weeklyWorkingHours != null
+      && Boolean(attendanceSettings.workingHoursStart)
+      && Boolean(attendanceSettings.workingHoursEnd)
+      && attendanceSettings.breakDurationMinutes != null;
+    return geofenceReady && settingsReady;
+  }, [geofenceConfig, attendanceSettings]);
 
   const geofenceMapEmbed = useMemo(() => geofencePreviewUrl, [geofencePreviewUrl]);
 
@@ -636,9 +533,10 @@ export default function HRAttendanceReviewPage() {
     Promise.all([
       getHrAttendanceReview({ date: selectedDate }),
       getAttendanceGeofence().catch(() => null),
+      getAttendanceSettings().catch(() => null),
       getEmployeeManagementOverview().catch(() => null),
     ] as const)
-      .then(([data, geofenceResult, overviewResult]: [any, any, any]) => {
+      .then(([data, geofenceResult, settingsResult, overviewResult]: [any, any, any, any]) => {
         if (cancelled) return;
         const d = data || {};
         const attendanceList = Array.isArray(d.records) ? d.records : Array.isArray(data) ? data : [];
@@ -653,6 +551,15 @@ export default function HRAttendanceReviewPage() {
             longitude: nextGeofence.longitude != null ? Number(nextGeofence.longitude) : null,
             radiusMeters: Number(nextGeofence.radiusMeters || 150),
             updatedAt: nextGeofence.updatedAt || null,
+          });
+        }
+        const nextSettings = settingsResult?.data?.settings || settingsResult?.settings || null;
+        if (nextSettings) {
+          setAttendanceSettings({
+            weeklyWorkingHours: nextSettings.weeklyWorkingHours != null ? Number(nextSettings.weeklyWorkingHours) : null,
+            workingHoursStart: nextSettings.workingHoursStart || "",
+            workingHoursEnd: nextSettings.workingHoursEnd || "",
+            breakDurationMinutes: nextSettings.breakDurationMinutes != null ? Number(nextSettings.breakDurationMinutes) : null,
           });
         }
         setStats({
@@ -766,14 +673,15 @@ export default function HRAttendanceReviewPage() {
       toast.error("Employee id not found.");
       return;
     }
-    const params = new URLSearchParams({
-      month: selectedDate.substring(0, 7),
-      date: record.date || selectedDate,
-      name: record.employeeName || "Unknown",
-      department: record.department || "--",
-      employeeId: record.employeeId || "",
+    navigate(`/hr/attendance-review/${record.userId}`, {
+      state: {
+        month: selectedDate.substring(0, 7),
+        date: record.date || selectedDate,
+        name: record.employeeName || "Unknown",
+        department: record.department || "--",
+        employeeId: record.employeeId || "",
+      },
     });
-    navigate(`/hr/attendance-review/${record.userId}?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -890,16 +798,20 @@ export default function HRAttendanceReviewPage() {
     );
   };
 
-  const handleSaveGeofence = async () => {
+  const handleSaveAttendanceSettings = async () => {
+    if (attendanceSettings.weeklyWorkingHours == null || !attendanceSettings.workingHoursStart || !attendanceSettings.workingHoursEnd || attendanceSettings.breakDurationMinutes == null) {
+      toast.error("Fill in weekly working hours, working hours start/end, and break duration.");
+      return;
+    }
     setGeofenceSaving(true);
     try {
-      const response = await updateAttendanceGeofence({
+      const geofenceResponse = await updateAttendanceGeofence({
         enabled: true,
         latitude: geofenceConfig.latitude,
         longitude: geofenceConfig.longitude,
         radiusMeters: geofenceConfig.radiusMeters,
       });
-      const nextGeofence = response?.data?.geofence || response?.geofence || response || null;
+      const nextGeofence = geofenceResponse?.data?.geofence || geofenceResponse?.geofence || geofenceResponse || null;
       if (nextGeofence) {
         setGeofenceConfig({
           enabled: Boolean(nextGeofence.enabled),
@@ -911,10 +823,27 @@ export default function HRAttendanceReviewPage() {
         setGeofenceMapUrl(buildGeofenceShareUrl(nextGeofence.latitude, nextGeofence.longitude));
         setGeofencePreviewUrl(buildGeofenceIframeUrl(nextGeofence.latitude, nextGeofence.longitude));
       }
-      toast.success("Attendance geofence updated.");
+
+      const settingsResponse = await updateAttendanceSettings({
+        weeklyWorkingHours: attendanceSettings.weeklyWorkingHours,
+        workingHoursStart: attendanceSettings.workingHoursStart,
+        workingHoursEnd: attendanceSettings.workingHoursEnd,
+        breakDurationMinutes: attendanceSettings.breakDurationMinutes,
+      });
+      const nextSettings = settingsResponse?.data?.settings || settingsResponse?.settings || null;
+      if (nextSettings) {
+        setAttendanceSettings({
+          weeklyWorkingHours: nextSettings.weeklyWorkingHours != null ? Number(nextSettings.weeklyWorkingHours) : null,
+          workingHoursStart: nextSettings.workingHoursStart || "",
+          workingHoursEnd: nextSettings.workingHoursEnd || "",
+          breakDurationMinutes: nextSettings.breakDurationMinutes != null ? Number(nextSettings.breakDurationMinutes) : null,
+        });
+      }
+
+      toast.success("Attendance settings updated.");
       setShowGeofenceModal(false);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Failed to update geofence.");
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update attendance settings.");
     } finally {
       setGeofenceSaving(false);
     }
@@ -1038,7 +967,7 @@ export default function HRAttendanceReviewPage() {
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className="pl-9 pr-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
+                      className="pl-9 pr-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
                     />
                   </div>
                 )}
@@ -1052,16 +981,22 @@ export default function HRAttendanceReviewPage() {
                     placeholder={activeTab === "attendance-master" ? "Search employees..." : "Search requests..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
+                {!isAttendanceFullyConfigured && (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">
+                    <AlertTriangle size={12} />
+                    Not configured
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowGeofenceModal(true)}
                   className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700"
                 >
-                  <MapPin size={13} />
-                  Geofence
+                  <Settings size={13} />
+                  Attendance Settings
                 </button>
               </div>
             </div>
@@ -1072,7 +1007,7 @@ export default function HRAttendanceReviewPage() {
                 <button
                   key={pill.key}
                   onClick={() => setStatusFilter(pill.key)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                     statusFilter === pill.key
                       ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
                       : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
@@ -1104,42 +1039,42 @@ export default function HRAttendanceReviewPage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredAttendance.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-20 text-slate-400 font-semibold">
+                        <td colSpan={10} className="text-center py-20 text-slate-400 font-pmedium">
                           No attendance records found.
                         </td>
                       </tr>
                     ) : (
                       filteredAttendance.map((record, idx) => (
                         <tr key={record.id || record.recordId || idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 text-[11px] font-black text-slate-700">
+                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">
                             {record.employeeId || "--"}
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-[11px]">
+                              <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-pmedium text-[11px]">
                                 {getEmployeeInitials(record.employeeName)}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-[12px] font-bold text-slate-800 truncate">{record.employeeName || "--"}</p>
+                                <p className="text-[12px] font-pmedium text-slate-800 truncate">{record.employeeName || "--"}</p>
                                 <p className="text-[10px] text-slate-400">{record.employeeId || ""}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-[11px] text-slate-600">{record.department || "--"}</td>
                           <td className="px-5 py-4 text-[11px] text-slate-600">{record.employeeRole || "--"}</td>
-                          <td className="px-5 py-4 text-[11px] font-semibold text-slate-700">{formatLongDate(record.date)}</td>
+                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">{formatLongDate(record.date)}</td>
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-semibold text-slate-800">
+                            <span className="text-[12px] font-pmedium text-slate-800">
                               {record.checkIn ? formatTime12h(record.checkIn) : "--"}
                             </span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-semibold text-slate-800">
+                            <span className="text-[12px] font-pmedium text-slate-800">
                               {record.checkOut ? formatTime12h(record.checkOut) : "--"}
                             </span>
                           </td>
                           <td className="px-5 py-4"><StatusBadge status={record.status} /></td>
-                          <td className="px-5 py-4 text-[12px] font-semibold text-slate-700">
+                          <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">
                             {formatDuration(record.totalHours ?? record.workingHours)}
                           </td>
                           <td className="px-5 py-4 text-center">
@@ -1170,7 +1105,7 @@ export default function HRAttendanceReviewPage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredCorrections.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-20 text-slate-400 font-semibold">
+                        <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">
                           No correction requests found.
                         </td>
                       </tr>
@@ -1179,26 +1114,26 @@ export default function HRAttendanceReviewPage() {
                         <tr key={correction.id || correction.correctionId || idx} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="h-8 w-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-[11px]">
+                              <div className="h-8 w-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-pmedium text-[11px]">
                                 {getEmployeeInitials(correction.employeeName)}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-[12px] font-bold text-slate-800 truncate">{correction.employeeName || "--"}</p>
+                                <p className="text-[12px] font-pmedium text-slate-800 truncate">{correction.employeeName || "--"}</p>
                                 <p className="text-[10px] text-slate-400">{correction.employeeId || ""}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-[11px] text-slate-600">{correction.department || "--"}</td>
-                          <td className="px-5 py-4 text-[12px] font-semibold text-slate-700">{correction.date || "--"}</td>
+                          <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">{formatLongDate(correction.date)}</td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] text-slate-500">In:</span>
-                              <span className="text-[11px] font-bold text-amber-600">
+                              <span className="text-[11px] font-pmedium text-amber-600">
                                 {correction.requestedCheckIn ? formatTime12h(correction.requestedCheckIn) : "--"}
                               </span>
                               <span className="text-[11px] text-slate-300 mx-0.5">|</span>
                               <span className="text-[11px] text-slate-500">Out:</span>
-                              <span className="text-[11px] font-bold text-amber-600">
+                              <span className="text-[11px] font-pmedium text-amber-600">
                                 {correction.requestedCheckOut ? formatTime12h(correction.requestedCheckOut) : "--"}
                               </span>
                             </div>
@@ -1222,16 +1157,6 @@ export default function HRAttendanceReviewPage() {
           </div>
         </div>
       </PageFrame>
-
-      {/* Employee Detail Slide-In */}
-      <EmployeeAttendanceDetailView
-        open={detailOpen}
-        onClose={() => setDetailOpen(false)}
-        employeeName={detailEmployee.name}
-        department={detailEmployee.department}
-        userId={detailEmployee.userId}
-        selectedDate={selectedDate}
-      />
 
       {/* Correction Detail Modal */}
       <CorrectionDetailModal
@@ -1261,10 +1186,10 @@ export default function HRAttendanceReviewPage() {
             >
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-4 sm:px-5">
                 <div className="max-w-2xl">
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Geofencing</p>
-                  <h3 className="mt-1.5 text-lg font-black tracking-tight text-slate-900">Define the office boundary</h3>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Attendance Settings</p>
+                  <h3 className="mt-1.5 text-lg font-pmedium tracking-tight text-slate-900">Working hours, break & geofence</h3>
                   <p className="mt-1.5 text-[12px] leading-5 text-slate-500">
-                    Paste a map link, check it, and the preview will update.
+                    These settings are required before employees can clock in or out. All values apply workspace-wide.
                   </p>
                 </div>
                 <button
@@ -1277,6 +1202,59 @@ export default function HRAttendanceReviewPage() {
               </div>
 
               <div className="max-h-[74vh] overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 space-y-3">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <Clock size={12} /> Working Hours & Weekly Target
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Start</label>
+                      <input
+                        type="time"
+                        value={attendanceSettings.workingHoursStart}
+                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, workingHoursStart: e.target.value }))}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-pmedium text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">End</label>
+                      <input
+                        type="time"
+                        value={attendanceSettings.workingHoursEnd}
+                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, workingHoursEnd: e.target.value }))}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-pmedium text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 flex items-center gap-1"><Coffee size={10} /> Break (min)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={480}
+                        value={attendanceSettings.breakDurationMinutes ?? ""}
+                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, breakDurationMinutes: e.target.value === "" ? null : Number(e.target.value) }))}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-pmedium text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                        placeholder="60"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Weekly hours</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={168}
+                        value={attendanceSettings.weeklyWorkingHours ?? ""}
+                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, weeklyWorkingHours: e.target.value === "" ? null : Number(e.target.value) }))}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-pmedium text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                        placeholder="40"
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] font-pmedium text-slate-500">
+                    Employees checking in after start time + a 30-minute grace period are marked late.
+                  </p>
+                </div>
+
                 <div className="relative overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm">
                   <div className="relative">
                     {geofenceMapEmbed ? (
@@ -1293,7 +1271,7 @@ export default function HRAttendanceReviewPage() {
                           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                             <MapPin size={18} />
                           </div>
-                          <p className="mt-3 text-sm font-bold text-slate-900">Geofence map</p>
+                          <p className="mt-3 text-sm font-pmedium text-slate-900">Geofence map</p>
                           <p className="mt-1 text-[12px] leading-5 text-slate-500">
                             The map stays blank until you check a URL or use current location.
                           </p>
@@ -1321,10 +1299,10 @@ export default function HRAttendanceReviewPage() {
                       type="text"
                       value={geofenceMapUrl}
                       onChange={(e) => handleGeofenceMapUrlChange(e.target.value)}
-                      className={`mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-[13px] font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/15 ${geofenceMapError ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-blue-500"}`}
+                      className={`mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-[13px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/15 ${geofenceMapError ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-blue-500"}`}
                       placeholder="Paste a Google Maps link or lat,lng"
                     />
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-600">
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-pmedium text-slate-600">
                       <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                         <span className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Latitude</span>
                         <span className="mt-1 block truncate text-slate-900">
@@ -1339,9 +1317,9 @@ export default function HRAttendanceReviewPage() {
                       </div>
                     </div>
                     {geofenceMapError ? (
-                      <p className="mt-2 text-[11px] font-semibold text-red-600">{geofenceMapError}</p>
+                      <p className="mt-2 text-[11px] font-pmedium text-red-600">{geofenceMapError}</p>
                     ) : (
-                      <p className="mt-2 text-[11px] font-semibold text-slate-500">Check the URL to update the preview and location automatically.</p>
+                      <p className="mt-2 text-[11px] font-pmedium text-slate-500">Check the URL to update the preview and location automatically.</p>
                     )}
                   </div>
 
@@ -1368,7 +1346,7 @@ export default function HRAttendanceReviewPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Radius</p>
-                        <p className="mt-1 text-2xl font-black tracking-tight text-slate-900">{Math.round(geofenceConfig.radiusMeters || 150)}m</p>
+                        <p className="mt-1 text-2xl font-pmedium tracking-tight text-slate-900">{Math.round(geofenceConfig.radiusMeters || 150)}m</p>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
@@ -1410,7 +1388,7 @@ export default function HRAttendanceReviewPage() {
                         +100m
                       </button>
                     </div>
-                    <p className="mt-3 text-[11px] font-semibold text-slate-500">
+                    <p className="mt-3 text-[11px] font-pmedium text-slate-500">
                       Coverage: {geofenceCoverage}
                     </p>
                   </div>
@@ -1425,11 +1403,11 @@ export default function HRAttendanceReviewPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={handleSaveGeofence}
+                      onClick={handleSaveAttendanceSettings}
                       disabled={geofenceSaving}
                       className="flex-1 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-[0.28em] text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-60"
                     >
-                      {geofenceSaving ? "Saving..." : "Save geofence"}
+                      {geofenceSaving ? "Saving..." : "Save Attendance Settings"}
                     </button>
                   </div>
                 </div>

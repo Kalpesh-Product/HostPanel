@@ -16,11 +16,35 @@ import {
   parseWorkspaceDateTime,
 } from "../utils/workspaceLocalization.js";
 
+// Fallback thresholds used only for records created before per-workspace
+// attendance settings existed (record.workStartMinutes/halfDayThresholdSeconds
+// are null). New records snapshot resolved values from workspace.attendanceSettings.
 const DEFAULT_WORK_HOUR_START = 9;
 const DEFAULT_LATE_MINUTES = 30;
 const HALF_DAY_MINUTES = 4 * 60;
 
 const toId = (value = "") => String(value || "").trim();
+
+const parseHHMM = (value) => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || "").trim());
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+  return hour * 60 + minute;
+};
+
+const formatLocationLabel = (latitude, longitude, distanceMeters) => {
+  const lat = toFiniteNumber(latitude);
+  const lng = toFiniteNumber(longitude);
+  if (lat == null || lng == null) return "";
+  const distanceLabel = Number.isFinite(Number(distanceMeters))
+    ? ` · ${Math.round(Number(distanceMeters))}m from geofence center`
+    : "";
+  return `${lat.toFixed(6)}, ${lng.toFixed(6)}${distanceLabel}`;
+};
 
 const getLocalDate = (value = new Date(), timezone = DEFAULT_WORKSPACE_TIMEZONE) => {
   const dateKey = getZonedDateKey(value, timezone);
@@ -119,6 +143,9 @@ const getRoleBand = (role = "") => {
   if (normalized === "founder") return "owner";
   if (normalized === "super_admin" || normalized === "superadmin") return "super_admin";
   if (normalized === "admin" || normalized === "admin_manager") return "admin";
+  // HR roles (e.g. "HR Manager", "HR") get workspace-wide attendance visibility,
+  // consistent with canManageAttendanceGeofence's existing "hr" carve-out below.
+  if (normalized.includes("hr")) return "admin";
   if (normalized === "manager") return "manager";
   return "employee";
 };
@@ -268,9 +295,13 @@ const assertWithinAttendanceGeofence = (workspace, input = {}, actionLabel = "at
     throw Object.assign(new Error("Unable to validate attendance location."), { statusCode: 400 });
   }
 
-  if (distance > Number(geofence.radiusMeters || 150)) {
+  const radiusMeters = Number(geofence.radiusMeters || 150);
+  if (distance > radiusMeters) {
+    const overBy = distance - radiusMeters;
     throw Object.assign(
-      new Error(`You are outside the allowed attendance geofence for ${actionLabel}.`),
+      new Error(
+        `You are ${distance}m from the configured ${actionLabel} location — the allowed radius is ${radiusMeters}m, so you are ${overBy}m outside the geofence.`,
+      ),
       { statusCode: 400 },
     );
   }
@@ -299,6 +330,78 @@ const sanitizeGeofenceInput = (input = {}) => {
     longitude: Number.isFinite(longitude) ? longitude : null,
     radiusMeters: Number.isFinite(radiusMeters) ? radiusMeters : 150,
   };
+};
+
+const formatAttendanceSettings = (workspace) => {
+  const source = workspace?.attendanceSettings || {};
+  return {
+    weeklyWorkingHours: Number.isFinite(Number(source.weeklyWorkingHours)) ? Number(source.weeklyWorkingHours) : null,
+    workingHoursStart: source.workingHoursStart || null,
+    workingHoursEnd: source.workingHoursEnd || null,
+    breakDurationMinutes: Number.isFinite(Number(source.breakDurationMinutes)) ? Number(source.breakDurationMinutes) : null,
+    updatedAt: source.updatedAt || null,
+    updatedBy: source.updatedBy || null,
+  };
+};
+
+const sanitizeAttendanceSettingsInput = (input = {}) => {
+  const weeklyWorkingHours = input.weeklyWorkingHours === "" || input.weeklyWorkingHours == null
+    ? NaN
+    : Number(input.weeklyWorkingHours);
+  const workingHoursStart = String(input.workingHoursStart || "").trim();
+  const workingHoursEnd = String(input.workingHoursEnd || "").trim();
+  const breakDurationMinutes = input.breakDurationMinutes === "" || input.breakDurationMinutes == null
+    ? NaN
+    : Number(input.breakDurationMinutes);
+
+  if (!Number.isFinite(weeklyWorkingHours) || weeklyWorkingHours < 1 || weeklyWorkingHours > 168) {
+    throw Object.assign(new Error("Weekly working hours must be between 1 and 168."), { statusCode: 400 });
+  }
+
+  const startMinutes = parseHHMM(workingHoursStart);
+  const endMinutes = parseHHMM(workingHoursEnd);
+  if (startMinutes == null || endMinutes == null) {
+    throw Object.assign(new Error("Working hours start/end must be valid times in HH:mm format."), { statusCode: 400 });
+  }
+  if (endMinutes <= startMinutes) {
+    throw Object.assign(new Error("Working hours end time must be after the start time."), { statusCode: 400 });
+  }
+
+  if (!Number.isFinite(breakDurationMinutes) || breakDurationMinutes < 0 || breakDurationMinutes > 480) {
+    throw Object.assign(new Error("Break duration must be between 0 and 480 minutes."), { statusCode: 400 });
+  }
+
+  return { weeklyWorkingHours, workingHoursStart, workingHoursEnd, breakDurationMinutes };
+};
+
+const isAttendanceConfigured = (workspace) => {
+  const geofence = formatGeofence(workspace);
+  const geofenceReady = geofence.enabled
+    && toFiniteNumber(geofence.latitude) != null
+    && toFiniteNumber(geofence.longitude) != null;
+
+  const settings = formatAttendanceSettings(workspace);
+  const settingsReady = settings.weeklyWorkingHours != null
+    && settings.workingHoursStart != null
+    && settings.workingHoursEnd != null
+    && settings.breakDurationMinutes != null;
+
+  return geofenceReady && settingsReady;
+};
+
+const computeAttendanceThresholds = (workspace) => {
+  const settings = formatAttendanceSettings(workspace);
+  const workStartMinutes = parseHHMM(settings.workingHoursStart);
+  const workEndMinutes = parseHHMM(settings.workingHoursEnd);
+  const breakMinutes = Number.isFinite(settings.breakDurationMinutes) ? settings.breakDurationMinutes : 0;
+
+  let halfDayThresholdSeconds = null;
+  if (workStartMinutes != null && workEndMinutes != null && workEndMinutes > workStartMinutes) {
+    const expectedDailyMinutes = Math.max(0, (workEndMinutes - workStartMinutes) - breakMinutes);
+    halfDayThresholdSeconds = Math.round((expectedDailyMinutes * 60) / 2);
+  }
+
+  return { workStartMinutes, halfDayThresholdSeconds };
 };
 
 const decodeGeofenceValue = (value = "") => {
@@ -488,8 +591,31 @@ const getDepartmentNamesForMembership = async (membership) => {
   return departments.map((dept) => dept?.name).filter(Boolean);
 };
 
-const getManagedDepartmentIds = async (workspaceId, membership, userId) => {
+// HR is treated as full-visibility even when the workspace's role naming
+// doesn't literally include "hr" (e.g. a plain "Manager"/"Admin" role that's
+// simply been assigned to the "HR" department). This mirrors real-world HR
+// access, which spans the whole workspace rather than one department.
+const hasHrDepartmentAccess = async (membership) => {
+  const departmentNames = await getDepartmentNamesForMembership(membership);
+  return departmentNames.some((name) => {
+    const normalized = normalizeRole(String(name || ""));
+    return normalized === "hr" || normalized.includes("human_resources");
+  });
+};
+
+const resolveAttendanceAccessBand = async (membership) => {
   const roleBand = getRoleBand(membership?.role || "");
+  if (roleBand === "owner" || roleBand === "super_admin" || roleBand === "admin") {
+    return roleBand;
+  }
+  if (await hasHrDepartmentAccess(membership)) {
+    return "admin";
+  }
+  return roleBand;
+};
+
+const getManagedDepartmentIds = async (workspaceId, membership, userId) => {
+  const roleBand = await resolveAttendanceAccessBand(membership);
   if (roleBand === "owner" || roleBand === "super_admin" || roleBand === "admin") {
     return null;
   }
@@ -592,10 +718,17 @@ const formatRecordForFrontend = async (record, membership = null) => {
     checkOut: toTimeLabel(effectiveCheckOut, timezone),
     status: getStatusLabel(plain?.status || "absent"),
     source: plain?.mode || "office",
-    checkInLocation: plain?.checkInLocation || "",
-    checkOutLocation: plain?.checkOutLocation || "",
+    checkInLocation: formatLocationLabel(plain?.checkInLatitude, plain?.checkInLongitude, plain?.checkInDistanceMeters),
+    checkOutLocation: formatLocationLabel(plain?.checkOutLatitude, plain?.checkOutLongitude, plain?.checkOutDistanceMeters),
     checkInSelfie: plain?.checkInSelfieUrl || "",
     checkOutSelfie: plain?.checkOutSelfieUrl || "",
+    punchSelfies: Array.isArray(plain?.punchSelfies)
+      ? plain.punchSelfies.map((entry) => ({
+        action: entry?.action || "",
+        url: entry?.url || "",
+        uploadedAt: entry?.uploadedAt ? toTimeLabel(entry.uploadedAt, timezone) : "",
+      }))
+      : [],
     workingHours: formatDuration(computedWorkedSeconds),
     totalHours: Number((computedWorkedSeconds / 3600).toFixed(2)),
     overtime: Number((Math.max(0, computedWorkedSeconds - 8 * 3600) / 3600).toFixed(2)),
@@ -745,7 +878,19 @@ const saveSelfie = async (workspaceId, userId, action, file, dateKey) => {
     .replace(/[^a-zA-Z0-9._-]/g, "");
   const folder = `attendance/${workspaceId}/${userId}/${dateKey}`;
   const route = `${folder}/${Date.now()}-${action}-${safeName}`;
-  const uploaded = await uploadFileToS3(route, file);
+
+  let uploaded;
+  try {
+    uploaded = await uploadFileToS3(route, file);
+  } catch (uploadError) {
+    console.error("Attendance selfie S3 upload failed:", {
+      workspaceId: String(workspaceId || ""),
+      userId: String(userId || ""),
+      action,
+      error: uploadError?.message || uploadError,
+    });
+    throw Object.assign(new Error("Failed to upload attendance photo. Please try again."), { statusCode: 502 });
+  }
 
   return {
     url: uploaded.url || "",
@@ -776,6 +921,7 @@ const getTodayRecord = async (workspace, userId) => {
       ? String(member.departments[0]?.name || "")
       : "";
     const roleName = getRoleName(member?.role || "");
+    const { workStartMinutes, halfDayThresholdSeconds } = computeAttendanceThresholds(workspace);
     record = await Attendance.create({
       workspaceId,
       ownerId: workspace.owner,
@@ -790,6 +936,8 @@ const getTodayRecord = async (workspace, userId) => {
       status: "absent",
       checkInAt: null,
       checkOutAt: null,
+      workStartMinutes,
+      halfDayThresholdSeconds,
       punchSelfies: [],
       isActiveBreak: false,
       activeBreakStartedAt: null,
@@ -813,22 +961,38 @@ const recalculateAfterCorrection = (record) => {
   const grossSeconds = Math.max(0, Math.floor((checkOutAt.getTime() - checkInAt.getTime()) / 1000));
   const breakSeconds = Math.max(0, Number(record.breakSeconds) || 0);
   record.workedSeconds = Math.max(0, grossSeconds - breakSeconds);
+
+  const halfDayThresholdSeconds = Number.isFinite(record.halfDayThresholdSeconds)
+    ? record.halfDayThresholdSeconds
+    : HALF_DAY_MINUTES * 60;
+  const workStartMinutes = Number.isFinite(record.workStartMinutes)
+    ? record.workStartMinutes
+    : DEFAULT_WORK_HOUR_START * 60;
+  const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
+
   const localCheckIn = getZonedDateTimeParts(checkInAt, normalizeTimeZone(record.timezone));
-  record.status = record.workedSeconds <= HALF_DAY_MINUTES * 60
+  const checkInMinutes = localCheckIn.hour * 60 + localCheckIn.minute;
+  record.status = record.workedSeconds <= halfDayThresholdSeconds
     ? "half_day"
-    : (localCheckIn.hour > DEFAULT_WORK_HOUR_START || (localCheckIn.hour === DEFAULT_WORK_HOUR_START && localCheckIn.minute > DEFAULT_LATE_MINUTES))
+    : checkInMinutes > lateThresholdMinutes
       ? "present_late"
       : "present";
 };
 
-const canManageTeamAttendance = (membership) => {
-  const band = getRoleBand(membership?.role || "");
+const canManageTeamAttendance = async (membership) => {
+  const band = await resolveAttendanceAccessBand(membership);
   return band === "owner" || band === "super_admin" || band === "admin" || band === "manager";
 };
 
 export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
-  assertWithinAttendanceGeofence(workspace, input, "check-in");
+  if (!isAttendanceConfigured(workspace)) {
+    throw Object.assign(
+      new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
+      { statusCode: 400 },
+    );
+  }
+  const geofenceResult = assertWithinAttendanceGeofence(workspace, input, "check-in");
   const record = await getTodayRecord(workspace, user._id);
 
   if (record.checkInAt && !record.checkOutAt) {
@@ -855,6 +1019,9 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   record.checkInSelfiePublicId = selfie.publicId;
   record.checkInSelfieFolder = selfie.folder;
   record.checkInSelfieUploadedAt = selfie.uploadedAt;
+  record.checkInLatitude = geofenceResult.latitude;
+  record.checkInLongitude = geofenceResult.longitude;
+  record.checkInDistanceMeters = geofenceResult.distance;
   record.punchSelfies = Array.isArray(record.punchSelfies) ? record.punchSelfies : [];
   record.punchSelfies.push(selfie);
   record.isActiveBreak = false;
@@ -863,9 +1030,15 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   record.workedSeconds = 0;
   record.breakLogs = [];
   record.timezone = timezone;
-  record.status = localNow.hour > DEFAULT_WORK_HOUR_START || (localNow.hour === DEFAULT_WORK_HOUR_START && localNow.minute > DEFAULT_LATE_MINUTES)
-    ? "present_late"
-    : "present";
+  if (!Number.isFinite(record.workStartMinutes) || !Number.isFinite(record.halfDayThresholdSeconds)) {
+    const thresholds = computeAttendanceThresholds(workspace);
+    record.workStartMinutes = thresholds.workStartMinutes;
+    record.halfDayThresholdSeconds = thresholds.halfDayThresholdSeconds;
+  }
+  const workStartMinutes = Number.isFinite(record.workStartMinutes) ? record.workStartMinutes : DEFAULT_WORK_HOUR_START * 60;
+  const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
+  const checkInMinutes = localNow.hour * 60 + localNow.minute;
+  record.status = checkInMinutes > lateThresholdMinutes ? "present_late" : "present";
   await record.save();
 
   return {
@@ -910,9 +1083,52 @@ export async function updateAttendanceGeofence(userId, input = {}) {
   };
 }
 
+export async function getAttendanceSettings(userId) {
+  const { workspace, membership } = await getWorkspaceIdFromUser(userId);
+  return {
+    settings: formatAttendanceSettings(workspace),
+    canEdit: canManageAttendanceGeofence(membership),
+    isConfigured: isAttendanceConfigured(workspace),
+  };
+}
+
+export async function updateAttendanceSettings(userId, input = {}) {
+  const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
+  if (!canManageAttendanceGeofence(membership)) {
+    const error = new Error("You do not have permission to update attendance settings.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const next = sanitizeAttendanceSettingsInput(input);
+  const nextSettings = {
+    ...next,
+    updatedAt: new Date(),
+    updatedBy: user._id,
+  };
+
+  await Workspace.findByIdAndUpdate(
+    workspace._id,
+    { $set: { attendanceSettings: nextSettings } },
+    { new: true, runValidators: true },
+  ).exec();
+
+  const nextWorkspace = { ...workspace, attendanceSettings: nextSettings };
+  return {
+    settings: formatAttendanceSettings(nextWorkspace),
+    isConfigured: isAttendanceConfigured(nextWorkspace),
+  };
+}
+
 export async function checkOutAttendance(userId, input = {}, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
-  assertWithinAttendanceGeofence(workspace, input, "check-out");
+  if (!isAttendanceConfigured(workspace)) {
+    throw Object.assign(
+      new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
+      { statusCode: 400 },
+    );
+  }
+  const geofenceResult = assertWithinAttendanceGeofence(workspace, input, "check-out");
   const record = await getTodayRecord(workspace, user._id);
 
   if (!record.checkInAt) {
@@ -943,14 +1159,32 @@ export async function checkOutAttendance(userId, input = {}, selfieFile = null) 
   }
 
   record.checkOutAt = now;
+  record.checkOutSelfieUrl = selfie.url;
+  record.checkOutSelfiePublicId = selfie.publicId;
+  record.checkOutSelfieFolder = selfie.folder;
+  record.checkOutSelfieUploadedAt = selfie.uploadedAt;
+  record.checkOutLatitude = geofenceResult.latitude;
+  record.checkOutLongitude = geofenceResult.longitude;
+  record.checkOutDistanceMeters = geofenceResult.distance;
   record.punchSelfies = Array.isArray(record.punchSelfies) ? record.punchSelfies : [];
   record.punchSelfies.push(selfie);
 
   const workedSeconds = computeWorkedSeconds(record, now);
   record.workedSeconds = workedSeconds;
-  record.status = workedSeconds <= HALF_DAY_MINUTES * 60
+
+  const halfDayThresholdSeconds = Number.isFinite(record.halfDayThresholdSeconds)
+    ? record.halfDayThresholdSeconds
+    : HALF_DAY_MINUTES * 60;
+  const workStartMinutes = Number.isFinite(record.workStartMinutes)
+    ? record.workStartMinutes
+    : DEFAULT_WORK_HOUR_START * 60;
+  const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
+  const checkInLocalParts = getZonedDateTimeParts(record.checkInAt, normalizeTimeZone(record.timezone));
+  const checkInMinutes = checkInLocalParts.hour * 60 + checkInLocalParts.minute;
+
+  record.status = workedSeconds <= halfDayThresholdSeconds
     ? "half_day"
-    : (new Date(record.checkInAt).getHours() > DEFAULT_WORK_HOUR_START || (new Date(record.checkInAt).getHours() === DEFAULT_WORK_HOUR_START && new Date(record.checkInAt).getMinutes() > DEFAULT_LATE_MINUTES))
+    : checkInMinutes > lateThresholdMinutes
       ? "present_late"
       : "present";
 
@@ -963,6 +1197,12 @@ export async function checkOutAttendance(userId, input = {}, selfieFile = null) 
 
 export async function startBreakAttendance(userId, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
+  if (!isAttendanceConfigured(workspace)) {
+    throw Object.assign(
+      new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
+      { statusCode: 400 },
+    );
+  }
   const record = await getTodayRecord(workspace, user._id);
 
   if (!record.checkInAt || record.checkOutAt) {
@@ -1003,6 +1243,12 @@ export async function startBreakAttendance(userId, selfieFile = null) {
 
 export async function endBreakAttendance(userId, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
+  if (!isAttendanceConfigured(workspace)) {
+    throw Object.assign(
+      new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
+      { statusCode: 400 },
+    );
+  }
   const record = await getTodayRecord(workspace, user._id);
 
   if (!record.isActiveBreak || !record.activeBreakStartedAt) {
@@ -1036,6 +1282,53 @@ export async function endBreakAttendance(userId, selfieFile = null) {
     attendance: await formatRecordForFrontend(record, membership),
   };
 }
+
+const getWeekDateKeys = (referenceDate, timezone, weekStartsOn = "monday") => {
+  const todayKey = getZonedDateKey(referenceDate, timezone);
+  const [year, month, day] = todayKey.split("-").map(Number);
+  const anchor = new Date(Date.UTC(year, month - 1, day));
+  const jsDay = anchor.getUTCDay(); // 0=Sun..6=Sat
+  const startOffset = weekStartsOn === "sunday" ? jsDay : (jsDay === 0 ? 6 : jsDay - 1);
+  const keys = [];
+  for (let i = -startOffset; i <= 6 - startOffset; i += 1) {
+    const cursor = new Date(anchor);
+    cursor.setUTCDate(cursor.getUTCDate() + i);
+    keys.push(cursor.toISOString().slice(0, 10));
+  }
+  return { keys, todayKey };
+};
+
+const getWeeklyHoursSummary = async (workspace, userId, timezone) => {
+  const weekStartsOn = workspace?.preferences?.weekStartsOn === "sunday" ? "sunday" : "monday";
+  const { keys, todayKey } = getWeekDateKeys(new Date(), timezone, weekStartsOn);
+  const records = await Attendance.find({
+    workspaceId: workspace._id,
+    employeeUserId: userId,
+    dateKey: { $gte: keys[0], $lte: keys[keys.length - 1] },
+  })
+    .select("dateKey workedSeconds breakSeconds checkInAt checkOutAt isActiveBreak activeBreakStartedAt")
+    .lean()
+    .exec();
+
+  let workedSeconds = records.reduce((sum, record) => sum + Math.max(0, Number(record?.workedSeconds) || 0), 0);
+
+  const todayRecord = records.find((record) => record.dateKey === todayKey);
+  if (todayRecord?.checkInAt && !todayRecord?.checkOutAt) {
+    const now = new Date();
+    const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - new Date(todayRecord.checkInAt).getTime()) / 1000));
+    const activeBreakSeconds = todayRecord.isActiveBreak && todayRecord.activeBreakStartedAt
+      ? Math.max(0, Math.floor((now.getTime() - new Date(todayRecord.activeBreakStartedAt).getTime()) / 1000))
+      : 0;
+    const savedBreakSeconds = Math.max(0, Number(todayRecord.breakSeconds) || 0);
+    workedSeconds += Math.max(0, elapsedSeconds - savedBreakSeconds - activeBreakSeconds);
+  }
+
+  const settings = formatAttendanceSettings(workspace);
+  return {
+    workedHours: Number((workedSeconds / 3600).toFixed(1)),
+    targetHours: settings.weeklyWorkingHours,
+  };
+};
 
 export async function getMyAttendanceHistory(userId, query = {}) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
@@ -1089,15 +1382,18 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     });
   }
 
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const weeklyHours = await getWeeklyHoursSummary(workspace, user._id, timezone);
+
   return {
     records: rows,
-    stats: buildStats(rows),
+    stats: { ...buildStats(rows), weeklyHours },
   };
 }
 
 export async function getTeamAttendanceSnapshot(userId, query = {}) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
-  const visibleRoleBand = getRoleBand(membership?.role || "");
+  const visibleRoleBand = await resolveAttendanceAccessBand(membership);
   const { keys } = getMonthDateKeys(query.month);
   const managedDepartmentIds = await getManagedDepartmentIds(workspace._id, membership, user._id);
 
@@ -1326,7 +1622,7 @@ export async function requestAttendanceCorrection(userId, recordId, input = {}) 
 export async function reviewAttendanceCorrection(userId, recordId, input = {}) {
   const { workspace, membership } = await getWorkspaceIdFromUser(userId);
   const actorBand = getRoleBand(membership?.role || "");
-  if (!canManageTeamAttendance(membership)) {
+  if (!(await canManageTeamAttendance(membership))) {
     const error = new Error("You do not have permission to review attendance corrections.");
     error.statusCode = 403;
     throw error;

@@ -99,6 +99,14 @@ export const linkOrganizationMember = (
   payload: { targetWorkspaceId: string; note?: string },
 ) => axiosPrivate.post(`/api/organization/members/${memberId}/link-workspace`, payload);
 
+export const removeOrganizationMemberWorkspaceAccess = (
+  axiosPrivate: AxiosInstance,
+  memberId: string,
+  targetWorkspaceId: string,
+) =>
+  axiosPrivate.delete(`/api/organization/members/${memberId}/workspace-access`, {
+    data: { targetWorkspaceId },
+  });
 export const transferOrganizationOwnership = (
   axiosPrivate: AxiosInstance,
   payload: { memberId: string },
