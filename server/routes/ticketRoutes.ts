@@ -8,13 +8,14 @@ import {
     getIssueSuggestions
 } from "../controllers/ticketController.js";
 import verifyJwt from "../middlewares/verifyJwt.js";
+import upload from "../config/multerConfig.js";
 
 const router = express.Router();
 
 // Apply auth middleware to all ticket routes
 router.use(verifyJwt);
 
-router.post("/", createTicket);                              // POST /api/tickets
+router.post("/", upload.array("attachments", 5), createTicket); // POST /api/tickets
 router.get("/", getTickets);                                 // GET /api/tickets
 router.get("/issue-suggestions", getIssueSuggestions);       // GET /api/tickets/issue-suggestions
 router.get("/:id", getTicketById);                           // GET /api/tickets/:id

@@ -37,6 +37,7 @@ export interface ITicket extends Document {
     followUpOfTicketId?: mongoose.Types.ObjectId | null;
     followUpOfTicketCode: string;
     followUpMessage: string;
+    attachments: { id: string; url: string; name: string }[];
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -89,6 +90,17 @@ const ticketSchema = new Schema<ITicket>(
         followUpOfTicketId: { type: Schema.Types.ObjectId, ref: "Ticket", default: null, index: true },
         followUpOfTicketCode: { type: String, default: "", trim: true, maxlength: 40 },
         followUpMessage: { type: String, default: "", trim: true, maxlength: 2000 },
+        attachments: {
+            type: [
+                {
+                    _id: false,
+                    id: { type: String, default: "" },
+                    url: { type: String, default: "" },
+                    name: { type: String, default: "" },
+                },
+            ],
+            default: [],
+        },
     },
     {
         timestamps: true,
