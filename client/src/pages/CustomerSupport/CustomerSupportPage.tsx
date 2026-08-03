@@ -469,7 +469,7 @@ export default function CustomerSupportPage() {
       if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
       toast.success(`${reportFormat} support report saved to Reports.`);
       window.dispatchEvent(new Event("reports:refresh"));
-    } catch (error: any) { toast.error(error?.message || "Failed to export support issues."); }
+    } catch (error: any) { toast.error(error?.response?.data?.message || "Failed to export support issues."); }
     finally { setIsExportingReport(""); }
   };
 
@@ -802,6 +802,15 @@ export default function CustomerSupportPage() {
                       setImageFile(file || null);
                     }}
                   />
+                  {imageFile && (
+                    <button
+                      type="button"
+                      onClick={() => setImageFile(null)}
+                      className="flex items-center justify-center gap-1.5 mt-1 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 text-[10px] font-pmedium uppercase tracking-wider hover:bg-red-100 transition-colors"
+                    >
+                      <X size={12} /> Remove image
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
@@ -1118,6 +1127,15 @@ export default function CustomerSupportPage() {
                       setEditImageFile(file || null);
                     }}
                   />
+                  {editImageFile && (
+                    <button
+                      type="button"
+                      onClick={() => setEditImageFile(null)}
+                      className="flex items-center justify-center gap-1.5 mt-1 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 text-[10px] font-pmedium uppercase tracking-wider hover:bg-red-100 transition-colors"
+                    >
+                      <X size={12} /> Remove image
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
