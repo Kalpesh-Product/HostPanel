@@ -416,6 +416,7 @@ export default function AccessGrantsPage() {
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showTransferWarning, setShowTransferWarning] = useState(false);
   const [transferTargetUserId, setTransferTargetUserId] = useState('');
+  const [ownershipTransferWorkspaceIds, setOwnershipTransferWorkspaceIds] = useState<string[]>([]);
   const [linkedWorkspaces, setLinkedWorkspaces] = useState<LinkedWorkspace[]>([]);
   const [showWorkspaceTransferDialog, setShowWorkspaceTransferDialog] = useState(false);
   const [showWorkspaceLinkDialog, setShowWorkspaceLinkDialog] = useState(false);
@@ -1080,13 +1081,13 @@ export default function AccessGrantsPage() {
 
   const handleTransferOwnership = async () => {
     if (!canEditAccessGrants) {
-      toast.error('Only the workspace founder can transfer founder access.');
+      toast.error('Only the workspace founder can transfer ownership.');
       return;
     }
 
     const targetMemberId = transferTargetUser?.id || eligibleOwnershipCandidates[0]?.id;
     if (!targetMemberId) {
-      toast.info('Select an eligible Super-Admin before transferring founder access.');
+      toast.info('Select an eligible Super-Admin before transferring ownership.');
       return;
     }
 
@@ -1099,7 +1100,24 @@ export default function AccessGrantsPage() {
 
     setIsSaving(true);
     try {
-      const response = await transferOrganizationOwnership(axiosPrivate, { memberId: targetMemberId });
+      const currentWorkspaceId = String(workspace?.id || '');
+      const workspaceIds = Array.from(
+        new Set(
+          [
+            currentWorkspaceId,
+            ...ownershipTransferWorkspaceIds,
+          ].filter(Boolean),
+        ),
+      );
+      if (!currentWorkspaceId || workspaceIds.length === 0) {
+        toast.error('Select at least the current unit for ownership transfer.');
+        return;
+      }
+
+      const response = await transferOrganizationOwnership(axiosPrivate, {
+        memberId: targetMemberId,
+        workspaceIds,
+      });
       await reloadFromResponse(response);
       setAuth((previous) => {
         const previousUser = (previous.user || {}) as Record<string, any>;
@@ -1125,10 +1143,11 @@ export default function AccessGrantsPage() {
       setShowDetailPanel(false);
       setSelectedUser(null);
       setTransferTargetUserId('');
-      toast.success(`Founder access transferred to ${targetMember?.name || 'the selected user'}.`);
+      setOwnershipTransferWorkspaceIds([]);
+      toast.success(`Ownership transferred to ${targetMember?.name || 'the selected user'}.`);
       navigate('/dashboard', { replace: true });
     } catch (error) {
-      toast.error((error as Error).message || 'Unable to transfer founder access right now.');
+      toast.error((error as Error).message || 'Unable to transfer ownership right now.');
     } finally {
       setIsSaving(false);
     }
@@ -1332,7 +1351,7 @@ export default function AccessGrantsPage() {
           {/* 4. DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
-            {/* Inner header: search + role filter dropdown + transfer founder action */}
+            {/* Inner header: search + role filter dropdown + ownership transfer action */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
               {/* LEFT: status sub-tab pills */}
@@ -1380,18 +1399,21 @@ export default function AccessGrantsPage() {
                   </select>
                 </div>
 
-                {/* Transfer Founder Access */}
+                {/* Transfer Ownership */}
                 {canEditAccessGrants && eligibleOwnershipCandidates.length > 0 && (
                   <button
                     onClick={() => {
                       setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
+                      setOwnershipTransferWorkspaceIds(
+                        linkedWorkspaces.map((item) => String(item.id || '')).filter(Boolean),
+                      );
                       setShowTransferWarning(false);
                       setShowTransferDialog(true);
                     }}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <ArrowRightLeft size={13} strokeWidth={2.5} />
-                    Transfer Founder
+                    Transfer Ownership
                   </button>
                 )}
               </div>
@@ -1469,8 +1491,26 @@ export default function AccessGrantsPage() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-2">
                               {user.roleGroup === 'Founder' ? (
-                                <span className={statusPillClass("Founder")}>Founder
-                                </span>
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled
+                                    aria-disabled="true"
+                                    className="p-1.5 rounded-lg transition-all bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed"
+                                    title="Self Protected - sidebar access cannot be changed"
+                                  >
+                                    <Shield size={15} strokeWidth={2.5} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled
+                                    aria-disabled="true"
+                                    className="p-1.5 rounded-lg transition-all bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed"
+                                    title="Self Protected - owner role cannot be changed"
+                                  >
+                                    <UserCog size={15} strokeWidth={2.5} />
+                                  </button>
+                                </>
                               ) : (
                                 <>
                                   {!hideAccessButtonForSelfSuperAdmin ? (
@@ -1578,7 +1618,7 @@ export default function AccessGrantsPage() {
 
                     {!canEditAccessGrants && (
                       <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
-                        Super Admins can add or transfer unit access for employees. Only the workspace founder can promote, demote, or transfer founder access.
+                        Super Admins can add or transfer unit access for employees. Only the workspace founder can promote, demote, or transfer ownership.
                       </div>
                     )}
 
@@ -1602,7 +1642,7 @@ export default function AccessGrantsPage() {
                               <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
                             </div>
                             <div>
-                              <div className="font-semibold text-[13px] text-slate-900">Transfer Unit</div>
+                              <div className="font-semibold text-[13px] text-slate-900">Transfer To Another Unit</div>
                               <div className="text-xs text-slate-500 mt-0.5">Move this user to another linked unit</div>
                             </div>
                           </div>
@@ -1623,8 +1663,8 @@ export default function AccessGrantsPage() {
                                 <Users className="w-4 h-4 text-sky-600" />
                               </div>
                               <div>
-                                <div className="font-semibold text-[13px] text-slate-900">Add Unit Access</div>
-                                <div className="text-xs text-slate-500 mt-0.5">Keep this user here and add another unit</div>
+                                <div className="font-semibold text-[13px] text-slate-900">Add Another Unit Access</div>
+                                <div className="text-xs text-slate-500 mt-0.5">Keep this user here and add another unit access</div>
                               </div>
                             </div>
                             <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-sky-500 transition-colors" />
@@ -2308,89 +2348,182 @@ export default function AccessGrantsPage() {
         )}
 
         {showTransferDialog && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[2rem] max-w-md w-full overflow-hidden">
-              <div className="p-5 sm:p-6 bg-[#1E293B]">
-                <h2 className="text-lg font-pmedium text-white flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-400" />
-                  Transfer Founder Access
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[2rem] bg-white">
+              <div className="bg-[#1E293B] p-5 sm:p-6">
+                <h2 className="flex items-center gap-2 text-lg font-pmedium text-white">
+                  <AlertCircle className="h-5 w-5 text-amber-400" />
+                  Transfer Ownership
                 </h2>
               </div>
-              <div className="p-5 sm:p-6 space-y-4">
+
+              <div className="space-y-4 p-5 sm:p-6">
                 {!showTransferWarning ? (
                   <>
-                    <p className="text-slate-500 text-sm font-pmedium">
-                      You are about to transfer workspace founder access to a Super-Admin. This will move founder access to the selected account and refresh your current session.
+                    <p className="text-sm font-pmedium text-slate-500">
+                      Select the Super Admin who will become Founder, then choose the linked units included in this ownership handover.
                     </p>
 
                     <div className="space-y-2">
-                      <label className="block text-xs font-pmedium text-slate-500 uppercase tracking-wider">Select New Founder</label>
+                      <label className="block text-xs font-pmedium uppercase tracking-wider text-slate-500">
+                        New Founder
+                      </label>
                       <select
                         value={transferTargetUserId || eligibleOwnershipCandidates[0]?.id || ''}
                         onChange={(event) => setTransferTargetUserId(event.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-100/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent text-sm"
+                        className="w-full rounded-xl border border-slate-100/60 bg-slate-50/50 px-4 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                       >
                         {eligibleOwnershipCandidates.map((member) => (
                           <option key={member.id} value={member.id}>
-                            {member.name} - {member.role}
+                            {member.name} - {member.roleGroup} ({member.email})
                           </option>
                         ))}
                       </select>
                     </div>
 
-                    {eligibleOwnershipCandidates.length === 0 && (
+                    {transferTargetUser ? (
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                        <p className="text-sm font-semibold text-blue-900">{transferTargetUser.name}</p>
+                        <p className="mt-1 text-xs font-medium text-blue-700">
+                          {transferTargetUser.roleGroup} ({transferTargetUser.email})
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs font-pmedium uppercase tracking-wider text-slate-500">
+                          Linked Units
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          The current unit is required. Select other units to add Founder access there in the same transfer.
+                        </p>
+                      </div>
+                      <div className="max-h-52 space-y-2 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                        {linkedWorkspaces.map((linkedWorkspace) => {
+                          const linkedWorkspaceId = String(linkedWorkspace.id || '');
+                          const isCurrentUnit = Boolean(linkedWorkspace.isCurrentWorkspace);
+                          const isChecked =
+                            isCurrentUnit || ownershipTransferWorkspaceIds.includes(linkedWorkspaceId);
+
+                          return (
+                            <label
+                              key={linkedWorkspaceId}
+                              className="flex items-start gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                disabled={isCurrentUnit}
+                                onChange={(event) =>
+                                  setOwnershipTransferWorkspaceIds((current) =>
+                                    event.target.checked
+                                      ? Array.from(new Set([...current, linkedWorkspaceId]))
+                                      : current.filter((id) => id !== linkedWorkspaceId),
+                                  )
+                                }
+                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-semibold text-slate-800">
+                                  {linkedWorkspace.workspaceName || 'Workspace'}
+                                  {isCurrentUnit ? ' (Current)' : ''}
+                                </span>
+                                <span className="mt-0.5 block text-xs text-slate-400">
+                                  {linkedWorkspace.location || 'Location not set'}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {eligibleOwnershipCandidates.length === 0 ? (
                       <p className="text-xs font-medium text-amber-600">
-                        No eligible Super-Admin users are available for founder access transfer yet.
+                        No eligible Super Admin users are available for ownership transfer.
                       </p>
-                    )}
+                    ) : null}
 
                     <p className="text-xs text-slate-400">
-                      Current founder: {ownerName}
+                      Current Founder: {ownerName}
                     </p>
                   </>
                 ) : (
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
                       <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600 shrink-0" />
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                         <div className="space-y-2">
                           <p className="text-sm font-semibold text-amber-900">
-                            Final warning before transfer
+                            Final warning before ownership transfer
                           </p>
-                          <p className="text-sm text-amber-800 leading-relaxed">
-                            All platform access will move with this transfer. The selected Super-Admin will be promoted to Founder, and the current Founder will be demoted to Super-Admin.
+                          <p className="text-sm leading-relaxed text-amber-800">
+                            The selected Super Admin will become Founder in every selected unit. The current Founder will remain in those units only as a linked Super Admin.
                           </p>
                           <p className="text-xs font-medium text-amber-700">
-                            Selected recipient: {transferTargetUser?.name || 'Unknown user'} - {transferTargetUser?.role || 'Super-Admin'}
+                            New Founder: {transferTargetUser?.name || 'Unknown user'} - {transferTargetUser?.roleGroup || 'Super-Admin'} ({transferTargetUser?.email || 'Email unavailable'})
                           </p>
                         </div>
                       </div>
                     </div>
 
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">
+                        Units included
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {linkedWorkspaces
+                          .filter(
+                            (item) =>
+                              item.isCurrentWorkspace ||
+                              ownershipTransferWorkspaceIds.includes(String(item.id || '')),
+                          )
+                          .map((item) => (
+                            <span
+                              key={item.id}
+                              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+                            >
+                              {item.workspaceName || 'Workspace'}
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+
                     <p className="text-xs text-slate-400">
-                      This action should only be used when you are ready to hand over the workspace.
+                      The new Founder can later remove the former Founder's additional unit access from Access Grants.
                     </p>
                   </div>
                 )}
               </div>
-              <div className="p-5 sm:p-6 border-t border-slate-100/60 flex justify-end gap-3">
+
+              <div className="flex justify-end gap-3 border-t border-slate-100/60 p-5 sm:p-6">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowTransferDialog(false);
                     setShowTransferWarning(false);
                     setTransferTargetUserId('');
+                    setOwnershipTransferWorkspaceIds([]);
                   }}
-                  className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-colors text-sm"
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleTransferOwnership}
-                  disabled={isSaving || !canEditAccessGrants || eligibleOwnershipCandidates.length === 0 || isReadOnlySession}
+                  disabled={
+                    isSaving ||
+                    !canEditAccessGrants ||
+                    eligibleOwnershipCandidates.length === 0 ||
+                    isReadOnlySession ||
+                    ownershipTransferWorkspaceIds.length === 0
+                  }
                   title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
-                  className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60"
+                  className="rounded-2xl bg-red-500 px-5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-red-600 disabled:opacity-60"
                 >
-                  {isSaving ? 'Saving...' : showTransferWarning ? 'Confirm Transfer' : 'Review Transfer'}
+                  {isSaving ? 'Saving...' : showTransferWarning ? 'Confirm Ownership Transfer' : 'Review Ownership Transfer'}
                 </button>
               </div>
             </div>

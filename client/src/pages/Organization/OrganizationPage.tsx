@@ -1544,6 +1544,18 @@ export function OrganizationPage() {
                   const departmentBadges = hasAllDepartmentsAccess
                     ? ['All Departments']
                     : normalizedDepartments;
+                  const isSelfMember =
+                    Boolean(member.userId) && String(member.userId) === currentUserId;
+                  const isOwnerMember = normalizedRole === 'owner';
+                  const isRoleActionDisabled =
+                    isSelfMember ||
+                    isOwnerMember ||
+                    isBasicPlanWorkspace ||
+                    member.status === 'disabled' ||
+                    member.status === 'invited' ||
+                    member.status === 'invite_sent' ||
+                    Boolean(member.accountDeleted) ||
+                    !canChangeRoleByAccess;
 
                   return (
                   <tr key={member.id} className={`hover:bg-slate-50/50 transition-colors group ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : ''}`}>
@@ -1575,9 +1587,8 @@ export function OrganizationPage() {
                     <td className="px-5 py-4">
                       {(() => {
                         const memberStatus = member.status ?? '';
-                        const isOwner = member.role === 'owner';
-                        const isSelf = member.userId && String(member.userId) === currentUserId;
-                        const isProtectedSelf = isSelf && normalizeRoleValue(member.role) === 'super-admin';
+                        const isOwner = normalizedRole === 'owner';
+                        const isProtectedSelf = isSelfMember;
                         const isAccountDeleted = Boolean(member.accountDeleted);
 
                         if (memberStatus === 'invited' || memberStatus === 'invite_sent') {
@@ -1629,9 +1640,6 @@ export function OrganizationPage() {
                             ? 'bg-emerald-500'
                             : 'bg-rose-500';
 
-                        if (isOwner) {
-                          return <span className="text-[10px] font-pmedium text-slate-400">Founder</span>;
-                        }
 
                         const isAccessSaving = accessTogglePendingMemberId === member.id;
                         return (
@@ -1653,11 +1661,13 @@ export function OrganizationPage() {
                             <span className={`text-[10px] font-pmedium ${isToggleLocked ? 'text-slate-500' : isAccessEnabled ? 'text-emerald-600' : 'text-rose-600'}`}>
                               {isProtectedSelf
                                 ? 'Self Protected'
-                                : isAccountDeleted
-                                  ? 'Account Deleted'
-                                  : isAccessEnabled
-                                    ? 'Access On'
-                                    : 'Access Off'}
+                                : isOwner
+                                  ? 'Owner Protected'
+                                  : isAccountDeleted
+                                    ? 'Account Deleted'
+                                    : isAccessEnabled
+                                      ? 'Access On'
+                                      : 'Access Off'}
                             </span>
                           </div>
                         );
@@ -1672,16 +1682,26 @@ export function OrganizationPage() {
                         >
                           <Eye size={15} />
                         </button>
-                        {normalizeRoleValue(member.role) !== 'owner' && member.status !== 'disabled' && canChangeRoleByAccess ? (
-                          <button
-                            title={isBasicPlanWorkspace ? "Role changes aren't needed on the Basic plan" : "Change Role"}
-                            disabled={isBasicPlanWorkspace}
-                            onClick={() => openRoleChangeModal(member)}
-                            className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:border-slate-200/60 disabled:hover:bg-white"
-                          >
-                            <ArrowUpDown size={15} />
-                          </button>
-                        ) : null}
+                        <button
+                          title={
+                            isSelfMember
+                              ? 'Self Protected - you cannot change your own role'
+                              : isOwnerMember
+                                ? 'Transfer ownership to change the owner role'
+                                : isBasicPlanWorkspace
+                                  ? "Role changes aren't needed on the Basic plan"
+                                  : !canChangeRoleByAccess
+                                    ? 'You do not have permission to change roles'
+                                    : member.status === 'disabled'
+                                      ? 'Enable this user before changing their role'
+                                      : 'Change Role'
+                          }
+                          disabled={isRoleActionDisabled}
+                          onClick={() => !isRoleActionDisabled && openRoleChangeModal(member)}
+                          className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:border-slate-200/60 disabled:hover:bg-white"
+                        >
+                          <ArrowUpDown size={15} />
+                        </button>
                         {(member.status === 'invited' || member.status === 'invite_sent') && canRemoveInvitedMemberByAccess ? (
                           <button
                             title="Remove invited member"

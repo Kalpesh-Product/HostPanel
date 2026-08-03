@@ -109,5 +109,5 @@ export const removeOrganizationMemberWorkspaceAccess = (
   });
 export const transferOrganizationOwnership = (
   axiosPrivate: AxiosInstance,
-  payload: { memberId: string },
+  payload: { memberId: string; workspaceIds: string[] },
 ) => axiosPrivate.post("/api/organization/ownership/transfer", payload);
