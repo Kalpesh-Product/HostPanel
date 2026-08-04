@@ -69,7 +69,7 @@ interface WorkspaceTransferForm {
 }
 
 interface WorkspaceLinkForm {
-  targetWorkspaceId: string;
+  targetWorkspaceIds: string[];
   note: string;
 }
 
@@ -421,7 +421,7 @@ export default function AccessGrantsPage() {
   const [showWorkspaceTransferDialog, setShowWorkspaceTransferDialog] = useState(false);
   const [showWorkspaceLinkDialog, setShowWorkspaceLinkDialog] = useState(false);
   const [showWorkspaceRemoveDialog, setShowWorkspaceRemoveDialog] = useState(false);
-  const [workspaceRemoveTargetId, setWorkspaceRemoveTargetId] = useState('');
+  const [workspaceRemoveTargetIds, setWorkspaceRemoveTargetIds] = useState<string[]>([]);
   const [workspaceTransferForm, setWorkspaceTransferForm] = useState<WorkspaceTransferForm>({
     targetWorkspaceId: '',
     role: 'employee',
@@ -429,7 +429,7 @@ export default function AccessGrantsPage() {
     note: '',
   });
   const [workspaceLinkForm, setWorkspaceLinkForm] = useState<WorkspaceLinkForm>({
-    targetWorkspaceId: '',
+    targetWorkspaceIds: [],
     note: '',
   });
   const [showMemberAccessDialog, setShowMemberAccessDialog] = useState(false);
@@ -569,9 +569,8 @@ export default function AccessGrantsPage() {
     : 0;
   // A transfer moves the user entirely into the destination unit, so it is
   // only possible when they have no other unit access (any linked unit is a
-  // valid target) or exactly one other unit access (only that unit can be the
-  // destination). If they are linked to more than one other unit, those unit
-  // accesses must be removed first.
+  // valid target). If they are linked to any other unit, those unit accesses
+  // must be removed first before a transfer becomes possible.
   const transferTargetOptions = useMemo(() => {
     if (!selectedUser) return [];
     const userOtherIds = new Set(
@@ -579,10 +578,7 @@ export default function AccessGrantsPage() {
         .filter((access) => String(access?.id || '') !== currentWorkspaceId)
         .map((item) => String(item?.id || '')),
     );
-    if (userOtherIds.size > 1) return [];
-    if (userOtherIds.size === 1) {
-      return transferWorkspaceOptions.filter((item) => userOtherIds.has(String(item.id)));
-    }
+    if (userOtherIds.size > 0) return [];
     return transferWorkspaceOptions;
   }, [selectedUser, transferWorkspaceOptions, currentWorkspaceId]);
   const canTransferMembers =
@@ -1082,17 +1078,9 @@ export default function AccessGrantsPage() {
   };
 
   const handleOpenWorkspaceLinkDialog = (user: MappedMember) => {
-    const defaultTargetWorkspace = (
-      transferWorkspaceOptions.filter((item) =>
-        !(Array.isArray(user?.workspaceAccesses) ? user.workspaceAccesses : []).some(
-          (access) => String(access?.id || '') === String(item.id),
-        ),
-      )[0] || null
-    );
-
     setSelectedUser(user);
     setWorkspaceLinkForm({
-      targetWorkspaceId: defaultTargetWorkspace?.id || '',
+      targetWorkspaceIds: [],
       note: '',
     });
     setShowWorkspaceLinkDialog(true);
@@ -1231,24 +1219,41 @@ export default function AccessGrantsPage() {
       return;
     }
 
-    if (!workspaceLinkForm.targetWorkspaceId) {
-      toast.error('Select a workspace to add access.');
+    const targetWorkspaceIds = (Array.isArray(workspaceLinkForm.targetWorkspaceIds)
+      ? workspaceLinkForm.targetWorkspaceIds
+      : []
+    ).filter(Boolean);
+    if (targetWorkspaceIds.length === 0) {
+      toast.error('Select at least one unit to add access.');
       return;
     }
 
     setIsSaving(true);
+    let addedCount = 0;
+    let lastError: unknown = null;
     try {
-      const response = await linkOrganizationMember(axiosPrivate, selectedUser.id, {
-        targetWorkspaceId: workspaceLinkForm.targetWorkspaceId,
-        note: workspaceLinkForm.note,
-      });
-      await reloadFromResponse(response);
-      setShowWorkspaceLinkDialog(false);
-      setShowDetailPanel(false);
-      setSelectedUser(null);
-      toast.success(`${selectedUser.name} can now access another workspace.`);
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to add unit access right now.');
+      for (const targetWorkspaceId of targetWorkspaceIds) {
+        try {
+          await linkOrganizationMember(axiosPrivate, selectedUser.id, {
+            targetWorkspaceId,
+            note: workspaceLinkForm.note,
+          });
+          addedCount += 1;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (addedCount > 0) {
+        await loadAccessGrants();
+        setShowWorkspaceLinkDialog(false);
+        setShowDetailPanel(false);
+        setSelectedUser(null);
+        toast.success(
+          `${selectedUser.name} can now access ${addedCount} more unit${addedCount > 1 ? 's' : ''}.`,
+        );
+      } else {
+        toast.error((lastError as Error)?.message || 'Unable to add unit access right now.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1256,42 +1261,57 @@ export default function AccessGrantsPage() {
 
   const handleOpenWorkspaceRemoveDialog = (user: MappedMember) => {
     const currentWorkspaceId = String(workspace?.id || '');
-    const firstAdditionalAccess = (user.workspaceAccesses || []).find(
+    const additionalAccesses = (user.workspaceAccesses || []).filter(
       (access) => String(access?.id || '') !== currentWorkspaceId,
     );
 
     setSelectedUser(user);
-    setWorkspaceRemoveTargetId(String(firstAdditionalAccess?.id || ''));
+    setWorkspaceRemoveTargetIds(additionalAccesses.map((access) => String(access?.id || '')));
     setShowWorkspaceRemoveDialog(true);
   };
 
   const handleConfirmWorkspaceRemoval = async () => {
-    if (!canRemoveUnitAccess || !selectedUser || !workspaceRemoveTargetId) {
+    if (!canRemoveUnitAccess || !selectedUser) {
       toast.error('Select an additional unit to remove.');
       return;
     }
 
-    const removedWorkspace = removableWorkspaceOptions.find(
-      (item) => String(item.id) === String(workspaceRemoveTargetId),
-    );
+    const targetWorkspaceIds = (Array.isArray(workspaceRemoveTargetIds) ? workspaceRemoveTargetIds : []).filter(Boolean);
+    if (targetWorkspaceIds.length === 0) {
+      toast.error('Select at least one additional unit to remove.');
+      return;
+    }
 
     setIsSaving(true);
+    let removedCount = 0;
+    let lastError: unknown = null;
     try {
-      const response = await removeOrganizationMemberWorkspaceAccess(
-        axiosPrivate,
-        selectedUser.id,
-        workspaceRemoveTargetId,
-      );
-      await reloadFromResponse(response);
-      setShowWorkspaceRemoveDialog(false);
-      setShowDetailPanel(false);
-      setWorkspaceRemoveTargetId('');
-      setSelectedUser(null);
-      toast.success(
-        selectedUser.name + "'s access to " + (removedWorkspace?.workspaceName || 'the selected unit') + ' was removed.',
-      );
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to remove unit access right now.');
+      for (const workspaceRemoveTargetId of targetWorkspaceIds) {
+        try {
+          await removeOrganizationMemberWorkspaceAccess(
+            axiosPrivate,
+            selectedUser.id,
+            workspaceRemoveTargetId,
+          );
+          removedCount += 1;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (removedCount > 0) {
+        await loadAccessGrants();
+        setShowWorkspaceRemoveDialog(false);
+        setShowDetailPanel(false);
+        setWorkspaceRemoveTargetIds([]);
+        setSelectedUser(null);
+        toast.success(
+          removedCount === 1
+            ? `${selectedUser.name}'s access to the selected unit was removed.`
+            : `${selectedUser.name}'s access to ${removedCount} units was removed.`,
+        );
+      } else {
+        toast.error((lastError as Error)?.message || 'Unable to remove unit access right now.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1665,10 +1685,9 @@ export default function AccessGrantsPage() {
                       </div>
                     )}
 
-                    {userOtherUnitAccessCount > 1 && (
+                    {userOtherUnitAccessCount > 0 && (
                       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-                        {selectedUser.name} has access to {userOtherUnitAccessCount} other units. Remove access to the
-                        other units first, then this user can be transferred to another unit.
+                        {selectedUser.name} has access to {userOtherUnitAccessCount} other unit{userOtherUnitAccessCount > 1 ? 's' : ''}. Remove access to the other unit{userOtherUnitAccessCount > 1 ? 's' : ''} first, then this user can be transferred to another unit.
                       </div>
                     )}
 
@@ -2042,7 +2061,7 @@ export default function AccessGrantsPage() {
                     type="button"
                     onClick={() => {
                       setShowWorkspaceRemoveDialog(false);
-                      setWorkspaceRemoveTargetId('');
+                      setWorkspaceRemoveTargetIds([]);
                     }}
                     className="rounded-xl border border-white/5 p-2.5 transition-colors hover:bg-white/10"
                   >
@@ -2053,27 +2072,55 @@ export default function AccessGrantsPage() {
                 <div className="space-y-3 bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
                   <div>
                     <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">
-                      Unit to remove
+                      Units to remove
                     </label>
-                    <div className="relative">
-                      <select
-                        value={workspaceRemoveTargetId}
-                        onChange={(event) => setWorkspaceRemoveTargetId(event.target.value)}
-                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/10"
-                      >
-                        <option value="">Select unit</option>
-                        {removableWorkspaceOptions.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.workspaceName}{item.location ? ' - ' + item.location : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    </div>
+                    {removableWorkspaceOptions.length > 0 ? (
+                      <div className="max-h-60 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3">
+                        {removableWorkspaceOptions.map((item) => {
+                          const isChecked = workspaceRemoveTargetIds.includes(String(item.id));
+                          return (
+                            <label
+                              key={item.id}
+                              className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-pmedium text-slate-700 transition-colors ${
+                                isChecked ? 'border-red-200 bg-red-50/60' : 'border-slate-100 hover:bg-slate-50'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(event) => {
+                                  const workspaceId = String(item.id);
+                                  setWorkspaceRemoveTargetIds((current) =>
+                                    event.target.checked
+                                      ? [...current, workspaceId]
+                                      : current.filter((id) => id !== workspaceId),
+                                  );
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                              />
+                              <span className="min-w-0">
+                                <span className="block truncate text-[13px] font-semibold text-slate-800">
+                                  {item.workspaceName}
+                                </span>
+                                {item.location ? (
+                                  <span className="mt-0.5 block truncate text-[11px] text-slate-400">
+                                    {item.location}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
+                        No additional units to remove.
+                      </div>
+                    )}
                   </div>
 
                   <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
-                    This removes only the selected additional unit. The user's current-unit access remains active. Founder access can never be removed here.
+                    This removes access to the selected additional units only. The user's current-unit access remains active and can never be removed here.
                   </div>
                 </div>
 
@@ -2082,7 +2129,7 @@ export default function AccessGrantsPage() {
                     type="button"
                     onClick={() => {
                       setShowWorkspaceRemoveDialog(false);
-                      setWorkspaceRemoveTargetId('');
+                      setWorkspaceRemoveTargetIds([]);
                     }}
                     className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
                   >
@@ -2091,10 +2138,10 @@ export default function AccessGrantsPage() {
                   <button
                     type="button"
                     onClick={handleConfirmWorkspaceRemoval}
-                    disabled={isSaving || isReadOnlySession || !workspaceRemoveTargetId}
-                    className="rounded-2xl bg-red-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+                    disabled={isSaving || isReadOnlySession || workspaceRemoveTargetIds.length === 0}
+                    className="rounded-2xl bg-red-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {isSaving ? 'Removing...' : 'Remove Access'}
+                    {isSaving ? 'Removing...' : `Remove Access${workspaceRemoveTargetIds.length > 1 ? ` (${workspaceRemoveTargetIds.length})` : ''}`}
                   </button>
                 </div>
               </div>
@@ -2129,27 +2176,51 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Target Workspace</label>
-                    <div className="relative">
-                      <select
-                        value={workspaceLinkForm.targetWorkspaceId}
-                        onChange={(event) =>
-                          setWorkspaceLinkForm((current) => ({
-                            ...current,
-                            targetWorkspaceId: event.target.value,
-                          }))
-                        }
-                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
-                      >
-                        <option value="">Select unit</option>
-                        {linkWorkspaceOptions.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.workspaceName}{item.location ? ` - ${item.location}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    </div>
+                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Units to add access</label>
+                    {linkWorkspaceOptions.length > 0 ? (
+                      <div className="max-h-60 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3">
+                        {linkWorkspaceOptions.map((item) => {
+                          const isChecked = workspaceLinkForm.targetWorkspaceIds.includes(String(item.id));
+                          return (
+                            <label
+                              key={item.id}
+                              className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-pmedium text-slate-700 transition-colors ${
+                                isChecked ? 'border-blue-200 bg-blue-50/60' : 'border-slate-100 hover:bg-slate-50'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(event) => {
+                                  const workspaceId = String(item.id);
+                                  setWorkspaceLinkForm((current) => ({
+                                    ...current,
+                                    targetWorkspaceIds: event.target.checked
+                                      ? Array.from(new Set([...current.targetWorkspaceIds, workspaceId]))
+                                      : current.targetWorkspaceIds.filter((id) => id !== workspaceId),
+                                  }));
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                              />
+                              <span className="min-w-0">
+                                <span className="block truncate text-[13px] font-semibold text-slate-800">
+                                  {item.workspaceName}
+                                </span>
+                                {item.location ? (
+                                  <span className="mt-0.5 block truncate text-[11px] text-slate-400">
+                                    {item.location}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
+                        No additional units available to add.
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -2169,7 +2240,7 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
-                    The same login, role, departments, employee profile, attendance, and leave data will stay shared across both workspaces.
+                    The same login, role, departments, employee profile, attendance, and leave data will stay shared across all selected workspaces.
                   </div>
                 </div>
 
@@ -2182,11 +2253,11 @@ export default function AccessGrantsPage() {
                   </button>
                   <button
                     onClick={handleConfirmWorkspaceLink}
-                    disabled={isSaving || isReadOnlySession}
+                    disabled={isSaving || isReadOnlySession || workspaceLinkForm.targetWorkspaceIds.length === 0}
                     title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
-                    className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                    className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {isSaving ? 'Saving...' : 'Add Access'}
+                    {isSaving ? 'Saving...' : `Add Access${workspaceLinkForm.targetWorkspaceIds.length > 1 ? ` (${workspaceLinkForm.targetWorkspaceIds.length})` : ''}`}
                   </button>
                 </div>
               </div>
