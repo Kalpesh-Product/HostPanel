@@ -205,6 +205,119 @@ const notifyMemberAboutUnitRemoval = async ({
     console.error("Unit access removal email failed (access was still removed):", mailError?.message || mailError);
   }
 };
+const notifyOwnershipTransfer = async ({
+  previousOwner,
+  nextOwner,
+  notificationWorkspace,
+  transferredWorkspaces,
+}: any) => {
+  if (!nextOwner?._id || !notificationWorkspace?._id) return;
+
+  const workspaceNames = (Array.isArray(transferredWorkspaces) ? transferredWorkspaces : [])
+    .map((item: any) => String(item?.workspaceName || item?.businessName || "Workspace").trim())
+    .filter(Boolean);
+  const unitList = workspaceNames.join(", ") || "the selected unit";
+  const frontendBase = String(
+    process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173",
+  )
+    .trim()
+    .replace(/\/$/, "");
+
+  await Promise.all([
+    createNotification({
+      workspaceId: String(notificationWorkspace._id),
+      recipientUserId: String(nextOwner._id),
+      actorUserId: previousOwner?._id ? String(previousOwner._id) : null,
+      type: "workspace_ownership_received",
+      category: "system",
+      title: "Workspace ownership transferred to you",
+      description: `You are now the Founder for: ${unitList}.`,
+      entityType: "workspace",
+      entityId: String(notificationWorkspace._id),
+      targetUrl: "/notifications",
+      data: {
+        changeType: "ownership_received",
+        workspaceIds: transferredWorkspaces.map((item: any) => String(item._id)),
+        workspaceNames,
+      },
+      priority: "high",
+      allowSelf: true,
+    }),
+    previousOwner?._id
+      ? createNotification({
+          workspaceId: String(notificationWorkspace._id),
+          recipientUserId: String(previousOwner._id),
+          actorUserId: String(previousOwner._id),
+          type: "workspace_ownership_transferred",
+          category: "system",
+          title: "Workspace ownership transferred",
+          description: `Ownership of ${unitList} was transferred to ${nextOwner.name || nextOwner.email}. You remain linked as Super Admin in those units.`,
+          entityType: "workspace",
+          entityId: String(notificationWorkspace._id),
+          targetUrl: "/notifications",
+          data: {
+            changeType: "ownership_transferred",
+            nextOwnerUserId: String(nextOwner._id),
+            workspaceIds: transferredWorkspaces.map((item: any) => String(item._id)),
+            workspaceNames,
+          },
+          priority: "high",
+          allowSelf: true,
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const emailJobs = [];
+  if (nextOwner.email) {
+    emailJobs.push(
+      sendMail({
+        to: nextOwner.email,
+        subject: "WONO workspace ownership transferred to you",
+        text: `You are now the Founder for: ${unitList}.`,
+        html: renderNotificationEmail({
+          heroTitle: "Ownership Transferred",
+          heroSubtitle: "You are now the Founder for the selected WONO units.",
+          greetingHtml: `
+            <p style="margin:0 0 4px;">Hello ${escapeEmailHtml(nextOwner.name || "there")},</p>
+            <p class="email-text" style="margin:0;">Ownership has been transferred to your account.</p>
+          `,
+          detailRows: [["Units", escapeEmailHtml(unitList)], ["Role", "Founder"]],
+          ctaButton: { label: "Open WONO Host Panel", href: `${frontendBase}/` },
+        }),
+      }),
+    );
+  }
+  if (previousOwner?.email) {
+    emailJobs.push(
+      sendMail({
+        to: previousOwner.email,
+        subject: "WONO workspace ownership transfer confirmed",
+        text: `Ownership of ${unitList} was transferred to ${nextOwner.name || nextOwner.email}. You remain linked as Super Admin.`,
+        html: renderNotificationEmail({
+          heroTitle: "Ownership Transfer Confirmed",
+          heroSubtitle: "Your selected WONO units now have a new Founder.",
+          greetingHtml: `
+            <p style="margin:0 0 4px;">Hello ${escapeEmailHtml(previousOwner.name || "there")},</p>
+            <p class="email-text" style="margin:0;">The ownership handover has been completed successfully.</p>
+          `,
+          detailRows: [
+            ["New Founder", escapeEmailHtml(nextOwner.name || nextOwner.email)],
+            ["Units", escapeEmailHtml(unitList)],
+            ["Your Role", "Super Admin"],
+          ],
+          ctaButton: { label: "Open WONO Host Panel", href: `${frontendBase}/` },
+        }),
+      }),
+    );
+  }
+
+  const emailResults = await Promise.allSettled(emailJobs);
+  emailResults.forEach((result) => {
+    if (result.status === "rejected") {
+      console.error("Ownership transfer email failed:", result.reason?.message || result.reason);
+    }
+  });
+};
 // Role bands that get a department's full moduleIds by default. Plain
 // employees get none of the department's modules automatically — a manager
 // (or founder/super admin) must explicitly hand-pick which of the
@@ -1307,6 +1420,9 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
     if (!member) {
       return res.status(404).json({ message: "Member not found." });
     }
+    if (toId(member.user) === toId(req.user)) {
+      return res.status(400).json({ message: "Your own organization access is self-protected and cannot be enabled or disabled." });
+    }
 
     const action = String(req.body?.action || "").trim().toLowerCase();
     const nextIsActive = action === "enable"
@@ -1773,6 +1889,9 @@ export const cancelOrganizationInvite = async (req, res, next) => {
     if (!member) {
       return res.status(404).json({ message: "Member not found." });
     }
+    if (toId(member.user) === toId(req.user)) {
+      return res.status(400).json({ message: "Your own organization membership is self-protected." });
+    }
 
     const targetUser = await HostUser.findById(member.user);
     if (!targetUser) {
@@ -2122,6 +2241,9 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       isActive: true,
     }).populate("departments");
     if (!member) return res.status(404).json({ message: "Member not found." });
+    if (toId(member.user) === toId(req.user)) {
+      return res.status(400).json({ message: "Your own module access is self-protected and cannot be changed here." });
+    }
 
     const linkedUser = await HostUser.findById(member.user)
       .select("isDeleted")
@@ -2478,6 +2600,9 @@ export const linkOrganizationMember = async (req, res, next) => {
       .populate("role")
       .populate("departments");
     if (!member) return res.status(404).json({ message: "Member not found." });
+    if (toId(member.user) === toId(req.user)) {
+      return res.status(400).json({ message: "Your own organization membership is self-protected." });
+    }
     if (actorRoleBand === "super_admin" && ["owner", "super_admin"].includes(getRoleBand(member.role))) {
       return res.status(403).json({ message: "Super Admin can add unit access for Admin, Manager, or Employee accounts only." });
     }
@@ -2678,9 +2803,11 @@ export const removeOrganizationMemberWorkspaceAccess = async (req, res, next) =>
 export const transferOrganizationOwnership = async (req, res, next) => {
   try {
     const { user, workspace } = await getCurrentWorkspace(req.user);
-    if (!user || !workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    if (!user || !workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
     if (toId(workspace.owner) !== toId(user._id)) {
-      return res.status(403).json({ message: "Only the current founder can transfer founder access." });
+      return res.status(403).json({ message: "Only the current founder can transfer ownership." });
     }
 
     const targetMember = await WorkspaceMember.findOne({
@@ -2688,22 +2815,44 @@ export const transferOrganizationOwnership = async (req, res, next) => {
       workspace: workspace._id,
       isActive: true,
     }).populate("role");
-    if (!targetMember) return res.status(404).json({ message: "Selected member not found." });
-    const normalizedTargetRole = getRoleName(targetMember.role)
-      .toLowerCase()
-      .replace(/-/g, "_");
-    if (normalizedTargetRole !== "super_admin") {
+    if (!targetMember) {
+      return res.status(404).json({ message: "Selected member not found." });
+    }
+    if (getRoleBand(targetMember.role) !== "super_admin") {
       return res.status(400).json({
-        message: "Founder access can only be transferred to a Super Admin.",
+        message: "Ownership can only be transferred to a Super Admin.",
+      });
+    }
+
+    const requestedWorkspaceIds = Array.from(
+      new Set(
+        (Array.isArray(req.body?.workspaceIds) ? req.body.workspaceIds : [workspace._id])
+          .map((workspaceId: any) => String(workspaceId || "").trim())
+          .filter(Boolean),
+      ),
+    );
+    if (!requestedWorkspaceIds.includes(toId(workspace._id))) {
+      return res.status(400).json({
+        message: "The current unit must be included in the ownership transfer.",
+      });
+    }
+
+    const selectedWorkspaces = await Workspace.find({
+      _id: { $in: requestedWorkspaceIds },
+      owner: user._id,
+      isActive: true,
+    }).exec();
+    if (selectedWorkspaces.length !== requestedWorkspaceIds.length) {
+      return res.status(400).json({
+        message: "One or more selected units are not linked to the current founder.",
       });
     }
 
     const nextOwner = await HostUser.findById(targetMember.user);
-    if (!nextOwner) return res.status(404).json({ message: "Selected user not found." });
-
+    if (!nextOwner) {
+      return res.status(404).json({ message: "Selected user not found." });
+    }
     const previousOwner = await HostUser.findById(workspace.owner);
-    workspace.owner = nextOwner._id;
-    await workspace.save();
 
     let superAdminRole = await Role.findOne({ name: "super_admin" });
     if (!superAdminRole) {
@@ -2725,53 +2874,106 @@ export const transferOrganizationOwnership = async (req, res, next) => {
       });
     }
 
-    if (previousOwner) {
-      previousOwner.role = "super_admin";
-      await previousOwner.save();
-      const previousOwnerExistingMembership = await WorkspaceMember.findOne({
-        workspace: workspace._id,
-        user: previousOwner._id,
+    for (const selectedWorkspace of selectedWorkspaces) {
+      await Department.updateMany(
+        { workspaceId: selectedWorkspace._id, managerUser: nextOwner._id },
+        { $set: { managerUser: null } },
+      ).exec();
+
+      selectedWorkspace.owner = nextOwner._id;
+      await selectedWorkspace.save();
+
+      if (previousOwner) {
+        const previousOwnerMembership = await WorkspaceMember.findOne({
+          workspace: selectedWorkspace._id,
+          user: previousOwner._id,
+        });
+        const previousOwnerWasPrimary = Boolean(previousOwnerMembership?.isPrimary);
+        const formerFounderGrants = await computeMembershipDefaultModuleIds({
+          workspace: selectedWorkspace,
+          departmentIds: [],
+          roleBand: "super_admin",
+        });
+        const linkedPreviousOwnerMembership = await WorkspaceMember.findOneAndUpdate(
+          { workspace: selectedWorkspace._id, user: previousOwner._id },
+          {
+            $set: {
+              role: superAdminRole._id,
+              departments: [],
+              grantedModules: formerFounderGrants,
+              isPrimary: previousOwnerWasPrimary,
+              isActive: true,
+              status: "joined",
+            },
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true },
+        );
+        await ensureEmployeeProfileForMember({
+          workspace: selectedWorkspace,
+          member: linkedPreviousOwnerMembership,
+          user: previousOwner,
+        });
+      }
+
+      const existingNextOwnerMembership = await WorkspaceMember.findOne({
+        workspace: selectedWorkspace._id,
+        user: nextOwner._id,
       })
-        .select("grantedModules")
-        .lean();
-      const formerFounderSuperAdminGrants = mergeGrantedModules(
-        previousOwnerExistingMembership?.grantedModules,
-        [
-          ...BASELINE_MODULE_IDS,
-          ...(Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : []),
-        ],
-      );
-      const previousOwnerMembership = await WorkspaceMember.findOneAndUpdate(
-        { workspace: workspace._id, user: previousOwner._id },
-        { $set: { role: superAdminRole._id, departments: [], grantedModules: formerFounderSuperAdminGrants, isActive: true, status: "joined" } },
+        .select("isPrimary")
+        .lean()
+        .exec();
+      const nextOwnerMembership = await WorkspaceMember.findOneAndUpdate(
+        { workspace: selectedWorkspace._id, user: nextOwner._id },
+        {
+          $set: {
+            role: ownerRole._id,
+            departments: [],
+            isPrimary: Boolean(existingNextOwnerMembership?.isPrimary),
+            isActive: true,
+            status: "joined",
+          },
+        },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
       await ensureEmployeeProfileForMember({
-        workspace,
-        member: previousOwnerMembership,
-        user: previousOwner,
+        workspace: selectedWorkspace,
+        member: nextOwnerMembership,
+        user: nextOwner,
       });
+    }
+
+    if (previousOwner) {
+      const remainingOwnedWorkspaceCount = await Workspace.countDocuments({
+        owner: previousOwner._id,
+        isActive: true,
+      });
+      previousOwner.role = remainingOwnedWorkspaceCount > 0 ? "owner" : "super_admin";
+      await previousOwner.save();
     }
 
     nextOwner.role = "owner";
     await nextOwner.save();
-    const nextOwnerMembership = await WorkspaceMember.findOneAndUpdate(
-      { workspace: workspace._id, user: nextOwner._id },
-      { $set: { role: ownerRole._id, isActive: true, status: "joined" } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
-    await ensureEmployeeProfileForMember({
-      workspace,
-      member: nextOwnerMembership,
-      user: nextOwner,
+
+    await notifyOwnershipTransfer({
+      previousOwner,
+      nextOwner,
+      notificationWorkspace: workspace,
+      transferredWorkspaces: selectedWorkspaces,
     });
 
-    return res.status(200).json({ message: "Founder access transferred successfully." });
+    return res.status(200).json({
+      message: "Ownership transferred successfully.",
+      data: {
+        transferredWorkspaceIds: selectedWorkspaces.map((item) => toId(item._id)),
+        transferredWorkspaceNames: selectedWorkspaces.map(
+          (item) => item.workspaceName || item.businessName || "Workspace",
+        ),
+      },
+    });
   } catch (error) {
     next(error);
   }
 };
-
 // GET /api/organization/departments — returns active (isActive: true) departments for the current workspace.
 // Use this endpoint to populate department dropdowns across the app (finance, tickets, HR, etc.).
 export const getDepartments = async (req, res) => {
