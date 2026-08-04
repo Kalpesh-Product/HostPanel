@@ -1,6 +1,7 @@
 // @ts-nocheck
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import { Role } from "../models/Role.js";
+import Department from "../models/Department.js";
 
 /**
  * Safely find and return the most relevant active WorkspaceMember for a user,
@@ -24,6 +25,7 @@ export const resolveActiveWorkspaceMembership = async (user: any) => {
     const preferred = await WorkspaceMember.findOne(primaryFilter)
       .sort({ isPrimary: -1, createdAt: 1 })
       .populate("role")
+      .populate("departments")
       .lean()
       .exec();
     if (preferred) return preferred;
@@ -31,6 +33,7 @@ export const resolveActiveWorkspaceMembership = async (user: any) => {
     return await WorkspaceMember.findOne(fallbackFilter)
       .sort({ isPrimary: -1, createdAt: 1 })
       .populate("role")
+      .populate("departments")
       .lean()
       .exec();
   } catch (err: any) {
@@ -58,6 +61,15 @@ export const resolveActiveWorkspaceMembership = async (user: any) => {
     } catch {
       // role is an invalid ObjectId (legacy string) — leave the raw value;
       // callers extract role.name with a string fallback so this is safe.
+    }
+  }
+
+  if (Array.isArray(raw?.departments) && raw.departments.length) {
+    try {
+      const departmentDocs = await Department.find({ _id: { $in: raw.departments } }).lean().exec();
+      (raw as any).departments = departmentDocs;
+    } catch {
+      // Leave the raw ObjectId array as-is if lookup fails.
     }
   }
 

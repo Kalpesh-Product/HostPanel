@@ -64,8 +64,11 @@ export const getSupportTickets = async (req, res, next) => {
     const workspaceId = req.workspaceMembership?.workspace || null;
     const userId = req.user;
     const query: any = {};
-    if (workspaceId) query.workspace = workspaceId;
-    if (userId) query.requestedBy = userId;
+    if (workspaceId) {
+      query.workspace = workspaceId;
+    } else if (userId) {
+      query.requestedBy = userId;
+    }
 
     const tickets = await SupportTicket.find(query)
       .sort({ createdAt: -1 })

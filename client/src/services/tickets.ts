@@ -7,7 +7,20 @@ export const getTickets = async (params?: Record<string, any>) => {
   return unwrap(response);
 };
 
-export const createTicket = async (payload: Record<string, any>) => {
+export const createTicket = async (payload: Record<string, any>, files?: File[]) => {
+  if (files && files.length > 0) {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) formData.append(key, String(value));
+    });
+    files.forEach((file) => formData.append("attachments", file));
+
+    const response = await axiosPrivate.post("/api/tickets", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return unwrap(response);
+  }
+
   const response = await axiosPrivate.post("/api/tickets", payload);
   return unwrap(response);
 };

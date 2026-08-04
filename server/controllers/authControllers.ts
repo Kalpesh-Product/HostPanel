@@ -223,6 +223,13 @@ const buildAuthUserPayload = (
         role: workspaceMembership.role?.name || (typeof workspaceMembership.role === "string" ? workspaceMembership.role : "member"),
         isPrimary: workspaceMembership.isPrimary,
         isActive: workspaceMembership.isActive,
+        departments: Array.isArray(workspaceMembership.departments)
+          ? workspaceMembership.departments.map((department: any) => ({
+              _id: department?._id || department,
+              name: department?.name || "",
+            }))
+          : [],
+        grantedModules: workspaceMembership.grantedModules || [],
       }
     : user?.workspaceMembership || null,
   accessibleWorkspaces,

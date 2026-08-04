@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
@@ -235,6 +235,14 @@ function getManagedOrganizationDepartments(currentUser) {
     .filter(Boolean);
 }
 
+function resolveDepartmentName(department) {
+  if (department && typeof department === 'object') {
+    return String(department.name || department.department || '').trim();
+  }
+
+  return String(department || '').trim();
+}
+
 function normalizeAsset(asset) {
   return {
     ...asset,
@@ -334,14 +342,14 @@ export function TicketsPage() {
   const profile = {
     name: displayUserName,
     role: storedUser?.role || 'owner',
-    dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (storedUser?.workspaceMembership?.departments?.[0] || 'Executive')),
+    dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (resolveDepartmentName(storedUser?.workspaceMembership?.departments?.[0]) || 'Executive')),
   };
   const currentUserId = String(storedUser?._id || storedUser?.id || storedUser?.userId || '').trim();
   const currentUserDepartments = [
-    ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
-    storedUser?.workspaceMembership?.department,
-    storedUser?.department,
-    storedUser?.workspace?.department,
+    ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments.map(resolveDepartmentName) : []),
+    resolveDepartmentName(storedUser?.workspaceMembership?.department),
+    resolveDepartmentName(storedUser?.department),
+    resolveDepartmentName(storedUser?.workspace?.department),
     ...getManagedOrganizationDepartments(storedUser),
   ].filter(Boolean);
   const currentUserDepartmentKeys = useMemo(
@@ -360,9 +368,9 @@ export function TicketsPage() {
 
   function getAdminDepartments() {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
-      storedUser?.workspaceMembership?.department,
-      storedUser?.department,
+      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments.map(resolveDepartmentName) : []),
+      resolveDepartmentName(storedUser?.workspaceMembership?.department),
+      resolveDepartmentName(storedUser?.department),
     ].filter(Boolean);
 
     const seen = new Set();
@@ -488,7 +496,10 @@ export function TicketsPage() {
       return false;
     }
 
-    return true;
+    const assigneeId = ticket?.assigneeUserId ? String(ticket.assigneeUserId) : '';
+    const assignedTo = (ticket?.assignedTo || '').trim().toLowerCase();
+
+    return !assigneeId && /queue$/i.test(assignedTo) && ticket?.status === 'Open';
   }
 
   function isEmployeeMyTicket(ticket) {
@@ -627,6 +638,9 @@ export function TicketsPage() {
     dueDate: '',
   };
   const [ticketForm, setTicketForm] = useState(initialForm);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState('');
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   const [orgData, setOrgData] = useState({});
   const [workspaceDepartmentNames, setWorkspaceDepartmentNames] = useState([]);
@@ -1703,6 +1717,45 @@ export function TicketsPage() {
     });
   }, [tickets, activeTab, selectedDeptFilter, currentUserId, isManagerTicketProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments, showTenantCompanyTicketsTab]);
 
+  const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
+  const MAX_ATTACHMENTS = 5;
+  const MAX_ATTACHMENT_SIZE_MB = 5;
+
+  const handleAttachmentFilesSelected = (fileList) => {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+
+    const accepted = [];
+    let error = '';
+
+    for (const file of incoming) {
+      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        error = 'Only PNG, JPG, WEBP, PDF or CSV files are allowed.';
+        continue;
+      }
+      if (file.size > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024) {
+        error = `Each file must be under ${MAX_ATTACHMENT_SIZE_MB}MB.`;
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    setAttachmentFiles((current) => {
+      const combined = [...current, ...accepted];
+      if (combined.length > MAX_ATTACHMENTS) {
+        error = `You can attach up to ${MAX_ATTACHMENTS} files.`;
+        return combined.slice(0, MAX_ATTACHMENTS);
+      }
+      return combined;
+    });
+    setAttachmentError(error);
+  };
+
+  const removeAttachmentFile = (index) => {
+    setAttachmentFiles((current) => current.filter((_, i) => i !== index));
+    setAttachmentError('');
+  };
+
   // Form Handlers
   const handleCreateTicket = async (e) => {
     e.preventDefault();
@@ -1769,12 +1822,14 @@ export function TicketsPage() {
     };
 
     try {
-      const createdTicket = await createTicket(ticketPayload);
+      const createdTicket = await createTicket(ticketPayload, attachmentFiles);
       setTickets((current) => [normalizeTicket(createdTicket), ...current]);
       setPagination((current) => ({ ...current, total: current.total + 1 }));
       setErrorMessage('');
       setIsCreateModalOpen(false);
       setTicketForm(initialForm);
+      setAttachmentFiles([]);
+      setAttachmentError('');
     } catch (error) {
       setErrorMessage(error?.response?.data?.message || 'Unable to create the ticket. Please try again.');
     } finally {
@@ -2145,7 +2200,7 @@ export function TicketsPage() {
                   </div>
                   <button
                     data-tour="tickets-raise-btn"
-                    onClick={() => { setTicketForm(initialForm); setIsCreateModalOpen(true); }}
+                    onClick={() => { setTicketForm(initialForm); setAttachmentFiles([]); setAttachmentError(''); setIsCreateModalOpen(true); }}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> RAISE TICKET
@@ -2327,7 +2382,7 @@ export function TicketsPage() {
                   </h2>
                   <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
                 </div>
-                <button onClick={() => setIsCreateModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
+                <button onClick={() => { setIsCreateModalOpen(false); setAttachmentFiles([]); setAttachmentError(''); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
 
               <form onSubmit={handleCreateTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
@@ -2492,17 +2547,55 @@ export function TicketsPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Attachments</label>
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group">
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,application/pdf,text/csv"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      handleAttachmentFilesSelected(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+                  <div
+                    onClick={() => attachmentInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleAttachmentFilesSelected(e.dataTransfer.files);
+                    }}
+                    className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
+                  >
                     <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Paperclip className="text-[#2563EB]" size={20} />
                     </div>
                     <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
-                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG or PDF up to 10MB</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
                   </div>
+                  {attachmentError ? (
+                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{attachmentError}</p>
+                  ) : null}
+                  {attachmentFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {attachmentFiles.map((file, index) => (
+                        <div key={`${file.name}-${index}`} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg pl-2.5 pr-1.5 py-1 text-[11px] font-pmedium max-w-[220px]">
+                          <span className="truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachmentFile(index)}
+                            className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-500"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
-                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                  <button type="button" onClick={() => { setIsCreateModalOpen(false); setAttachmentFiles([]); setAttachmentError(''); }} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
                   <button
                     type="submit"
                     disabled={isSaving}
@@ -2558,6 +2651,25 @@ export function TicketsPage() {
                       <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Description</p>
                       <p className="text-[12px] font-pmedium text-slate-900 leading-relaxed whitespace-pre-wrap">{viewingTicket.description}</p>
                     </div>
+                    {Array.isArray(viewingTicket.attachments) && viewingTicket.attachments.length > 0 && (
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Attachments</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {viewingTicket.attachments.map((attachment, index) => (
+                            <a
+                              key={attachment.id || `${attachment.url}-${index}`}
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] font-pmedium hover:border-[#2563EB] hover:text-[#2563EB] transition-colors max-w-[220px]"
+                            >
+                              <Paperclip size={12} className="shrink-0" />
+                              <span className="truncate">{attachment.name || 'Attachment'}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

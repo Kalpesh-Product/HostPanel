@@ -7,6 +7,7 @@ import { TenantCompany } from "../models/TenantCompany.js";
 import Department from "../models/Department.js";
 import TenantEmployee from "../models/TenantEmployee.js";
 import { createNotification } from "../utils/notify.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 const nullableObjectIdFields = [
     "assigneeUserId",
@@ -155,11 +156,30 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
             targetDepartment = String(payload.department).trim();
         }
 
-        // Step 6: Create ticket with proper tenant fields
+        // Step 6: Upload any attached files (screenshots/documents) to S3
+        const uploadedFiles = Array.isArray((req as any).files) ? (req as any).files : [];
+        const attachments: { id: string; url: string; name: string }[] = [];
+        for (const file of uploadedFiles) {
+            const cleanName = String(file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
+            const route = `tickets/${workspaceId || ownerId}/${Date.now()}-${cleanName}`;
+            try {
+                const uploaded = await uploadFileToS3(route, file);
+                attachments.push({ id: uploaded.id, url: uploaded.url, name: cleanName });
+            } catch (uploadError: any) {
+                res.status(502).json({
+                    message: "Attachment upload failed. Please try again.",
+                    error: uploadError?.message || "S3 upload error",
+                });
+                return;
+            }
+        }
+
+        // Step 7: Create ticket with proper tenant fields
         const newTicket = new Ticket({
             ...payload,
             ownerId,
             workspaceId,
+            attachments,
             tenantCompanyId: isTenantRequester
                 ? tenantCompany?._id || requestedTenantCompanyId
                 : payload.tenantCompanyId || null,
