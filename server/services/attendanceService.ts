@@ -22,6 +22,9 @@ import {
 const DEFAULT_WORK_HOUR_START = 9;
 const DEFAULT_LATE_MINUTES = 30;
 const HALF_DAY_MINUTES = 4 * 60;
+// Checking in at or after 1:20 PM always counts as a half day, regardless of
+// hours worked afterward.
+const HALF_DAY_CHECKIN_CUTOFF_MINUTES = 13 * 60 + 20;
 
 const toId = (value = "") => String(value || "").trim();
 
@@ -591,36 +594,49 @@ const getDepartmentNamesForMembership = async (membership) => {
   return departments.map((dept) => dept?.name).filter(Boolean);
 };
 
+// Matches both "HR" and "Human Resources"/"Human Resource" spellings, in
+// either a role name or a department name.
+const isHrLabel = (value = "") => {
+  const normalized = normalizeRole(String(value || ""));
+  return normalized.includes("hr") || normalized.includes("human_resource");
+};
+
 // HR is treated as full-visibility even when the workspace's role naming
 // doesn't literally include "hr" (e.g. a plain "Manager"/"Admin" role that's
 // simply been assigned to the "HR" department). This mirrors real-world HR
 // access, which spans the whole workspace rather than one department.
 const hasHrDepartmentAccess = async (membership) => {
   const departmentNames = await getDepartmentNamesForMembership(membership);
-  return departmentNames.some((name) => {
-    const normalized = normalizeRole(String(name || ""));
-    return normalized === "hr" || normalized.includes("human_resources");
-  });
+  return departmentNames.some((name) => isHrLabel(name));
 };
 
+// "hr" is its own band, distinct from "admin" — HR always gets full
+// workspace visibility (like owner/super-admin), while a plain admin is
+// scoped to whatever department is assigned to them (see
+// getManagedDepartmentIds below).
 const resolveAttendanceAccessBand = async (membership) => {
-  const roleBand = getRoleBand(membership?.role || "");
-  if (roleBand === "owner" || roleBand === "super_admin" || roleBand === "admin") {
-    return roleBand;
-  }
-  if (await hasHrDepartmentAccess(membership)) {
-    return "admin";
-  }
-  return roleBand;
+  const roleName = getRoleName(membership?.role || "");
+  const normalizedRoleName = normalizeRole(roleName);
+  if (normalizedRoleName === "founder") return "owner";
+  if (normalizedRoleName === "super_admin" || normalizedRoleName === "superadmin") return "super_admin";
+  if (isHrLabel(roleName)) return "hr";
+  if (await hasHrDepartmentAccess(membership)) return "hr";
+  if (normalizedRoleName === "admin" || normalizedRoleName === "admin_manager") return "admin";
+  if (normalizedRoleName === "manager") return "manager";
+  return "employee";
 };
 
 const getManagedDepartmentIds = async (workspaceId, membership, userId) => {
   const roleBand = await resolveAttendanceAccessBand(membership);
-  if (roleBand === "owner" || roleBand === "super_admin" || roleBand === "admin") {
+  // Founder/owner, super-admin, and HR see the whole workspace — HR
+  // attendance oversight spans every department by design. A plain admin
+  // and a manager are scoped to whatever department(s) are assigned to
+  // them — an admin with no department assigned sees no team attendance.
+  if (roleBand === "owner" || roleBand === "super_admin" || roleBand === "hr") {
     return null;
   }
 
-  if (roleBand !== "manager") return [];
+  if (roleBand !== "manager" && roleBand !== "admin") return [];
 
   const assignedDepartmentIds = Array.isArray(membership?.departments)
     ? membership.departments.map((dept) => toId(dept?._id || dept)).filter(Boolean)
@@ -695,11 +711,29 @@ const formatRecordForFrontend = async (record, membership = null) => {
   const correctedCheckOut = plain?.correctionRequest?.requestedCheckOutAt || null;
   const effectiveCheckIn = correctedCheckIn || plain?.checkInAt || null;
   const effectiveCheckOut = correctedCheckOut || plain?.checkOutAt || null;
-  const computedWorkedSeconds = computeWorkedSeconds({
-    ...plain,
-    checkInAt: effectiveCheckIn,
-    checkOutAt: effectiveCheckOut,
-  });
+
+  // Live calculations: while a record is in progress (checked in but not yet
+  // checked out) total time and break time are computed against "now" so the
+  // UI can show running totals instead of stale zeros.
+  const checkInDate = effectiveCheckIn ? new Date(effectiveCheckIn) : null;
+  const checkOutDate = effectiveCheckOut ? new Date(effectiveCheckOut) : null;
+  const now = new Date();
+  const isInProgress = Boolean(checkInDate && !checkOutDate);
+  const totalEnd = checkOutDate || (isInProgress ? now : null);
+
+  let totalSeconds = 0;
+  if (checkInDate && totalEnd) {
+    totalSeconds = Math.max(0, Math.floor((totalEnd.getTime() - checkInDate.getTime()) / 1000));
+  } else {
+    totalSeconds = Math.max(0, Number(plain?.workedSeconds) || 0);
+  }
+
+  let breakSeconds = Math.max(0, Number(plain?.breakSeconds) || 0);
+  if (isInProgress && plain?.isActiveBreak && plain?.activeBreakStartedAt) {
+    breakSeconds += Math.max(0, Math.floor((now.getTime() - new Date(plain.activeBreakStartedAt).getTime()) / 1000));
+  }
+
+  const computedWorkedSeconds = Math.max(0, totalSeconds - breakSeconds);
 
   const employeeRole = membership
     ? getRoleName(membership?.role || "")
@@ -732,18 +766,39 @@ const formatRecordForFrontend = async (record, membership = null) => {
     workingHours: formatDuration(computedWorkedSeconds),
     totalHours: Number((computedWorkedSeconds / 3600).toFixed(2)),
     overtime: Number((Math.max(0, computedWorkedSeconds - 8 * 3600) / 3600).toFixed(2)),
+    checkInAt: effectiveCheckIn ? new Date(effectiveCheckIn).toISOString() : null,
+    checkOutAt: effectiveCheckOut ? new Date(effectiveCheckOut).toISOString() : null,
+    isInProgress,
+    isActiveBreak: Boolean(plain?.isActiveBreak),
+    activeBreakStartedAt: plain?.activeBreakStartedAt ? new Date(plain.activeBreakStartedAt).toISOString() : null,
+    totalSeconds,
+    breakSeconds,
+    workedSeconds: computedWorkedSeconds,
+    totalTime: formatDuration(totalSeconds),
+    breakTime: formatDuration(breakSeconds),
     isPresent: Boolean(plain?.checkInAt || plain?.checkOutAt),
     isLate: getDisplayStatus(plain?.status || "") === "Present Late" || getStatusLabel(plain?.status || "") === "late",
     isEarlyDeparture: false,
     lateMinutes: 0,
     earlyMinutes: 0,
     breaks: Array.isArray(plain?.breakLogs)
-      ? plain.breakLogs.map((entry) => ({
-        startTime: toTimeLabel(entry?.startAt, timezone),
-        endTime: toTimeLabel(entry?.endAt, timezone),
-        duration: Math.round((Number(entry?.durationSeconds) || 0) / 60),
-        type: "break",
-      }))
+      ? plain.breakLogs.map((entry) => {
+        const breakStartDate = entry?.startAt ? new Date(entry.startAt) : null;
+        const isActiveBreakEntry = isInProgress && Boolean(entry?.startAt) && !entry?.endAt;
+        const breakEndDate = entry?.endAt ? new Date(entry.endAt) : null;
+        let breakDurationSeconds = Math.max(0, Number(entry?.durationSeconds) || 0);
+        if (isActiveBreakEntry && breakStartDate) {
+          breakDurationSeconds = Math.max(0, Math.floor((now.getTime() - breakStartDate.getTime()) / 1000));
+        }
+        return {
+          startTime: toTimeLabel(entry?.startAt, timezone),
+          endTime: toTimeLabel(breakEndDate || (isActiveBreakEntry ? now : null), timezone),
+          startAt: breakStartDate ? breakStartDate.toISOString() : null,
+          endAt: breakEndDate ? breakEndDate.toISOString() : null,
+          duration: Math.round(breakDurationSeconds / 60),
+          type: "break",
+        };
+      })
       : [],
     correction: plain?.correctionRequest
       ? {
@@ -787,7 +842,7 @@ const buildStats = (rows = []) => {
   const absent = rows.filter((row) => row.status === "absent" || row.status === "sunday_off").length;
   const late = rows.filter((row) => row.status === "late").length;
   const halfDay = rows.filter((row) => row.status === "half-day").length;
-  const workingDays = rows.filter((row) => row.status !== "sunday_off").length;
+  const workingDays = rows.filter((row) => row.status !== "sunday_off" && row.status !== "upcoming").length;
   const total = rows.length;
   return {
     present,
@@ -800,7 +855,7 @@ const buildStats = (rows = []) => {
   };
 };
 
-const buildMonthlyRowsForMember = async (memberUserId, employeeName, departmentName, monthKey, workspaceId, visibleMembership = null) => {
+const buildMonthlyRowsForMember = async (memberUserId, employeeName, departmentName, monthKey, workspaceId, visibleMembership = null, todayKey = null) => {
   const { keys } = getMonthDateKeys(monthKey);
   const [start, end] = [keys[0], keys[keys.length - 1]];
   const records = await Attendance.find({
@@ -823,6 +878,40 @@ const buildMonthlyRowsForMember = async (memberUserId, employeeName, departmentN
         ...(await formatRecordForFrontend(existing, visibleMembership)),
         employeeName: employeeName || existing.employeeName || "",
         department: departmentName || existing.department?.name || "General",
+      });
+      continue;
+    }
+
+    // A day that hasn't happened yet was never "absent" — give it a neutral
+    // placeholder instead of painting the rest of the month red.
+    if (todayKey && dateKey > todayKey) {
+      rows.push({
+        recordId: `upcoming-${memberUserId}-${dateKey}`,
+        id: `upcoming-${memberUserId}-${dateKey}`,
+        userId: toId(memberUserId),
+        employeeName: employeeName || "",
+        employeeId: employeeIdFromMembership,
+        employeeRole,
+        department: departmentName || "General",
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: "upcoming",
+        source: "office",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: "--",
+        totalHours: 0,
+        overtime: 0,
+        isPresent: false,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
       });
       continue;
     }
@@ -901,8 +990,9 @@ const saveSelfie = async (workspaceId, userId, action, file, dateKey) => {
   };
 };
 
-const getTodayRecord = async (workspace, userId) => {
+const getTodayRecord = async (workspace, user) => {
   const workspaceId = workspace?._id;
+  const userId = user?._id;
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
   const dateKey = toDateKey(new Date(), timezone);
   const attendanceDate = getLocalDate(new Date(), timezone);
@@ -922,11 +1012,12 @@ const getTodayRecord = async (workspace, userId) => {
       : "";
     const roleName = getRoleName(member?.role || "");
     const { workStartMinutes, halfDayThresholdSeconds } = computeAttendanceThresholds(workspace);
+    const employeeName = String(user?.name || user?.email || "Employee").trim();
     record = await Attendance.create({
       workspaceId,
       ownerId: workspace.owner,
       employeeUserId: userId,
-      employeeName: "",
+      employeeName,
       employeeRole: member?.role || "",
       department: departmentId || null,
       attendanceDate,
@@ -972,7 +1063,7 @@ const recalculateAfterCorrection = (record) => {
 
   const localCheckIn = getZonedDateTimeParts(checkInAt, normalizeTimeZone(record.timezone));
   const checkInMinutes = localCheckIn.hour * 60 + localCheckIn.minute;
-  record.status = record.workedSeconds <= halfDayThresholdSeconds
+  record.status = (record.workedSeconds <= halfDayThresholdSeconds || checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES)
     ? "half_day"
     : checkInMinutes > lateThresholdMinutes
       ? "present_late"
@@ -981,7 +1072,7 @@ const recalculateAfterCorrection = (record) => {
 
 const canManageTeamAttendance = async (membership) => {
   const band = await resolveAttendanceAccessBand(membership);
-  return band === "owner" || band === "super_admin" || band === "admin" || band === "manager";
+  return band === "owner" || band === "super_admin" || band === "hr" || band === "admin" || band === "manager";
 };
 
 export async function checkInAttendance(userId, input = {}, selfieFile = null) {
@@ -993,7 +1084,7 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
     );
   }
   const geofenceResult = assertWithinAttendanceGeofence(workspace, input, "check-in");
-  const record = await getTodayRecord(workspace, user._id);
+  const record = await getTodayRecord(workspace, user);
 
   if (record.checkInAt && !record.checkOutAt) {
     const error = new Error("You are already checked in.");
@@ -1008,7 +1099,7 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   const localNow = getZonedDateTimeParts(now, timezone);
   const selfie = await saveSelfie(workspace._id, user._id, "check_in", selfieFile, record.dateKey);
 
-  record.employeeName = user.name || record.employeeName || "";
+  record.employeeName = user.name || record.employeeName || user.email || "Employee";
   record.employeeRole = membership?.role || record.employeeRole || "";
   if (!record.department && Array.isArray(membership?.departments) && membership.departments.length > 0) {
     record.department = membership.departments[0]?._id || membership.departments[0] || null;
@@ -1038,7 +1129,11 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   const workStartMinutes = Number.isFinite(record.workStartMinutes) ? record.workStartMinutes : DEFAULT_WORK_HOUR_START * 60;
   const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
   const checkInMinutes = localNow.hour * 60 + localNow.minute;
-  record.status = checkInMinutes > lateThresholdMinutes ? "present_late" : "present";
+  record.status = checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES
+    ? "half_day"
+    : checkInMinutes > lateThresholdMinutes
+      ? "present_late"
+      : "present";
   await record.save();
 
   return {
@@ -1129,7 +1224,7 @@ export async function checkOutAttendance(userId, input = {}, selfieFile = null) 
     );
   }
   const geofenceResult = assertWithinAttendanceGeofence(workspace, input, "check-out");
-  const record = await getTodayRecord(workspace, user._id);
+  const record = await getTodayRecord(workspace, user);
 
   if (!record.checkInAt) {
     const error = new Error("You must check in before checking out.");
@@ -1182,7 +1277,7 @@ export async function checkOutAttendance(userId, input = {}, selfieFile = null) 
   const checkInLocalParts = getZonedDateTimeParts(record.checkInAt, normalizeTimeZone(record.timezone));
   const checkInMinutes = checkInLocalParts.hour * 60 + checkInLocalParts.minute;
 
-  record.status = workedSeconds <= halfDayThresholdSeconds
+  record.status = (workedSeconds <= halfDayThresholdSeconds || checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES)
     ? "half_day"
     : checkInMinutes > lateThresholdMinutes
       ? "present_late"
@@ -1203,7 +1298,7 @@ export async function startBreakAttendance(userId, selfieFile = null) {
       { statusCode: 400 },
     );
   }
-  const record = await getTodayRecord(workspace, user._id);
+  const record = await getTodayRecord(workspace, user);
 
   if (!record.checkInAt || record.checkOutAt) {
     const error = new Error("You must be checked in to start break.");
@@ -1249,7 +1344,7 @@ export async function endBreakAttendance(userId, selfieFile = null) {
       { statusCode: 400 },
     );
   }
-  const record = await getTodayRecord(workspace, user._id);
+  const record = await getTodayRecord(workspace, user);
 
   if (!record.isActiveBreak || !record.activeBreakStartedAt) {
     const error = new Error("No active break found.");
@@ -1332,6 +1427,8 @@ const getWeeklyHoursSummary = async (workspace, userId, timezone) => {
 
 export async function getMyAttendanceHistory(userId, query = {}) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const todayKey = toDateKey(new Date(), timezone);
   const { keys } = getMonthDateKeys(query.month);
   const records = await Attendance.find({
     workspaceId: workspace._id,
@@ -1348,6 +1445,41 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     const existing = recordMap.get(dateKey);
     if (existing) {
       rows.push(await formatRecordForFrontend(existing, membership));
+      continue;
+    }
+    // A day that hasn't happened yet was never "absent" — that label only
+    // makes sense in hindsight. Give it a neutral placeholder instead so the
+    // month view/calendar don't paint the rest of the month red.
+    if (dateKey > todayKey) {
+      rows.push({
+        recordId: `upcoming-${user._id}-${dateKey}`,
+        id: `upcoming-${user._id}-${dateKey}`,
+        userId: toId(user._id),
+        employeeName: user.name || "",
+        employeeId: "",
+        department: Array.isArray(membership?.departments) && membership.departments[0]
+          ? String(membership.departments[0]?.name || "General")
+          : "General",
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: "upcoming",
+        source: "office",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: "--",
+        totalHours: 0,
+        overtime: 0,
+        isPresent: false,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
+      });
       continue;
     }
     const date = new Date(`${dateKey}T12:00:00.000Z`);
@@ -1382,7 +1514,6 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     });
   }
 
-  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
   const weeklyHours = await getWeeklyHoursSummary(workspace, user._id, timezone);
 
   return {
@@ -1394,7 +1525,12 @@ export async function getMyAttendanceHistory(userId, query = {}) {
 export async function getTeamAttendanceSnapshot(userId, query = {}) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
   const visibleRoleBand = await resolveAttendanceAccessBand(membership);
-  const { keys } = getMonthDateKeys(query.month);
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const todayKey = toDateKey(new Date(), timezone);
+  const requestedDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(query.date || "").trim())
+    ? String(query.date).trim()
+    : todayKey;
+  const { keys } = getMonthDateKeys(query.month || requestedDateKey.slice(0, 7));
   const managedDepartmentIds = await getManagedDepartmentIds(workspace._id, membership, user._id);
 
   const memberFilter = {
@@ -1447,50 +1583,114 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       .map((ep) => [toId(ep.linkedUserId), ep.employeeId || ""]),
   );
 
+  const memberUserIds = uniqueVisibleMembers.map((m) => m.user._id);
+  const memberByUserId = new Map(uniqueVisibleMembers.map((m) => [toId(m.user._id), m]));
+
+  // Roster: a live "who's in" snapshot for the requested day (today by
+  // default), one row per visible member — not a per-day log for the whole
+  // month, which used to bury today's handful of real punches under a wall
+  // of "absent" placeholders for every other day (including future ones).
+  const dayRecords = memberUserIds.length
+    ? await Attendance.find({
+      workspaceId: workspace._id,
+      employeeUserId: { $in: memberUserIds },
+      dateKey: requestedDateKey,
+    }).lean().exec()
+    : [];
+  const dayRecordByUserId = new Map(dayRecords.map((r) => [toId(r.employeeUserId), r]));
+  const requestedDateIsSunday = new Date(`${requestedDateKey}T12:00:00.000Z`).getUTCDay() === 0;
+  const requestedDateIsFuture = requestedDateKey > todayKey;
+
   const rows = [];
   for (const member of uniqueVisibleMembers) {
     const memberDepartmentName = Array.isArray(member?.departments) && member.departments[0]
       ? String(member.departments[0]?.name || "General")
       : "General";
     const empId = employeeIdByMemberId.get(toId(member._id)) || employeeIdByUserId.get(toId(member.user?._id)) || "";
-    const monthlyRows = await buildMonthlyRowsForMember(
-      member.user._id,
-      member.user.name || member.user.email || "Unknown",
-      memberDepartmentName,
-      query.month,
-      workspace._id,
-      { ...member, employeeId: empId },
-    );
-    rows.push(...monthlyRows);
+    const existing = dayRecordByUserId.get(toId(member.user._id));
+    if (existing) {
+      rows.push({
+        ...(await formatRecordForFrontend(existing, { ...member, employeeId: empId })),
+        employeeName: member.user.name || member.user.email || "Unknown",
+        department: memberDepartmentName,
+      });
+      continue;
+    }
+    rows.push({
+      recordId: `absent-${member.user._id}-${requestedDateKey}`,
+      id: `absent-${member.user._id}-${requestedDateKey}`,
+      userId: toId(member.user._id),
+      employeeName: member.user.name || member.user.email || "Unknown",
+      employeeId: empId,
+      employeeRole: getRoleName(member?.role || ""),
+      department: memberDepartmentName,
+      date: requestedDateKey,
+      checkIn: "",
+      checkOut: "",
+      status: requestedDateIsFuture ? "upcoming" : requestedDateIsSunday ? "sunday_off" : "absent",
+      source: "office",
+      checkInLocation: "",
+      checkOutLocation: "",
+      checkInSelfie: "",
+      checkOutSelfie: "",
+      workingHours: "--",
+      totalHours: 0,
+      overtime: 0,
+      isPresent: false,
+      isLate: false,
+      isEarlyDeparture: false,
+      lateMinutes: 0,
+      earlyMinutes: 0,
+      breaks: [],
+      correction: null,
+    });
   }
 
-  const corrections = rows
-    .filter((row) => row.correction)
-    .map((row) => ({
-      id: row.correction?.requestedAt,
-      correctionId: row.recordId || row.id,
-      userId: row.userId,
-      employeeName: row.employeeName || "",
-      employeeId: row.employeeId || "",
-      employeeRole: row.employeeRole || "",
-      department: row.department || "",
-      date: row.date || "",
+  // Corrections can be requested for any past day, so they're gathered
+  // separately across the whole requested month rather than from the
+  // single-day roster above.
+  const monthRecordsWithCorrections = memberUserIds.length
+    ? await Attendance.find({
+      workspaceId: workspace._id,
+      employeeUserId: { $in: memberUserIds },
+      dateKey: { $gte: keys[0], $lte: keys[keys.length - 1] },
+      correctionRequest: { $ne: null },
+    }).lean().exec()
+    : [];
+
+  const corrections = [];
+  for (const record of monthRecordsWithCorrections) {
+    const member = memberByUserId.get(toId(record.employeeUserId));
+    const empId = member ? (employeeIdByMemberId.get(toId(member._id)) || employeeIdByUserId.get(toId(member.user?._id)) || "") : "";
+    const formatted = await formatRecordForFrontend(record, member ? { ...member, employeeId: empId } : null);
+    if (!formatted.correction) continue;
+    corrections.push({
+      id: formatted.correction.requestedAt,
+      correctionId: formatted.recordId || formatted.id,
+      userId: formatted.userId,
+      employeeName: formatted.employeeName || member?.user?.name || "",
+      employeeId: formatted.employeeId || empId,
+      employeeRole: formatted.employeeRole || "",
+      department: formatted.department || "",
+      date: formatted.date || "",
       type: "correction",
-      reason: row.correction?.reason || "",
-      status: row.correction?.status || "pending",
-      originalCheckIn: row.correction?.originalCheckIn || row.checkIn,
-      originalCheckOut: row.correction?.originalCheckOut || row.checkOut,
-      requestedCheckIn: row.correction?.requestedCheckIn || row.checkIn,
-      requestedCheckOut: row.correction?.requestedCheckOut || row.checkOut,
-      actionedBy: row.correction?.actionedBy || "",
-      rejectionReason: row.correction?.rejectionReason || "",
-    }));
+      reason: formatted.correction?.reason || "",
+      status: formatted.correction?.status || "pending",
+      originalCheckIn: formatted.correction?.originalCheckIn || formatted.checkIn,
+      originalCheckOut: formatted.correction?.originalCheckOut || formatted.checkOut,
+      requestedCheckIn: formatted.correction?.requestedCheckIn || formatted.checkIn,
+      requestedCheckOut: formatted.correction?.requestedCheckOut || formatted.checkOut,
+      actionedBy: formatted.correction?.actionedBy || "",
+      rejectionReason: formatted.correction?.rejectionReason || "",
+    });
+  }
 
   return {
     records: rows,
     allRecords: rows,
     corrections,
     stats: buildStats(rows),
+    date: requestedDateKey,
     month: keys[0]?.slice(0, 7) || "",
     totalEmployees: uniqueVisibleMembers.length,
     canManageAttendance: visibleRoleBand !== "employee",
@@ -1525,6 +1725,7 @@ export async function getEmployeeAttendanceHistory(userId, targetUserId, query =
   }
 
   const monthKey = query.month;
+  const todayKey = toDateKey(new Date(), normalizeTimeZone(workspace?.preferences?.timezone));
   const rows = await buildMonthlyRowsForMember(
     targetUserId,
     targetMembership?.user?.name || targetMembership?.fullName || "",
@@ -1534,6 +1735,7 @@ export async function getEmployeeAttendanceHistory(userId, targetUserId, query =
     monthKey,
     workspace._id,
     targetMembership,
+    todayKey,
   );
 
   const targetDepartments = await getDepartmentNamesForMembership(targetMembership);

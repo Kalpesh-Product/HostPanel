@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Eye, X, Calendar, Clock, CheckCircle2, XCircle, AlertCircle,
-  MapPin, Camera, User, Building2, ChevronDown, Coffee, LogIn, LogOut,
+  Camera, User, Building2, ChevronDown, Coffee, LogIn, LogOut,
   RefreshCw, Edit3, Check, AlertTriangle, Circle, Users, Send, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +32,8 @@ import {
 import { extractDepartmentLabel, normalizeDepartmentKey, normalizeRoleValue } from '@/utils/user-helpers';
 import { formatTime12h } from '@/utils/time';
 import { AttendanceSkeleton } from '@/components/ui/Skeleton';
+import AttendanceDayTimeline from '@/components/attendance/AttendanceDayTimeline';
+import { useLiveTimes, formatSeconds } from '@/components/attendance/useLiveTimes';
 import { statusPillClass } from '../../lib/status-pill';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { getWorkspaceDateKey } from '@/lib/workspaceLocalization';
@@ -56,6 +58,15 @@ interface AttendanceRecord {
   workingHours?: string;
   totalHours?: number;
   overtime?: number;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
+  isInProgress?: boolean;
+  isActiveBreak?: boolean;
+  activeBreakStartedAt?: string | null;
+  totalSeconds?: number;
+  breakSeconds?: number;
+  totalTime?: string;
+  breakTime?: string;
   isPresent?: boolean;
   isLate?: boolean;
   isEarlyDeparture?: boolean;
@@ -68,6 +79,8 @@ interface AttendanceRecord {
 interface BreakEntry {
   startTime?: string;
   endTime?: string;
+  startAt?: string | null;
+  endAt?: string | null;
   duration?: number;
   type?: string;
 }
@@ -295,8 +308,6 @@ export function AttendancePage() {
   };
 
   /* ── Clock State ── */
-  const [clockStatus, setClockStatus] = useState<'checked_out' | 'checked_in' | 'on_break'>('checked_out');
-  const [clockTime, setClockTime] = useState<Date | null>(null);
   const [todayDate, setTodayDate] = useState(() => getLocalDateString(new Date(), workspacePreferences.timezone));
   const [captureOpenedAt, setCaptureOpenedAt] = useState<Date | null>(null);
   const [isClockLoading, setIsClockLoading] = useState(false);
@@ -329,6 +340,12 @@ export function AttendancePage() {
   /* ── Attendance configuration (HR-set working hours, break, geofence) ── */
   const [isAttendanceConfigured, setIsAttendanceConfigured] = useState(true);
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+  const [attendanceSettings, setAttendanceSettings] = useState<{
+    weeklyWorkingHours: number | null;
+    workingHoursStart: string;
+    workingHoursEnd: string;
+    breakDurationMinutes: number | null;
+  }>({ weeklyWorkingHours: null, workingHoursStart: '', workingHoursEnd: '', breakDurationMinutes: null });
 
   /* ── Modal State ── */
   const [viewingEmployee, setViewingEmployee] = useState<any>(null);
@@ -401,14 +418,29 @@ export function AttendancePage() {
 
   const isTodayCompleted = Boolean(todayRecord?.checkOut);
   const isTodayInProgress = Boolean(todayRecord?.checkIn && !todayRecord?.checkOut);
-  const todayAttendanceLabel = isTodayCompleted ? 'Completed' : isTodayInProgress ? 'In Progress' : 'Not Started';
 
-  const todayBreakMinutes = useMemo(() => {
-    if (!todayRecord || !Array.isArray(todayRecord.breaks)) return 0;
-    return todayRecord.breaks.reduce((sum, breakEntry) => sum + (Number(breakEntry?.duration) || 0), 0);
-  }, [todayRecord]);
+  // Derived directly from the fetched record (not local state) so the clock
+  // card can never show a stale status after a reload/refetch — there is no
+  // separate "clockStatus" state to fall out of sync with todayRecord.
+  const clockStatus: 'checked_out' | 'checked_in' | 'on_break' = isTodayCompleted
+    ? 'checked_out'
+    : isTodayInProgress
+      ? (todayRecord?.isActiveBreak ? 'on_break' : 'checked_in')
+      : 'checked_out';
 
-  const visibleMyRecords = useMemo(() => myRecords.slice(0, 10), [myRecords]);
+  // Only completed clock-ins belong in the history table — a day with no
+  // check-in never happened, and today stays in the live "Today's Timeline"
+  // card (above) until the user clocks out, at which point it moves down here.
+  const visibleMyRecords = useMemo(() => {
+    return myRecords
+      .filter((record) => {
+        if (!record.checkIn) return false;
+        if (record.date === todayDate && !record.checkOut) return false;
+        return true;
+      })
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      .slice(0, 10);
+  }, [myRecords, todayDate]);
 
   const allDepartments = useMemo<string[]>(() => {
     if (assignedDepartmentNames.length > 0) return assignedDepartmentNames;
@@ -436,8 +468,8 @@ export function AttendancePage() {
           getTeamAttendance({ month: selectedMonth }),
         ]);
         if (!mounted) return;
-        const myData = myRes?.data || {};
-        const teamData = teamRes?.data || {};
+        const myData = myRes || {};
+        const teamData = teamRes || {};
         setMyRecords(Array.isArray(myData.records) ? myData.records : []);
         if (myData.stats) setMyStats(myData.stats);
         setTeamRecords(Array.isArray(teamData.records) ? teamData.records : []);
@@ -461,8 +493,16 @@ export function AttendancePage() {
           getAttendanceSettings().catch(() => null),
         ]);
         if (!mounted) return;
-        const geofence = geofenceRes?.data?.geofence || geofenceRes?.geofence || null;
-        const settings = settingsRes?.data?.settings || settingsRes?.settings || null;
+        const geofence = geofenceRes?.geofence || null;
+        const settings = settingsRes?.settings || null;
+        if (settings) {
+          setAttendanceSettings({
+            weeklyWorkingHours: settings?.weeklyWorkingHours ?? null,
+            workingHoursStart: settings?.workingHoursStart || '',
+            workingHoursEnd: settings?.workingHoursEnd || '',
+            breakDurationMinutes: settings?.breakDurationMinutes ?? null,
+          });
+        }
         const geofenceReady = Boolean(geofence?.enabled) && geofence?.latitude != null && geofence?.longitude != null;
         const settingsReady = Boolean(
           settings?.weeklyWorkingHours != null &&
@@ -495,19 +535,25 @@ export function AttendancePage() {
     setSelectedMonth(getLocalMonthKey(new Date(), workspacePreferences.timezone));
   }, [workspacePreferences.timezone]);
 
-  useEffect(() => {
-    if (isTodayCompleted) {
-      setClockStatus('checked_out');
-      return;
-    }
-    if (isTodayInProgress) {
-      setClockStatus((current) => (current === 'on_break' ? current : 'checked_in'));
-      return;
-    }
-    setClockStatus('checked_out');
-  }, [isTodayCompleted, isTodayInProgress, todayDate]);
-
   /* ── Clock Handlers ── */
+  const reloadMyAttendance = async () => {
+    try {
+      const res = await getMyAttendance({ month: selectedMonth });
+      const data = res || {};
+      if (Array.isArray(data.records)) setMyRecords(data.records);
+      if (data.stats) setMyStats(data.stats);
+    } catch {
+      // Keep the current view; refresh will be retried on the next interval.
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'my-attendance') return;
+    const id = window.setInterval(() => { reloadMyAttendance(); }, 60_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedMonth]);
+
   const handleClockAction = async (mode: 'in' | 'out') => {
     if (isClockDisabledByConfig) {
       setClockErrorMessage('Attendance is not configured for this workspace yet. Ask HR to set working hours and the geofence.');
@@ -624,12 +670,9 @@ export function AttendancePage() {
 
       if (clockMode === 'in') {
         await checkInAttendance(formData);
-        setClockStatus('checked_in');
       } else {
         await checkOutAttendance(formData);
-        setClockStatus('checked_out');
       }
-      setClockTime(new Date());
       setCaptureOpenedAt(null);
       setShowClockModal(false);
       if (videoRef.current?.srcObject) {
@@ -638,6 +681,7 @@ export function AttendancePage() {
         videoRef.current.srcObject = null;
       }
       setCameraStreamActive(false);
+      await reloadMyAttendance();
     } catch (err: any) {
       setClockErrorMessage(err?.response?.data?.message || err?.message || 'Failed to record attendance.');
     } finally {
@@ -650,7 +694,7 @@ export function AttendancePage() {
     setClockErrorMessage('');
     try {
       await startBreakAttendance();
-      setClockStatus('on_break');
+      await reloadMyAttendance();
     } catch (err: any) {
       setClockErrorMessage(err?.response?.data?.message || err?.message || 'Failed to start break.');
     } finally {
@@ -663,7 +707,7 @@ export function AttendancePage() {
     setClockErrorMessage('');
     try {
       await endBreakAttendance();
-      setClockStatus('checked_in');
+      await reloadMyAttendance();
     } catch (err: any) {
       setClockErrorMessage(err?.response?.data?.message || err?.message || 'Failed to end break.');
     } finally {
@@ -698,7 +742,7 @@ export function AttendancePage() {
       setShowCorrectionForm(false);
       setCorrectionForm(INITIAL_CORRECTION_FORM);
       const res = await getMyAttendance({ month: selectedMonth });
-      setMyRecords(Array.isArray(res?.data?.records) ? res.data.records : []);
+      setMyRecords(Array.isArray(res?.records) ? res.records : []);
     } catch (err: any) {
       setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to submit correction request.');
     } finally {
@@ -712,7 +756,7 @@ export function AttendancePage() {
     setIsLoadingHistory(true);
     try {
       const res = await getEmployeeAttendanceHistory(userId, { month: selectedMonth });
-      setEmployeeHistory(Array.isArray(res?.data?.records) ? res.data.records : []);
+      setEmployeeHistory(Array.isArray(res?.records) ? res.records : []);
     } catch {
       setEmployeeHistory([]);
     } finally {
@@ -796,7 +840,49 @@ export function AttendancePage() {
     return formatTime12h(time) || time;
   };
 
-  const clockInTime = clockTime?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) || '--';
+  const clockStatusLabel = clockStatus === 'checked_in'
+    ? 'Clocked In'
+    : clockStatus === 'on_break'
+      ? 'On Break'
+      : isTodayCompleted
+        ? 'Clocked Out'
+        : 'Not Clocked In';
+
+  const activeBreakEntry = useMemo(
+    () => (Array.isArray(todayRecord?.breaks) ? todayRecord.breaks.find((b) => !b.endAt) : undefined),
+    [todayRecord],
+  );
+
+  const clockStatusTime = clockStatus === 'checked_in'
+    ? `Since ${getTimeDisplay(todayRecord?.checkIn)}`
+    : clockStatus === 'on_break'
+      ? `Since ${activeBreakEntry?.startTime ? formatTime12b(activeBreakEntry.startTime) : '--'}`
+      : isTodayCompleted
+        ? `At ${getTimeDisplay(todayRecord?.checkOut)}`
+        : 'Clock in to start tracking your day.';
+
+  const parseHHMM = (value?: string): number | null => {
+    if (!value) return null;
+    const match = String(value).trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+  };
+
+  const dailyTargetSeconds = useMemo(() => {
+    const start = parseHHMM(attendanceSettings.workingHoursStart);
+    const end = parseHHMM(attendanceSettings.workingHoursEnd);
+    const breakMinutes = Number(attendanceSettings.breakDurationMinutes) || 0;
+    if (start != null && end != null && end > start) {
+      return Math.max(0, (end - start - breakMinutes) * 60);
+    }
+    return 8 * 3600;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attendanceSettings]);
+
+  const liveTimes = useLiveTimes(todayRecord || undefined);
+  const { totalSeconds, breakSeconds, currentBreakSeconds, workedSeconds } = liveTimes;
+  const targetPercentage = Math.min(100, Math.round((workedSeconds / Math.max(1, dailyTargetSeconds)) * 100));
+  const targetReached = workedSeconds >= dailyTargetSeconds;
 
   /* ── Loading ── */
   if (isLoading) {
@@ -828,7 +914,7 @@ export function AttendancePage() {
           </div>
 
           {errorMessage || clockErrorMessage ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600 flex items-center gap-2">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600 flex items-center gap-2">
               <AlertTriangle size={14} />
               {errorMessage || clockErrorMessage}
             </div>
@@ -852,60 +938,127 @@ export function AttendancePage() {
             </div>
           ) : null}
 
-          {/* CLOCK IN/OUT CARD */}
-          <div className="bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 border border-blue-100 rounded-2xl p-4 lg:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-2xl ${clockStatus === 'checked_in' ? 'bg-emerald-100 text-emerald-600' : clockStatus === 'on_break' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
-                {clockStatus === 'checked_in' ? <LogIn size={22} /> : clockStatus === 'on_break' ? <Coffee size={22} /> : <LogOut size={22} />}
+          {/* CLOCK IN/OUT CARD — my attendance only; team/corrections don't clock anyone in */}
+          {activeTab === 'my-attendance' && (
+          <div className="bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 border border-blue-100 rounded-2xl p-4 lg:p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center gap-4">
+                <div className="relative shrink-0">
+                  {(clockStatus === 'checked_in' || clockStatus === 'on_break') && (
+                    <span className={`absolute inset-0 rounded-2xl animate-ping opacity-40 ${clockStatus === 'checked_in' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  )}
+                  <div className={`relative p-3 rounded-2xl ${clockStatus === 'checked_in' ? 'bg-emerald-100 text-emerald-600' : clockStatus === 'on_break' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
+                    {clockStatus === 'checked_in' ? <LogIn size={22} /> : clockStatus === 'on_break' ? <Coffee size={22} /> : isTodayCompleted ? <LogOut size={22} /> : <Clock size={22} />}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Current Status</p>
+                  <p className="text-lg font-pbold text-slate-900 flex items-center gap-2">
+                    {clockStatusLabel}
+                    {(clockStatus === 'checked_in' || clockStatus === 'on_break') && (
+                      <span className={`inline-flex h-2 w-2 rounded-full ${clockStatus === 'checked_in' ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`} />
+                    )}
+                  </p>
+                  <p className="text-xs font-pmedium text-slate-500 mt-0.5">{clockStatusTime}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Current Status</p>
-                <p className="text-lg font-black text-slate-900 capitalize">{todayAttendanceLabel}</p>
-                {clockTime && <p className="text-xs font-semibold text-slate-500 mt-0.5">Last action: {clockTime?.toLocaleTimeString()}</p>}
+              <div className="flex items-center gap-2">
+                {clockStatus === 'checked_out' && (
+                  <button
+                    onClick={() => handleClockAction('in')}
+                    disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig}
+                    className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                  >
+                  {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
+                  </button>
+                )}
+                {clockStatus === 'checked_in' && (
+                  <>
+                    <button
+                      onClick={handleStartBreak}
+                      disabled={isClockLoading || isTodayCompleted || isClockDisabledByConfig}
+                      className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-pmedium text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Coffee size={14} />}
+                      Start Break
+                    </button>
+                    <button
+                      onClick={() => handleClockAction('out')}
+                      disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig}
+                      className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-pmedium text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isCapturing ? <Camera size={14} className="animate-pulse" /> : isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogOut size={14} />}
+                      Clock Out
+                    </button>
+                  </>
+                )}
+                {clockStatus === 'on_break' && (
+                  <button
+                    onClick={handleEndBreak}
+                    disabled={isClockLoading || isTodayCompleted || isClockDisabledByConfig}
+                    className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-pmedium text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                    End Break
+                  </button>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {clockStatus === 'checked_out' && (
-                <button
-                  onClick={() => handleClockAction('in')}
-                  disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig}
-                  className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
-                >
-                {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
-                </button>
-              )}
-              {clockStatus === 'checked_in' && (
-                <>
-                  <button
-                    onClick={handleStartBreak}
-                    disabled={isClockLoading || isTodayCompleted || isClockDisabledByConfig}
-                    className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-pmedium text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Coffee size={14} />}
-                    Start Break
-                  </button>
-                  <button
-                    onClick={() => handleClockAction('out')}
-                    disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig}
-                    className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-pmedium text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {isCapturing ? <Camera size={14} className="animate-pulse" /> : isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogOut size={14} />}
-                    Clock Out
-                  </button>
-                </>
-              )}
-              {clockStatus === 'on_break' && (
-                <button
-                  onClick={handleEndBreak}
-                  disabled={isClockLoading || isTodayCompleted || isClockDisabledByConfig}
-                  className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-pmedium text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
-                  End Break
-                </button>
-              )}
+
+            {/* Live calculations */}
+            <div className="mt-4 pt-4 border-t border-blue-100/70">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] font-pmedium uppercase tracking-[0.18em] text-slate-500">Today's Calculations</p>
+                {clockStatus === 'on_break' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Current Break Running
+                  </span>
+                )}
+              </div>
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Total Time</p>
+                  <p className="mt-1 text-lg font-pbold text-slate-900">{formatSeconds(totalSeconds)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Total Break</p>
+                  <p className="mt-1 text-lg font-pbold text-amber-600">{formatSeconds(breakSeconds)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Current Break</p>
+                  <p className="mt-1 text-lg font-pbold text-amber-600">
+                    {!isTodayInProgress && !isTodayCompleted ? '--' : clockStatus === 'on_break' ? formatSeconds(currentBreakSeconds) : '0m'}
+                  </p>
+                </div>
+                <div className={`rounded-2xl border px-4 py-3 ${targetReached ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-100 bg-white'}`}>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Working Hours</p>
+                  <p className={`mt-1 text-lg font-pbold ${targetReached ? 'text-emerald-600' : 'text-emerald-600'}`}>
+                    {formatSeconds(workedSeconds)}
+                    {targetReached && <span className="ml-1.5 align-middle text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Done</span>}
+                  </p>
+                </div>
+              </div>
+
+              {/* Daily target */}
+              <div className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
+                    Daily Target <span className="text-slate-700 font-pbold normal-case tracking-normal">{formatSeconds(dailyTargetSeconds)}</span>
+                  </p>
+                  <p className={`text-[10px] font-pmedium uppercase tracking-widest ${targetReached ? 'text-emerald-600' : 'text-blue-600'}`}>
+                    {targetReached ? 'Target completed' : `${targetPercentage}% complete`}
+                  </p>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${targetReached ? 'bg-emerald-500' : 'bg-[#2563EB]'}`}
+                    style={{ width: `${targetPercentage}%` }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
+          )}
 
           {/* MAIN TABS */}
           {mainTabs.length > 0 && (
@@ -947,56 +1100,24 @@ export function AttendancePage() {
           </div>
 
           {activeTab === 'my-attendance' && (isTodayInProgress || isTodayCompleted) && (
-            <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr] mb-3">
-              {isTodayCompleted ? (
-                <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-sm lg:col-span-2">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Day Summary</p>
-                      <h3 className="mt-1 text-base font-black text-slate-900">Checkout completed</h3>
-                    </div>
-                    <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.24em] text-emerald-700">
-                      {todayAttendanceLabel}
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Check In</p>
-                      <p className="mt-1 text-sm font-black text-slate-900">{todayRecord?.checkIn ? getTimeDisplay(todayRecord.checkIn) : '--'}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Check Out</p>
-                      <p className="mt-1 text-sm font-black text-slate-900">{todayRecord?.checkOut ? getTimeDisplay(todayRecord.checkOut) : '--'}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Working Hours</p>
-                      <p className="mt-1 text-sm font-black text-slate-900">{formatDuration(todayRecord?.totalHours || todayRecord?.workingHours ? Number(todayRecord?.totalHours || todayRecord?.workingHours) : undefined)}</p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-[11px] font-semibold text-emerald-700">
-                    Attendance is locked for today. The summary will reset after midnight.
-                  </p>
+            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 lg:p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.18em] text-slate-400">Today's Timeline</p>
+                  <h3 className="mt-1 text-base font-pbold text-slate-900">{todayDate}</h3>
                 </div>
-              ) : (
-                <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-sm lg:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Timeline</p>
-                      <h3 className="mt-1 text-base font-black text-slate-900">Today actions</h3>
-                    </div>
-                    <Clock size={18} className="text-slate-400" />
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-sm font-semibold text-slate-600">Check In</span>
-                      <span className="text-sm font-black text-slate-900">{todayRecord?.checkIn ? getTimeDisplay(todayRecord.checkIn) : '--'}</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-sm font-semibold text-slate-600">Break Time</span>
-                      <span className="text-sm font-black text-slate-900">{todayBreakMinutes}m</span>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Status</span>
+                  <span className={`rounded-full px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.24em] ${clockStatus === 'on_break' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                    {clockStatusLabel}
+                  </span>
                 </div>
+              </div>
+              <AttendanceDayTimeline record={todayRecord || undefined} />
+              {isTodayCompleted && (
+                <p className="mt-3 text-[11px] font-pmedium text-emerald-700">
+                  Attendance is locked for today. The summary will reset after midnight.
+                </p>
               )}
             </div>
           )}
@@ -1107,7 +1228,7 @@ export function AttendancePage() {
                     {visibleMyRecords.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium">
-                          No attendance records found for this month.
+                          No completed clock-ins for this month yet.
                         </td>
                       </tr>
                     ) : (
@@ -1122,10 +1243,10 @@ export function AttendancePage() {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleViewDay(record.date || '')}
-                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                                title="View Details"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all text-[10px] font-pmedium uppercase tracking-wider"
+                                title="View Timeline & Calculations"
                               >
-                                <Eye size={15} strokeWidth={2.5} />
+                                <Eye size={13} strokeWidth={2.5} /> View
                               </button>
                               <button
                                 onClick={() => handleOpenCorrectionForm(record)}
@@ -1305,7 +1426,7 @@ export function AttendancePage() {
                       <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80">
                         <div className="text-center">
                           <Camera size={28} className="mx-auto text-slate-400" />
-                          <p className="mt-3 text-xs font-semibold text-slate-300">Camera preview will appear here</p>
+                          <p className="mt-3 text-xs font-pmedium text-slate-300">Camera preview will appear here</p>
                         </div>
                       </div>
                     )}
@@ -1315,11 +1436,11 @@ export function AttendancePage() {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Date</p>
-                  <p className="mt-1 text-xs font-bold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Time</p>
-                  <p className="mt-1 text-xs font-bold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="mt-1 text-xs font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
               <canvas ref={canvasRef} className="hidden" />
@@ -1458,8 +1579,8 @@ export function AttendancePage() {
                     <User size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-slate-900">{viewingEmployee.employeeName}</h2>
-                    <p className="text-xs font-semibold text-slate-500">{viewingEmployee.department}</p>
+                    <h2 className="text-lg font-pbold text-slate-900">{viewingEmployee.employeeName}</h2>
+                    <p className="text-xs font-pmedium text-slate-500">{viewingEmployee.department}</p>
                   </div>
                 </div>
                 <button onClick={() => setViewingEmployee(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
@@ -1470,7 +1591,7 @@ export function AttendancePage() {
                     <RefreshCw size={24} className="animate-spin text-slate-400" />
                   </div>
                 ) : employeeHistory.length === 0 ? (
-                  <div className="text-center py-16 text-slate-400 font-semibold">No attendance history found.</div>
+                  <div className="text-center py-16 text-slate-400 font-pmedium">No attendance history found.</div>
                 ) : (
                   <table className="w-full text-left">
                     <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
@@ -1540,22 +1661,28 @@ export function AttendancePage() {
                       const dateStr = `${viewingMonth}-${String(day).padStart(2, '0')}`;
                       const record = recordMap.get(dateStr);
                       const isToday = dateStr === todayDate;
-                      const colorMap: Record<string, string> = {
-                        present: 'bg-emerald-100 text-emerald-700 border-emerald-300',
-                        late: 'bg-amber-100 text-amber-700 border-amber-300',
-                        absent: 'bg-rose-100 text-rose-700 border-rose-300',
-                        'half-day': 'bg-orange-100 text-orange-700 border-orange-300',
-                        half_day: 'bg-orange-100 text-orange-700 border-orange-300',
-                      };
-                      const bgColor = record ? (colorMap[record.status || ''] || 'bg-slate-50 text-slate-600') : 'bg-slate-50/50 text-slate-400';
+                      // Green only means a full 8h day was completed; any other
+                      // clocked-in day (late arrival, half day, short day) is
+                      // orange. Absent stays red; days that haven't happened
+                      // yet (or Sundays) stay neutral instead of looking absent.
+                      const isAbsent = record?.status === 'absent';
+                      const hasClockIn = Boolean(record?.checkIn);
+                      const completedFullDay = hasClockIn && Number(record?.totalHours || 0) >= 8;
+                      const bgColor = isAbsent
+                        ? 'bg-rose-100 text-rose-700 border-rose-300'
+                        : hasClockIn
+                          ? (completedFullDay
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                            : 'bg-orange-100 text-orange-700 border-orange-300')
+                          : 'bg-slate-50/50 text-slate-400';
                       return (
                         <button
                           key={dateStr}
                           onClick={() => handleViewDay(dateStr)}
-                          className={`aspect-square rounded-xl border ${isToday ? 'border-[#2563EB] ring-2 ring-[#2563EB]/20' : 'border-slate-100'} ${bgColor} flex flex-col items-center justify-center text-xs font-bold hover:shadow-md transition-all`}
+                          className={`aspect-square rounded-xl border ${isToday ? 'border-[#2563EB] ring-2 ring-[#2563EB]/20' : 'border-slate-100'} ${bgColor} flex flex-col items-center justify-center text-xs font-pbold hover:shadow-md transition-all`}
                         >
                           <span>{day}</span>
-                          {record && <Circle size={6} className="mt-0.5" fill="currentColor" />}
+                          {(hasClockIn || isAbsent) && <Circle size={6} className="mt-0.5" fill="currentColor" />}
                         </button>
                       );
                     });
@@ -1577,67 +1704,37 @@ export function AttendancePage() {
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden"
+              className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h2 className="text-lg font-pbold text-slate-900 flex items-center gap-2">
                   <Calendar size={18} className="text-[#2563EB]" />
                   {viewingDay}
                 </h2>
                 <button onClick={() => setViewingDay(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
               </div>
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto flex-1">
                 {dayRecords.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 font-semibold">No records for this day.</div>
+                  <div className="text-center py-8 text-slate-400 font-pmedium">No records for this day.</div>
                 ) : (
                   <div className="space-y-3">
                     {dayRecords.map((record, idx) => (
                       <div key={idx} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                        <div className="flex justify-between items-start mb-3">
+                        <div className="flex justify-between items-start mb-1">
                           <div>
-                            <p className="text-xs font-bold text-slate-700">{record.employeeName || profile.name}</p>
+                            <p className="text-xs font-pbold text-slate-700">{record.employeeName || profile.name}</p>
                             <p className="text-[10px] text-slate-500">{record.department || '--'}</p>
                           </div>
                           {getStatusBadge(record.status)}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white rounded-xl p-3 border border-slate-100">
-                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Check In</p>
-                            <p className="text-sm font-black text-slate-900">{getTimeDisplay(record.checkIn)}</p>
-                            {record.checkInLocation && <p className="text-[9px] text-slate-400 mt-0.5"><MapPin size={9} className="inline" /> {record.checkInLocation}</p>}
-                          </div>
-                          <div className="bg-white rounded-xl p-3 border border-slate-100">
-                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Check Out</p>
-                            <p className="text-sm font-black text-slate-900">{getTimeDisplay(record.checkOut)}</p>
-                            {record.checkOutLocation && <p className="text-[9px] text-slate-400 mt-0.5"><MapPin size={9} className="inline" /> {record.checkOutLocation}</p>}
-                          </div>
-                        </div>
-                        <div className="mt-3 bg-white rounded-xl p-3 border border-slate-100 flex justify-between">
-                          <div>
-                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Working Hours</p>
-                            <p className="text-sm font-black text-slate-900">{formatDuration(record.totalHours ? Number(record.totalHours) : undefined)}</p>
-                          </div>
-                          {record.source && (
-                            <div className="text-right">
-                              <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Source</p>
-                              <p className="text-xs font-bold text-slate-600">{record.source}</p>
-                            </div>
-                          )}
-                        </div>
-                        {record.breaks && record.breaks.length > 0 && (
-                          <div className="mt-3 bg-white rounded-xl p-3 border border-slate-100">
-                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mb-2">Breaks</p>
-                            <div className="space-y-1.5">
-                              {record.breaks.map((b, bi) => (
-                                <div key={bi} className="flex justify-between text-xs">
-                                  <span className="font-bold text-slate-600">{formatTime12b(b.startTime)} - {formatTime12b(b.endTime)}</span>
-                                  <span className="text-slate-400">{b.duration ? `${b.duration}m` : '--'}</span>
-                                </div>
-                              ))}
-                            </div>
+                        {record.source && (
+                          <div className="mb-3 -mt-1 text-right">
+                            <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Source</p>
+                            <p className="text-xs font-pbold text-slate-600">{record.source}</p>
                           </div>
                         )}
+                        <AttendanceDayTimeline record={record} compact />
                       </div>
                     ))}
                   </div>
@@ -1662,7 +1759,7 @@ export function AttendancePage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <h2 className="text-lg font-pbold text-slate-900 flex items-center gap-2">
                   <Edit3 size={18} className="text-amber-500" />
                   Correction Details
                 </h2>
@@ -1671,7 +1768,7 @@ export function AttendancePage() {
               <div className="p-6 space-y-4">
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                   <div className="flex justify-between items-center mb-3">
-                    <p className="text-xs font-bold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
+                    <p className="text-xs font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
                     {getStatusBadge(viewingCorrection.correction?.status)}
                   </div>
                   <p className="text-[10px] text-slate-500">{viewingCorrection.date} &middot; {viewingCorrection.department || '--'}</p>
@@ -1679,33 +1776,33 @@ export function AttendancePage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
                     <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check In</p>
-                    <p className="text-sm font-black text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckIn)}</p>
+                    <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckIn)}</p>
                   </div>
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
                     <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check In</p>
-                    <p className="text-sm font-black text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckIn)}</p>
+                    <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckIn)}</p>
                   </div>
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
                     <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check Out</p>
-                    <p className="text-sm font-black text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckOut)}</p>
+                    <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckOut)}</p>
                   </div>
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
                     <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check Out</p>
-                    <p className="text-sm font-black text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
+                    <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
                   </div>
                 </div>
                 <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
                   <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Reason</p>
-                  <p className="text-xs font-bold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
+                  <p className="text-xs font-pbold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
                 </div>
                 {viewingCorrection.correction?.rejectionReason && (
                   <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
                     <p className="text-[9px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Rejection Reason</p>
-                    <p className="text-xs font-bold text-rose-800">{viewingCorrection.correction.rejectionReason}</p>
+                    <p className="text-xs font-pbold text-rose-800">{viewingCorrection.correction.rejectionReason}</p>
                   </div>
                 )}
                 {viewingCorrection.correction?.actionedBy && (
-                  <p className="text-[10px] text-slate-500 text-right">Actioned by: <span className="font-bold">{viewingCorrection.correction.actionedBy}</span></p>
+                  <p className="text-[10px] text-slate-500 text-right">Actioned by: <span className="font-pbold">{viewingCorrection.correction.actionedBy}</span></p>
                 )}
               </div>
             </motion.div>

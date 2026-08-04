@@ -24,6 +24,11 @@ import {
 } from "../config/organizationPermissionMap.js";
 import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
+import {
+  countActiveAccountUsers,
+  isAccountUserAlreadyActive,
+  getActiveUserLimitForPlan,
+} from "../utils/accountPlan.js";
 
 const DEFAULT_DEPARTMENTS = [
   { name: "HR", description: "People operations and hiring", isActive: true },
@@ -555,10 +560,6 @@ const isBasicPlan = (workspace: any) =>
 const isProfessionalPlan = (workspace: any) =>
   String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "professional";
 
-// Professional plan caps a workspace at 5 active users total, founder
-// included — matches the Nomads pricing page's "Up to 5 Users" copy for
-// Professional. Custom plan has no such cap.
-const PROFESSIONAL_PLAN_MAX_USERS = 5;
 const DEFAULT_DEPARTMENT_NAMES = new Set(
   DEFAULT_DEPARTMENTS.map((department) => department.name.trim().toLowerCase()),
 );
@@ -830,6 +831,9 @@ export const getOrganizationOverview = async (req, res, next) => {
 
     const activeDepartments = await ensureWorkspaceDepartments(workspace);
 
+    const accountActiveUserLimit = getActiveUserLimitForPlan(workspace.selectedPlan);
+    const accountActiveUserCount = await countActiveAccountUsers(workspace.owner);
+
     const members = await WorkspaceMember.find({ workspace: workspace._id })
       .populate("user", "name email isActive inviteStatus isDeleted")
       .populate("role")
@@ -1082,6 +1086,15 @@ export const getOrganizationOverview = async (req, res, next) => {
         metrics: {
           totalMembers: teamMembers.length,
           activeMembers: teamMembers.filter((member) => member.status === "joined").length,
+        },
+        // Professional plan's user cap is account-wide (up to 5 distinct
+        // people across all of the founder's units), not per-unit — see
+        // countActiveAccountUsers. Number.POSITIVE_INFINITY (basic/custom, no
+        // cap) serializes to null.
+        accountUserLimits: {
+          limit: Number.isFinite(accountActiveUserLimit) ? accountActiveUserLimit : null,
+          activeCount: accountActiveUserCount,
+          canAddUser: !Number.isFinite(accountActiveUserLimit) || accountActiveUserCount < accountActiveUserLimit,
         },
       },
     });
@@ -1432,15 +1445,22 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
         : !member.isActive;
 
     if (nextIsActive && !member.isActive && isProfessionalPlan(workspace)) {
-      const activeMemberCount = await WorkspaceMember.countDocuments({
-        workspace: workspace._id,
-        isActive: true,
-        _id: { $ne: member._id },
+      // Re-enabling doesn't consume a slot if this person is already active in
+      // another unit in the account — only block it if they'd be a genuinely
+      // new active person for the account.
+      const alreadyActiveElsewhere = await isAccountUserAlreadyActive(workspace.owner, member.user, {
+        excludeMembershipId: member._id,
       });
-      if (activeMemberCount >= PROFESSIONAL_PLAN_MAX_USERS) {
-        return res.status(400).json({
-          message: "Only 5 users can be enabled at a time. Disable one user to enable another.",
+      if (!alreadyActiveElsewhere) {
+        const activeAccountUserCount = await countActiveAccountUsers(workspace.owner, {
+          excludeMembershipId: member._id,
         });
+        const userLimit = getActiveUserLimitForPlan(workspace.selectedPlan);
+        if (activeAccountUserCount >= userLimit) {
+          return res.status(400).json({
+            message: `Only ${userLimit} users can be active at a time across your units. Disable one user to enable another.`,
+          });
+        }
       }
     }
 
@@ -1597,13 +1617,15 @@ export const inviteOrganizationMember = async (req, res, next) => {
     }
 
     if (isProfessionalPlan(workspace)) {
-      const activeMemberCount = await WorkspaceMember.countDocuments({
-        workspace: workspace._id,
-        isActive: true,
-      });
-      if (activeMemberCount >= PROFESSIONAL_PLAN_MAX_USERS) {
+      // Inviting always creates a brand-new HostUser (email uniqueness was
+      // checked above), so it always consumes a new account-wide user slot —
+      // the cap is 5 people total across all of the founder's units, not 5
+      // per unit.
+      const activeAccountUserCount = await countActiveAccountUsers(workspace.owner);
+      const userLimit = getActiveUserLimitForPlan(workspace.selectedPlan);
+      if (activeAccountUserCount >= userLimit) {
         return res.status(400).json({
-          message: "No more users can be added. Disable one user to add another.",
+          message: `No more users can be added. Professional plan allows up to ${userLimit} users across all your units — disable one user to add another.`,
         });
       }
     }
@@ -2466,6 +2488,24 @@ export const transferOrganizationMember = async (req, res, next) => {
     });
     if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
 
+    // A transfer moves the user entirely into the target unit, so they must
+    // not have active access to any other linked unit. If they do, the founder
+    // needs to remove those unit accesses first via "Remove Unit Access".
+    const otherUnitMemberships = await WorkspaceMember.find({
+      user: member.user,
+      isActive: true,
+      workspace: { $nin: [workspace._id, targetWorkspace._id] },
+    })
+      .select("workspace")
+      .lean()
+      .exec();
+    if (otherUnitMemberships.length > 0) {
+      return res.status(400).json({
+        message:
+          "This user has access to other units. Remove their access to those units before transferring to another unit.",
+      });
+    }
+
     const nextRoleStr = normalizeRoleForStorage(req.body?.role || getRoleName(member.role));
     let targetRoleDoc = await Role.findOne({
       name: nextRoleStr,
@@ -2538,6 +2578,18 @@ export const transferOrganizationMember = async (req, res, next) => {
     member.status = "disabled";
     member.isPrimary = false;
     await member.save();
+
+    // Ensure the transferred user is only visible in the target unit. Any
+    // leftover active memberships (edge cases where the pre-check above could
+    // not catch a concurrent change) are deactivated here as a safeguard.
+    await WorkspaceMember.updateMany(
+      {
+        user: member.user,
+        isActive: true,
+        _id: { $ne: transferredMembership._id },
+      },
+      { $set: { isActive: false, isPrimary: false, status: "disabled" } },
+    ).exec();
 
     await EmployeeProfile.updateOne(
       {
@@ -2761,6 +2813,10 @@ export const removeOrganizationMemberWorkspaceAccess = async (req, res, next) =>
     targetMembership.isPrimary = false;
     targetMembership.status = "disabled";
     await targetMembership.save();
+    // Force the user out of their current session — they may be logged into
+    // the unit access that was just removed. They'll need to log in again,
+    // at which point they land in whatever unit access remains.
+    await HostUser.findByIdAndUpdate(sourceMembership.user, { refreshToken: "" }).exec();
 
     await EmployeeProfile.updateOne(
       {

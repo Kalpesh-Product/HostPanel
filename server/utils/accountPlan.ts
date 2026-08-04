@@ -1,5 +1,6 @@
 // @ts-nocheck
 import Workspace from "../models/Workspace.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 import {
   buildWorkspaceModulesStructure,
   getEffectiveEnabledModuleIds,
@@ -17,19 +18,37 @@ const VALID_PLANS = ["basic", "professional", "custom"];
 //  • KEPT  limit   — how many workspaces can exist total (active + disabled),
 //                    excluding soft-deleted ones.
 //
-// For professional: at most 3 active at a time, but up to 5 kept — so a founder
-// disables some (staying within 3 active) to add more, up to 5 total. Deleting
+// For professional: at most 2 active at a time, but up to 5 kept — so a founder
+// disables some (staying within 2 active) to add more, up to 5 total. Deleting
 // (soft) does not count and frees a kept slot. Basic keeps only the
 // registration workspace; custom is unlimited on both.
 export const WORKSPACE_ACTIVE_LIMIT_BY_PLAN: Record<string, number> = {
   basic: 1,
-  professional: 3,
+  professional: 2,
   custom: Number.POSITIVE_INFINITY,
 };
 export const WORKSPACE_LIMIT_BY_PLAN: Record<string, number> = {
   basic: 1,
   professional: 5,
   custom: Number.POSITIVE_INFINITY,
+};
+
+// The Professional plan's user cap is an ACCOUNT-wide entitlement ("up to 5
+// users" on the pricing page), not a per-unit one — a founder can spread up to
+// 5 distinct people across as many of their (up to 5, up to 2 active) units as
+// they like. Moving a person between units, or granting an already-active
+// person access to another unit, never consumes a new slot; only a person who
+// isn't active in any unit yet does. Basic plan's cap is handled separately
+// (founder + one Super Admin); custom has no cap.
+export const ACCOUNT_ACTIVE_USER_LIMIT_BY_PLAN: Record<string, number> = {
+  basic: Number.POSITIVE_INFINITY,
+  professional: 5,
+  custom: Number.POSITIVE_INFINITY,
+};
+
+export const getActiveUserLimitForPlan = (plan: unknown) => {
+  const key = normalizeAccountPlan(plan) || "basic";
+  return ACCOUNT_ACTIVE_USER_LIMIT_BY_PLAN[key] ?? Number.POSITIVE_INFINITY;
 };
 
 export const rankPlan = (plan: unknown) =>
@@ -154,4 +173,51 @@ export const syncAccountWorkspacePlans = async (userId: any): Promise<string> =>
   }
 
   return accountPlan;
+};
+
+const getAccountWorkspaceIds = async (userId: any): Promise<any[]> => {
+  if (!userId) return [];
+  const workspaces = await Workspace.find({ owner: userId, isDeleted: { $ne: true } })
+    .select("_id")
+    .lean()
+    .exec();
+  return workspaces.map((ws: any) => ws._id);
+};
+
+/**
+ * Count the account's ACTIVE, DISTINCT users — every person with at least one
+ * active WorkspaceMember across any of the founder's (non-deleted) units,
+ * counted once no matter how many units they're active in. Measured against
+ * the ACCOUNT_ACTIVE_USER_LIMIT_BY_PLAN cap. Pass `excludeMembershipId` to see
+ * the count as it would be with one particular membership row removed (e.g.
+ * before deciding whether re-enabling it would add a new person).
+ */
+export const countActiveAccountUsers = async (
+  userId: any,
+  options: { excludeMembershipId?: any } = {},
+): Promise<number> => {
+  const workspaceIds = await getAccountWorkspaceIds(userId);
+  if (!workspaceIds.length) return 0;
+  const match: any = { workspace: { $in: workspaceIds }, isActive: true };
+  if (options.excludeMembershipId) match._id = { $ne: options.excludeMembershipId };
+  const distinctUserIds = await WorkspaceMember.distinct("user", match);
+  return distinctUserIds.length;
+};
+
+/**
+ * True if `targetUserId` already has active access to some other unit in the
+ * account. Used to tell "reactivating/linking an existing active person"
+ * (never blocked by the user cap) apart from "activating a person who isn't
+ * active anywhere in the account yet" (consumes a cap slot).
+ */
+export const isAccountUserAlreadyActive = async (
+  userId: any,
+  targetUserId: any,
+  options: { excludeMembershipId?: any } = {},
+): Promise<boolean> => {
+  const workspaceIds = await getAccountWorkspaceIds(userId);
+  if (!workspaceIds.length) return false;
+  const match: any = { workspace: { $in: workspaceIds }, user: targetUserId, isActive: true };
+  if (options.excludeMembershipId) match._id = { $ne: options.excludeMembershipId };
+  return Boolean(await WorkspaceMember.exists(match));
 };

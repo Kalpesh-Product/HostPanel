@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
@@ -285,6 +285,16 @@ export function OrganizationPage() {
   const [isSavingDepartments, setIsSavingDepartments] = useState(false);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
+  // Synchronous guards against double-submit: a fast double-click can fire
+  // both handlers before React re-renders the `disabled` button state (the
+  // isSendingInvite/isAddingEmployee state checks below run against a stale
+  // closure), so a duplicate request went through and created a second
+  // invite/HostUser before the first one's "already used" 409 came back —
+  // the user would see the error toast from the second request even though
+  // the first one had already succeeded and sent the invite email. Refs
+  // update immediately, closing that window.
+  const isSendingInviteRef = useRef(false);
+  const isAddingEmployeeRef = useRef(false);
   const [isCreatingDepartment, setIsCreatingDepartment] = useState(false);
   const [createdDepartmentNotice, setCreatedDepartmentNotice] = useState<CreatedDepartmentNotice | null>(null);
   const [accessTogglePendingMemberId, setAccessTogglePendingMemberId] = useState('');
@@ -301,6 +311,11 @@ export function OrganizationPage() {
   });
   const [isSavingRoleChange, setIsSavingRoleChange] = useState(false);
   const [transferredTeamMembers, setTransferredTeamMembers] = useState<TeamMember[]>([]);
+  const [accountUserLimits, setAccountUserLimits] = useState<{
+    limit: number | null;
+    activeCount: number;
+    canAddUser: boolean;
+  } | null>(null);
   const [workspacePlan, setWorkspacePlan] = useState('basic');
   const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
   const [newDepartmentForm, setNewDepartmentForm] = useState({
@@ -445,6 +460,15 @@ export function OrganizationPage() {
       setDepartments(visibleDepartments);
       setTeamMembers(nextMembers);
       setTransferredTeamMembers(nextTransferredMembers);
+      setAccountUserLimits(
+        payload.accountUserLimits && typeof payload.accountUserLimits === 'object'
+          ? {
+              limit: payload.accountUserLimits.limit ?? null,
+              activeCount: Number(payload.accountUserLimits.activeCount || 0),
+              canAddUser: payload.accountUserLimits.canAddUser !== false,
+            }
+          : null,
+      );
       setPermissions(payload.metrics || {});
       setDeptRoleFilter((current) =>
         current === 'all' || (current.startsWith('dept:') && visibleDepartments.some((department) => department.id === current.replace('dept:', '')))
@@ -624,9 +648,12 @@ export function OrganizationPage() {
   const basicPlanLimitReached = isBasicPlanWorkspace && activeSuperAdminCount >= basicPlanAdditionalUserLimit;
 
   const isProfessionalPlanWorkspace = workspacePlan === 'professional';
-  // Mirrors PROFESSIONAL_PLAN_MAX_USERS in organizationControllers.ts - total
-  // active members (including the founder) capped at 5 on Professional.
-  const professionalPlanMaxUsers = 5;
+  // The Professional plan's 5-user cap is ACCOUNT-wide (across every unit the
+  // founder owns), not per-unit — server-computed in accountUserLimits
+  // (organizationControllers.ts getOrganizationOverview /
+  // countActiveAccountUsers). Fall back to counting this unit's own members
+  // only until that's loaded, so the button doesn't flash enabled.
+  const professionalPlanMaxUsers = accountUserLimits?.limit ?? 5;
   const activeMemberCount = teamMembers.filter(
     (member) => (member.status || '').toLowerCase() !== 'disabled',
   ).length;
@@ -634,7 +661,11 @@ export function OrganizationPage() {
     (member) => (member.status || '').toLowerCase() === 'disabled',
   ).length;
   const professionalPlanLimitReached =
-    isProfessionalPlanWorkspace && activeMemberCount >= professionalPlanMaxUsers;
+    isProfessionalPlanWorkspace &&
+    (accountUserLimits ? !accountUserLimits.canAddUser : activeMemberCount >= professionalPlanMaxUsers);
+  // Across-account active user count for display — falls back to this unit's
+  // own count only until accountUserLimits has loaded.
+  const displayedActiveUserCount = accountUserLimits?.activeCount ?? activeMemberCount;
   const isCustomPlanWorkspace = workspacePlan === 'custom';
   const canManageCustomDepartment =
     (isProfessionalPlanWorkspace || isCustomPlanWorkspace) && canManageDepartments && canCreateDepartmentByAccess;
@@ -673,8 +704,8 @@ export function OrganizationPage() {
         : `Add your one allowed Super Admin (${activeSuperAdminCount}/${basicPlanAdditionalUserLimit} used)`
     : isProfessionalPlanWorkspace
       ? professionalPlanLimitReached
-        ? `No more users can be added. Disable one user to add another.`
-        : `Add a user (${activeMemberCount}/${professionalPlanMaxUsers} used)`
+        ? `No more users can be added. Disable one user across your units to add another.`
+        : `Add a user (${displayedActiveUserCount}/${professionalPlanMaxUsers} used across your units)`
       : canAddUserOnCurrentPlan
         ? 'Invite and onboard instantly'
         : 'You do not have access to invite users';
@@ -898,7 +929,7 @@ export function OrganizationPage() {
   };
 
   const handleAddEmployee = async () => {
-    if (isAddingEmployee) return;
+    if (isAddingEmployee || isAddingEmployeeRef.current) return;
     if (!selectedDepartment || !employeeFormData.name.trim() || !normalizedEmployeeEmail) return;
     if (!isEmployeeEmailValid) {
       toast.error('Enter a valid work email address.');
@@ -909,6 +940,7 @@ export function OrganizationPage() {
       return;
     }
 
+    isAddingEmployeeRef.current = true;
     setIsAddingEmployee(true);
     try {
       await inviteOrganizationMember(axiosPrivate, {
@@ -925,6 +957,7 @@ export function OrganizationPage() {
       console.error("Failed to add employee", error);
       toast.error((error as any)?.response?.data?.message || 'Failed to send invite. Please try again.');
     } finally {
+      isAddingEmployeeRef.current = false;
       setIsAddingEmployee(false);
     }
   };
@@ -954,7 +987,7 @@ export function OrganizationPage() {
     setShowTeamMemberModal(true);
   };
   const handleSendInvite = async () => {
-    if (isSendingInvite) return;
+    if (isSendingInvite || isSendingInviteRef.current) return;
     if (isProfessionalPlanWorkspace && professionalPlanLimitReached) {
       toast.error('No more users can be added. Disable one user to add another.');
       return;
@@ -1013,6 +1046,7 @@ export function OrganizationPage() {
         }
       }
 
+      isSendingInviteRef.current = true;
       setIsSendingInvite(true);
       try {
         await inviteOrganizationMember(axiosPrivate, {
@@ -1030,6 +1064,7 @@ export function OrganizationPage() {
         const inviteErrorMessage = (error as any)?.response?.data?.message;
         toast.error(inviteErrorMessage || 'Failed to send invite. Please try again.');
       } finally {
+        isSendingInviteRef.current = false;
         setIsSendingInvite(false);
       }
     }
@@ -1040,10 +1075,11 @@ export function OrganizationPage() {
       toast.error('You do not have access to toggle user status.');
       return;
     }
-    if (nextEnabled && isProfessionalPlanWorkspace && professionalPlanLimitReached) {
-      toast.error('Only 5 users can be enabled at a time. Disable one user to enable another.');
-      return;
-    }
+    // No client-side pre-block here (unlike inviting): re-enabling a member
+    // who's already active in another of the founder's units never consumes
+    // an account-wide slot, and the frontend can't know that in advance — the
+    // server (countActiveAccountUsers) makes the real call and its error
+    // message surfaces below if this particular reactivation would exceed it.
     setAccessTogglePendingMemberId(id);
     try {
       await toggleOrganizationMemberStatus(axiosPrivate, id);
@@ -1497,7 +1533,7 @@ export function OrganizationPage() {
                 )}
                 {isProfessionalPlanWorkspace && (
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                    {activeMemberCount}/{professionalPlanMaxUsers} active users
+                    {displayedActiveUserCount}/{professionalPlanMaxUsers} active users (all units)
                   </p>
                 )}
                 <button

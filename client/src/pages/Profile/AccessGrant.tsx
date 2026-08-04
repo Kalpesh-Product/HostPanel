@@ -563,8 +563,30 @@ export default function AccessGrantsPage() {
   const canManageSelectedUserAcrossUnits = Boolean(selectedUser) && (
     isFounderRole || !['owner', 'founder', 'super_admin'].includes(selectedUserRole)
   );
+  const currentWorkspaceId = String(workspace?.id || '');
+  const userOtherUnitAccessCount = Array.isArray(selectedUser?.workspaceAccesses)
+    ? selectedUser.workspaceAccesses.filter((access) => String(access?.id || '') !== currentWorkspaceId).length
+    : 0;
+  // A transfer moves the user entirely into the destination unit, so it is
+  // only possible when they have no other unit access (any linked unit is a
+  // valid target) or exactly one other unit access (only that unit can be the
+  // destination). If they are linked to more than one other unit, those unit
+  // accesses must be removed first.
+  const transferTargetOptions = useMemo(() => {
+    if (!selectedUser) return [];
+    const userOtherIds = new Set(
+      (Array.isArray(selectedUser.workspaceAccesses) ? selectedUser.workspaceAccesses : [])
+        .filter((access) => String(access?.id || '') !== currentWorkspaceId)
+        .map((item) => String(item?.id || '')),
+    );
+    if (userOtherIds.size > 1) return [];
+    if (userOtherIds.size === 1) {
+      return transferWorkspaceOptions.filter((item) => userOtherIds.has(String(item.id)));
+    }
+    return transferWorkspaceOptions;
+  }, [selectedUser, transferWorkspaceOptions, currentWorkspaceId]);
   const canTransferMembers =
-    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && transferWorkspaceOptions.length > 0;
+    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && transferTargetOptions.length > 0;
   const linkWorkspaceOptions = useMemo(() => {
     const activeWorkspaceIds = new Set(
       Array.isArray(selectedUser?.workspaceAccesses)
@@ -589,8 +611,8 @@ export default function AccessGrantsPage() {
     !['owner', 'founder'].includes(selectedUserRole) &&
     removableWorkspaceOptions.length > 0;
   const selectedTransferWorkspace = useMemo(
-    () => transferWorkspaceOptions.find((item) => String(item.id) === String(workspaceTransferForm.targetWorkspaceId)) || null,
-    [transferWorkspaceOptions, workspaceTransferForm.targetWorkspaceId],
+    () => transferTargetOptions.find((item) => String(item.id) === String(workspaceTransferForm.targetWorkspaceId)) || null,
+    [transferTargetOptions, workspaceTransferForm.targetWorkspaceId],
   );
   const selectedTransferRole = useMemo(
     () => TRANSFER_ROLE_OPTIONS.find((option) => option.value === workspaceTransferForm.role) || TRANSFER_ROLE_OPTIONS[0],
@@ -617,6 +639,9 @@ export default function AccessGrantsPage() {
   const isAdminTransferRole = workspaceTransferForm.role === 'admin';
   const isSuperAdminTransferRole = workspaceTransferForm.role === 'super_admin';
   const selectedSingleTransferDepartmentId = workspaceTransferForm.departmentIds[0] || '';
+  const canSubmitWorkspaceTransfer =
+    Boolean(workspaceTransferForm.targetWorkspaceId) &&
+    (isSuperAdminTransferRole || workspaceTransferForm.departmentIds.length > 0);
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
@@ -772,6 +797,16 @@ export default function AccessGrantsPage() {
 
     return mappedSections;
   }, [workspace, memberAccessTarget]);
+
+  // Order sections so "Add-ons" renders last (after Department Accesses).
+  const orderedAccessSections = useMemo(() => {
+    const isAddOns = (key = '') => normalizeModuleKey(key) === 'add-ons';
+    return [...workspaceAccessSections].sort((a, b) => {
+      if (isAddOns(a.key) && !isAddOns(b.key)) return 1;
+      if (!isAddOns(a.key) && isAddOns(b.key)) return -1;
+      return 0;
+    });
+  }, [workspaceAccessSections]);
 
   const visitorParentChainByChild = useMemo(() => {
     const chainMap = new Map();
@@ -1005,7 +1040,7 @@ export default function AccessGrantsPage() {
   };
 
   const handleOpenWorkspaceTransferDialog = (user: MappedMember) => {
-    const defaultTargetWorkspace = transferWorkspaceOptions[0] || null;
+    const defaultTargetWorkspace = transferTargetOptions[0] || null;
     const normalizedRole = getTransferRoleValue(user?.rawRole);
     const departmentOptions = Array.isArray(defaultTargetWorkspace?.departments)
       ? defaultTargetWorkspace.departments
@@ -1630,6 +1665,13 @@ export default function AccessGrantsPage() {
                       </div>
                     )}
 
+                    {userOtherUnitAccessCount > 1 && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                        {selectedUser.name} has access to {userOtherUnitAccessCount} other units. Remove access to the
+                        other units first, then this user can be transferred to another unit.
+                      </div>
+                    )}
+
                       {canTransferMembers && (
                         <button
                           onClick={() => handleOpenWorkspaceTransferDialog(selectedUser)}
@@ -1716,7 +1758,7 @@ export default function AccessGrantsPage() {
 
               <div className="max-h-[68vh] space-y-3 overflow-y-auto bg-slate-50 p-4">
                  {/* hide founder core modules for target employee */}
-                {workspaceAccessSections.map((section, sectionIndex) =>
+                {orderedAccessSections.map((section, sectionIndex) =>
                 isTargetEmployee && normalizeModuleKey(section.key) === 'founder-core-modules' ? null : (
                   <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-xl border border-slate-200 bg-white p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -1760,9 +1802,15 @@ export default function AccessGrantsPage() {
                                     const hasChildren = childModules.length > 0;
                                     const isExpanded = Boolean(expandedAccessModules?.[module.id]);
                                     return (
-                                    <div key={module.id} className="rounded-lg border border-slate-100 px-2.5 py-2">
+                                    <div key={module.id} className="rounded-lg border border-slate-100 px-2.5 py-2 transition-colors hover:bg-slate-50/50">
                                         <div className="flex items-center justify-between gap-3">
                                           <div className="flex items-start gap-2">
+                                            <div>
+                                              <p className="text-xs font-semibold text-slate-900">{module.label}</p>
+                                              <p className="text-[10px] text-slate-500">{module.description}</p>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-1.5">
                                             {hasChildren ? (
                                               <button
                                                 type="button"
@@ -1772,18 +1820,14 @@ export default function AccessGrantsPage() {
                                                     [module.id]: !current?.[module.id],
                                                   }))
                                                 }
-                                                className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                                className="rounded-md border border-slate-200 bg-slate-50 p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                                 title={isExpanded ? 'Collapse actions' : 'Expand actions'}
                                               >
                                                 <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                               </button>
                                             ) : null}
-                                            <div>
-                                              <p className="text-xs font-semibold text-slate-900">{module.label}</p>
-                                              <p className="text-[10px] text-slate-500">{module.description}</p>
-                                            </div>
+                                            <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule(module.id)} />
                                           </div>
-                                          <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule(module.id)} />
                                         </div>
                                         {hasChildren && isExpanded ? (
                                           <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
@@ -1795,7 +1839,11 @@ export default function AccessGrantsPage() {
                                               return (
                                                 <div key={child.id} className="rounded-md border border-slate-100 px-2.5 py-2">
                                                   <div className="flex items-center justify-between gap-3">
-                                                    <div className="flex items-start gap-2">
+                                                    <div>
+                                                      <p className="text-[11px] font-semibold text-slate-800">{child.label}</p>
+                                                      <p className="text-[10px] text-slate-500">{child.description}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
                                                       {hasGrandChildren ? (
                                                         <button
                                                           type="button"
@@ -1805,22 +1853,18 @@ export default function AccessGrantsPage() {
                                                               [child.id]: !current?.[child.id],
                                                             }))
                                                           }
-                                                          className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                                          className="rounded-md border border-slate-200 bg-slate-50 p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                                           title={isChildExpanded ? 'Collapse subtabs' : 'Expand subtabs'}
                                                         >
                                                           <ChevronDown className={`h-3 w-3 transition-transform ${isChildExpanded ? 'rotate-180' : ''}`} />
                                                         </button>
                                                       ) : null}
-                                                      <div>
-                                                        <p className="text-[11px] font-semibold text-slate-800">{child.label}</p>
-                                                        <p className="text-[10px] text-slate-500">{child.description}</p>
-                                                      </div>
+                                                      <Switch
+                                                        checked={childChecked}
+                                                        disabled={!canManageModuleAccess || !checked}
+                                                        onCheckedChange={() => toggleMemberChildModule(child.id)}
+                                                      />
                                                     </div>
-                                                    <Switch
-                                                      checked={childChecked}
-                                                      disabled={!canManageModuleAccess || !checked}
-                                                      onCheckedChange={() => toggleMemberChildModule(child.id)}
-                                                    />
                                                   </div>
                                                   {hasGrandChildren && isChildExpanded ? (
                                                     <div className="mt-2 space-y-2 border-t border-slate-100 pt-2 pl-6">
@@ -1864,9 +1908,15 @@ export default function AccessGrantsPage() {
                         const hasChildren = childModules.length > 0;
                         const isExpanded = Boolean(expandedAccessModules?.[module.id]);
                         return (
-                          <div key={module.id} className="rounded-lg border border-slate-100 px-2.5 py-2">
+                          <div key={module.id} className="rounded-lg border border-slate-100 px-2.5 py-2 transition-colors hover:bg-slate-50/50">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-start gap-2">
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-900">{module.label}</p>
+                                  <p className="text-[10px] text-slate-500">{module.description}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5">
                                 {hasChildren ? (
                                   <button
                                     type="button"
@@ -1876,19 +1926,15 @@ export default function AccessGrantsPage() {
                                         [module.id]: !current?.[module.id],
                                       }))
                                     }
-                                    className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                    className="rounded-md border border-slate-200 bg-slate-50 p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                     title={isExpanded ? 'Collapse actions' : 'Expand actions'}
                                   >
                                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                   </button>
                                 ) : null}
-                                <div>
-                                  <p className="text-xs font-semibold text-slate-900">{module.label}</p>
-                                  <p className="text-[10px] text-slate-500">{module.description}</p>
-                                </div>
-                              </div>
                                {/* Disable the switch if the user cannot manage module access or if the target employee is trying to access a core module section */}
                               <Switch checked={checked} disabled={!canManageModuleAccess  || (isTargetEmployee && isCoreModuleSection)} onCheckedChange={() => toggleMemberModule(module.id)} />
+                              </div>
                             </div>
                             {hasChildren && isExpanded ? (
                               <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
@@ -1900,7 +1946,11 @@ export default function AccessGrantsPage() {
                                   return (
                                     <div key={child.id} className="rounded-md border border-slate-100 px-2.5 py-2">
                                       <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-start gap-2">
+                                        <div>
+                                          <p className="text-[11px] font-semibold text-slate-800">{child.label}</p>
+                                          <p className="text-[10px] text-slate-500">{child.description}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
                                           {hasGrandChildren ? (
                                             <button
                                               type="button"
@@ -1910,23 +1960,19 @@ export default function AccessGrantsPage() {
                                                   [child.id]: !current?.[child.id],
                                                 }))
                                               }
-                                              className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                              className="rounded-md border border-slate-200 bg-slate-50 p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                               title={isChildExpanded ? 'Collapse subtabs' : 'Expand subtabs'}
                                             >
                                               <ChevronDown className={`h-3 w-3 transition-transform ${isChildExpanded ? 'rotate-180' : ''}`} />
                                             </button>
                                           ) : null}
-                                          <div>
-                                            <p className="text-[11px] font-semibold text-slate-800">{child.label}</p>
-                                            <p className="text-[10px] text-slate-500">{child.description}</p>
-                                          </div>
+                                          {/* Disable the switch if the user cannot manage module access, if the parent module is not checked, or if the target employee is trying to access a core module section */}
+                                          <Switch
+                                            checked={childChecked}
+                                            disabled={!canManageModuleAccess || !checked || (isTargetEmployee && isCoreModuleSection)}
+                                            onCheckedChange={() => toggleMemberChildModule(child.id)}
+                                          />
                                         </div>
-                                        {/* Disable the switch if the user cannot manage module access, if the parent module is not checked, or if the target employee is trying to access a core module section */}
-                                        <Switch
-                                          checked={childChecked}
-                                          disabled={!canManageModuleAccess || !checked || (isTargetEmployee && isCoreModuleSection)}
-                                          onCheckedChange={() => toggleMemberChildModule(child.id)}
-                                        />
                                       </div>
                                       {hasGrandChildren && isChildExpanded ? (
                                         <div className="mt-2 space-y-2 border-t border-slate-100 pt-2 pl-6">
@@ -2195,7 +2241,7 @@ export default function AccessGrantsPage() {
                         }}
                         className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                       >
-                        {transferWorkspaceOptions.map((item) => (
+                        {transferTargetOptions.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.workspaceName}{item.location ? ` - ${item.location}` : ''}
                           </option>
@@ -2336,9 +2382,15 @@ export default function AccessGrantsPage() {
                 </button>
                 <button
                   onClick={handleConfirmWorkspaceTransfer}
-                  disabled={isSaving || isReadOnlySession}
-                  title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
-                  className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                  disabled={isSaving || isReadOnlySession || !canSubmitWorkspaceTransfer}
+                  title={isReadOnlySession
+                    ? 'Read-only staff view - changes are disabled'
+                    : !canSubmitWorkspaceTransfer
+                      ? isSuperAdminTransferRole
+                        ? 'Select a target unit to enable transfer'
+                        : 'Select a target unit and department to enable transfer'
+                      : undefined}
+                  className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isSaving ? 'Saving...' : `Transfer as ${selectedTransferRole.label}`}
                 </button>
