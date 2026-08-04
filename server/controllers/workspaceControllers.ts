@@ -10,8 +10,6 @@ import {
   buildWorkspaceModuleCatalog,
   buildWorkspaceModulesStructure,
   getEffectiveEnabledModuleIds,
-  COMMON_MODULE_IDS,
-  EXTRA_COMMON_MODULE_IDS,
 } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 import { sendMail } from "../config/mailer.js";
@@ -1172,39 +1170,30 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       // BASIC_DEFAULT_IDS in workspaceModuleCatalog.ts), so they stay
       // available without needing a separate always-on bypass here.
       baseModules = enabledModuleIds;
-    } else if (roleBand === "super_admin") {
-      // Unlike owner, super_admin's "full access" is an explicit, adjustable
-      // grant recorded on the member at invite time (superAdminDefaultIds in
-      // organizationControllers.ts), not a hardcoded bypass — an owner can
-      // trim it afterward via Access Grants. Leave baseModules empty so
-      // explicitGrants (below) is the sole source of truth; unioning in
-      // enabledModuleIds here would make any such removal a no-op.
-      baseModules = [];
-    } else if (roleBand === "admin" || roleBand === "manager") {
-      // Collect dept modules from assigned departments (WorkspaceMember.departments)
-      const assignedDeptIds = Array.isArray(currentMember?.departments)
-        ? currentMember.departments
-        : [];
-      const deptQuery: any[] = [{ _id: { $in: assignedDeptIds }, workspaceId: workspace._id, isActive: true }];
-
-      // Managers also get modules for departments they directly manage
-      if (roleBand === "manager") {
-        deptQuery.push({ managerUser: currentUserId, workspaceId: workspace._id, isActive: true });
-      }
-
-      const depts = await Department.find({ $or: deptQuery }).select("moduleIds").lean();
-      const deptModuleIds = depts.flatMap((d) =>
-        Array.isArray(d.moduleIds) ? d.moduleIds.map((m) => String(m).trim()).filter(Boolean) : [],
-      );
-
-      baseModules = [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS, ...deptModuleIds];
     } else {
-      // employee — common modules only
-      baseModules = [...COMMON_MODULE_IDS];
+      // super_admin, admin, manager, employee: baseline access (common
+      // modules, extra-common modules, department modules, super-admin
+      // defaults) is already merged into grantedModules in the DB — at
+      // invite time and on every department/role change, via
+      // mergeGrantedModules()/BASELINE_MODULE_IDS in
+      // organizationControllers.ts. explicitGrants (the stored value) is
+      // therefore the sole source of truth for these bands. Re-deriving
+      // COMMON_MODULE_IDS/EXTRA_COMMON_MODULE_IDS/department moduleIds again
+      // here and unioning them back in would silently undo any individual
+      // module a master panel admin explicitly revoked for one member via
+      // Employee Access (updateMemberWorkspaceAccess writes straight to this
+      // same grantedModules field) 
+      baseModules = [];
     }
 
-    // Founder can add extra access on top of the role base
-    const effectiveGrantedModules = Array.from(new Set([...baseModules, ...explicitGrants]));
+    // Founder can add extra access on top of the role base — but everything
+    // is still capped by the workspace's own enabledModuleIds, so a module
+    // toggled off at the workspace level in master panel can never leak
+    // through via a stale per-member grant or a department's moduleIds.
+    const enabledSet = new Set(enabledModuleIds);
+    const effectiveGrantedModules = Array.from(
+      new Set([...baseModules, ...explicitGrants]),
+    ).filter((id) => enabledSet.has(id));
 
     return res.status(200).json({
       message: "Workspace module access map loaded successfully.",

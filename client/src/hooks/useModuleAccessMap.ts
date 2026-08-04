@@ -5,9 +5,11 @@ import useAxiosPrivate from "./useAxiosPrivate";
  * Fetches the current member's granted module ids from
  * GET /api/workspaces/module-access-map (the same source OrganizationPage.tsx
  * and Sidebar.tsx already use for plan/role-based access). This is the real
- * grant list — founder/super_admin get every id via the server's
- * getAllModuleIds() bypass, admin/manager get their department's modules,
- * employees get the common baseline, all merged with any explicit grants.
+ * grant list — owners get everything the workspace has enabled; everyone else
+ * (super_admin/admin/manager/employee) gets exactly their stored
+ * grantedModules (baseline modules are merged into that field once, at
+ * invite/department/role-change time, and stay individually revocable from
+ * master panel's Employee Access after that).
  */
 export default function useModuleAccessMap() {
   const axiosPrivate = useAxiosPrivate();
