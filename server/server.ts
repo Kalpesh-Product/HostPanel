@@ -47,6 +47,7 @@ import { publicRouter as recruitmentPublicRoutes } from "./routes/recruitmentRou
 import { getPublicRecruitmentJobOpenings } from "./controllers/recruitmentController.js";
 import { seedSystemRoles } from "./config/seedRoles.js";
 import { startBookingReminderScheduler } from "./services/bookingReminderService.js";
+import { startAttendanceAutoCheckoutScheduler } from "./services/attendanceService.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import maintenanceRoutes from "./routes/maintenanceRoutes.js";
 import housekeepingRoutes from "./routes/housekeepingRoutes.js";
@@ -55,6 +56,7 @@ import taskRoutes from "./routes/taskRoutes.js";
 import financeRoutes from "./routes/financeRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import leaveRoutes from "./routes/leaveRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
@@ -89,6 +91,9 @@ const startServer = async () => {
 
     // Emails external clients ~30 minutes before their booking starts.
     startBookingReminderScheduler();
+
+    // Auto clocks-out anyone still checked in past workspace-local midnight.
+    startAttendanceAutoCheckoutScheduler();
 
     app.listen(PORT, () => {
       console.log(`Server is running on PORT ${PORT}`);
@@ -153,6 +158,7 @@ app.use("/api/tasks", verifyJwt, blockWriteIfImpersonating, taskRoutes);
 app.use("/api/finance", verifyJwt, blockWriteIfImpersonating, financeRoutes);
 app.use("/api/hr", verifyJwt, blockWriteIfImpersonating, hrRoutes);
 app.use("/api/attendance", verifyJwt, blockWriteIfImpersonating, attendanceRoutes);
+app.use("/api/leave-requests", verifyJwt, blockWriteIfImpersonating, leaveRoutes);
 app.use("/api/it", verifyJwt, blockWriteIfImpersonating, itRoutes);
 app.use("/api/meeting-rooms", verifyJwt, blockWriteIfImpersonating, meetingRoomRoutes);
 app.use("/api/calendar", verifyJwt, blockWriteIfImpersonating, calendarRoutes);

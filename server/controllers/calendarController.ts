@@ -2,6 +2,8 @@
 import { Request, Response, NextFunction } from "express";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
 import Workspace from "../models/Workspace.js";
+import Holiday from "../models/Holiday.js";
+import LeaveRequest from "../models/LeaveRequest.js";
 import { getZonedDateTimeParts, normalizeTimeZone } from "../utils/workspaceLocalization.js";
 
 interface AuthenticatedRequest extends Request {
@@ -45,7 +47,7 @@ export const getMyCalendar = async (
             ],
         }).sort({ start: 1 }).lean().exec();
 
-        const events = bookings.filter((booking: any) => {
+        const bookingEvents = bookings.filter((booking: any) => {
             const currentInvite = (booking.invites || []).find(
                 (invite: any) => String(invite.invitedUserId || "") === String(req.user),
             );
@@ -88,6 +90,61 @@ export const getMyCalendar = async (
             };
         });
 
+        const holidays = await Holiday.find({ workspaceId, isActive: true })
+            .sort({ date: 1 })
+            .lean()
+            .exec();
+        const holidayEvents = holidays.map((holiday: any) => ({
+            id: `holiday-${String(holiday._id)}`,
+            type: "holiday",
+            title: holiday.name || "Holiday",
+            description: holiday.description || `${holiday.type === "public" ? "Public" : "Company"} holiday`,
+            date: holiday.dateKey,
+            endDate: holiday.dateKey,
+            startTime: "",
+            time: "All day",
+            location: "",
+            reference: "",
+            status: "approved",
+            attendees: [],
+            details: {
+                holidayType: holiday.type,
+                recurring: Boolean(holiday.recurring),
+            },
+        }));
+
+        const approvedLeaves = await LeaveRequest.find({
+            workspaceId,
+            requesterUserId: req.user,
+            status: "approved",
+            startDate: { $gte: new Date(`${new Date().getFullYear()}-01-01T00:00:00.000Z`) },
+        }).sort({ startDate: 1 }).lean().exec();
+        const leaveEvents = approvedLeaves.map((leave: any) => {
+            const timezone = normalizeTimeZone(leave.timezone || workspaceTimeZone);
+            return {
+                id: `leave-${String(leave._id)}`,
+                type: "leave",
+                title: `${leave.leaveType} leave`,
+                description: leave.reason || "",
+                date: dateParts(leave.startDate, timezone).date,
+                endDate: dateParts(leave.endDate, timezone).date,
+                startTime: "",
+                time: "All day",
+                location: "",
+                reference: leave.leaveCode,
+                status: leave.status,
+                attendees: [],
+                details: {
+                    leaveType: leave.leaveType,
+                    leaveMode: leave.leaveMode,
+                    halfDaySession: leave.halfDaySession,
+                    leaveHours: Number(leave.leaveHours || 0),
+                },
+            };
+        });
+
+        const events = [...holidayEvents, ...leaveEvents, ...bookingEvents];
+
         return res.status(200).json({
             data: {
                 events,
@@ -95,8 +152,9 @@ export const getMyCalendar = async (
                     total: events.length,
                     tasks: 0,
                     tickets: 0,
-                    leaveRequests: 0,
-                    bookings: events.length,
+                    leaveRequests: leaveEvents.length,
+                    holidays: holidayEvents.length,
+                    bookings: bookingEvents.length,
                 },
             },
         });

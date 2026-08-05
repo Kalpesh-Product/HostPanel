@@ -6,11 +6,20 @@ export interface IAttendanceBreak {
     durationSeconds: number;
 }
 
+export interface ICorrectionBreakAdjustment {
+    breakIndex: number;
+    originalStartAt?: Date | null;
+    originalEndAt?: Date | null;
+    requestedStartAt?: Date | null;
+    requestedEndAt?: Date | null;
+}
+
 export interface ICorrectionRequest {
     requestedCheckInAt?: Date | null;
     requestedCheckOutAt?: Date | null;
     originalCheckInAt?: Date | null;
     originalCheckOutAt?: Date | null;
+    requestedBreaks?: ICorrectionBreakAdjustment[];
     reason?: string;
     status: "pending" | "approved" | "rejected";
     reviewedByUserId?: mongoose.Types.ObjectId | null;
@@ -39,7 +48,7 @@ export interface IAttendance extends Document {
     dateKey: string; // YYYY-MM-DD in timezone
     timezone: string;
     mode: "office" | "wfh";
-    status: "present" | "present_late" | "wfh" | "on_break" | "shortfall" | "half_day" | "absent" | "overtime" | "sunday_off";
+    status: "present" | "present_late" | "wfh" | "on_break" | "shortfall" | "half_day" | "absent" | "overtime" | "sunday_off" | "on_leave";
     checkInAt?: Date | null;
     checkInSelfieUrl?: string;
     checkInSelfiePublicId?: string;
@@ -83,12 +92,24 @@ const attendanceBreakSchema = new Schema<IAttendanceBreak>(
     { _id: false }
 );
 
+const correctionBreakAdjustmentSchema = new Schema<ICorrectionBreakAdjustment>(
+    {
+        breakIndex: { type: Number, required: true, min: 0 },
+        originalStartAt: { type: Date, default: null },
+        originalEndAt: { type: Date, default: null },
+        requestedStartAt: { type: Date, default: null },
+        requestedEndAt: { type: Date, default: null },
+    },
+    { _id: false }
+);
+
 const correctionRequestSchema = new Schema<ICorrectionRequest>(
     {
         requestedCheckInAt: { type: Date, default: null },
         requestedCheckOutAt: { type: Date, default: null },
         originalCheckInAt: { type: Date, default: null },
         originalCheckOutAt: { type: Date, default: null },
+        requestedBreaks: { type: [correctionBreakAdjustmentSchema], default: [] },
         reason: { type: String, trim: true, default: "", maxlength: 1200 },
         status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
         reviewedByUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
@@ -188,6 +209,7 @@ const attendanceSchema = new Schema<IAttendance>(
                 "absent",
                 "overtime",
                 "sunday_off",
+                "on_leave",
             ],
             default: "absent",
             required: true,

@@ -904,7 +904,7 @@ export default function WorkspaceManagementPage() {
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                     {/* Department filter */}
-                    <div className="relative flex-1 min-w-[160px]">
+                    {/* <div className="relative flex-1 min-w-[160px]">
                       <select
                         value={departmentFilter}
                         onChange={(event) => setDepartmentFilter(event.target.value)}
@@ -917,7 +917,7 @@ export default function WorkspaceManagementPage() {
                         ))}
                       </select>
                       <RefreshCcw size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2563EB]" />
-                    </div>
+                    </div> */}
                     {/* Action button */}
                     <button
                       data-tour="unit-management-view-data"

@@ -43,6 +43,14 @@ interface AttendanceRecord {
   source?: string;
 }
 
+interface CorrectionBreakAdjustment {
+  breakIndex: number;
+  originalStart?: string;
+  originalEnd?: string;
+  requestedStart?: string;
+  requestedEnd?: string;
+}
+
 interface CorrectionRecord {
   id?: string;
   correctionId?: string;
@@ -58,6 +66,7 @@ interface CorrectionRecord {
   originalCheckOut?: string;
   requestedCheckIn?: string;
   requestedCheckOut?: string;
+  breaks?: CorrectionBreakAdjustment[];
   requestedAt?: string;
   actionedBy?: string;
   rejectionReason?: string;
@@ -166,6 +175,15 @@ function StatusBadge({ status }: { status?: string }) {
   );
 }
 
+// Role names come back lowercase from the API (e.g. "super_admin") — display
+// them Title_Cased ("Super_Admin") without touching acronyms that are
+// already uppercase (e.g. "HR").
+function formatRoleLabel(role?: string): string {
+  const value = String(role || "").trim();
+  if (!value) return "--";
+  return value.replace(/(^|[_\s])([a-z])/g, (_match, sep, letter) => `${sep}${letter.toUpperCase()}`);
+}
+
 function formatDuration(hours?: number): string {
   if (hours == null || isNaN(hours)) return "--";
   const h = Math.floor(hours);
@@ -188,7 +206,7 @@ function formatLongDate(value?: string): string {
   if (Number.isNaN(date.getTime())) return value;
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${day}/${month}/${date.getFullYear()}`;
+  return `${day}-${month}-${date.getFullYear()}`;
 }
 
 function getEmployeeInitials(name: string = ""): string {
@@ -395,6 +413,24 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                   <p className="text-[13px] font-pmedium text-amber-700">{record.requestedCheckOut ? formatTime12h(record.requestedCheckOut) : "--"}</p>
                 </div>
               </div>
+
+              {(record.breaks || []).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Break Adjustments</p>
+                  {record.breaks!.map((breakAdjustment) => (
+                    <div key={breakAdjustment.breakIndex} className="grid grid-cols-2 gap-3">
+                      <div className="bg-slate-50 rounded-xl p-3">
+                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Original Break {breakAdjustment.breakIndex + 1}</p>
+                        <p className="text-[13px] font-pmedium text-slate-600">{breakAdjustment.originalStart ? formatTime12h(breakAdjustment.originalStart) : "--"} – {breakAdjustment.originalEnd ? formatTime12h(breakAdjustment.originalEnd) : "--"}</p>
+                      </div>
+                      <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                        <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-wider mb-1">Requested Break {breakAdjustment.breakIndex + 1}</p>
+                        <p className="text-[13px] font-pmedium text-amber-700">{breakAdjustment.requestedStart ? formatTime12h(breakAdjustment.requestedStart) : "--"} – {breakAdjustment.requestedEnd ? formatTime12h(breakAdjustment.requestedEnd) : "--"}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {record.status?.toLowerCase() === "pending" && (
                 <div className="space-y-3 pt-2">
@@ -1051,17 +1087,12 @@ export default function HRAttendanceReviewPage() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-pmedium text-[11px]">
-                                {getEmployeeInitials(record.employeeName)}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-[12px] font-pmedium text-slate-800 truncate">{record.employeeName || "--"}</p>
-                                <p className="text-[10px] text-slate-400">{record.employeeId || ""}</p>
-                              </div>
+                              <User size={14} className="text-slate-400" />
+                              <p className="text-[12px] font-pmedium text-slate-800 truncate">{record.employeeName || "--"}</p>
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-[11px] text-slate-600">{record.department || "--"}</td>
-                          <td className="px-5 py-4 text-[11px] text-slate-600">{record.employeeRole || "--"}</td>
+                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{record.department || "--"}</td>
+                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{formatRoleLabel(record.employeeRole)}</td>
                           <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">{formatLongDate(record.date)}</td>
                           <td className="px-5 py-4">
                             <span className="text-[12px] font-pmedium text-slate-800">
@@ -1123,7 +1154,7 @@ export default function HRAttendanceReviewPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-[11px] text-slate-600">{correction.department || "--"}</td>
+                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">{correction.department || "--"}</td>
                           <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">{formatLongDate(correction.date)}</td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-1.5">
@@ -1136,6 +1167,11 @@ export default function HRAttendanceReviewPage() {
                               <span className="text-[11px] font-pmedium text-amber-600">
                                 {correction.requestedCheckOut ? formatTime12h(correction.requestedCheckOut) : "--"}
                               </span>
+                              {(correction.breaks || []).length > 0 && (
+                                <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 text-[10px] font-pmedium">
+                                  <Coffee size={10} /> {correction.breaks!.length}
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="px-5 py-4"><StatusBadge status={correction.status} /></td>

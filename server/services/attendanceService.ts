@@ -2,12 +2,14 @@
 import mongoose from "mongoose";
 import { uploadFileToS3 } from "../config/s3config.js";
 import Attendance from "../models/Attendance.js";
+import LeaveRequest from "../models/LeaveRequest.js";
 import Department from "../models/Department.js";
 import EmployeeProfile from "../models/EmployeeProfile.js";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
+import { findApprovedLeaveOnDate } from "./core/leave.service.js";
 import {
   DEFAULT_WORKSPACE_TIMEZONE,
   getZonedDateKey,
@@ -153,6 +155,19 @@ const getRoleBand = (role = "") => {
   return "employee";
 };
 
+// Owner/super-admin have workspace-wide reach, so their "department" is every
+// department rather than whatever they happen to be assigned to for testing.
+// Everyone else shows every department they're actually linked to, not just
+// the first one — an admin or manager can be assigned to more than one.
+const resolveDepartmentDisplayLabel = (roleName = "", departmentNames = []) => {
+  const roleBand = getRoleBand(roleName);
+  if (roleBand === "owner" || roleBand === "super_admin") return "All Departments";
+  const names = Array.from(
+    new Set((departmentNames || []).map((name) => String(name || "").trim()).filter(Boolean)),
+  );
+  return names.length > 0 ? names.join(" / ") : "General";
+};
+
 const getWorkspaceIdFromUser = async (userId) => {
   const normalizedUserId = toId(userId?.userId || userId?.id || userId?._id || userId);
   const user = await HostUser.findById(normalizedUserId)
@@ -209,33 +224,6 @@ const canManageAttendanceGeofence = (membership) => {
     roleBand === "manager" ||
     roleName.includes("hr")
   );
-};
-
-const TEST_MEMBER_HINTS = [
-  "test",
-  "dummy",
-  "sample",
-  "fake",
-  "demo",
-  "temp",
-  "testing",
-];
-
-const isLikelyTestMember = (member = {}) => {
-  const values = [
-    member?.employeeId,
-    member?.employeeCode,
-    member?.fullName,
-    member?.name,
-    member?.user?.name,
-    member?.user?.email,
-    member?.email,
-    member?.role?.name,
-  ]
-    .map((value) => String(value || "").trim().toLowerCase())
-    .filter(Boolean);
-
-  return values.some((value) => TEST_MEMBER_HINTS.some((hint) => value.includes(hint)));
 };
 
 const formatGeofence = (workspace) => {
@@ -746,7 +734,10 @@ const formatRecordForFrontend = async (record, membership = null) => {
     employeeName: plain?.employeeName || "",
     employeeId: plain?.employeeId || (membership?.employeeId || ""),
     employeeRole,
-    department: plain?.department?.name || plain?.departmentLabel || departments[0] || "General",
+    department: resolveDepartmentDisplayLabel(
+      employeeRole,
+      departments.length ? departments : [plain?.department?.name || plain?.departmentLabel].filter(Boolean),
+    ),
     date: plain?.dateKey || toDateLabel(attendanceDate),
     checkIn: toTimeLabel(effectiveCheckIn, timezone),
     checkOut: toTimeLabel(effectiveCheckOut, timezone),
@@ -810,6 +801,15 @@ const formatRecordForFrontend = async (record, membership = null) => {
         originalCheckOut: toTimeLabel(plain.correctionRequest.originalCheckOutAt || plain.checkOutAt, timezone),
         requestedCheckIn: toTimeLabel(plain.correctionRequest.requestedCheckInAt || plain.checkInAt, timezone),
         requestedCheckOut: toTimeLabel(plain.correctionRequest.requestedCheckOutAt || plain.checkOutAt, timezone),
+        breaks: Array.isArray(plain.correctionRequest.requestedBreaks)
+          ? plain.correctionRequest.requestedBreaks.map((adjustment) => ({
+            breakIndex: adjustment?.breakIndex ?? 0,
+            originalStart: toTimeLabel(adjustment?.originalStartAt, timezone),
+            originalEnd: toTimeLabel(adjustment?.originalEndAt, timezone),
+            requestedStart: toTimeLabel(adjustment?.requestedStartAt || adjustment?.originalStartAt, timezone),
+            requestedEnd: toTimeLabel(adjustment?.requestedEndAt || adjustment?.originalEndAt, timezone),
+          }))
+          : [],
         actionedBy: plain.correctionRequest.reviewedByName || "",
         rejectionReason: plain.correctionRequest.reviewedReason || "",
       }
@@ -1075,8 +1075,49 @@ const canManageTeamAttendance = async (membership) => {
   return band === "owner" || band === "super_admin" || band === "hr" || band === "admin" || band === "manager";
 };
 
+// Block clock-in when the user has an approved leave covering today. Full-day
+// leaves block all day; half-day leaves block only during the affected
+// session so the user can still clock in for the other half.
+const assertNotOnLeave = async (workspace, user) => {
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const todayKey = toDateKey(new Date(), timezone);
+  const approvedLeave = await findApprovedLeaveOnDate(workspace._id, user._id, todayKey);
+  if (!approvedLeave) return;
+
+  const mode = String(approvedLeave.leaveMode || "full_day");
+  const weeklyHours = Number(workspace?.attendanceSettings?.weeklyWorkingHours);
+  const dailyHours = Number.isFinite(weeklyHours) && weeklyHours > 0 ? weeklyHours / 5 : 8;
+  const leaveHours = Number(approvedLeave.leaveHours || 0);
+
+  const isFullDayLeave = mode === "full_day" || (mode === "hours" && leaveHours >= dailyHours - 0.001);
+
+  if (isFullDayLeave) {
+    throw Object.assign(
+      new Error(
+        `You are on approved ${approvedLeave.leaveType} leave (${approvedLeave.leaveCode}) today, so clock-in is disabled until it ends.`,
+      ),
+      { statusCode: 409 },
+    );
+  }
+
+  if (mode === "half_day" && approvedLeave.halfDaySession) {
+    const localNow = getZonedDateTimeParts(new Date(), timezone);
+    const minutes = localNow.hour * 60 + localNow.minute;
+    const currentSession = minutes < HALF_DAY_CHECKIN_CUTOFF_MINUTES ? "morning" : "evening";
+    if (approvedLeave.halfDaySession === currentSession) {
+      throw Object.assign(
+        new Error(
+          `You are on approved ${approvedLeave.halfDaySession} leave (${approvedLeave.leaveCode}) right now. Please clock in during your ${currentSession === "morning" ? "evening" : "morning"} session.`,
+        ),
+        { statusCode: 409 },
+      );
+    }
+  }
+};
+
 export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
+  await assertNotOnLeave(workspace, user);
   if (!isAttendanceConfigured(workspace)) {
     throw Object.assign(
       new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
@@ -1290,6 +1331,96 @@ export async function checkOutAttendance(userId, input = {}, selfieFile = null) 
   };
 }
 
+const addDaysToDateKey = (dateKey, days) => {
+  const [year, month, day] = String(dateKey || "").split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+// Anyone who forgets to clock out (or forgets to end a break) is auto-clocked
+// out at 12:00 AM workspace-local time on the day after they checked in, so
+// open sessions never bleed into the next day's numbers. The employee can
+// then file a correction request (reviewed by HR/admin/manager via
+// reviewAttendanceCorrection) to fix the recorded times.
+export async function runAttendanceAutoCheckoutSweep() {
+  const now = new Date();
+  const openRecords = await Attendance.find({
+    checkInAt: { $ne: null },
+    checkOutAt: null,
+  }).exec();
+
+  for (const record of openRecords) {
+    const timezone = normalizeTimeZone(record.timezone);
+    const currentDateKey = toDateKey(now, timezone);
+    if (currentDateKey <= record.dateKey) continue;
+
+    const nextDateKey = addDaysToDateKey(record.dateKey, 1);
+    const autoCheckoutMoment = parseWorkspaceDateTime(`${nextDateKey}T00:00:00`, timezone);
+    if (Number.isNaN(autoCheckoutMoment.getTime())) continue;
+
+    if (record.isActiveBreak && record.activeBreakStartedAt) {
+      const seconds = Math.max(0, Math.floor((autoCheckoutMoment.getTime() - new Date(record.activeBreakStartedAt).getTime()) / 1000));
+      const latestBreak = Array.isArray(record.breakLogs) ? record.breakLogs[record.breakLogs.length - 1] : null;
+      if (latestBreak && !latestBreak.endAt) {
+        latestBreak.endAt = autoCheckoutMoment;
+        latestBreak.durationSeconds = seconds;
+      }
+      record.breakSeconds = Math.max(0, Number(record.breakSeconds) + seconds);
+      record.isActiveBreak = false;
+      record.activeBreakStartedAt = null;
+    }
+
+    record.checkOutAt = autoCheckoutMoment;
+    record.autoCheckoutAt = autoCheckoutMoment;
+
+    const workedSeconds = computeWorkedSeconds(record, autoCheckoutMoment);
+    record.workedSeconds = workedSeconds;
+
+    const halfDayThresholdSeconds = Number.isFinite(record.halfDayThresholdSeconds)
+      ? record.halfDayThresholdSeconds
+      : HALF_DAY_MINUTES * 60;
+    const workStartMinutes = Number.isFinite(record.workStartMinutes)
+      ? record.workStartMinutes
+      : DEFAULT_WORK_HOUR_START * 60;
+    const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
+    const checkInLocalParts = getZonedDateTimeParts(record.checkInAt, timezone);
+    const checkInMinutes = checkInLocalParts.hour * 60 + checkInLocalParts.minute;
+
+    record.status = (workedSeconds <= halfDayThresholdSeconds || checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES)
+      ? "half_day"
+      : checkInMinutes > lateThresholdMinutes
+        ? "present_late"
+        : "present";
+
+    try {
+      await record.save();
+    } catch (err) {
+      console.error(`Attendance auto-checkout failed for record ${record._id}:`, err?.message || err);
+    }
+  }
+}
+
+const AUTO_CHECKOUT_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * Sweeps for attendance records left open past workspace-local midnight and
+ * auto-checks them out. Runs inside the long-lived Express process; safe to
+ * call once at startup after MongoDB is connected.
+ */
+export const startAttendanceAutoCheckoutScheduler = () => {
+  const tick = () => {
+    runAttendanceAutoCheckoutSweep().catch((err) => {
+      console.error("Attendance auto-checkout sweep failed:", err?.message || err);
+    });
+  };
+
+  tick();
+  const timer = setInterval(tick, AUTO_CHECKOUT_SWEEP_INTERVAL_MS);
+  timer.unref?.();
+  return timer;
+};
+
 export async function startBreakAttendance(userId, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
   if (!isAttendanceConfigured(workspace)) {
@@ -1440,11 +1571,46 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     .exec();
 
   const recordMap = buildAttendanceDateMap(records);
+  const myRoleName = getRoleName(membership?.role || "");
+  const myDepartmentLabel = resolveDepartmentDisplayLabel(
+    myRoleName,
+    await getDepartmentNamesForMembership(membership),
+  );
+
+  const approvedLeaves = await LeaveRequest.find({
+    workspaceId: workspace._id,
+    requesterUserId: user._id,
+    status: "approved",
+    startDate: { $lte: new Date(`${keys[keys.length - 1]}T23:59:59.999Z`) },
+    endDate: { $gte: new Date(`${keys[0]}T00:00:00.000Z`) },
+  })
+    .select("leaveCode leaveType leaveMode leaveHours halfDaySession startDate endDate")
+    .lean()
+    .exec();
+  const leaveByDateKey = new Map();
+  for (const leave of approvedLeaves) {
+    const startKey = (leave.startDate ? new Date(leave.startDate) : new Date()).toISOString().slice(0, 10);
+    const endKey = (leave.endDate ? new Date(leave.endDate) : new Date(startKey)).toISOString().slice(0, 10);
+    const from = startKey < keys[0] ? keys[0] : startKey;
+    const to = endKey > keys[keys.length - 1] ? keys[keys.length - 1] : endKey;
+    const cursor = new Date(`${from}T12:00:00.000Z`);
+    const last = new Date(`${to}T12:00:00.000Z`);
+    while (cursor <= last) {
+      const key = cursor.toISOString().slice(0, 10);
+      if (!leaveByDateKey.has(key)) leaveByDateKey.set(key, leave);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
   const rows = [];
   for (const dateKey of keys) {
     const existing = recordMap.get(dateKey);
+    const activeLeave = leaveByDateKey.get(dateKey) || null;
     if (existing) {
-      rows.push(await formatRecordForFrontend(existing, membership));
+      rows.push({
+        ...(await formatRecordForFrontend(existing, membership)),
+        activeLeave,
+      });
       continue;
     }
     // A day that hasn't happened yet was never "absent" — that label only
@@ -1457,9 +1623,8 @@ export async function getMyAttendanceHistory(userId, query = {}) {
         userId: toId(user._id),
         employeeName: user.name || "",
         employeeId: "",
-        department: Array.isArray(membership?.departments) && membership.departments[0]
-          ? String(membership.departments[0]?.name || "General")
-          : "General",
+        employeeRole: myRoleName,
+        department: myDepartmentLabel,
         date: dateKey,
         checkIn: "",
         checkOut: "",
@@ -1479,23 +1644,24 @@ export async function getMyAttendanceHistory(userId, query = {}) {
         earlyMinutes: 0,
         breaks: [],
         correction: null,
+        activeLeave: null,
       });
       continue;
     }
     const date = new Date(`${dateKey}T12:00:00.000Z`);
+    const isOnLeave = Boolean(activeLeave);
     rows.push({
-      recordId: `absent-${user._id}-${dateKey}`,
-      id: `absent-${user._id}-${dateKey}`,
+      recordId: isOnLeave ? `leave-${user._id}-${dateKey}` : `absent-${user._id}-${dateKey}`,
+      id: isOnLeave ? `leave-${user._id}-${dateKey}` : `absent-${user._id}-${dateKey}`,
       userId: toId(user._id),
       employeeName: user.name || "",
       employeeId: "",
-      department: Array.isArray(membership?.departments) && membership.departments[0]
-        ? String(membership.departments[0]?.name || "General")
-        : "General",
+      employeeRole: myRoleName,
+      department: myDepartmentLabel,
       date: dateKey,
       checkIn: "",
       checkOut: "",
-      status: date.getUTCDay() === 0 ? "sunday_off" : "absent",
+      status: isOnLeave ? "on_leave" : date.getUTCDay() === 0 ? "sunday_off" : "absent",
       source: "office",
       checkInLocation: "",
       checkOutLocation: "",
@@ -1546,7 +1712,6 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
 
   const visibleMembers = members.filter((member) => {
     if (toId(member?.user?._id) === toId(user._id)) return false;
-    if (isLikelyTestMember(member)) return false;
     if (managedDepartmentIds === null) return true;
     if (managedDepartmentIds.length === 0) return false;
     const memberDeptIds = Array.isArray(member?.departments)
@@ -1598,27 +1763,46 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     }).lean().exec()
     : [];
   const dayRecordByUserId = new Map(dayRecords.map((r) => [toId(r.employeeUserId), r]));
+  const approvedLeaves = memberUserIds.length
+    ? await LeaveRequest.find({
+      workspaceId: workspace._id,
+      requesterUserId: { $in: memberUserIds },
+      status: "approved",
+      startDate: { $lte: new Date(`${requestedDateKey}T23:59:59.999Z`) },
+      endDate: { $gte: new Date(`${requestedDateKey}T00:00:00.000Z`) },
+    })
+      .select("leaveCode leaveType leaveMode leaveHours halfDaySession requesterUserId")
+      .lean()
+      .exec()
+    : [];
+  const approvedLeaveByUserId = new Map(
+    approvedLeaves.map((leave) => [toId(leave.requesterUserId), leave]),
+  );
   const requestedDateIsSunday = new Date(`${requestedDateKey}T12:00:00.000Z`).getUTCDay() === 0;
   const requestedDateIsFuture = requestedDateKey > todayKey;
 
   const rows = [];
   for (const member of uniqueVisibleMembers) {
-    const memberDepartmentName = Array.isArray(member?.departments) && member.departments[0]
-      ? String(member.departments[0]?.name || "General")
-      : "General";
+    const memberDepartmentName = resolveDepartmentDisplayLabel(
+      getRoleName(member?.role || ""),
+      Array.isArray(member?.departments) ? member.departments.map((dept) => dept?.name) : [],
+    );
     const empId = employeeIdByMemberId.get(toId(member._id)) || employeeIdByUserId.get(toId(member.user?._id)) || "";
     const existing = dayRecordByUserId.get(toId(member.user._id));
+    const activeLeave = approvedLeaveByUserId.get(toId(member.user._id)) || null;
     if (existing) {
       rows.push({
         ...(await formatRecordForFrontend(existing, { ...member, employeeId: empId })),
         employeeName: member.user.name || member.user.email || "Unknown",
         department: memberDepartmentName,
+        activeLeave,
       });
       continue;
     }
+    const leavePlaceholder = activeLeave && !requestedDateIsFuture;
     rows.push({
-      recordId: `absent-${member.user._id}-${requestedDateKey}`,
-      id: `absent-${member.user._id}-${requestedDateKey}`,
+      recordId: leavePlaceholder ? `leave-${member.user._id}-${requestedDateKey}` : `absent-${member.user._id}-${requestedDateKey}`,
+      id: leavePlaceholder ? `leave-${member.user._id}-${requestedDateKey}` : `absent-${member.user._id}-${requestedDateKey}`,
       userId: toId(member.user._id),
       employeeName: member.user.name || member.user.email || "Unknown",
       employeeId: empId,
@@ -1627,7 +1811,7 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       date: requestedDateKey,
       checkIn: "",
       checkOut: "",
-      status: requestedDateIsFuture ? "upcoming" : requestedDateIsSunday ? "sunday_off" : "absent",
+      status: leavePlaceholder ? "on_leave" : requestedDateIsFuture ? "upcoming" : requestedDateIsSunday ? "sunday_off" : "absent",
       source: "office",
       checkInLocation: "",
       checkOutLocation: "",
@@ -1643,6 +1827,7 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       earlyMinutes: 0,
       breaks: [],
       correction: null,
+      activeLeave,
     });
   }
 
@@ -1680,6 +1865,7 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       originalCheckOut: formatted.correction?.originalCheckOut || formatted.checkOut,
       requestedCheckIn: formatted.correction?.requestedCheckIn || formatted.checkIn,
       requestedCheckOut: formatted.correction?.requestedCheckOut || formatted.checkOut,
+      breaks: formatted.correction?.breaks || [],
       actionedBy: formatted.correction?.actionedBy || "",
       rejectionReason: formatted.correction?.rejectionReason || "",
     });
@@ -1725,7 +1911,8 @@ export async function getEmployeeAttendanceHistory(userId, targetUserId, query =
   }
 
   const monthKey = query.month;
-  const todayKey = toDateKey(new Date(), normalizeTimeZone(workspace?.preferences?.timezone));
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const todayKey = toDateKey(new Date(), timezone);
   const rows = await buildMonthlyRowsForMember(
     targetUserId,
     targetMembership?.user?.name || targetMembership?.fullName || "",
@@ -1752,16 +1939,19 @@ export async function getEmployeeAttendanceHistory(userId, targetUserId, query =
     .exec();
   const resolvedEmployeeId = employeeProfileRecord?.employeeId || "";
 
+  const weeklyHours = await getWeeklyHoursSummary(workspace, targetUserId, timezone);
+
   return {
     employee: {
       userId: toId(targetUserId),
       fullName: targetUser?.name || targetUser?.email || "",
       employeeId: resolvedEmployeeId,
       role: getRoleName(targetMembership?.role || ""),
-      department: targetDepartments.length > 0 ? targetDepartments.join(" / ") : "General",
+      department: resolveDepartmentDisplayLabel(getRoleName(targetMembership?.role || ""), targetDepartments),
       departments: targetDepartments,
     },
     records: rows,
+    stats: { weeklyHours },
   };
 }
 
@@ -1792,13 +1982,49 @@ export async function requestAttendanceCorrection(userId, recordId, input = {}) 
     throw error;
   }
 
-  const requestedCheckInAt = input?.requestedCheckIn ? new Date(input.requestedCheckIn) : null;
-  const requestedCheckOutAt = input?.requestedCheckOut ? new Date(input.requestedCheckOut) : null;
+  // The correction form's <input type="time"> only ever sends a bare
+  // "HH:MM" (24-hour) value, with no date — anchor it to this record's own
+  // day in the workspace's timezone. Full ISO datetime strings (from other
+  // callers) still parse as-is.
+  const recordTimezone = normalizeTimeZone(record.timezone);
+  const parseCorrectionTime = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    const bareTimeMatch = /^(\d{1,2}):(\d{2})$/.exec(raw);
+    const parsed = bareTimeMatch
+      ? parseWorkspaceDateTime(`${record.dateKey}T${raw}:00`, recordTimezone)
+      : new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      const error = new Error("Invalid correction datetime value.");
+      error.statusCode = 400;
+      throw error;
+    }
+    return parsed;
+  };
 
-  if ((requestedCheckInAt && Number.isNaN(requestedCheckInAt.getTime())) || (requestedCheckOutAt && Number.isNaN(requestedCheckOutAt.getTime()))) {
-    const error = new Error("Invalid correction datetime value.");
-    error.statusCode = 400;
-    throw error;
+  const requestedCheckInAt = parseCorrectionTime(input?.requestedCheckIn);
+  const requestedCheckOutAt = parseCorrectionTime(input?.requestedCheckOut);
+
+  // A forgotten break-end also gets auto-clocked-out at midnight (see
+  // runAttendanceAutoCheckoutSweep), so any break in this day's breakLogs can
+  // be corrected the same way as check-in/check-out, addressed by its index.
+  const breakLogs = Array.isArray(record.breakLogs) ? record.breakLogs : [];
+  const requestedBreaksInput = Array.isArray(input?.breaks) ? input.breaks : [];
+  const requestedBreaks = [];
+  for (const entry of requestedBreaksInput) {
+    const breakIndex = Number(entry?.breakIndex);
+    if (!Number.isInteger(breakIndex) || breakIndex < 0 || breakIndex >= breakLogs.length) continue;
+    const requestedStartAt = parseCorrectionTime(entry?.requestedStart);
+    const requestedEndAt = parseCorrectionTime(entry?.requestedEnd);
+    if (!requestedStartAt && !requestedEndAt) continue;
+    const existingBreak = breakLogs[breakIndex];
+    requestedBreaks.push({
+      breakIndex,
+      originalStartAt: existingBreak?.startAt || null,
+      originalEndAt: existingBreak?.endAt || null,
+      requestedStartAt,
+      requestedEndAt,
+    });
   }
 
   record.correctionRequest = {
@@ -1806,6 +2032,7 @@ export async function requestAttendanceCorrection(userId, recordId, input = {}) 
     originalCheckOutAt: record.checkOutAt || null,
     requestedCheckInAt,
     requestedCheckOutAt,
+    requestedBreaks,
     reason: String(input?.reason || "").trim(),
     status: "pending",
     reviewedByName: "",
@@ -1862,6 +2089,28 @@ export async function reviewAttendanceCorrection(userId, recordId, input = {}) {
     const nextCheckOutAt = record.correctionRequest.requestedCheckOutAt || record.checkOutAt || null;
     record.checkInAt = nextCheckInAt;
     record.checkOutAt = nextCheckOutAt;
+
+    const breakAdjustments = Array.isArray(record.correctionRequest.requestedBreaks)
+      ? record.correctionRequest.requestedBreaks
+      : [];
+    if (breakAdjustments.length && Array.isArray(record.breakLogs)) {
+      for (const adjustment of breakAdjustments) {
+        const breakEntry = record.breakLogs[adjustment.breakIndex];
+        if (!breakEntry) continue;
+        if (adjustment.requestedStartAt) breakEntry.startAt = adjustment.requestedStartAt;
+        if (adjustment.requestedEndAt) breakEntry.endAt = adjustment.requestedEndAt;
+        breakEntry.durationSeconds = breakEntry.startAt && breakEntry.endAt
+          ? Math.max(0, Math.floor((new Date(breakEntry.endAt).getTime() - new Date(breakEntry.startAt).getTime()) / 1000))
+          : 0;
+      }
+      // Every break correction touches the day's total break time, so working
+      // hours come out right whichever break(s) were adjusted.
+      record.breakSeconds = record.breakLogs.reduce(
+        (sum, breakEntry) => sum + Math.max(0, Number(breakEntry?.durationSeconds) || 0),
+        0,
+      );
+    }
+
     recalculateAfterCorrection(record);
   }
 

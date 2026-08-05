@@ -36,7 +36,7 @@ import AttendanceDayTimeline from '@/components/attendance/AttendanceDayTimeline
 import { useLiveTimes, formatSeconds } from '@/components/attendance/useLiveTimes';
 import { statusPillClass } from '../../lib/status-pill';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
-import { getWorkspaceDateKey } from '@/lib/workspaceLocalization';
+import { getWorkspaceDateKey, getWorkspaceTime } from '@/lib/workspaceLocalization';
 
 /* ── Types ── */
 interface AttendanceRecord {
@@ -85,6 +85,14 @@ interface BreakEntry {
   type?: string;
 }
 
+interface CorrectionBreakAdjustment {
+  breakIndex: number;
+  originalStart?: string;
+  originalEnd?: string;
+  requestedStart?: string;
+  requestedEnd?: string;
+}
+
 interface CorrectionEntry {
   requestedAt?: string;
   status?: string;
@@ -94,6 +102,7 @@ interface CorrectionEntry {
   originalCheckOut?: string;
   requestedCheckIn?: string;
   requestedCheckOut?: string;
+  breaks?: CorrectionBreakAdjustment[];
   actionedBy?: string;
   rejectionReason?: string;
 }
@@ -114,17 +123,29 @@ interface AttendanceStats {
   weeklyHours?: WeeklyHoursSummary;
 }
 
+interface CorrectionBreakForm {
+  breakIndex: number;
+  originalStart: string;
+  originalEnd: string;
+  requestedStart: string;
+  requestedEnd: string;
+  include: boolean;
+}
+
 interface CorrectionForm {
   recordId: string;
   type: string;
   reason: string;
   requestedCheckIn: string;
   requestedCheckOut: string;
+  breaks: CorrectionBreakForm[];
 }
 
 interface TeamMemberAttendance {
   userId: string;
   employeeName: string;
+  employeeId?: string;
+  employeeRole?: string;
   department: string;
   date: string;
   checkIn?: string;
@@ -136,6 +157,26 @@ interface TeamMemberAttendance {
 /* ── Helpers ── */
 const getLocalDateString = (date: Date = new Date(), timeZone?: string) =>
   getWorkspaceDateKey(date, timeZone);
+
+// Role names come back lowercase from the API (e.g. "super_admin") — display
+// them Title_Cased ("Super_Admin") without touching acronyms that are
+// already uppercase (e.g. "HR").
+const formatRoleLabel = (role?: string): string => {
+  const value = String(role || '').trim();
+  if (!value) return '--';
+  return value.replace(/(^|[_\s])([a-z])/g, (_match, sep, letter) => `${sep}${letter.toUpperCase()}`);
+};
+
+// Every date shown to the user renders as DD-MM-YYYY, regardless of the
+// underlying "YYYY-MM-DD" dateKey/ISO format it arrives in.
+const formatDateDMY = (value?: string): string => {
+  if (!value) return '--';
+  const date = new Date(value.length <= 10 ? `${value}T12:00:00` : value);
+  if (Number.isNaN(date.getTime())) return value;
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}-${month}-${date.getFullYear()}`;
+};
 
 const getLocalMonthKey = (date: Date = new Date(), timeZone?: string) =>
   getWorkspaceDateKey(date, timeZone).slice(0, 7);
@@ -259,6 +300,7 @@ const INITIAL_CORRECTION_FORM: CorrectionForm = {
   reason: '',
   requestedCheckIn: '',
   requestedCheckOut: '',
+  breaks: [],
 };
 
 /* ── Default stats ── */
@@ -429,18 +471,19 @@ export function AttendancePage() {
       : 'checked_out';
 
   // Only completed clock-ins belong in the history table — a day with no
-  // check-in never happened, and today stays in the live "Today's Timeline"
-  // card (above) until the user clocks out, at which point it moves down here.
+  // check-in never happened, and today stays in the live clock-in card
+  // (above) until the user clocks out, at which point it moves down here.
   const visibleMyRecords = useMemo(() => {
     return myRecords
       .filter((record) => {
         if (!record.checkIn) return false;
         if (record.date === todayDate && !record.checkOut) return false;
+        if (subTab !== 'all' && record.status?.toLowerCase() !== subTab) return false;
         return true;
       })
       .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
       .slice(0, 10);
-  }, [myRecords, todayDate]);
+  }, [myRecords, todayDate, subTab]);
 
   const allDepartments = useMemo<string[]>(() => {
     if (assignedDepartmentNames.length > 0) return assignedDepartmentNames;
@@ -717,12 +760,27 @@ export function AttendancePage() {
 
   /* ── Correction Handlers ── */
   const handleOpenCorrectionForm = (record: AttendanceRecord) => {
+    // <input type="time"> requires a bare 24-hour "HH:MM" value — record.checkIn/
+    // checkOut are already formatted as 12-hour labels (e.g. "10:30 AM") for
+    // display, so re-derive from the ISO timestamps here instead.
     setCorrectionForm({
       recordId: record.recordId || record.id || '',
       type: 'check_in',
       reason: '',
-      requestedCheckIn: record.checkIn || '',
-      requestedCheckOut: record.checkOut || '',
+      requestedCheckIn: record.checkInAt ? getWorkspaceTime(record.checkInAt, workspacePreferences.timezone) : '',
+      requestedCheckOut: record.checkOutAt ? getWorkspaceTime(record.checkOutAt, workspacePreferences.timezone) : '',
+      breaks: (record.breaks || []).map((entry, index) => {
+        const start = entry.startAt ? getWorkspaceTime(entry.startAt, workspacePreferences.timezone) : '';
+        const end = entry.endAt ? getWorkspaceTime(entry.endAt, workspacePreferences.timezone) : '';
+        return {
+          breakIndex: index,
+          originalStart: start,
+          originalEnd: end,
+          requestedStart: start,
+          requestedEnd: end,
+          include: false,
+        };
+      }),
     });
     setShowCorrectionForm(true);
   };
@@ -738,6 +796,9 @@ export function AttendancePage() {
         reason: correctionForm.reason,
         requestedCheckIn: correctionForm.requestedCheckIn || undefined,
         requestedCheckOut: correctionForm.requestedCheckOut || undefined,
+        breaks: correctionForm.breaks
+          .filter((b) => b.include && (b.requestedStart || b.requestedEnd))
+          .map((b) => ({ breakIndex: b.breakIndex, requestedStart: b.requestedStart, requestedEnd: b.requestedEnd })),
       });
       setShowCorrectionForm(false);
       setCorrectionForm(INITIAL_CORRECTION_FORM);
@@ -782,6 +843,22 @@ export function AttendancePage() {
     setDayRecords(filtered);
   };
 
+  // getTeamAttendance (allRecords) deliberately excludes the signed-in user
+  // from their own "team" roster, so a correction request the user filed for
+  // themself never showed up there. The Corrections tab needs to see both.
+  const correctionRecords = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: AttendanceRecord[] = [];
+    for (const record of [...myRecords, ...allRecords]) {
+      if (!record.correction) continue;
+      const key = record.recordId || record.id || `${record.userId}-${record.date}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(record);
+    }
+    return merged;
+  }, [myRecords, allRecords]);
+
   /* ── Stats for tabs ── */
   const tabCards = useMemo(() => {
     if (activeTab === 'my-attendance') {
@@ -805,11 +882,11 @@ export function AttendancePage() {
       ];
     }
     if (activeTab === 'corrections') {
-      const pending = allRecords.filter((r) => r.correction?.status === 'pending').length;
-      const approved = allRecords.filter((r) => r.correction?.status === 'approved').length;
-      const rejected = allRecords.filter((r) => r.correction?.status === 'rejected').length;
+      const pending = correctionRecords.filter((r) => r.correction?.status === 'pending').length;
+      const approved = correctionRecords.filter((r) => r.correction?.status === 'approved').length;
+      const rejected = correctionRecords.filter((r) => r.correction?.status === 'rejected').length;
       return [
-        { key: 'total', label: 'Total Records', value: allRecords.length, color: 'slate', icon: Calendar },
+        { key: 'total', label: 'Total Requests', value: correctionRecords.length, color: 'slate', icon: Calendar },
         { key: 'pending', label: 'Pending Corrections', value: pending, color: 'amber', icon: Clock },
         { key: 'approved', label: 'Approved', value: approved, color: 'emerald', icon: CheckCircle2 },
         { key: 'rejected', label: 'Rejected', value: rejected, color: 'rose', icon: XCircle },
@@ -821,7 +898,7 @@ export function AttendancePage() {
       { key: 'absent', label: 'Absent', value: teamStats.absent, color: 'rose', icon: XCircle },
       { key: 'late', label: 'Late', value: teamStats.late, color: 'amber', icon: AlertCircle },
     ];
-  }, [activeTab, myStats, teamStats, allRecords]);
+  }, [activeTab, myStats, teamStats, allRecords, correctionRecords]);
 
   const mainTabs = useMemo(() => {
     const tabs: { id: string; label: string }[] = [];
@@ -937,6 +1014,45 @@ export function AttendancePage() {
               )}
             </div>
           ) : null}
+
+          {/* MAIN TABS */}
+          {mainTabs.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {mainTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setSearchQuery(''); setSubTab('all'); }}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* STAT CARDS */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {tabCards.map((card) => {
+              const Icon = card.icon;
+              const colorMap: Record<string, string> = {
+                emerald: 'border-l-emerald-500 bg-emerald-50 text-emerald-600',
+                rose: 'border-l-rose-500 bg-rose-50 text-rose-600',
+                amber: 'border-l-amber-500 bg-amber-50 text-amber-600',
+                blue: 'border-l-blue-500 bg-blue-50 text-blue-600',
+                slate: 'border-l-slate-500 bg-slate-50 text-slate-600',
+              };
+              const iconBg = colorMap[card.color]?.split('bg-')[1]?.split(' ')[0] ? `bg-${colorMap[card.color].split('bg-')[1].split(' ')[0]}` : 'bg-slate-50';
+              return (
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-${card.color}-500`}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${iconBg}`}><Icon size={16} /></div>
+                </div>
+              );
+            })}
+          </div>
 
           {/* CLOCK IN/OUT CARD — my attendance only; team/corrections don't clock anyone in */}
           {activeTab === 'my-attendance' && (
@@ -1056,70 +1172,26 @@ export function AttendancePage() {
                   />
                 </div>
               </div>
-            </div>
-          </div>
-          )}
 
-          {/* MAIN TABS */}
-          {mainTabs.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-              {mainTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setSearchQuery(''); setSubTab('all'); }}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-            {tabCards.map((card) => {
-              const Icon = card.icon;
-              const colorMap: Record<string, string> = {
-                emerald: 'border-l-emerald-500 bg-emerald-50 text-emerald-600',
-                rose: 'border-l-rose-500 bg-rose-50 text-rose-600',
-                amber: 'border-l-amber-500 bg-amber-50 text-amber-600',
-                blue: 'border-l-blue-500 bg-blue-50 text-blue-600',
-                slate: 'border-l-slate-500 bg-slate-50 text-slate-600',
-              };
-              const iconBg = colorMap[card.color]?.split('bg-')[1]?.split(' ')[0] ? `bg-${colorMap[card.color].split('bg-')[1].split(' ')[0]}` : 'bg-slate-50';
-              return (
-                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-${card.color}-500`}>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
-                  </div>
-                  <div className={`p-2 rounded-2xl ${iconBg}`}><Icon size={16} /></div>
+              {/* Today's timeline — folded into this card instead of a separate one below, since everything here is already scoped to today */}
+              {(isTodayInProgress || isTodayCompleted) && (
+                <div className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                  {/* <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Today's Timeline</p>
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.24em] ${clockStatus === 'on_break' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                      {clockStatusLabel}
+                    </span>
+                  </div> */}
+                  <AttendanceDayTimeline record={todayRecord || undefined} hideSummary compact />
+                  {isTodayCompleted && (
+                    <p className="mt-3 text-[11px] font-pmedium text-emerald-700">
+                      Attendance is locked for today. The summary will reset after midnight.
+                    </p>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-
-          {activeTab === 'my-attendance' && (isTodayInProgress || isTodayCompleted) && (
-            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 lg:p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.18em] text-slate-400">Today's Timeline</p>
-                  <h3 className="mt-1 text-base font-pbold text-slate-900">{todayDate}</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Status</span>
-                  <span className={`rounded-full px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.24em] ${clockStatus === 'on_break' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                    {clockStatusLabel}
-                  </span>
-                </div>
-              </div>
-              <AttendanceDayTimeline record={todayRecord || undefined} />
-              {isTodayCompleted && (
-                <p className="mt-3 text-[11px] font-pmedium text-emerald-700">
-                  Attendance is locked for today. The summary will reset after midnight.
-                </p>
               )}
             </div>
+          </div>
           )}
 
           {/* DATA PANEL */}
@@ -1128,7 +1200,30 @@ export function AttendancePage() {
             {/* Toolbar */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col gap-3 sm:gap-4 bg-slate-50/50">
               <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4">
-                <div className="flex flex-wrap items-center gap-3">
+                {/* LEFT: sub-tabs, standard across every tab */}
+                <div className="flex items-center gap-1.5 flex-wrap overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  {subTabs.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setSubTab(status)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${subTab === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  ))}
+                  {activeTab === 'my-attendance' && (
+                    <button
+                      onClick={() => handleViewMonth(selectedMonth)}
+                      className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-pmedium uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                    >
+                      <Calendar size={13} /> View Month
+                    </button>
+                  )}
+                </div>
+
+                {/* RIGHT: month dropdown, always immediately before search */}
+                <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                   <div className="relative">
                     <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
@@ -1142,33 +1237,6 @@ export function AttendancePage() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} />
                   </div>
-                  {activeTab === 'my-attendance' && (
-                    <button
-                      onClick={() => handleViewMonth(selectedMonth)}
-                      className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-pmedium uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-                    >
-                      <Calendar size={13} /> View Month
-                    </button>
-                  )}
-                  
-                </div>
-
-                <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                  {activeTab !== 'my-attendance' && (
-                    <div className="relative">
-                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                      <select
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
-                      >
-                        {monthOptions().map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} />
-                    </div>
-                  )}
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
@@ -1191,21 +1259,6 @@ export function AttendancePage() {
                   )}
                 </div>
               </div>
-
-              {(activeTab === 'team-attendance' || activeTab === 'corrections') && (
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {subTabs.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setSubTab(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${subTab === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Content */}
@@ -1234,7 +1287,7 @@ export function AttendancePage() {
                     ) : (
                       visibleMyRecords.map((record, idx) => (
                         <tr key={record.recordId || record.id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 font-pmedium text-slate-900">{record.date || '--'}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{formatDateDMY(record.date)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkIn)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkOut)}</td>
                           <td className="px-5 py-4">{getStatusBadge(record.status)}</td>
@@ -1246,7 +1299,7 @@ export function AttendancePage() {
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all text-[10px] font-pmedium uppercase tracking-wider"
                                 title="View Timeline & Calculations"
                               >
-                                <Eye size={13} strokeWidth={2.5} /> View
+                                <Eye size={13} strokeWidth={2.5} />
                               </button>
                               <button
                                 onClick={() => handleOpenCorrectionForm(record)}
@@ -1269,7 +1322,9 @@ export function AttendancePage() {
                 <table className="w-full text-left min-w-[800px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
+                      <th className="px-5 py-4">Emp ID</th>
                       <th className="px-5 py-4">Employee</th>
+                      <th className="px-5 py-4">Role</th>
                       <th className="px-5 py-4">Department</th>
                       <th className="px-5 py-4">Date</th>
                       <th className="px-5 py-4">Check In</th>
@@ -1281,24 +1336,26 @@ export function AttendancePage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredTeamRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-16 text-slate-400 font-pmedium">
+                        <td colSpan={9} className="text-center py-16 text-slate-400 font-pmedium">
                           No team records found.
                         </td>
                       </tr>
                     ) : (
                       filteredTeamRecords.map((record, idx) => (
                         <tr key={record.userId || idx} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">{record.employeeId || '--'}</td>
                           <td className="px-5 py-4">
                             <div className="font-pmedium text-slate-900 flex items-center gap-2">
                               <User size={14} className="text-slate-400" />
                               {record.employeeName || 'Unknown'}
                             </div>
                           </td>
+                          <td className="px-5 py-4 font-pmedium text-slate-600">{formatRoleLabel(record.employeeRole)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-600">{record.department || '--'}</td>
-                          <td className="px-5 py-4 text-slate-700">{record.date || '--'}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-700">{formatDateDMY(record.date)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkIn)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkOut)}</td>
-                          <td className="px-5 py-4">{getStatusBadge(record.status)}</td>
+                          <td className="px-5 py-4 font-pmedium">{getStatusBadge(record.status)}</td>
                           <td className="px-5 py-4 text-center">
                             <button
                               onClick={() => handleViewEmployee(record.userId, record.employeeName, record.department)}
@@ -1330,19 +1387,19 @@ export function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {allRecords.filter((r) => r.correction).length === 0 ? (
+                    {correctionRecords.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="text-center py-16 text-slate-400 font-pmedium">
                           No correction requests found.
                         </td>
                       </tr>
                     ) : (
-                      allRecords.filter((r) => r.correction).map((record, idx) => (
+                      correctionRecords.map((record, idx) => (
                         <tr key={record.recordId || record.id || idx} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4 font-pmedium text-slate-900">{record.employeeName || profile.name}</td>
-                          <td className="px-5 py-4 text-slate-700">{record.date || '--'}</td>
+                          <td className="px-5 py-4 text-slate-700 font-pmedium">{formatDateDMY(record.date)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-700 capitalize">{record.correction?.type?.replace(/_/g, ' ') || '--'}</td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 font-pmedium text-slate-700">
                             <span className="text-slate-500 text-[11px]">
                               {record.correction?.originalCheckIn ? `In: ${formatTime12b(record.correction.originalCheckIn)}` : ''}
                               {record.correction?.originalCheckOut ? ` Out: ${formatTime12b(record.correction.originalCheckOut)}` : ''}
@@ -1436,11 +1493,11 @@ export function AttendancePage() {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Date</p>
-                  <p className="mt-1 text-xs font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
+                  <p className="mt-1 text-[18px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Time</p>
-                  <p className="mt-1 text-xs font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="mt-1 text-[12px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
               <canvas ref={canvasRef} className="hidden" />
@@ -1532,6 +1589,59 @@ export function AttendancePage() {
                       />
                     </div>
                   )}
+                  {correctionForm.breaks.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Break Adjustments</p>
+                      <div className="space-y-2">
+                        {correctionForm.breaks.map((breakForm, idx) => (
+                          <div key={breakForm.breakIndex} className="rounded-lg border border-slate-200/60 p-3 bg-slate-50/60">
+                            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={breakForm.include}
+                                onChange={(e) => setCorrectionForm((prev) => ({
+                                  ...prev,
+                                  breaks: prev.breaks.map((b, i) => (i === idx ? { ...b, include: e.target.checked } : b)),
+                                }))}
+                                className="rounded border-slate-300"
+                              />
+                              <span className="text-[11px] font-pmedium text-slate-700">
+                                Correct Break {idx + 1} ({breakForm.originalStart ? formatTime12h(breakForm.originalStart) : '--'} – {breakForm.originalEnd ? formatTime12h(breakForm.originalEnd) : '--'})
+                              </span>
+                            </label>
+                            {breakForm.include && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest block mb-1">Start</label>
+                                  <input
+                                    type="time"
+                                    value={breakForm.requestedStart}
+                                    onChange={(e) => setCorrectionForm((prev) => ({
+                                      ...prev,
+                                      breaks: prev.breaks.map((b, i) => (i === idx ? { ...b, requestedStart: e.target.value } : b)),
+                                    }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest block mb-1">End</label>
+                                  <input
+                                    type="time"
+                                    value={breakForm.requestedEnd}
+                                    onChange={(e) => setCorrectionForm((prev) => ({
+                                      ...prev,
+                                      breaks: prev.breaks.map((b, i) => (i === idx ? { ...b, requestedEnd: e.target.value } : b)),
+                                    }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Reason</label>
                     <textarea
@@ -1606,7 +1716,7 @@ export function AttendancePage() {
                     <tbody className="divide-y divide-slate-100/60">
                       {employeeHistory.map((record, idx) => (
                         <tr key={record.recordId || idx} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-3 font-pmedium text-slate-900">{record.date || '--'}</td>
+                          <td className="px-4 py-3 font-pmedium text-slate-900">{formatDateDMY(record.date)}</td>
                           <td className="px-4 py-3 font-pmedium text-slate-700">{getTimeDisplay(record.checkIn)}</td>
                           <td className="px-4 py-3 font-pmedium text-slate-700">{getTimeDisplay(record.checkOut)}</td>
                           <td className="px-4 py-3">{getStatusBadge(record.status)}</td>
@@ -1710,7 +1820,7 @@ export function AttendancePage() {
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <h2 className="text-lg font-pbold text-slate-900 flex items-center gap-2">
                   <Calendar size={18} className="text-[#2563EB]" />
-                  {viewingDay}
+                  {formatDateDMY(viewingDay)}
                 </h2>
                 <button onClick={() => setViewingDay(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
               </div>
@@ -1723,17 +1833,17 @@ export function AttendancePage() {
                       <div key={idx} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                         <div className="flex justify-between items-start mb-1">
                           <div>
-                            <p className="text-xs font-pbold text-slate-700">{record.employeeName || profile.name}</p>
-                            <p className="text-[10px] text-slate-500">{record.department || '--'}</p>
+                            <p className="text-[18px] font-pbold text-slate-700">{record.employeeName || profile.name}</p>
+                            <p className="text-[12px] font-pmedium text-slate-500">{record.department || '--'}</p>
                           </div>
                           {getStatusBadge(record.status)}
                         </div>
-                        {record.source && (
+                        {/* {record.source && (
                           <div className="mb-3 -mt-1 text-right">
                             <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Source</p>
                             <p className="text-xs font-pbold text-slate-600">{record.source}</p>
                           </div>
-                        )}
+                        )} */}
                         <AttendanceDayTimeline record={record} compact />
                       </div>
                     ))}
@@ -1768,10 +1878,10 @@ export function AttendancePage() {
               <div className="p-6 space-y-4">
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                   <div className="flex justify-between items-center mb-3">
-                    <p className="text-xs font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
+                    <p className="text-[15px] font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
                     {getStatusBadge(viewingCorrection.correction?.status)}
                   </div>
-                  <p className="text-[10px] text-slate-500">{viewingCorrection.date} &middot; {viewingCorrection.department || '--'}</p>
+                  <p className="text-[10px] font-pmedium text-slate-500">{formatDateDMY(viewingCorrection.date)} &middot; {viewingCorrection.department || '--'}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
@@ -1791,6 +1901,23 @@ export function AttendancePage() {
                     <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
                   </div>
                 </div>
+                {(viewingCorrection.correction?.breaks || []).length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Break Adjustments</p>
+                    {viewingCorrection.correction.breaks.map((breakAdjustment: CorrectionBreakAdjustment) => (
+                      <div key={breakAdjustment.breakIndex} className="grid grid-cols-2 gap-3">
+                        <div className="bg-white rounded-xl p-3 border border-slate-100">
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Break {breakAdjustment.breakIndex + 1}</p>
+                          <p className="text-sm font-pbold text-slate-900">{formatTime12b(breakAdjustment.originalStart)} – {formatTime12b(breakAdjustment.originalEnd)}</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-3 border border-slate-100">
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Break {breakAdjustment.breakIndex + 1}</p>
+                          <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(breakAdjustment.requestedStart)} – {formatTime12b(breakAdjustment.requestedEnd)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
                   <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Reason</p>
                   <p className="text-xs font-pbold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
@@ -1802,7 +1929,7 @@ export function AttendancePage() {
                   </div>
                 )}
                 {viewingCorrection.correction?.actionedBy && (
-                  <p className="text-[10px] text-slate-500 text-right">Actioned by: <span className="font-pbold">{viewingCorrection.correction.actionedBy}</span></p>
+                  <p className="text-[10px] font-pmedium text-slate-500 text-right">Actioned by: <span className="font-pbold">{viewingCorrection.correction.actionedBy}</span></p>
                 )}
               </div>
             </motion.div>

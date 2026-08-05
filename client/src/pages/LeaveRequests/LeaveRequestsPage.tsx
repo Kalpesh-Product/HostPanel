@@ -30,6 +30,7 @@ interface LeaveRequest {
   actionedBy?: string;
   leaveMode: string;
   halfDaySession?: string;
+  leaveHours?: number;
   medicalCertAttached?: boolean;
   requesterBalance?: number;
   leaveType?: string;
@@ -112,7 +113,12 @@ const getLocalDateKey = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const normalizeLeaveMode = (value: string) => value === 'half_day' ? 'half_day' : 'full_day';
+const normalizeLeaveMode = (value: string) => {
+  const n = String(value || '').trim().toLowerCase();
+  if (n === 'half_day' || n === 'half-day') return 'half_day';
+  if (n === 'partial_day' || n === 'partial-day' || n === 'hours') return 'partial_day';
+  return 'full_day';
+};
 
 const isAdministrationDepartmentLabel = (value: string) => {
   const n = String(value || '').trim().toLowerCase().replace(/[_\s]+/g, '-');
@@ -566,7 +572,8 @@ export function LeaveRequestsPage() {
       }
       const payload = {
         leaveType: formData.type,
-        leaveMode: formData.leaveMode,
+        leaveMode: formData.leaveMode === 'partial_day' ? 'hours' : formData.leaveMode,
+        leaveHours: formData.leaveMode === 'partial_day' ? (Number(formData.partialDayHours) || 0) : undefined,
         halfDaySession: formData.leaveMode === 'half_day' ? (normalizeHalfDaySession(formData.halfDaySession) || undefined) : undefined,
         startDate: formData.start,
         endDate: formData.end,
@@ -634,6 +641,14 @@ export function LeaveRequestsPage() {
       return (
         <span className={statusPillClass("Half Day")}>
           Half Day{entry?.halfDaySession ? ` | ${getHalfDaySessionLabel(entry.halfDaySession)}` : ''}
+        </span>
+      );
+    }
+    if (leaveMode === 'partial_day') {
+      const hours = Number(entry?.leaveHours || 0);
+      return (
+        <span className={statusPillClass("Half Day")}>
+          {hours > 0 ? `${hours} ${hours === 1 ? 'Hour' : 'Hours'}` : 'Partial Day'}
         </span>
       );
     }
@@ -1050,7 +1065,9 @@ export function LeaveRequestsPage() {
                           <p className="text-[13px] font-semibold text-[#0F172A]">
                             {normalizeLeaveMode(viewingRequest.leaveMode || '') === 'half_day'
                               ? `Half Day${viewingRequest.halfDaySession ? ` | ${getHalfDaySessionLabel(viewingRequest.halfDaySession)}` : ''}`
-                              : 'Full Day'}
+                              : normalizeLeaveMode(viewingRequest.leaveMode || '') === 'partial_day'
+                                ? `${Number(viewingRequest.leaveHours || 0) > 0 ? `${viewingRequest.leaveHours} Hours` : 'Partial Day'}`
+                                : 'Full Day'}
                           </p>
                         </div>
                         {getLeaveModeBadge(viewingRequest)}

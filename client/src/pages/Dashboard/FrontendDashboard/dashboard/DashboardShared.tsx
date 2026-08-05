@@ -170,11 +170,11 @@ export const DonutWidget = ({
 }: DonutWidgetProps) => {
   const hasData = series.some((v) => v > 0);
   return (
-    <div className="border-default border-borderGray rounded-xl overflow-hidden">
+    <div className="h-full flex flex-col border-default border-borderGray rounded-xl overflow-hidden">
       <div className="p-4 border-b-2 border-borderGray uppercase">
         <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">{title}</span>
       </div>
-      <div className="p-4 flex justify-center">
+      <div className="p-4 flex-1 flex items-center justify-center min-h-48">
         {hasData ? (
           <DonutChart
             centerLabel={centerLabel}

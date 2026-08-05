@@ -33,6 +33,7 @@ interface DayRecord {
 interface Props {
   record?: DayRecord;
   compact?: boolean;
+  hideSummary?: boolean;
 }
 
 const SummaryBox = ({ label, value, accent }: { label: string; value: string; accent: string }) => (
@@ -64,7 +65,7 @@ const TimelineRow = ({
       </div>
       {!isLast && <div className="w-px flex-1 bg-slate-200 my-1 min-h-[14px]" />}
     </div>
-    <div className="pb-5 min-w-0 flex-1">
+    <div className={`${isLast ? '' : 'pb-5'} min-w-0 flex-1`}>
       <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{label}</p>
       <p className="text-sm font-pbold text-slate-900">{time || '--'}</p>
       {/* {detail && (
@@ -76,7 +77,7 @@ const TimelineRow = ({
   </div>
 );
 
-export default function AttendanceDayTimeline({ record, compact }: Props) {
+export default function AttendanceDayTimeline({ record, compact, hideSummary }: Props) {
   const { totalSeconds, breakSeconds, workedSeconds, isLive } = useLiveTimes(record);
   const now = new Date();
   const checkInDate = record?.checkInAt ? new Date(record.checkInAt) : null;
@@ -85,15 +86,17 @@ export default function AttendanceDayTimeline({ record, compact }: Props) {
 
   return (
     <div className={compact ? '' : 'mt-4'}>
-      {/* Calculations */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <SummaryBox label="Total Time" value={formatSeconds(totalSeconds)} accent="text-slate-900" />
-        <SummaryBox label="Break Time" value={formatSeconds(breakSeconds)} accent="text-amber-600" />
-        <SummaryBox label="Working Hours" value={formatSeconds(workedSeconds)} accent="text-emerald-600" />
-      </div>
+      {/* Calculations — skippable when the caller already shows these totals elsewhere */}
+      {!hideSummary && (
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <SummaryBox label="Total Time" value={formatSeconds(totalSeconds)} accent="text-slate-900" />
+          <SummaryBox label="Break Time" value={formatSeconds(breakSeconds)} accent="text-amber-600" />
+          <SummaryBox label="Working Hours" value={formatSeconds(workedSeconds)} accent="text-emerald-600" />
+        </div>
+      )}
 
-      {/* Timeline */}
-      <div className={`${compact ? 'mt-3' : 'mt-4'} rounded-2xl border border-slate-100 bg-white p-4`}>
+      {/* Timeline — no top margin needed when the summary grid above it is hidden, there's nothing to space away from */}
+      <div className={`${hideSummary ? '' : compact ? 'mt-3' : 'mt-4'} rounded-2xl border border-slate-100 bg-white px-4 py-3`}>
         <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-400">Timeline</p>
         {!hasAnyActivity ? (
           <div className="py-8 text-center text-slate-400 font-pmedium text-xs">

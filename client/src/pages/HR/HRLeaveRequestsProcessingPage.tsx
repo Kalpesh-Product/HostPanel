@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import PageFrame from "@/components/Pages/PageFrame";
 import { HRLeaveRequestsProcessingSkeleton } from "@/components/ui/Skeleton";
 import { getStoredUser, normalizeUserRole } from "@/lib/auth-session";
-import { getLeaveRequests, updateLeaveRequest } from "@/services/leave-requests";
+import { getLeaveRequests, updateLeaveRequest, getLeaveQuotas, updateLeaveQuota, getHolidays, createHoliday, updateHoliday, deleteHoliday } from "@/services/leave-requests";
 import { getTeamAttendance } from "@/services/attendance";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
@@ -76,6 +76,22 @@ interface RoleSummaryCard {
   key: string; label: string; total: number; onLeave: number;
 }
 
+interface LeaveQuotaRow {
+  userId: string;
+  name: string; email: string; employeeId: string;
+  role: string; departments: string[];
+  year: number; quotaConfigured: boolean;
+  total: Record<string, number>;
+  used: Record<string, number>;
+  remaining: Record<string, number>;
+}
+
+interface HolidayEntry {
+  id: string; name: string; description: string;
+  date: string; year: number; type: string;
+  recurring: boolean; isActive: boolean;
+}
+
 const ROLE_LEAVE_QUOTAS: Record<string, { Casual: number; Sick: number; Vacation: number }> = {
   super_admin: { Casual: 12, Sick: 10, Vacation: 15 },
   owner: { Casual: 12, Sick: 10, Vacation: 15 },
@@ -89,6 +105,13 @@ const MAIN_TABS = [
   { key: "requests", label: "Leave Requests" },
   { key: "current", label: "Currently On Leave" },
   { key: "master", label: "Leave Master" },
+  { key: "quotas", label: "Leave Quotas" },
+  { key: "holidays", label: "Holidays" },
+];
+
+const HOLIDAY_TYPES = [
+  { key: "public", label: "Public Holiday" },
+  { key: "company", label: "Company Holiday" },
 ];
 
 const STATUS_PILLS = [
@@ -295,6 +318,14 @@ export default function HRLeaveRequestsProcessingPage() {
   const [viewingLeaveDetail, setViewingLeaveDetail] = useState<Record<string, unknown> | null>(null);
   const [allEntries, setAllEntries] = useState<NormalizedLeave[]>([]);
   const [teamAttendance, setTeamAttendance] = useState<AttendanceRecord[]>([]);
+  const [leaveQuotas, setLeaveQuotas] = useState<LeaveQuotaRow[]>([]);
+  const [holidays, setHolidays] = useState<HolidayEntry[]>([]);
+  const [quotaYear, setQuotaYear] = useState(new Date().getFullYear());
+  const [quotaDrafts, setQuotaDrafts] = useState<Record<string, { Casual: number; Sick: number; Vacation: number }>>({});
+  const [savingQuotaUserId, setSavingQuotaUserId] = useState<string | null>(null);
+  const [holidayForm, setHolidayForm] = useState({ name: "", description: "", date: "", type: "company", recurring: false });
+  const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
+  const [isSavingHoliday, setIsSavingHoliday] = useState(false);
   const [isSavingDecision, setIsSavingDecision] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -311,9 +342,11 @@ export default function HRLeaveRequestsProcessingPage() {
     async function loadData() {
       try {
         setIsLoading(true);
-        const [leaveResult, attendanceResult] = await Promise.allSettled([
+        const [leaveResult, attendanceResult, quotaResult, holidayResult] = await Promise.allSettled([
           getLeaveRequests(),
           getTeamAttendance(),
+          getLeaveQuotas(),
+          getHolidays(),
         ]);
         if (!mounted) return;
         if (leaveResult.status === "fulfilled") {
@@ -323,8 +356,18 @@ export default function HRLeaveRequestsProcessingPage() {
         if (attendanceResult.status === "fulfilled") {
           setTeamAttendance(attendanceResult.value?.data?.teamAttendance || attendanceResult.value?.teamAttendance || []);
         }
+        if (quotaResult.status === "fulfilled") {
+          const quotaData = quotaResult.value?.data?.quotas || quotaResult.value?.quotas || [];
+          setLeaveQuotas(Array.isArray(quotaData) ? quotaData : []);
+        }
+        if (holidayResult.status === "fulfilled") {
+          const holidayData = holidayResult.value?.data?.holidays || holidayResult.value?.holidays || [];
+          setHolidays(Array.isArray(holidayData) ? holidayData : []);
+        }
         if (leaveResult.status === "rejected" || attendanceResult.status === "rejected") {
-          setErrorMessage(String((leaveResult.status === "rejected" ? leaveResult.reason : attendanceResult.reason) || ""));
+          const rejectedLeave = leaveResult.status === "rejected" ? (leaveResult as PromiseRejectedResult).reason : null;
+          const rejectedAttendance = attendanceResult.status === "rejected" ? (attendanceResult as PromiseRejectedResult).reason : null;
+          setErrorMessage(String((rejectedLeave || rejectedAttendance) || ""));
         } else {
           setErrorMessage("");
         }
@@ -398,8 +441,13 @@ export default function HRLeaveRequestsProcessingPage() {
       }
     });
 
+    const quotaByUserId = new Map(leaveQuotas.map((q) => [String(q.userId || "").trim(), q]));
+
     return Array.from(employeeMap.values()).map((emp) => {
-      const quota = getRoleQuota(String(emp.role));
+      const storedQuota = quotaByUserId.get(String(emp.userId || emp.id || "").trim());
+      const quota = storedQuota?.total
+        ? { Casual: Number(storedQuota.total.Casual ?? 0), Sick: Number(storedQuota.total.Sick ?? 0), Vacation: Number(storedQuota.total.Vacation ?? 0) }
+        : getRoleQuota(String(emp.role));
       const approvedByType = { Casual: 0, Sick: 0, Vacation: 0 };
       (emp.history as Array<Record<string, unknown>>).forEach((h) => {
         const orig = allEntries.find((e) => e.recordId === h.recordId);
@@ -414,6 +462,7 @@ export default function HRLeaveRequestsProcessingPage() {
       (emp.balances as LeaveBalances).sickRemaining = Math.max(0, quota.Sick - approvedByType.Sick);
       (emp.balances as LeaveBalances).casualRemaining = Math.max(0, quota.Casual - approvedByType.Casual);
       (emp.balances as LeaveBalances).compOffRemaining = Math.max(0, quota.Vacation - approvedByType.Vacation);
+      emp.quotaConfigured = Boolean(storedQuota);
       emp.department = getDepartmentDisplay(emp.departments);
 
       const attendanceStatus = normalizeKey(String(emp.attendanceStatus || ""));
@@ -427,7 +476,7 @@ export default function HRLeaveRequestsProcessingPage() {
       (emp.history as Array<Record<string, unknown>>).sort((a, b) => new Date(String(b.dateApplied || 0)).getTime() - new Date(String(a.dateApplied || 0)).getTime());
       return emp;
     }).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  }, [allEntries, teamAttendance]);
+  }, [allEntries, teamAttendance, leaveQuotas]);
 
   const leaveRequests = useMemo(() =>
     allEntries.map((entry) => ({
@@ -476,6 +525,19 @@ export default function HRLeaveRequestsProcessingPage() {
     }),
   [currentLeaves, departmentFilter, searchQuery]);
 
+  const filteredQuotas = useMemo(() => {
+    const yearRows = leaveQuotas.filter((q) => String(q.year || "") === String(quotaYear) || (!q.year && String(new Date().getFullYear()) === String(quotaYear)));
+    const effective = yearRows.length > 0 ? yearRows : leaveQuotas;
+    return effective.filter((q) => {
+      if (departmentFilter !== "All Departments" && !normalizeDepartmentList(q.departments).includes(departmentFilter)) return false;
+      if (searchQuery.trim()) {
+        const needle = searchQuery.toLowerCase();
+        return q.name.toLowerCase().includes(needle) || q.role.toLowerCase().includes(needle) || q.employeeId.toLowerCase().includes(needle);
+      }
+      return true;
+    });
+  }, [leaveQuotas, quotaYear, departmentFilter, searchQuery]);
+
   const pendingRequestsCount = useMemo(() => leaveRequests.filter((r) => r.statusCode === "pending").length, [leaveRequests]);
   const approvedRequestsCount = useMemo(() => leaveRequests.filter((r) => r.statusCode === "approved").length, [leaveRequests]);
   const rejectedRequestsCount = useMemo(() => leaveRequests.filter((r) => r.statusCode === "rejected").length, [leaveRequests]);
@@ -483,12 +545,15 @@ export default function HRLeaveRequestsProcessingPage() {
   const activeReportRows = useMemo(() => {
     if (activeTab === "current") return filteredCurrent;
     if (activeTab === "master") return filteredMaster;
+    if (activeTab === "quotas" || activeTab === "holidays") return filteredRequests;
     return filteredRequests;
   }, [activeTab, filteredCurrent, filteredMaster, filteredRequests]);
 
   const activeReportScopeLabel = useMemo(() => {
     if (activeTab === "current") return "Current Leave Snapshot";
     if (activeTab === "master") return "Leave Master Panel";
+    if (activeTab === "quotas") return "Leave Quota Panel";
+    if (activeTab === "holidays") return "Holiday Calendar";
     return "Leave Requests Queue";
   }, [activeTab]);
 
@@ -585,6 +650,87 @@ export default function HRLeaveRequestsProcessingPage() {
     } catch (err: unknown) {
       setErrorMessage(String((err as Error).message || "Unable to reject leave request."));
     } finally { setIsSavingDecision(false); }
+  }
+
+  const getQuotaDraft = (row: LeaveQuotaRow) => {
+    const existing = quotaDrafts[row.userId];
+    if (existing) return existing;
+    return {
+      Casual: Number(row.total?.Casual ?? 0),
+      Sick: Number(row.total?.Sick ?? 0),
+      Vacation: Number(row.total?.Vacation ?? 0),
+    };
+  };
+
+  const handleQuotaChange = (row: LeaveQuotaRow, key: "Casual" | "Sick" | "Vacation", value: number) => {
+    setQuotaDrafts((prev) => ({
+      ...prev,
+      [row.userId]: { ...getQuotaDraft(row), [key]: Math.max(0, Math.floor(Number(value) || 0)) },
+    }));
+  };
+
+  async function handleSaveQuota(row: LeaveQuotaRow) {
+    const draft = getQuotaDraft(row);
+    if (draft.Casual + draft.Sick + draft.Vacation <= 0) {
+      toast.error("At least one leave type must have a quota greater than 0.");
+      return;
+    }
+    setSavingQuotaUserId(row.userId);
+    try {
+      await updateLeaveQuota(row.userId, { year: quotaYear, ...draft });
+      toast.success(`Quota updated for ${row.name}.`);
+      const fresh = await getLeaveQuotas({ year: quotaYear });
+      const quotaData = fresh?.data?.quotas || fresh?.quotas || [];
+      setLeaveQuotas(Array.isArray(quotaData) ? quotaData : []);
+      setQuotaDrafts((prev) => { const next = { ...prev }; delete next[row.userId]; return next; });
+    } catch (err: unknown) {
+      toast.error(String((err as Error).message || "Unable to update leave quota."));
+    } finally {
+      setSavingQuotaUserId(null);
+    }
+  }
+
+  async function handleHolidaySubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = holidayForm.name.trim();
+    const date = holidayForm.date;
+    if (!name || name.length < 2) { toast.error("Holiday name is required."); return; }
+    if (!date) { toast.error("Holiday date is required."); return; }
+    setIsSavingHoliday(true);
+    try {
+      if (editingHolidayId) {
+        await updateHoliday(editingHolidayId, { name, description: holidayForm.description, date, type: holidayForm.type, recurring: holidayForm.recurring });
+        toast.success("Holiday updated.");
+      } else {
+        await createHoliday({ name, description: holidayForm.description, date, type: holidayForm.type, recurring: holidayForm.recurring });
+        toast.success("Holiday added.");
+      }
+      const fresh = await getHolidays({ year: new Date(date).getFullYear() });
+      const holidayData = fresh?.data?.holidays || fresh?.holidays || [];
+      setHolidays(Array.isArray(holidayData) ? holidayData : []);
+      setHolidayForm({ name: "", description: "", date: "", type: "company", recurring: false });
+      setEditingHolidayId(null);
+    } catch (err: unknown) {
+      toast.error(String((err as Error).message || "Unable to save holiday."));
+    } finally {
+      setIsSavingHoliday(false);
+    }
+  }
+
+  async function handleDeleteHoliday(holiday: HolidayEntry) {
+    if (!window.confirm(`Delete holiday "${holiday.name}"?`)) return;
+    try {
+      await deleteHoliday(holiday.id);
+      setHolidays((prev) => prev.filter((h) => h.id !== holiday.id));
+      toast.success("Holiday deleted.");
+    } catch (err: unknown) {
+      toast.error(String((err as Error).message || "Unable to delete holiday."));
+    }
+  }
+
+  function startEditHoliday(holiday: HolidayEntry) {
+    setEditingHolidayId(holiday.id);
+    setHolidayForm({ name: holiday.name, description: holiday.description || "", date: holiday.date, type: holiday.type || "company", recurring: Boolean(holiday.recurring) });
   }
 
   if (isLoading) return <HRLeaveRequestsProcessingSkeleton />;
@@ -897,6 +1043,207 @@ export default function HRLeaveRequestsProcessingPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* ── SECTION D: Leave Quotas ── */}
+            {activeTab === "quotas" && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Quota Year</label>
+                    <select
+                      className="px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[12px] text-[#0F172A] outline-none cursor-pointer"
+                      value={quotaYear}
+                      onChange={(e) => setQuotaYear(Number(e.target.value) || new Date().getFullYear())}
+                    >
+                      {Array.from(new Set([new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1, ...leaveQuotas.map((q) => q.year).filter(Boolean)])).sort((a, b) => b - a).map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-[10px] font-pmedium text-slate-400">{filteredQuotas.length} employee(s) &bull; edits apply per {quotaYear}</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <tr>
+                        <th className="px-5 py-4 text-left">Employee</th>
+                        <th className="px-5 py-4 text-left">Department</th>
+                        <th className="px-5 py-4 text-center">Casual</th>
+                        <th className="px-5 py-4 text-center">Sick</th>
+                        <th className="px-5 py-4 text-center">Vacation</th>
+                        <th className="px-5 py-4 text-center">Used</th>
+                        <th className="px-5 py-4 text-center">Remaining</th>
+                        <th className="px-5 py-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {filteredQuotas.length === 0 ? (
+                        <tr><td colSpan={8} className="text-center py-20 text-slate-400 font-pmedium">No quota records found. Assign leave balances per employee for {quotaYear}.</td></tr>
+                      ) : filteredQuotas.map((row) => {
+                        const draft = getQuotaDraft(row);
+                        const used = row.used || {};
+                        const total = row.total || {};
+                        const remaining = row.remaining || {};
+                        const isDirty = quotaDrafts[row.userId]
+                          && (draft.Casual !== Number(total.Casual ?? 0) || draft.Sick !== Number(total.Sick ?? 0) || draft.Vacation !== Number(total.Vacation ?? 0));
+                        return (
+                          <tr key={row.userId || row.name} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2.5">
+                                <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-pmedium text-[11px]">{getEmployeeInitials(row.name)}</div>
+                                <div className="min-w-0">
+                                  <p className="text-[12px] font-pmedium text-slate-800 truncate">{row.name}</p>
+                                  <p className="text-[10px] text-slate-400">{row.role}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5 text-[11px] text-slate-600">{normalizeDepartmentList(row.departments).join(" / ") || "General"}</td>
+                            {(["Casual", "Sick", "Vacation"] as const).map((key) => (
+                              <td key={key} className="px-5 py-3.5 text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  className="w-16 px-2 py-1.5 text-center bg-slate-50 border border-slate-200/60 rounded-lg font-pmedium text-[12px] text-[#0F172A] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                                  value={draft[key]}
+                                  onChange={(e) => handleQuotaChange(row, key, Number(e.target.value))}
+                                />
+                              </td>
+                            ))}
+                            <td className="px-5 py-3.5 text-center text-[12px] font-pmedium text-slate-600">
+                              {Number(used.Casual ?? 0) + Number(used.Sick ?? 0) + Number(used.Vacation ?? 0)}
+                            </td>
+                            <td className="px-5 py-3.5 text-center text-[12px] font-pmedium text-emerald-600">
+                              {Number(remaining.Casual ?? 0) + Number(remaining.Sick ?? 0) + Number(remaining.Vacation ?? 0)}
+                            </td>
+                            <td className="px-5 py-3.5 text-center">
+                              <button
+                                onClick={() => handleSaveQuota(row)}
+                                disabled={!isDirty || savingQuotaUserId === row.userId}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-pmedium uppercase tracking-wider bg-[#0F172A] text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                              >
+                                {savingQuotaUserId === row.userId ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                                Save
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── SECTION E: Holidays ── */}
+            {activeTab === "holidays" && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="bg-slate-50/60 border border-slate-200/60 rounded-2xl p-4 h-fit">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">{editingHolidayId ? "Edit Holiday" : "Add Holiday"}</p>
+                  <form onSubmit={handleHolidaySubmit} className="flex flex-col gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name *</label>
+                      <input
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200/60 rounded-xl font-pmedium text-[12px] text-[#0F172A] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                        placeholder="e.g. Diwali, Independence Day"
+                        value={holidayForm.name}
+                        onChange={(e) => setHolidayForm((prev) => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date *</label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200/60 rounded-xl font-pmedium text-[12px] text-[#0F172A] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                        value={holidayForm.date}
+                        onChange={(e) => setHolidayForm((prev) => ({ ...prev, date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Type</label>
+                      <select
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200/60 rounded-xl font-pmedium text-[12px] text-[#0F172A] outline-none cursor-pointer"
+                        value={holidayForm.type}
+                        onChange={(e) => setHolidayForm((prev) => ({ ...prev, type: e.target.value }))}
+                      >
+                        {HOLIDAY_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description</label>
+                      <textarea
+                        rows={2}
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200/60 rounded-xl font-pmedium text-[12px] text-[#0F172A] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 resize-none"
+                        placeholder="Optional notes about this holiday"
+                        value={holidayForm.description}
+                        onChange={(e) => setHolidayForm((prev) => ({ ...prev, description: e.target.value }))}
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="accent-[#0F172A]"
+                        checked={holidayForm.recurring}
+                        onChange={(e) => setHolidayForm((prev) => ({ ...prev, recurring: e.target.checked }))}
+                      />
+                      <span className="text-[11px] font-pmedium text-slate-600">Repeats every year</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button type="submit" disabled={isSavingHoliday} className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-[11px] font-pmedium uppercase tracking-wider bg-[#0F172A] text-white hover:bg-slate-800 disabled:opacity-50 transition-all">
+                        {isSavingHoliday ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                        {editingHolidayId ? "Save Changes" : "Add Holiday"}
+                      </button>
+                      {editingHolidayId && (
+                        <button type="button" onClick={() => { setEditingHolidayId(null); setHolidayForm({ name: "", description: "", date: "", type: "company", recurring: false }); }} className="px-4 py-2.5 rounded-xl text-[11px] font-pmedium uppercase tracking-wider bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+                <div className="lg:col-span-2 overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <tr>
+                        <th className="px-5 py-4 text-left">Holiday</th>
+                        <th className="px-5 py-4 text-left">Date</th>
+                        <th className="px-5 py-4 text-center">Type</th>
+                        <th className="px-5 py-4 text-center">Recurring</th>
+                        <th className="px-5 py-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {holidays.length === 0 ? (
+                        <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium">No holidays added yet for this year.</td></tr>
+                      ) : holidays.map((holiday) => (
+                        <tr key={holiday.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-5 py-3.5">
+                            <p className="text-[12px] font-pmedium text-slate-800">{holiday.name}</p>
+                            {holiday.description ? <p className="text-[10px] text-slate-400 mt-0.5">{holiday.description}</p> : null}
+                          </td>
+                          <td className="px-5 py-3.5 text-[12px] font-pmedium text-slate-700">{formatDateLabel(holiday.date)}</td>
+                          <td className="px-5 py-3.5 text-center">
+                            <span className={statusPillClass(holiday.type === "public" ? "Public Holiday" : "Company Holiday")}>
+                              {holiday.type === "public" ? "Public" : "Company"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-center text-[11px] font-pmedium text-slate-600">{holiday.recurring ? "Yearly" : "Once"}</td>
+                          <td className="px-5 py-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button onClick={() => startEditHoliday(holiday)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
+                                <Eye size={15} strokeWidth={2.5} />
+                              </button>
+                              <button onClick={() => handleDeleteHoliday(holiday)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all">
+                                <X size={15} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

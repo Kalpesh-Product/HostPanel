@@ -23,3 +23,33 @@ export const uploadLeaveCertificate = async (formData: FormData) => {
   });
   return unwrap(response);
 };
+
+export const getLeaveQuotas = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/leave-requests/quotas", { params });
+  return unwrap(response);
+};
+
+export const updateLeaveQuota = async (userId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/leave-requests/quotas/${userId}`, payload);
+  return unwrap(response);
+};
+
+export const getHolidays = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/leave-requests/holidays", { params });
+  return unwrap(response);
+};
+
+export const createHoliday = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/leave-requests/holidays", payload);
+  return unwrap(response);
+};
+
+export const updateHoliday = async (holidayId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/leave-requests/holidays/${holidayId}`, payload);
+  return unwrap(response);
+};
+
+export const deleteHoliday = async (holidayId: string) => {
+  const response = await axiosPrivate.delete(`/api/leave-requests/holidays/${holidayId}`);
+  return unwrap(response);
+};

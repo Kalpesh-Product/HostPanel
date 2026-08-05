@@ -22,6 +22,14 @@ export const checkOutVisitorLog = async (visitorId: string, payload: Record<stri
   return unwrap(response);
 };
 
+export const reviewVisitorDecision = async (
+  visitorId: string,
+  payload: { decision: "approved" | "rejected"; reason?: string },
+) => {
+  const response = await axiosPrivate.patch(`/api/v1/visitors/${visitorId}/decision`, payload);
+  return unwrap(response);
+};
+
 // Fetch unit tour leads from visitor logs (visitors with 'Workspace Tour' purpose)
 export const getUnitTourLeads = async (params?: Record<string, any>) => {
   const response = await axiosPrivate.get("/api/v1/visitors", {
