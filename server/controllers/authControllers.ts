@@ -1319,6 +1319,12 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
         if (profile) {
           const profileRole = profile.workspaceRole || null;
           const profileDepartments = Array.isArray(profile.departments) ? profile.departments.filter(Boolean) : [];
+          // Completing registration for an invited workspace — if this is the
+          // user's first unit it becomes their main unit.
+          const existingActiveMembershipCount = await WorkspaceMember.countDocuments({
+            user: user._id,
+            isActive: true,
+          }).exec();
           await WorkspaceMember.findOneAndUpdate(
             { workspace: workspace._id, user: user._id },
             {
@@ -1329,6 +1335,7 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
                 departments: profileDepartments,
                 status: "active",
                 isPrimary: true,
+                isMainUnit: existingActiveMembershipCount === 0,
                 isActive: true,
               },
             },

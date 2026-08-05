@@ -28,6 +28,7 @@ import {
   countActiveAccountUsers,
   isAccountUserAlreadyActive,
   getActiveUserLimitForPlan,
+  resolveMainWorkspaceId,
 } from "../utils/accountPlan.js";
 
 const DEFAULT_DEPARTMENTS = [
@@ -744,6 +745,44 @@ const resolveMemberStatus = (isActive: boolean, inviteStatus?: string) => {
   return "joined";
 };
 
+// Guarantees a user always has exactly one main-unit membership. Used for
+// legacy records created before the main-unit concept existed: the earliest
+// active membership wins, with the account main workspace preferred when the
+// user is a founder (so the founder's main unit is always the registration
+// unit that cannot be deleted).
+const ensureUserMainUnit = async ({
+  userId,
+  accountMainWorkspaceId = "",
+}: {
+  userId: string;
+  accountMainWorkspaceId?: string;
+}): Promise<string> => {
+  if (!userId) return "";
+  const existing = await WorkspaceMember.findOne({ user: userId, isActive: true, isMainUnit: true })
+    .select("workspace")
+    .lean()
+    .exec();
+  if (existing) return toId(existing.workspace);
+
+  let candidate: any = null;
+  if (accountMainWorkspaceId) {
+    candidate = await WorkspaceMember.findOne({
+      user: userId,
+      workspace: accountMainWorkspaceId,
+      isActive: true,
+    });
+  }
+  if (!candidate) {
+    candidate = await WorkspaceMember.findOne({ user: userId, isActive: true }).sort({
+      createdAt: 1,
+    });
+  }
+  if (!candidate) return "";
+  candidate.isMainUnit = true;
+  await candidate.save();
+  return toId(candidate.workspace);
+};
+
 export const getOrganizationOverview = async (req, res, next) => {
   try {
     const { user, workspace } = await getCurrentWorkspace(req.user);
@@ -866,6 +905,33 @@ export const getOrganizationOverview = async (req, res, next) => {
     const activeMembers = members.filter(
       (member) => !(member.isActive === false && transferredUserIds.has(toId(member.user?._id))),
     );
+
+    // Legacy data predates the main-unit concept. Guarantee every visible member
+    // has exactly one isMainUnit membership so the main-unit access guard is
+    // always enforceable (earliest active membership wins; the founder's account
+    // main workspace is preferred since it can never be deleted).
+    {
+      const overviewUserIds = [
+        ...new Set(members.map((member: any) => member.user?._id).filter(Boolean)),
+      ];
+      const alreadyFlagged = overviewUserIds.length
+        ? await WorkspaceMember.find({
+            user: { $in: overviewUserIds },
+            isActive: true,
+            isMainUnit: true,
+          })
+            .select("user")
+            .lean()
+            .exec()
+        : [];
+      const flaggedUserIds = new Set(alreadyFlagged.map((hit: any) => toId(hit.user)));
+      for (const userId of overviewUserIds) {
+        if (flaggedUserIds.has(toId(userId))) continue;
+        const accountMainWorkspaceId =
+          toId(userId) === toId(workspace.owner) ? await resolveMainWorkspaceId(userId) : "";
+        await ensureUserMainUnit({ userId, accountMainWorkspaceId });
+      }
+    }
 
     const allActingManagers = await ActingManager.find({
       workspaceId: workspace._id,
@@ -1030,13 +1096,27 @@ export const getOrganizationOverview = async (req, res, next) => {
         : [],
       grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
       enabledModules: Array.isArray(member.enabledModules) ? member.enabledModules : [],
-      workspaceAccesses: linkedWorkspaces.filter((item) =>
-        linkedMemberships.some(
-          (accessMembership) =>
-            toId(accessMembership.workspace) === String(item.id) &&
-            toId(accessMembership.user) === toId(member.user?._id),
-        ),
-      ),
+      workspaceAccesses: linkedWorkspaces
+        .filter((item) =>
+          linkedMemberships.some(
+            (accessMembership) =>
+              toId(accessMembership.workspace) === String(item.id) &&
+              toId(accessMembership.user) === toId(member.user?._id),
+          ),
+        )
+        .map((item) => {
+          const accessMembership = linkedMemberships.find(
+            (accessMembership) =>
+              toId(accessMembership.workspace) === String(item.id) &&
+              toId(accessMembership.user) === toId(member.user?._id),
+          );
+          return {
+            ...item,
+            isMain: Boolean(accessMembership?.isMainUnit),
+            accessStatus: accessMembership?.status || "joined",
+            linkedAt: accessMembership?.createdAt || null,
+          };
+        }),
       joinedAt: member.createdAt,
     }));
 
@@ -1444,6 +1524,15 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
         ? false
         : !member.isActive;
 
+    // A member's main unit is the unit they were first added to — its access
+    // can never be removed or disabled, only changed via a transfer.
+    if (!nextIsActive && member.isMainUnit) {
+      return res.status(400).json({
+        message:
+          "The user's main unit access cannot be disabled. Transfer the user to another unit to change their main unit.",
+      });
+    }
+
     if (nextIsActive && !member.isActive && isProfessionalPlan(workspace)) {
       // Re-enabling doesn't consume a slot if this person is already active in
       // another unit in the account — only block it if they'd be a genuinely
@@ -1797,6 +1886,9 @@ export const inviteOrganizationMember = async (req, res, next) => {
           role: targetRoleDoc._id,
           departments: uniqueResolvedDepartmentIds,
           isPrimary: false,
+          // An invite always creates a brand-new account, so the invited unit
+          // is this user's first unit — it becomes their main unit.
+          isMainUnit: true,
           isActive: true,
           status: isExistingRegisteredUser ? "joined" : "invited",
           grantedModules: nextGrantedModules,
@@ -2547,6 +2639,8 @@ export const transferOrganizationMember = async (req, res, next) => {
           status: "joined",
           isActive: true,
           isPrimary: sourceWasPrimary,
+          // The unit a user is transferred into becomes their new main unit.
+          isMainUnit: true,
           grantedModules: targetGrantedModules,
         },
         $push: {
@@ -2577,6 +2671,7 @@ export const transferOrganizationMember = async (req, res, next) => {
     member.isActive = false;
     member.status = "disabled";
     member.isPrimary = false;
+    member.isMainUnit = false;
     await member.save();
 
     // Ensure the transferred user is only visible in the target unit. Any
@@ -2588,7 +2683,9 @@ export const transferOrganizationMember = async (req, res, next) => {
         isActive: true,
         _id: { $ne: transferredMembership._id },
       },
-      { $set: { isActive: false, isPrimary: false, status: "disabled" } },
+      {
+        $set: { isActive: false, isPrimary: false, isMainUnit: false, status: "disabled" },
+      },
     ).exec();
 
     await EmployeeProfile.updateOne(
@@ -2724,6 +2821,9 @@ export const linkOrganizationMember = async (req, res, next) => {
           status: "joined",
           isActive: true,
           isPrimary: false,
+          // A linked unit is auxiliary access — the member's main unit stays
+          // wherever they were first added.
+          isMainUnit: false,
           grantedModules: targetGrantedModules,
         },
       },
@@ -2802,6 +2902,15 @@ export const removeOrganizationMemberWorkspaceAccess = async (req, res, next) =>
     }
     if (getRoleBand(targetMembership.role) === "owner") {
       return res.status(403).json({ message: "Founder unit access cannot be removed." });
+    }
+    // A user's main unit is the unit they were first added to — its access can
+    // never be removed. The only way to change a main unit is to transfer the
+    // user into another unit.
+    if (targetMembership.isMainUnit) {
+      return res.status(403).json({
+        message:
+          "The user's main unit access cannot be removed. Transfer the user to another unit to change their main unit.",
+      });
     }
 
     const memberUser = await HostUser.findById(sourceMembership.user).exec();
@@ -3009,6 +3118,10 @@ export const transferOrganizationOwnership = async (req, res, next) => {
 
     nextOwner.role = "owner";
     await nextOwner.save();
+
+    // The new owner's main unit is whatever unit they were first added to —
+    // backfill the flag in case their legacy records predate the concept.
+    await ensureUserMainUnit({ userId: toId(nextOwner._id) });
 
     await notifyOwnershipTransfer({
       previousOwner,

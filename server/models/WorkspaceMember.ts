@@ -64,6 +64,14 @@ const workspaceMemberSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // The unit this member was first added to. It can never be removed (only
+    // transferred), and it is the unit whose data the member is anchored to.
+    // Unlike isPrimary (which follows the workspace switcher), isMainUnit only
+    // changes when the member is transferred to another unit.
+    isMainUnit: {
+      type: Boolean,
+      default: false,
+    },
     isActive: {
       type: Boolean,
       default: true,

@@ -157,6 +157,7 @@ export default function WorkspaceSettingsPage() {
   const [workspaceCurrency, setWorkspaceCurrency] = useState("INR");
   const [billing, setBilling] = useState<WorkspaceBillingConfig>(() => getCountryBillingDefaults("IN"));
   const [isSavingHours, setIsSavingHours] = useState(false);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -357,25 +358,30 @@ export default function WorkspaceSettingsPage() {
     try {
       setIsSavingHours(true);
       await updateWorkspaceSettings(axiosPrivate, {
-        profile: {
-          workspaceName: activeWorkspace?.workspaceName || "",
-        },
         preferences: {
           timezone: workspaceTimezone,
-          currency: workspaceCurrency,
-          dateFormat: "DD MMM YYYY",
-          timeFormat: "12h",
-          weekStartsOn: "monday",
           businessHours: { start: businessStart, end: businessEnd, is24Hours },
-          billing,
         },
-        branding: { primaryColor: "#2563EB" },
       });
-      toast.success("Business hours and billing preferences updated successfully.");
+      toast.success("Business hours updated successfully.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to update business hours.");
     } finally {
       setIsSavingHours(false);
+    }
+  };
+
+  const savePreferences = async () => {
+    try {
+      setIsSavingPreferences(true);
+      await updateWorkspaceSettings(axiosPrivate, {
+        preferences: { billing },
+      });
+      toast.success("Preferences updated successfully.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update preferences.");
+    } finally {
+      setIsSavingPreferences(false);
     }
   };
 
@@ -713,9 +719,10 @@ export default function WorkspaceSettingsPage() {
                               <div className="flex flex-wrap items-center justify-end gap-1.5">
                                 <button
                                   type="button"
-                                  title="View details"
+                                  title={workspace.isDeleted ? "Deleted units have no details to show" : "View details"}
                                   onClick={() => setViewingWorkspace(workspace)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+                                  disabled={Boolean(workspace.isDeleted)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
                                 </button>
@@ -916,12 +923,12 @@ export default function WorkspaceSettingsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={saveBusinessHours}
-                  disabled={isSavingHours}
+                  onClick={savePreferences}
+                  disabled={isSavingPreferences}
                   className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isSavingHours ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
-                  {isSavingHours ? "SAVING..." : "SAVE PREFERENCES"}
+                  {isSavingPreferences ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
+                  {isSavingPreferences ? "SAVING..." : "SAVE PREFERENCES"}
                 </button>
               </div>
               <div className="p-3 sm:p-4 lg:p-5 space-y-5">

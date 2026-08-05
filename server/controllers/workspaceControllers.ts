@@ -312,6 +312,10 @@ export const completeWorkspaceSetup = async (req, res, next) => {
         $set: {
           role: founderRole._id,
           isPrimary: !isAdditionalWorkspaceMode,
+          // The very first unit a founder creates is their main unit (and it
+          // matches the account-level main workspace that can't be deleted).
+          // Additional units stay linked-only and are never main.
+          isMainUnit: !isAdditionalWorkspaceMode,
           isActive: true,
         },
       },
@@ -1103,6 +1107,7 @@ export const getWorkspaceSettings = async (req, res, next) => {
             businessHours: {
               start: preferences.businessHours?.start || "09:00",
               end: preferences.businessHours?.end || "22:00",
+              is24Hours: Boolean(preferences.businessHours?.is24Hours),
             },
             billing,
           },
