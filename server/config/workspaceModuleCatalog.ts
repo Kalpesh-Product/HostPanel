@@ -182,6 +182,22 @@ const MODULE_GROUPS = [
   },
 ];
 
+// Flat id -> label lookup across every module/tab in MODULE_GROUPS, used to
+// resolve display labels for a custom department's moduleIds (which are just
+// plain string ids referencing this same catalog).
+const MODULE_LABEL_BY_ID = {};
+for (const section of MODULE_GROUPS) {
+  for (const item of section.items || []) {
+    if (Array.isArray(item.tabs) && item.tabs.length) {
+      for (const tab of item.tabs) {
+        if (tab?.id) MODULE_LABEL_BY_ID[tab.id] = tab.label || tab.id;
+      }
+    } else if (item?.id) {
+      MODULE_LABEL_BY_ID[item.id] = item.label || item.id;
+    }
+  }
+}
+
 export const COMMON_MODULE_IDS = [
   "dashboard",
   "customer-support",
@@ -355,6 +371,7 @@ const resolveIsUnlocked = ({
 export const buildWorkspaceModuleCatalog = ({
   selectedPlan = "basic",
   enabledModuleIds = [],
+  customDepartments = [],
 } = {}) => {
   const normalizedPlan = normalizePlan(selectedPlan);
   const workspaceEnabledIds = new Set(
@@ -363,9 +380,40 @@ export const buildWorkspaceModuleCatalog = ({
       : [],
   );
 
-  const sections = MODULE_GROUPS.map((section) => ({
-    ...section,
-    items: (section.items || []).map((item) => {
+  // Custom (non-default) departments get their own dynamic group in
+  // "Department Accesses", named after the actual department, instead of
+  // silently disappearing into the generic tab list. Default/seeded
+  // department names already have a static group above (see
+  // DEPARTMENT_NAME_TO_GROUP_ID) so they're excluded here to avoid a
+  // duplicate group.
+  const customDepartmentItems = (Array.isArray(customDepartments) ? customDepartments : [])
+    .filter((department) => {
+      const key = String(department?.name || "").trim().toLowerCase();
+      return Boolean(key) && !DEPARTMENT_NAME_TO_GROUP_ID[key];
+    })
+    .map((department) => {
+      const moduleIds = Array.isArray(department?.moduleIds) ? department.moduleIds : [];
+      return {
+        id: `custom-department-${String(department?.id || department?.name || "").trim()}`,
+        label: String(department?.name || "").trim(),
+        isGroup: true,
+        isCustomDepartment: true,
+        tabs: moduleIds.map((moduleId) => ({
+          id: moduleId,
+          label: MODULE_LABEL_BY_ID[moduleId] || moduleId,
+          implemented: true,
+          accessibleByPlan: canPlanAccess(normalizedPlan, moduleId),
+          unlockedInWorkspace: resolveIsUnlocked({
+            selectedPlan: normalizedPlan,
+            workspaceEnabledIds,
+            moduleId,
+          }),
+        })),
+      };
+    });
+
+  const sections = MODULE_GROUPS.map((section) => {
+    const items = (section.items || []).map((item) => {
       if (Array.isArray(item.tabs) && item.tabs.length) {
         return {
           ...item,
@@ -390,8 +438,14 @@ export const buildWorkspaceModuleCatalog = ({
           moduleId: item.id,
         }),
       };
-    }),
-  }));
+    });
+
+    if (section.sectionId === "department-accesses" && customDepartmentItems.length > 0) {
+      return { ...section, items: [...items, ...customDepartmentItems] };
+    }
+
+    return { ...section, items };
+  });
 
   return {
     selectedPlan: normalizedPlan,

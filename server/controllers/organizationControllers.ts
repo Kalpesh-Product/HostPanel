@@ -1055,6 +1055,13 @@ export const getOrganizationOverview = async (req, res, next) => {
             enabledModuleIds: Array.isArray(workspace.enabledModuleIds)
               ? workspace.enabledModuleIds
               : [],
+            customDepartments: departments
+              .filter((department) => isCustomDepartmentName(department.name))
+              .map((department) => ({
+                id: department.id,
+                name: department.name,
+                moduleIds: department.moduleIds,
+              })),
           }),
           availableCoreModules: Array.isArray(workspace.modules)
             ? workspace.modules.flatMap((category) =>
@@ -2405,6 +2412,30 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
     } else {
       member.grantedModules = sanitizedNextGrantedModules;
     }
+
+    // Keep custom-department associations in sync with the final granted
+    // modules, so the sidebar can group these modules under the custom
+    // department they were granted through (see Sidebar.tsx
+    // dynamicDepartmentItems) instead of only their static home section.
+    // Formal (non-custom) department assignments made at invite time are
+    // left untouched — only the custom-department subset is recomputed.
+    const workspaceDepartmentDocs = await Department.find({ workspaceId: workspace._id })
+      .select("name moduleIds")
+      .lean();
+    const grantedModuleSet = new Set(member.grantedModules.map((id) => String(id || "").trim()));
+    const customDepartmentDocs = workspaceDepartmentDocs.filter((dept) => isCustomDepartmentName(dept.name));
+    const customDepartmentIdSet = new Set(customDepartmentDocs.map((dept) => String(dept._id)));
+    const nextCustomDepartmentIds = customDepartmentDocs
+      .filter((dept) =>
+        (Array.isArray(dept.moduleIds) ? dept.moduleIds : []).some((id) =>
+          grantedModuleSet.has(String(id || "").trim()),
+        ),
+      )
+      .map((dept) => String(dept._id));
+    const preservedNonCustomDepartmentIds = (Array.isArray(member.departments) ? member.departments : [])
+      .map((dept: any) => String(dept?._id || dept))
+      .filter((id) => !customDepartmentIdSet.has(id));
+    member.departments = Array.from(new Set([...preservedNonCustomDepartmentIds, ...nextCustomDepartmentIds]));
 
     await member.save();
 

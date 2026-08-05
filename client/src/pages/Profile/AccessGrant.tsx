@@ -741,7 +741,8 @@ export default function AccessGrantsPage() {
             return item.tabs
               .filter((tab) => {
                 const tabId = String(tab?.id || '').trim();
-                return tabId && enabledCanonical.has(tabId);
+                if (!tabId) return false;
+                return tab?.unlockedInWorkspace === true || enabledCanonical.has(tabId);
               })
               .map((tab) => ({
                 id: String(tab?.id || '').trim(),
@@ -752,7 +753,8 @@ export default function AccessGrantsPage() {
           }
 
           const itemId = String(item?.id || '').trim();
-          if (!itemId || !enabledCanonical.has(itemId)) return [];
+          if (!itemId) return [];
+          if (!(item?.unlockedInWorkspace === true || enabledCanonical.has(itemId))) return [];
           return [{
             id: itemId,
             label: String(item?.label || item?.id || '').trim(),

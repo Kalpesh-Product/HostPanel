@@ -1125,18 +1125,24 @@ useEffect(() => {
   const dynamicDepartmentItems = useMemo<NavNode[]>(() => {
     if (!["professional", "custom"].includes(planLabel)) return [];
 
-    const canSeeDepartmentAccess =
-      isFounderRole ||
-      isSuperAdmin ||
-      currentRole === "admin" ||
-      currentRole === "manager";
-    if (!canSeeDepartmentAccess) return [];
-
     const assignedDepartmentNames = new Set(
       roleAccessContext.departments
         .map((name) => String(name || "").trim().toLowerCase())
         .filter(Boolean),
     );
+
+    // Founder/super_admin/admin/manager can see every custom department (a
+    // management overview). A plain employee only sees the custom
+    // department(s) actually assigned to them — but must still be able to
+    // see those, not blocked outright, so their granted modules can group
+    // under the right heading instead of falling back to a static section.
+    const canSeeDepartmentAccess =
+      isFounderRole ||
+      isSuperAdmin ||
+      currentRole === "admin" ||
+      currentRole === "manager" ||
+      assignedDepartmentNames.size > 0;
+    if (!canSeeDepartmentAccess) return [];
     const moduleNavigation = new Map<
       string,
       { label: string; route?: string; icon?: ElementType }
@@ -1210,6 +1216,20 @@ useEffect(() => {
     workspaceDepartments,
     workspaceEnabledCanonicalIds,
   ]);
+
+  // Modules claimed by a visible custom department (e.g. "Marketing
+  // Department") should render only there, not duplicated under their
+  // static home section (Finance Department, Tech Department, etc).
+  const claimedByCustomDepartmentIds = useMemo(() => {
+    const claimed = new Set<string>();
+    dynamicDepartmentItems.forEach((department) => {
+      (department.children || []).forEach((child) => {
+        if (!child.disabled) claimed.add(child.id);
+      });
+    });
+    return claimed;
+  }, [dynamicDepartmentItems]);
+
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
     workspaceAccessMap?.moduleMap?.sections || []
   ).map((section) => {
@@ -1234,6 +1254,11 @@ useEffect(() => {
       }
       if (hasTabs) {
         const children = (item.tabs || [])
+          .filter((tab) => {
+            if (sectionKey !== "department-accesses") return true;
+            const tabId = String(tab?.id || "").trim();
+            return !claimedByCustomDepartmentIds.has(tabId);
+          })
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
             const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
