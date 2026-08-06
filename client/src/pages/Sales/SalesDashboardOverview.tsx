@@ -1,0 +1,506 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Magnet,
+  Building2,
+  Tag,
+  ShoppingCart,
+  CheckCircle2,
+  Clock,
+} from "lucide-react";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
+import PageFrame from "@/components/Pages/PageFrame";
+import WidgetSection from "@/components/WidgetSection";
+import useDashboardAccess from "@/hooks/useDashboardAccess";
+import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
+import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
+import {
+  PlanBadge,
+  StatCard,
+  SectionCard,
+  RecentItem,
+  DonutWidget,
+  BarWidget,
+  QuickLink,
+  getGreeting,
+  humanRelTime,
+  statusBadgeColor,
+} from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
+import { TeamLiveStatusCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
+import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
+import { getWebsiteLeads } from "@/services/sales-leads";
+import { getTenantCompanies } from "@/services/tenant-companies";
+import { getPricingPackages } from "@/services/pricing-packages";
+
+/* ───────────────────────────── Types ───────────────────────────── */
+
+interface WebsiteLeadRecord {
+  id?: string;
+  _id?: string;
+  name?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+interface TenantCompanyRecord {
+  id?: string;
+  _id?: string;
+  recordId?: string;
+  companyName?: string;
+  name?: string;
+  companyCode?: string;
+  sector?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+interface PricingPackageRecord {
+  id?: string;
+  _id?: string;
+  recordId?: string;
+  packageCode?: string;
+  name?: string;
+  category?: string;
+  price?: number;
+  status?: string;
+  durationMonths?: number;
+  createdAt?: string;
+}
+
+interface DashboardState {
+  leads: WebsiteLeadRecord[];
+  tenants: TenantCompanyRecord[];
+  packages: PricingPackageRecord[];
+}
+
+const DEFAULT_DASHBOARD: DashboardState = {
+  leads: [],
+  tenants: [],
+  packages: [],
+};
+
+/* ───────────────────────────── Helpers ───────────────────────────── */
+
+function normalizeText(value: unknown): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+/* ───────────────────────────── Component ───────────────────────────── */
+
+const WorkspaceClock = ({ workspaceName, timezone }: { workspaceName: string; timezone: string }) => {
+  const [tick, setTick] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const timeLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(tick);
+    } catch {
+      return "";
+    }
+  }, [tick, timezone]);
+
+  if (!workspaceName && !timeLabel) return null;
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+      {workspaceName && (
+        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600">
+          <Building2 size={13} />
+          {workspaceName}
+        </span>
+      )}
+      {workspaceName && timeLabel && <span className="h-3.5 w-px bg-slate-300" />}
+      {timeLabel && (
+        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600 tabular-nums">
+          <Clock size={13} />
+          {timeLabel}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export function SalesDashboardOverview() {
+  const currentUser = useFreshCurrentUser();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [dashboard, setDashboard] = useState<DashboardState>(DEFAULT_DASHBOARD);
+
+  const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone]);
+
+  const managerName = useMemo(() => {
+    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Sales Manager";
+  }, [currentUser]);
+
+  const { greeting, todayLabel } = useMemo(() => {
+    const timezone = workspacePreferences.timezone;
+
+    try {
+      const hourPart = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(now)
+        .find((part) => part.type === "hour")?.value;
+      const workspaceHour = Number(hourPart);
+
+      return {
+        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
+        todayLabel: new Intl.DateTimeFormat("en-IN", {
+          timeZone: timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(now),
+      };
+    } catch {
+      return {
+        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
+        todayLabel: now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    }
+  }, [managerName, now, workspacePreferences.timezone]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDashboard() {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const [leadsResponse, tenantsResponse, packagesResponse] = await Promise.allSettled([
+          getWebsiteLeads(),
+          getTenantCompanies(),
+          getPricingPackages(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        // getWebsiteLeads returns a raw axios response whose payload is the leads array itself.
+        const leadsData = leadsResponse.status === "fulfilled" ? leadsResponse.value?.data : [];
+
+        // listTenantCompanies responds with { tenants: [...] } at the top level.
+        const tenantsPayload = tenantsResponse.status === "fulfilled" ? (tenantsResponse.value?.data as Record<string, unknown>) : null;
+        const tenantsData = tenantsPayload
+          ? (tenantsPayload as { tenants?: unknown; data?: { tenants?: unknown } | unknown }).tenants
+            ?? (tenantsPayload as { data?: { tenants?: unknown } }).data?.tenants
+            ?? (tenantsPayload as { data?: unknown }).data
+            ?? tenantsPayload
+          : [];
+
+        const packagesPayload = packagesResponse.status === "fulfilled" ? (packagesResponse.value?.data as Record<string, unknown>) : null;
+        const packagesData = packagesPayload
+          ? (packagesPayload as { data?: { packages?: unknown } }).data?.packages
+            ?? (packagesPayload as { packages?: unknown }).packages
+          : [];
+
+        setDashboard({
+          leads: Array.isArray(leadsData) ? (leadsData as WebsiteLeadRecord[]) : [],
+          tenants: Array.isArray(tenantsData) ? (tenantsData as TenantCompanyRecord[]) : [],
+          packages: Array.isArray(packagesData) ? (packagesData as PricingPackageRecord[]) : [],
+        });
+
+        const failures = [leadsResponse, tenantsResponse, packagesResponse].filter((result) => result.status === "rejected");
+        setError(
+          failures.length > 0
+            ? ((failures[0] as PromiseRejectedResult).reason?.message || "Some sales data could not be loaded.")
+            : "",
+        );
+      } catch (loadError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setError((loadError as Error)?.message || "Unable to load sales overview.");
+        setDashboard(DEFAULT_DASHBOARD);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const leads = dashboard.leads;
+  const tenants = dashboard.tenants;
+  const packages = dashboard.packages;
+
+  const totalLeads = leads.length;
+  const newLeadsCount = leads.filter((lead) => normalizeText(lead.status || "Pending") === "pending").length;
+  const contactedLeadsCount = leads.filter((lead) => normalizeText(lead.status).includes("contacted")).length;
+  const contactedPercent = totalLeads > 0 ? Math.round((contactedLeadsCount / totalLeads) * 100) : 0;
+
+  const totalTenants = tenants.length;
+  const activeTenantsCount = tenants.filter((tenant) => normalizeText(tenant.status) === "active").length;
+
+  const totalPackages = packages.length;
+  const activePackagesCount = packages.filter((pkg) => normalizeText(pkg.status) === "active").length;
+
+  const recentLeads = useMemo(
+    () =>
+      [...leads]
+        .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
+        .slice(0, 5),
+    [leads],
+  );
+
+
+  const uncontactedLeads = useMemo(
+    () =>
+      leads
+        .filter((lead) => normalizeText(lead.status || "Pending") === "pending")
+        .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
+        .slice(0, 5),
+    [leads],
+  );
+
+  const attentionTenants = useMemo(
+    () =>
+      tenants
+        .filter((tenant) => normalizeText(tenant.status) !== "active")
+        .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
+        .slice(0, 5),
+    [tenants],
+  );
+
+  const leadStatusDonut = useMemo(() => {
+    const buckets = { New: 0, Contacted: 0, Closed: 0, Rejected: 0 };
+    leads.forEach((lead) => {
+      const status = normalizeText(lead.status || "Pending");
+      if (status.includes("contacted")) buckets.Contacted += 1;
+      else if (status.includes("closed")) buckets.Closed += 1;
+      else if (status.includes("rejected")) buckets.Rejected += 1;
+      else buckets.New += 1;
+    });
+    return {
+      series: [buckets.New, buckets.Contacted, buckets.Closed, buckets.Rejected],
+      labels: ["New", "Contacted", "Closed", "Rejected"],
+      colors: ["#2563EB", "#f59e0b", "#22c55e", "#ef4444"],
+    };
+  }, [leads]);
+
+  const tenantStatusDonut = useMemo(() => {
+    const buckets = { Active: 0, "Expiring Soon": 0, "Pending/Expired": 0 };
+    tenants.forEach((tenant) => {
+      const status = normalizeText(tenant.status);
+      if (status === "active") buckets.Active += 1;
+      else if (status.includes("expiring")) buckets["Expiring Soon"] += 1;
+      else buckets["Pending/Expired"] += 1;
+    });
+    return {
+      series: [buckets.Active, buckets["Expiring Soon"], buckets["Pending/Expired"]],
+      labels: ["Active", "Expiring Soon", "Pending/Expired"],
+      colors: ["#22c55e", "#f59e0b", "#94a3b8"],
+    };
+  }, [tenants]);
+
+  const monthLabels = useMemo(() => {
+    const labels: string[] = [];
+    const anchor = new Date();
+    for (let i = 11; i >= 0; i -= 1) {
+      const monthStart = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
+      labels.push(monthStart.toLocaleDateString("en-US", { month: "short" }));
+    }
+    return labels;
+  }, []);
+
+  const leadsByMonth = useMemo(() => {
+    const counts = new Array(12).fill(0);
+    const anchor = new Date();
+    leads.forEach((lead) => {
+      const parsed = new Date(String(lead.createdAt || ""));
+      if (Number.isNaN(parsed.getTime())) return;
+      const diffMonths = (anchor.getFullYear() - parsed.getFullYear()) * 12 + (anchor.getMonth() - parsed.getMonth());
+      const index = 11 - diffMonths;
+      if (index >= 0 && index < 12) counts[index] += 1;
+    });
+    return counts;
+  }, [leads]);
+
+  const monthlyBarSeries = useMemo(() => [{ name: "Website Leads", data: leadsByMonth }], [leadsByMonth]);
+
+  const monthlyBarOptions = useMemo(
+    () => ({
+      chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+      plotOptions: { bar: { borderRadius: 4, columnWidth: "45%" } },
+      dataLabels: { enabled: false },
+      grid: { borderColor: "#f0f0f0" },
+      xaxis: { categories: monthLabels },
+      colors: ["#2563EB"],
+      stroke: { show: true, width: 2, colors: ["transparent"] },
+      tooltip: { theme: "light" },
+    }),
+    [monthLabels],
+  );
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  return (
+    <div className="p-4 flex flex-col gap-5">
+
+      {/* Greeting banner */}
+      <PageFrame>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">Sales Dashboard</h2>
+              <PlanBadge plan={access.plan} />
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content font-pmedium text-gray-700">{todayLabel}</p>
+          </div>
+
+          <div className="mt-1 sm:mt-0">
+            <WorkspaceClock workspaceName={access.workspaceName} timezone={workspacePreferences.timezone} />
+          </div>
+        </div>
+      </PageFrame>
+
+      {error ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
+          {error}
+        </div>
+      ) : null}
+
+      {/* Overview — only the metrics that matter */}
+      <WidgetSection layout={4} title="Overview" border normalCase>
+        <StatCard icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} color="#2563EB" route="/sales-crm/leads-management" />
+        <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/sales-crm/tenant-companies" />
+        <StatCard icon={Tag} label="Pricing Packages" value={totalPackages} sub={`${activePackagesCount} active`} color="#7c3aed" route="/sales-crm/resource-pricing" />
+        <StatCard icon={CheckCircle2} label="Contacted Leads" value={contactedLeadsCount} sub={`${contactedPercent}% of total leads`} color="#22c55e" route="/sales-crm/leads-management" />
+      </WidgetSection>
+
+      {/* Team status, live visitors and recent leads */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <TeamLiveStatusCard department="sales" viewAllRoute="/sales-crm/leads-management" />
+
+        <DepartmentVisitorsCard department="sales" title="Sales Visitors" />
+
+        <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/sales-crm/leads-management">
+          <div className="space-y-3">
+            {recentLeads.length > 0 ? recentLeads.map((lead, index) => (
+              <RecentItem
+                key={lead.id || lead._id || index}
+                title={lead.name || lead.fullName || "Lead"}
+                sub={lead.email || lead.phone || "No contact info"}
+                badge={lead.status || "Pending"}
+                badgeColor={statusBadgeColor(lead.status || "Pending")}
+                time={humanRelTime(lead.createdAt || "")}
+              />
+            )) : (
+              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No website leads yet</p></div>
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Quick links */}
+      <WidgetSection layout={4} title="Quick Links" border normalCase>
+        <QuickLink icon={Magnet} label="Leads Management" description="Track & convert leads" route="/sales-crm/leads-management" color="#2563EB" />
+        <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenant accounts" route="/sales-crm/tenant-companies" color="#0891b2" />
+        <QuickLink icon={Tag} label="Resource & Pricing" description="Packages & resource rates" route="/sales-crm/resource-pricing" color="#7c3aed" />
+        <QuickLink icon={ShoppingCart} label="Sales Architecture" description="Space & resource assignment" route="/sales-crm/sales-architecture" color="#f59e0b" />
+      </WidgetSection>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SectionCard title="Uncontacted Leads" linkLabel="View all" linkRoute="/sales-crm/leads-management">
+          {uncontactedLeads.length > 0 ? uncontactedLeads.map((lead, index) => (
+            <RecentItem
+              key={lead.id || lead._id || index}
+              title={lead.name || lead.fullName || "Lead"}
+              sub={lead.email || lead.phone || "No contact info"}
+              badge={lead.status || "Pending"}
+              badgeColor={statusBadgeColor(lead.status || "Pending")}
+              time={humanRelTime(lead.createdAt || "")}
+            />
+          )) : (
+            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No uncontacted leads</p></div>
+          )}
+        </SectionCard>
+
+        <DonutWidget
+          title="Lead Status"
+          series={leadStatusDonut.series}
+          labels={leadStatusDonut.labels}
+          colors={leadStatusDonut.colors}
+          centerLabel="Leads"
+        />
+
+        <SectionCard title="Tenants Needing Attention" linkLabel="View all" linkRoute="/sales-crm/tenant-companies">
+          {attentionTenants.length > 0 ? attentionTenants.map((tenant, index) => (
+            <RecentItem
+              key={tenant.recordId || tenant.id || tenant._id || index}
+              title={tenant.companyName || tenant.name || "Tenant"}
+              sub={tenant.companyCode || tenant.sector || "Tenant company"}
+              badge={tenant.status || "Pending"}
+              badgeColor={statusBadgeColor(tenant.status || "")}
+              time={humanRelTime(tenant.createdAt || "")}
+            />
+          )) : (
+            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tenants pending action</p></div>
+          )}
+        </SectionCard>
+
+        <DonutWidget
+          title="Tenant Status"
+          series={tenantStatusDonut.series}
+          labels={tenantStatusDonut.labels}
+          colors={tenantStatusDonut.colors}
+          centerLabel="Tenants"
+        />
+      </div>
+
+      <BarWidget
+        title="Monthly Lead Trend (FY)"
+        chartId="sales-monthly-leads"
+        series={monthlyBarSeries}
+        options={monthlyBarOptions}
+        height={260}
+      />
+    </div>
+  );
+}
+
+export default SalesDashboardOverview;

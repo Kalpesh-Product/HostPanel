@@ -10,13 +10,16 @@ export interface ILeaveRequest extends Document {
     requesterUserId?: mongoose.Types.ObjectId | null;
     department?: mongoose.Types.ObjectId | null;
     departments: mongoose.Types.ObjectId[];
-    requesterRole: mongoose.Types.ObjectId;
+    requesterRole: "founder" | "super_admin" | "admin" | "manager" | "employee";
     leaveType: "Casual" | "Sick" | "Vacation";
-    leaveMode: "full_day" | "half_day";
+    leaveMode: "full_day" | "half_day" | "hours";
     halfDaySession?: "" | "morning" | "evening";
+    leaveHours?: number;
+    quotaYear?: number;
     startDate: Date;
     endDate: Date;
     days: number;
+    balanceDeducted?: boolean;
     status: "pending" | "approved" | "rejected";
     reason: string;
     requesterBalance: number;
@@ -85,8 +88,8 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
             default: [],
         },
         requesterRole: {
-            type: Schema.Types.ObjectId,
-            ref: "Role",
+            type: String,
+            enum: ["founder", "super_admin", "admin", "manager", "employee"],
             required: true,
             index: true,
         },
@@ -98,7 +101,7 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
         },
         leaveMode: {
             type: String,
-            enum: ["full_day", "half_day"],
+            enum: ["full_day", "half_day", "hours"],
             default: "full_day",
             index: true,
         },
@@ -107,6 +110,17 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
             enum: ["", "morning", "evening"],
             default: "",
             trim: true,
+            index: true,
+        },
+        leaveHours: {
+            type: Number,
+            default: 0,
+            min: 0,
+            index: true,
+        },
+        quotaYear: {
+            type: Number,
+            default: null,
             index: true,
         },
         startDate: {
@@ -142,6 +156,10 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
             required: true,
             min: 0,
             default: 0,
+        },
+        balanceDeducted: {
+            type: Boolean,
+            default: false,
         },
         medicalCertAttached: {
             type: Boolean,

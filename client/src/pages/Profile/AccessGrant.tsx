@@ -40,6 +40,8 @@ interface WorkspaceAccess {
   id: string;
   workspaceName?: string;
   location?: string;
+  isMain?: boolean;
+  accessStatus?: string;
   [key: string]: unknown;
 }
 
@@ -597,7 +599,8 @@ export default function AccessGrantsPage() {
   const removableWorkspaceOptions = useMemo(
     () =>
       (Array.isArray(selectedUser?.workspaceAccesses) ? selectedUser.workspaceAccesses : []).filter(
-        (access) => String(access?.id || '') !== String(workspace?.id || ''),
+        (access) =>
+          String(access?.id || '') !== String(workspace?.id || '') && access?.isMain !== true,
       ),
     [selectedUser, workspace],
   );
@@ -1262,13 +1265,12 @@ export default function AccessGrantsPage() {
   };
 
   const handleOpenWorkspaceRemoveDialog = (user: MappedMember) => {
-    const currentWorkspaceId = String(workspace?.id || '');
-    const additionalAccesses = (user.workspaceAccesses || []).filter(
-      (access) => String(access?.id || '') !== currentWorkspaceId,
-    );
-
     setSelectedUser(user);
-    setWorkspaceRemoveTargetIds(additionalAccesses.map((access) => String(access?.id || '')));
+    // Start with nothing selected — the founder picks the units to remove.
+    // Pre-selecting here made the Remove button appear enabled with zero
+    // checkboxes ticked, and inflated the count (the hidden main unit was
+    // included, since this old filter only excluded the current unit).
+    setWorkspaceRemoveTargetIds([]);
     setShowWorkspaceRemoveDialog(true);
   };
 
@@ -1655,8 +1657,8 @@ export default function AccessGrantsPage() {
                     {getInitials(selectedUser.name)}
                   </div>
                   <div>
-                    <div className="font-semibold text-slate-900 text-sm">{selectedUser.name}</div>
-                    <div className="text-xs text-slate-500">{selectedUser.email}</div>
+                    <div className="font-pbold text-slate-900 text-[15px]">{selectedUser.name}</div>
+                    <div className="text-[12px] font-pmedium text-slate-500">{selectedUser.email}</div>
                     <div className="flex items-center gap-2 mt-1">
                       {getRoleBadge(selectedUser.roleGroup)}
                       <span className="text-xs text-slate-400">• {selectedUser.roleGroup === 'Super-Admin' ? 'All Departments' : selectedUser.department}</span>
@@ -2116,9 +2118,15 @@ export default function AccessGrantsPage() {
                       </div>
                     ) : (
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
-                        No additional units to remove.
+                        No additional units to remove. A user's main unit access can never be removed.
                       </div>
                     )}
+                    {selectedUser.workspaceAccesses?.some((access) => access?.isMain === true) ? (
+                      <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+                        The Main unit badge marks the unit the user was first added to — its access cannot
+                        be removed. Transfer the user to another unit to change their main unit.
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
@@ -2170,8 +2178,16 @@ export default function AccessGrantsPage() {
                     <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Current units</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(selectedUser.workspaceAccesses || []).map((access) => (
-                        <span key={access.id} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                        <span
+                          key={access.id}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600"
+                        >
                           {access.workspaceName}
+                          {access.isMain ? (
+                            <span className="rounded-full bg-[#2563EB] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                              Main
+                            </span>
+                          ) : null}
                         </span>
                       ))}
                     </div>
@@ -2288,7 +2304,7 @@ export default function AccessGrantsPage() {
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-slate-900">{selectedUser.name}</span>
                     {getRoleBadge(selectedUser.roleGroup)}
-                    <span className="text-xs text-slate-500">{selectedUser.department}</span>
+                    <span className="text-[10px] font-pmedium text-slate-500">{selectedUser.department}</span>
                   </div>
                 </div>
 

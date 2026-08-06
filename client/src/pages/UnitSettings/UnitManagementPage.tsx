@@ -654,10 +654,13 @@ export default function WorkspaceManagementPage() {
   }
 
   function handleToggleWorkspace(workspaceId) {
+    const workspace = overview?.workspaces?.find((item) => String(item.id) === String(workspaceId));
+    if (workspace?.isDeleted) return;
     setExpandedWorkspaceId((current) => (current === workspaceId ? "" : workspaceId));
   }
 
   function handleOpenEdit(workspace) {
+    if (workspace?.isDeleted) return;
     setEditingWorkspace(workspace);
     setEditForm({
       workspaceName: workspace.workspaceName || "",
@@ -904,7 +907,7 @@ export default function WorkspaceManagementPage() {
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                     {/* Department filter */}
-                    <div className="relative flex-1 min-w-[160px]">
+                    {/* <div className="relative flex-1 min-w-[160px]">
                       <select
                         value={departmentFilter}
                         onChange={(event) => setDepartmentFilter(event.target.value)}
@@ -917,7 +920,7 @@ export default function WorkspaceManagementPage() {
                         ))}
                       </select>
                       <RefreshCcw size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2563EB]" />
-                    </div>
+                    </div> */}
                     {/* Action button */}
                     <button
                       data-tour="unit-management-view-data"
@@ -989,7 +992,9 @@ export default function WorkspaceManagementPage() {
                                 data-tour="unit-management-view-details"
                                 type="button"
                                 onClick={() => handleToggleWorkspace(workspace.id)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                disabled={Boolean(workspace.isDeleted)}
+                                title={workspace.isDeleted ? "Deleted units have no details to show" : undefined}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {expandedWorkspaceId === workspace.id ? (
                                   <ChevronUp className="h-3.5 w-3.5" />
@@ -1002,7 +1007,9 @@ export default function WorkspaceManagementPage() {
                                 data-tour="unit-management-edit-unit"
                                 type="button"
                                 onClick={() => handleOpenEdit(workspace)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                disabled={Boolean(workspace.isDeleted)}
+                                title={workspace.isDeleted ? "Deleted units cannot be edited" : undefined}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-pmedium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit Unit

@@ -103,7 +103,7 @@ const formatLongDate = (value?: string) => {
   if (Number.isNaN(date.getTime())) return value;
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${day}/${month}/${date.getFullYear()}`;
+  return `${day}-${month}-${date.getFullYear()}`;
 };
 
 const formatHours = (hours?: number) => {
@@ -352,6 +352,7 @@ export default function HREmployeeAttendanceDetailPage() {
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [weeklyHours, setWeeklyHours] = useState<{ workedHours?: number; targetHours?: number } | null>(null);
   const [employeeLabel, setEmployeeLabel] = useState(employeeName);
   const [employeeCode, setEmployeeCode] = useState(employeeId);
   const [employeeDept, setEmployeeDept] = useState(department);
@@ -375,6 +376,7 @@ export default function HREmployeeAttendanceDetailPage() {
         const historyData = historyResult.status === "fulfilled" ? historyResult.value : null;
         const nextRecords = Array.isArray(historyData?.records) ? historyData.records : Array.isArray(historyData) ? historyData : [];
         setRecords(nextRecords);
+        setWeeklyHours(historyData?.stats?.weeklyHours ?? null);
 
         const employees = overviewResult.status === "fulfilled" && Array.isArray(overviewResult.value?.data?.employees)
           ? overviewResult.value.data.employees
@@ -421,14 +423,12 @@ export default function HREmployeeAttendanceDetailPage() {
       sum + (Array.isArray(record.breaks) ? record.breaks.reduce((bSum, b) => bSum + (Number(b.duration) || 0), 0) : 0)
     ), 0);
     const monthlyHours = records.reduce((sum, record) => sum + (Number(record.totalHours) || 0), 0);
-    const weeklyHours = records.slice(-7).reduce((sum, record) => sum + (Number(record.totalHours) || 0), 0);
     return {
       presentCount,
       absentCount,
       lateCount,
       breakMinutes,
       monthlyHours,
-      weeklyHours,
       totalDays: records.length,
     };
   }, [records]);
@@ -461,7 +461,14 @@ export default function HREmployeeAttendanceDetailPage() {
   }, [employeeProfile]);
 
   const profileSummaryCards: Array<{ label: string; value: string | number; icon: React.ComponentType<{ size?: number; className?: string }>; color: "blue" | "emerald" | "rose" | "amber" }> = [
-    { label: "Weekly Hours", value: formatHours(totals.weeklyHours), icon: Clock, color: "blue" },
+    {
+      label: "Weekly Hours",
+      value: weeklyHours?.targetHours != null
+        ? `${formatHours(weeklyHours?.workedHours)} / ${formatHours(weeklyHours?.targetHours)}`
+        : formatHours(weeklyHours?.workedHours),
+      icon: Clock,
+      color: "blue",
+    },
     { label: "Monthly Hours", value: formatHours(totals.monthlyHours), icon: TrendingUp, color: "amber" },
     { label: "Present Days", value: totals.presentCount, icon: CheckCircle2, color: "emerald" },
     { label: "Absent Days", value: totals.absentCount, icon: XCircle, color: "rose" },
@@ -506,7 +513,7 @@ export default function HREmployeeAttendanceDetailPage() {
           <div className="mb-6 overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
             <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Employee Profile</p>
+                <p className="text-[10px] font-pmedium uppercase tracking-[0.2em] text-blue-600">Employee Profile</p>
                 <h1 className="mt-2 truncate text-2xl font-pmedium tracking-tight text-slate-900">{employeeLabel}</h1>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-pmedium text-slate-500">
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1">
@@ -524,7 +531,7 @@ export default function HREmployeeAttendanceDetailPage() {
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                {/* <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
                   {isFullAccessRole ? (
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-pmedium text-slate-600">
                       All Departments
@@ -534,7 +541,7 @@ export default function HREmployeeAttendanceDetailPage() {
                       {dept}
                     </span>
                   )) : null}
-                </div>
+                </div> */}
               </div>
             </div>
 
@@ -742,7 +749,7 @@ export default function HREmployeeAttendanceDetailPage() {
             </AnimatePresence>
           </div>
 
-          {!selectedDay && (
+          {/* {!selectedDay && (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
                 <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-400">Employee Snapshot</p>
@@ -780,7 +787,7 @@ export default function HREmployeeAttendanceDetailPage() {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
 

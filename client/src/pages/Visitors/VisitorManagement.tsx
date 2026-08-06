@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
@@ -33,7 +34,7 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer, Lock, Home, UserCheck, FileSpreadsheet, FileDown
+  Download, Printer, Lock, Home, UserCheck, FileSpreadsheet, FileDown, Tag
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
@@ -1037,6 +1038,7 @@ function ValidationSummary({ errors = {} }) {
 }
 
 export default function VisitorsManagementPage() {
+  const navigate = useNavigate();
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const businessHours = useBusinessHours();
@@ -2067,6 +2069,17 @@ export default function VisitorsManagementPage() {
     () => meetingRoomCatalog.map(normalizeMeetingRoom),
     [meetingRoomCatalog],
   );
+  const hasWalkInBookableResources = useMemo(
+    () => normalizedMeetingRoomCatalog.some((room) => {
+      const assignedToTenant = Boolean(room.assignedTenantCompanyId || room.assignedTenantCompanyName);
+      const assignedToDepartment = Boolean(room.assignedDepartmentId || room.assignedDepartmentName);
+      const assignmentBlocked = Boolean(room.walkInBlockedByAssignment || assignedToTenant || assignedToDepartment);
+      const pricingBlocked = room.activationReady === false || Number(room.credits || 0) <= 0 || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0));
+      const statusBlocked = room.status && room.status !== 'Active';
+      return !assignmentBlocked && !pricingBlocked && !statusBlocked;
+    }),
+    [normalizedMeetingRoomCatalog],
+  );
 
   const availableFloors = useMemo(() => {
     const floors = Array.from(new Set(normalizedMeetingRoomCatalog.map((room) => room.floor).filter(Boolean)));
@@ -2161,6 +2174,19 @@ export default function VisitorsManagementPage() {
 
     return walkInRoomOptions.find((room) => room.name === form.resourceName) || null;
   }, [walkInRoomOptions, form.resourceName]);
+
+  const goToResourcePricing = () => {
+    navigate('/sales-crm/resource-pricing', {
+      state: {
+        from: '/app/visitors/visitor-management',
+        intent: 'add-meeting-resource',
+        openResourceModal: true,
+        preset: 'meeting_room',
+        resourceCategory: 'meeting_room',
+        inventoryMode: 'area',
+      },
+    });
+  };
   const currentRoundedTime = useMemo(
     () => roundUpToStepTime(minutesToTime(getWorkspaceClockMinutes(new Date(), workspacePreferences.timezone) + 1)),
     [workspacePreferences.timezone],
@@ -4491,7 +4517,46 @@ export default function VisitorsManagementPage() {
         </div>
 
         {/* MODAL 1: GRAND UNIFIED "LOG VISITOR & BOOKING" TERMINAL */}
-        {isLoggingVisitor && (
+        {isLoggingVisitor && (<>
+        {visitorMode === 'walkin_booking' && !hasWalkInBookableResources ? (
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <div className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-2xl min-h-[22rem]">
+              <div className="p-4 sm:p-5 bg-white border-b border-slate-100 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Walk-in Booking</p>
+                  <h2 className="mt-1 text-xl font-pmedium text-primary tracking-tight">Add Meeting Resources First</h2>
+                  <p className="mt-1 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest">Front Desk</p>
+                </div>
+                <button type="button" onClick={() => { setIsLoggingVisitor(false); setWalkInStep(1); setVisitorMode('standard'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-200">
+                  <X size={20} strokeWidth={2.5} />
+                </button>
+              </div>
+              <div className="flex flex-1 flex-col items-center justify-center bg-slate-50/50 px-5 py-10 text-center sm:px-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-[#2563EB] shadow-sm">
+                  <Building size={24} />
+                </div>
+                <p className="mt-5 text-base font-pmedium text-slate-950">No meeting resources are available yet</p>
+                <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                  Add an active Meeting Room or Conference Room before opening Walk-in Booking. You can manage these resources under Sales Department &rarr; Resource & Pricing.
+                </p>
+                <button
+                  type="button"
+                  onClick={goToResourcePricing}
+                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]"
+                >
+                  <Tag size={14} /> Add Resources <ArrowRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsLoggingVisitor(false); setWalkInStep(1); setVisitorMode('standard'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }}
+                  className="mt-3 text-[10px] font-pmedium uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <div data-frontdesk-form className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]">
 
@@ -6003,7 +6068,7 @@ export default function VisitorsManagementPage() {
               </div>
             </div>
           </div>
-        )}
+        </>)}
 
         {isLoggingVisitor && showBookingConfirmationPopup && bookingConfirmation && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">

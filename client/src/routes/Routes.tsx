@@ -16,6 +16,7 @@ import Chat from "../pages/Chat";
 // Test page
 import TestPage from "../pages/Test/TestPage";
 import DashboardLayout from "../pages/Dashboard/DashboardLayout";
+import DashboardIndex from "../pages/Dashboard/DashboardIndex";
 // import Attendance from "../pages/Dashboard/Attendance/Attendance"; // OLD - moved to extra-common-modules
 import { AttendancePage } from "../pages/Attendance/AttendancePage";
 import FrontendDashboard from "../pages/Dashboard/FrontendDashboard/FrontendDashboard";
@@ -83,7 +84,6 @@ import VerticalPicker from "../components/VerticalPicker";
 
 import Companies from "../pages/Dashboard/FrontendDashboard/Companies";
 import CompanyLeads from "../pages/Dashboard/FrontendDashboard/CompanyLeads";
-import CompanySettingsDashboard from "../pages/Dashboard/FrontendDashboard/CompanySettingsDashboard";
 import NomadListing from "../pages/Dashboard/FrontendDashboard/NomadListing";
 import PocDetails from "../pages/Dashboard/FrontendDashboard/PocDetails";
 import NomadListingsOverview from "../pages/Dashboard/FrontendDashboard/NomadListingsOverview";
@@ -286,7 +286,7 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     index: true, // login lands here
-                    element: <CompanySettingsDashboard />,
+                    element: <DashboardIndex />,
                   },
                   // {
                   //   path: "attendance",

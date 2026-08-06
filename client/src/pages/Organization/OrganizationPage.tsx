@@ -161,7 +161,12 @@ type TeamMember = {
   transferredToWorkspaceLocation?: string;
   grantedModules?: string[];
   enabledModules?: string[];
-  workspaceAccesses?: Array<{ id?: string; workspaceName?: string; location?: string }>;
+  workspaceAccesses?: Array<{
+    id?: string;
+    workspaceName?: string;
+    location?: string;
+    isMain?: boolean;
+  }>;
   joinedAt?: string;
 };
 
@@ -2482,7 +2487,14 @@ export function OrganizationPage() {
                   <div className="space-y-2">
                     {viewingMember.workspaceAccesses.map((access, i) => (
                       <div key={access.id || i} className="flex items-center justify-between p-3 bg-slate-50/60 border border-slate-100 rounded-xl">
-                        <span className="text-[12px] font-pmedium text-slate-800">{access.workspaceName || 'Workspace'}</span>
+                        <span className="flex items-center gap-2 text-[12px] font-pmedium text-slate-800">
+                          {access.workspaceName || 'Workspace'}
+                          {access.isMain ? (
+                            <span className="px-2 py-0.5 bg-[#2563EB] text-white rounded-full text-[9px] font-bold uppercase tracking-wider">
+                              Main
+                            </span>
+                          ) : null}
+                        </span>
                         {access.location && <span className="text-[10px] font-pmedium text-slate-500">{access.location}</span>}
                       </div>
                     ))}

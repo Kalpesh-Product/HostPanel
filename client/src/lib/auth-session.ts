@@ -29,7 +29,12 @@ export const getStoredActingManagerContext = (user?: any): any => {
 };
 
 const getRoleString = (user?: any): string => {
-  return String(user?.workspaceMembership?.role || user?.role || "").toLowerCase();
+  // Mirror the server's normalization ("HR Manager" -> "hr_manager") so
+  // role checks match custom role names regardless of spacing/hyphenation.
+  return String(user?.workspaceMembership?.role || user?.role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 };
 
 export const canAccessAdminDashboard = (user?: any): boolean => {
@@ -123,7 +128,7 @@ export const getStoredTenantCompanyName = (): string => {
 export const resolvePostLoginRoute = (user?: any): string => {
   const role = getRoleString(user);
   if (role === "owner" || role === "super_admin" || role === "super-admin" || role === "admin") return "/dashboard";
-  if (role === "hr-manager" || role === "hr_manager" || role === "hr") return "/hr/employee-management";
+  if (role === "hr-manager" || role === "hr_manager" || role === "hr") return "/dashboard";
   if (role === "finance-manager" || role === "finance_manager" || role === "finance") return "/dashboard/finance/billing-payments";
   if (role === "sales-manager" || role === "sales_manager" || role === "sales") return "/sales-crm/leads-management";
   if (role === "it-manager" || role === "it_manager" || role === "it") return "/it/repair-logs";
