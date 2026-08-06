@@ -797,17 +797,20 @@ const formatRecordForFrontend = async (record, membership = null) => {
         status: plain.correctionRequest.status || "pending",
         reason: plain.correctionRequest.reason || "",
         type: "correction",
+        // Only label a field "requested" when the employee actually asked to
+        // change it — falling back to the current value here would make an
+        // untouched field look like a fresh request for the same time.
         originalCheckIn: toTimeLabel(plain.correctionRequest.originalCheckInAt || plain.checkInAt, timezone),
         originalCheckOut: toTimeLabel(plain.correctionRequest.originalCheckOutAt || plain.checkOutAt, timezone),
-        requestedCheckIn: toTimeLabel(plain.correctionRequest.requestedCheckInAt || plain.checkInAt, timezone),
-        requestedCheckOut: toTimeLabel(plain.correctionRequest.requestedCheckOutAt || plain.checkOutAt, timezone),
+        requestedCheckIn: toTimeLabel(plain.correctionRequest.requestedCheckInAt, timezone),
+        requestedCheckOut: toTimeLabel(plain.correctionRequest.requestedCheckOutAt, timezone),
         breaks: Array.isArray(plain.correctionRequest.requestedBreaks)
           ? plain.correctionRequest.requestedBreaks.map((adjustment) => ({
             breakIndex: adjustment?.breakIndex ?? 0,
             originalStart: toTimeLabel(adjustment?.originalStartAt, timezone),
             originalEnd: toTimeLabel(adjustment?.originalEndAt, timezone),
-            requestedStart: toTimeLabel(adjustment?.requestedStartAt || adjustment?.originalStartAt, timezone),
-            requestedEnd: toTimeLabel(adjustment?.requestedEndAt || adjustment?.originalEndAt, timezone),
+            requestedStart: toTimeLabel(adjustment?.requestedStartAt, timezone),
+            requestedEnd: toTimeLabel(adjustment?.requestedEndAt, timezone),
           }))
           : [],
         actionedBy: plain.correctionRequest.reviewedByName || "",
@@ -1693,9 +1696,45 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
   const visibleRoleBand = await resolveAttendanceAccessBand(membership);
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
   const todayKey = toDateKey(new Date(), timezone);
-  const requestedDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(query.date || "").trim())
-    ? String(query.date).trim()
-    : todayKey;
+
+  const isDateKey = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim());
+  const explicitFrom = isDateKey(query.from) ? String(query.from).trim() : null;
+  const explicitTo = isDateKey(query.to) ? String(query.to).trim() : null;
+  const hasExplicitRange = Boolean(explicitFrom || explicitTo);
+  const singleDateKey = isDateKey(query.date) ? String(query.date).trim() : null;
+  // The day-by-day roster below only ever widens past a single day when the
+  // caller explicitly asks for a range — a bare `month` must NOT expand it,
+  // since other callers (e.g. the plain "who's in today" snapshot) expect
+  // exactly one row per employee.
+  let fromKey = explicitFrom || singleDateKey || todayKey;
+  let toKey = explicitTo || singleDateKey || fromKey;
+  if (fromKey > toKey) [fromKey, toKey] = [toKey, fromKey];
+
+  // A custom range picked in the UI shouldn't be able to make this endpoint
+  // generate an unbounded number of member x day roster rows below.
+  const MAX_RANGE_DAYS = 366;
+  const rangeDayCount = Math.floor(
+    (new Date(`${toKey}T00:00:00Z`).getTime() - new Date(`${fromKey}T00:00:00Z`).getTime()) / 86400000,
+  ) + 1;
+  if (rangeDayCount > MAX_RANGE_DAYS) {
+    const capped = new Date(`${fromKey}T00:00:00Z`);
+    capped.setUTCDate(capped.getUTCDate() + MAX_RANGE_DAYS - 1);
+    toKey = capped.toISOString().slice(0, 10);
+  }
+
+  const dateKeysInRange = [];
+  {
+    const cursor = new Date(`${fromKey}T00:00:00Z`);
+    const last = new Date(`${toKey}T00:00:00Z`);
+    while (cursor <= last) {
+      dateKeysInRange.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  // Kept for backward-compatible output fields (`date`/`month`) — callers
+  // that only care about a single day still get sensible values.
+  const requestedDateKey = fromKey;
   const { keys } = getMonthDateKeys(query.month || requestedDateKey.slice(0, 7));
   const managedDepartmentIds = await getManagedDepartmentIds(workspace._id, membership, user._id);
 
@@ -1751,35 +1790,49 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
   const memberUserIds = uniqueVisibleMembers.map((m) => m.user._id);
   const memberByUserId = new Map(uniqueVisibleMembers.map((m) => [toId(m.user._id), m]));
 
-  // Roster: a live "who's in" snapshot for the requested day (today by
-  // default), one row per visible member — not a per-day log for the whole
-  // month, which used to bury today's handful of real punches under a wall
-  // of "absent" placeholders for every other day (including future ones).
-  const dayRecords = memberUserIds.length
+  // Roster: a live "who's in" snapshot across the requested range (today by
+  // default), one row per visible member per day in range — not a per-day
+  // log for the whole month regardless of what was asked for, which used to
+  // bury today's handful of real punches under a wall of "absent"
+  // placeholders for every other day (including future ones).
+  const rangeRecords = memberUserIds.length
     ? await Attendance.find({
       workspaceId: workspace._id,
       employeeUserId: { $in: memberUserIds },
-      dateKey: requestedDateKey,
+      dateKey: { $gte: fromKey, $lte: toKey },
     }).lean().exec()
     : [];
-  const dayRecordByUserId = new Map(dayRecords.map((r) => [toId(r.employeeUserId), r]));
+  const recordByUserAndDate = new Map(
+    rangeRecords.map((r) => [`${toId(r.employeeUserId)}:${r.dateKey}`, r]),
+  );
   const approvedLeaves = memberUserIds.length
     ? await LeaveRequest.find({
       workspaceId: workspace._id,
       requesterUserId: { $in: memberUserIds },
       status: "approved",
-      startDate: { $lte: new Date(`${requestedDateKey}T23:59:59.999Z`) },
-      endDate: { $gte: new Date(`${requestedDateKey}T00:00:00.000Z`) },
+      startDate: { $lte: new Date(`${toKey}T23:59:59.999Z`) },
+      endDate: { $gte: new Date(`${fromKey}T00:00:00.000Z`) },
     })
-      .select("leaveCode leaveType leaveMode leaveHours halfDaySession requesterUserId")
+      .select("leaveCode leaveType leaveMode leaveHours halfDaySession requesterUserId startDate endDate")
       .lean()
       .exec()
     : [];
-  const approvedLeaveByUserId = new Map(
-    approvedLeaves.map((leave) => [toId(leave.requesterUserId), leave]),
-  );
-  const requestedDateIsSunday = new Date(`${requestedDateKey}T12:00:00.000Z`).getUTCDay() === 0;
-  const requestedDateIsFuture = requestedDateKey > todayKey;
+  // Per (member, day) leave lookup, mirroring getMyAttendanceHistory's
+  // day-expansion of each leave's [startDate, endDate] span.
+  const leaveByUserAndDate = new Map();
+  for (const leave of approvedLeaves) {
+    const leaveUserId = toId(leave.requesterUserId);
+    const startKey = (leave.startDate ? new Date(leave.startDate) : new Date()).toISOString().slice(0, 10);
+    const endKey = (leave.endDate ? new Date(leave.endDate) : new Date(startKey)).toISOString().slice(0, 10);
+    const spanFrom = startKey < fromKey ? fromKey : startKey;
+    const spanTo = endKey > toKey ? toKey : endKey;
+    const cursor = new Date(`${spanFrom}T12:00:00.000Z`);
+    const last = new Date(`${spanTo}T12:00:00.000Z`);
+    while (cursor <= last) {
+      leaveByUserAndDate.set(`${leaveUserId}:${cursor.toISOString().slice(0, 10)}`, leave);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
 
   const rows = [];
   for (const member of uniqueVisibleMembers) {
@@ -1788,66 +1841,89 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       Array.isArray(member?.departments) ? member.departments.map((dept) => dept?.name) : [],
     );
     const empId = employeeIdByMemberId.get(toId(member._id)) || employeeIdByUserId.get(toId(member.user?._id)) || "";
-    const existing = dayRecordByUserId.get(toId(member.user._id));
-    const activeLeave = approvedLeaveByUserId.get(toId(member.user._id)) || null;
-    if (existing) {
+    const memberUserId = toId(member.user._id);
+
+    for (const dateKey of dateKeysInRange) {
+      const dateIsSunday = new Date(`${dateKey}T12:00:00.000Z`).getUTCDay() === 0;
+      const dateIsFuture = dateKey > todayKey;
+      const existing = recordByUserAndDate.get(`${memberUserId}:${dateKey}`);
+      const activeLeave = leaveByUserAndDate.get(`${memberUserId}:${dateKey}`) || null;
+      if (existing) {
+        rows.push({
+          // department is already resolved above from populated, in-memory
+          // membership data — skip formatRecordForFrontend's own (DB-backed)
+          // department lookup since its result gets overwritten below anyway.
+          ...(await formatRecordForFrontend(existing, { ...member, employeeId: empId, departments: [] })),
+          employeeName: member.user.name || member.user.email || "Unknown",
+          department: memberDepartmentName,
+          activeLeave,
+        });
+        continue;
+      }
+      const leavePlaceholder = activeLeave && !dateIsFuture;
       rows.push({
-        ...(await formatRecordForFrontend(existing, { ...member, employeeId: empId })),
+        recordId: leavePlaceholder ? `leave-${member.user._id}-${dateKey}` : `absent-${member.user._id}-${dateKey}`,
+        id: leavePlaceholder ? `leave-${member.user._id}-${dateKey}` : `absent-${member.user._id}-${dateKey}`,
+        userId: memberUserId,
         employeeName: member.user.name || member.user.email || "Unknown",
+        employeeId: empId,
+        employeeRole: getRoleName(member?.role || ""),
         department: memberDepartmentName,
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: leavePlaceholder ? "on_leave" : dateIsFuture ? "upcoming" : dateIsSunday ? "sunday_off" : "absent",
+        source: "office",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: "--",
+        totalHours: 0,
+        overtime: 0,
+        isPresent: false,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
         activeLeave,
       });
-      continue;
     }
-    const leavePlaceholder = activeLeave && !requestedDateIsFuture;
-    rows.push({
-      recordId: leavePlaceholder ? `leave-${member.user._id}-${requestedDateKey}` : `absent-${member.user._id}-${requestedDateKey}`,
-      id: leavePlaceholder ? `leave-${member.user._id}-${requestedDateKey}` : `absent-${member.user._id}-${requestedDateKey}`,
-      userId: toId(member.user._id),
-      employeeName: member.user.name || member.user.email || "Unknown",
-      employeeId: empId,
-      employeeRole: getRoleName(member?.role || ""),
-      department: memberDepartmentName,
-      date: requestedDateKey,
-      checkIn: "",
-      checkOut: "",
-      status: leavePlaceholder ? "on_leave" : requestedDateIsFuture ? "upcoming" : requestedDateIsSunday ? "sunday_off" : "absent",
-      source: "office",
-      checkInLocation: "",
-      checkOutLocation: "",
-      checkInSelfie: "",
-      checkOutSelfie: "",
-      workingHours: "--",
-      totalHours: 0,
-      overtime: 0,
-      isPresent: false,
-      isLate: false,
-      isEarlyDeparture: false,
-      lateMinutes: 0,
-      earlyMinutes: 0,
-      breaks: [],
-      correction: null,
-      activeLeave,
-    });
   }
 
-  // Corrections can be requested for any past day, so they're gathered
-  // separately across the whole requested month rather than from the
-  // single-day roster above.
-  const monthRecordsWithCorrections = memberUserIds.length
+  // Corrections are filtered by when they were *submitted*
+  // (correctionRequest.requestedAt), not by the attendance day they're
+  // correcting — a request filed today about yesterday's shift is a "today"
+  // item for HR's review queue even though the attendance date itself is
+  // yesterday. Uses an explicit from/to range when the caller supplied one;
+  // otherwise falls back to the whole month containing the roster date.
+  const correctionsFromKey = hasExplicitRange ? fromKey : (keys[0] || fromKey);
+  const correctionsToKey = hasExplicitRange ? toKey : (keys[keys.length - 1] || toKey);
+  const rangeRecordsWithCorrections = memberUserIds.length
     ? await Attendance.find({
       workspaceId: workspace._id,
       employeeUserId: { $in: memberUserIds },
-      dateKey: { $gte: keys[0], $lte: keys[keys.length - 1] },
       correctionRequest: { $ne: null },
+      "correctionRequest.requestedAt": {
+        $gte: new Date(`${correctionsFromKey}T00:00:00.000Z`),
+        $lte: new Date(`${correctionsToKey}T23:59:59.999Z`),
+      },
     }).lean().exec()
     : [];
 
   const corrections = [];
-  for (const record of monthRecordsWithCorrections) {
+  for (const record of rangeRecordsWithCorrections) {
     const member = memberByUserId.get(toId(record.employeeUserId));
     const empId = member ? (employeeIdByMemberId.get(toId(member._id)) || employeeIdByUserId.get(toId(member.user?._id)) || "") : "";
-    const formatted = await formatRecordForFrontend(record, member ? { ...member, employeeId: empId } : null);
+    const memberDepartmentName = member
+      ? resolveDepartmentDisplayLabel(
+        getRoleName(member?.role || ""),
+        Array.isArray(member?.departments) ? member.departments.map((dept) => dept?.name) : [],
+      )
+      : "";
+    const formatted = await formatRecordForFrontend(record, member ? { ...member, employeeId: empId, departments: [] } : null);
     if (!formatted.correction) continue;
     corrections.push({
       id: formatted.correction.requestedAt,
@@ -1856,15 +1932,22 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       employeeName: formatted.employeeName || member?.user?.name || "",
       employeeId: formatted.employeeId || empId,
       employeeRole: formatted.employeeRole || "",
-      department: formatted.department || "",
+      department: memberDepartmentName || formatted.department || "",
+      // `date` is the attendance day being corrected; `submittedOn` is the
+      // (separate) day the correction request itself was filed — these can
+      // differ whenever someone corrects a past day's punches.
       date: formatted.date || "",
+      submittedOn: record.correctionRequest?.requestedAt
+        ? toDateKey(record.correctionRequest.requestedAt, timezone)
+        : "",
+      requestedAt: formatted.correction?.requestedAt || "",
       type: "correction",
       reason: formatted.correction?.reason || "",
       status: formatted.correction?.status || "pending",
       originalCheckIn: formatted.correction?.originalCheckIn || formatted.checkIn,
       originalCheckOut: formatted.correction?.originalCheckOut || formatted.checkOut,
-      requestedCheckIn: formatted.correction?.requestedCheckIn || formatted.checkIn,
-      requestedCheckOut: formatted.correction?.requestedCheckOut || formatted.checkOut,
+      requestedCheckIn: formatted.correction?.requestedCheckIn || "",
+      requestedCheckOut: formatted.correction?.requestedCheckOut || "",
       breaks: formatted.correction?.breaks || [],
       actionedBy: formatted.correction?.actionedBy || "",
       rejectionReason: formatted.correction?.rejectionReason || "",
@@ -1877,6 +1960,8 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     corrections,
     stats: buildStats(rows),
     date: requestedDateKey,
+    dateFrom: fromKey,
+    dateTo: toKey,
     month: keys[0]?.slice(0, 7) || "",
     totalEmployees: uniqueVisibleMembers.length,
     canManageAttendance: visibleRoleBand !== "employee",

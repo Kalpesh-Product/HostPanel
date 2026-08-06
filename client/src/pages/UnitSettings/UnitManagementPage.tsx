@@ -88,6 +88,9 @@ const updateStoredUser = (user) => {
 
 const EMPTY_EDIT_FORM = {
   workspaceName: "",
+  city: "",
+  state: "",
+  country: "",
 };
 
 const COMBINED_RECENT_LIMIT = 12;
@@ -201,7 +204,7 @@ function WorkspaceEditModal({
           <div>
             <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Edit Unit</p>
             <p className="mt-1 text-[12px] font-pmedium text-slate-500">
-              Update the unit identity without changing unrelated founder settings.
+              Update the unit name (as you entered it) and its location. Dropdowns show "unit name - city, state, country".
             </p>
           </div>
           <button
@@ -224,6 +227,42 @@ function WorkspaceEditModal({
               onChange={(event) => onChange("workspaceName", event.target.value)}
               className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
               required
+              maxLength={120}
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+              City
+            </span>
+            <input
+              value={form.city || ""}
+              onChange={(event) => onChange("city", event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+              maxLength={120}
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+              State
+            </span>
+            <input
+              value={form.state || ""}
+              onChange={(event) => onChange("state", event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+              maxLength={120}
+            />
+          </label>
+
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+              Country
+            </span>
+            <input
+              value={form.country || ""}
+              onChange={(event) => onChange("country", event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
               maxLength={120}
             />
           </label>
@@ -664,6 +703,9 @@ export default function WorkspaceManagementPage() {
     setEditingWorkspace(workspace);
     setEditForm({
       workspaceName: workspace.workspaceName || "",
+      city: workspace.city || "",
+      state: workspace.state || "",
+      country: workspace.country || "",
     });
   }
 
@@ -713,7 +755,12 @@ export default function WorkspaceManagementPage() {
         axiosPrivate,
         editingWorkspace.id,
         {
-          profile: { workspaceName: editForm.workspaceName },
+          profile: {
+            workspaceName: editForm.workspaceName,
+            city: editForm.city,
+            state: editForm.state,
+            country: editForm.country,
+          },
         },
       );
       const refreshed = await getWorkspaceManagementOverview(
@@ -724,6 +771,7 @@ export default function WorkspaceManagementPage() {
         updateStoredUser(refreshed.data.currentUser);
       }
       setOverview(refreshed?.data?.data || null);
+      syncAccessibleWorkspaces(refreshed?.data?.data || null);
       setEditingWorkspace(null);
       setEditForm(EMPTY_EDIT_FORM);
       toast.success("Unit updated successfully.");
@@ -745,6 +793,7 @@ export default function WorkspaceManagementPage() {
         businessName: ws.businessName || "",
         location: ws.location || "",
         isPrimary: Boolean(ws.isActiveWorkspace),
+        isMain: Boolean(ws.isMain),
       }));
     setAuth((prev) =>
       prev.user
@@ -901,6 +950,7 @@ export default function WorkspaceManagementPage() {
                         {workspaceList.map((workspace) => (
                           <option key={workspace.id} value={workspace.id}>
                             {workspace.workspaceName}
+                            {workspace.location ? ` - ${workspace.location}` : ""}
                           </option>
                         ))}
                       </select>

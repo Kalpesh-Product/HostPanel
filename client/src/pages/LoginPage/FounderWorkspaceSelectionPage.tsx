@@ -15,6 +15,7 @@ type WorkspaceOption = {
   businessName?: string;
   location?: string;
   isPrimary?: boolean;
+  isMain?: boolean;
 };
 
 export default function FounderWorkspaceSelectionPage() {
@@ -139,11 +140,18 @@ export default function FounderWorkspaceSelectionPage() {
                         {workspace.location || "Location required"}
                       </p>
                     </div>
-                    {workspace.id === lastActiveWorkspaceId ? (
-                      <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-[0.14em] text-[#2563EB] shadow-sm">
-                        Last Active
-                      </span>
-                    ) : null}
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                      {workspace.isMain ? (
+                        <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-[0.14em] text-[#2563EB] shadow-sm">
+                          Main
+                        </span>
+                      ) : null}
+                      {workspace.id === lastActiveWorkspaceId ? (
+                        <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-[0.14em] text-[#2563EB] shadow-sm">
+                          Last Active
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </button>
               );

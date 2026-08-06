@@ -9,6 +9,15 @@ import { switchWorkspaceSession } from "../services/workspace-session";
 type WorkspaceOption = {
   id: string;
   workspaceName: string;
+  location?: string;
+  isMain?: boolean;
+};
+
+const getWorkspaceLabel = (workspace: WorkspaceOption) => {
+  const label = [workspace.workspaceName || "Unit", workspace.location]
+    .filter(Boolean)
+    .join(" - ");
+  return workspace.isMain ? `${label} (Main)` : label;
 };
 
 export default function WorkspaceSwitcher() {
@@ -26,9 +35,9 @@ export default function WorkspaceSwitcher() {
     : [];
   const canSwitch = accessibleWorkspaces.length > 1;
   const activeWorkspaceId = String(currentUser?.primaryWorkspace || "");
-  const activeWorkspaceName =
-    accessibleWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)?.workspaceName || "Unit";
-  const switcherWidthCh = Math.min(Math.max(activeWorkspaceName.length + 10, 22), 46);
+  const activeWorkspace = accessibleWorkspaces.find((workspace) => workspace.id === activeWorkspaceId);
+  const activeWorkspaceLabel = activeWorkspace ? getWorkspaceLabel(activeWorkspace) : "Unit";
+  const switcherWidthCh = Math.min(Math.max(activeWorkspaceLabel.length + 10, 22), 46);
 
   const handleSwitch = async (workspaceId: string) => {
     if (!workspaceId || workspaceId === activeWorkspaceId) return;
@@ -73,12 +82,12 @@ export default function WorkspaceSwitcher() {
           void handleSwitch(event.target.value);
         }}
         disabled={isSwitching}
-        title={accessibleWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)?.workspaceName || ""}
+        title={activeWorkspace ? getWorkspaceLabel(activeWorkspace) : "Unit"}
         className="w-full bg-transparent pr-5 text-[12px] font-semibold text-slate-700 outline-none disabled:opacity-60 sm:text-[13px]"
       >
         {accessibleWorkspaces.map((workspace) => (
           <option key={workspace.id} value={workspace.id}>
-            {workspace.workspaceName || "Unit"}
+            {getWorkspaceLabel(workspace)}
           </option>
         ))}
       </select>

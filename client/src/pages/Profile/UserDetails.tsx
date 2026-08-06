@@ -328,6 +328,15 @@ export default function UserDetails() {
 
   const authUser = useMemo(() => auth?.user || {}, [auth?.user]);
 
+  // My Profile is scoped to the ACTIVE unit (the one selected in the
+  // workspace switcher). Refetch when the user switches units.
+  const activeWorkspaceId = String(
+    (auth?.user as any)?.workspaceMembership?.workspace ||
+      (auth?.user as any)?.primaryWorkspace ||
+      (auth?.user as any)?.workspaceId ||
+      "",
+  ).trim();
+
   const initials = useMemo(() => {
     const name = employee?.fullName || authUser?.name || authUser?.firstName || "U";
     return String(name)
@@ -386,6 +395,9 @@ export default function UserDetails() {
 
   useEffect(() => {
     let mounted = true;
+    setEmployee(null);
+    setErrorMessage("");
+    setIsLoading(true);
     const fetchEmployee = async () => {
       try {
         const currentUserId = String(authUser?._id || "").trim();
@@ -461,7 +473,7 @@ export default function UserDetails() {
 
     fetchEmployee();
     return () => { mounted = false; };
-  }, [authUser?._id, axios]);
+  }, [authUser?._id, activeWorkspaceId, axios]);
 
   useEffect(() => {
     let isActive = true;
@@ -765,7 +777,7 @@ export default function UserDetails() {
         </div>
       </section>
 
-      {!employee && !hasTenantRole ? (
+      {!employee && !hasTenantRole && !isLoading ? (
         <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/70 p-8 text-center">
           <UserRound className="mx-auto h-10 w-10 text-slate-400" />
           <h3 className="mt-3 text-lg font-semibold text-slate-900">Employee profile not found</h3>

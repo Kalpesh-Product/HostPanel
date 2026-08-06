@@ -1,11 +1,14 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
-import { Building2, CheckCircle2, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, CheckCircle2, Loader2, Pencil, Save, X } from "lucide-react";
+import { Country } from "country-state-city";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import useWorkspacePreferences from "../../hooks/useWorkspacePreferences";
+import { updateWorkspaceSettings } from "../../services/unit-settings";
+import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
 import MuiModal from "../../components/MuiModal";
@@ -18,6 +21,7 @@ const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 
 const CompanyProfile = () => {
   const axios = useAxiosPrivate();
+  const queryClient = useQueryClient();
   const { auth, setAuth } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -27,8 +31,18 @@ const CompanyProfile = () => {
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
   const [isLogoPreviewOpen, setIsLogoPreviewOpen] = useState(false);
 
-const { data: userDetails } = useQuery({
-  queryKey: ["profileMeCompany"],
+  // Company Profile is scoped to the ACTIVE unit (the one selected in the
+  // workspace switcher), not the main unit. Scoping the query key by the
+  // active workspace id keeps the profile in sync when the user switches units.
+  const activeWorkspaceId = String(
+    (auth?.user as any)?.workspaceMembership?.workspace ||
+      (auth?.user as any)?.primaryWorkspace ||
+      (auth?.user as any)?.workspaceId ||
+      "",
+  ).trim();
+
+const { data: userDetails, refetch: refetchProfile } = useQuery({
+  queryKey: ["profileMeCompany", activeWorkspaceId],
   queryFn: async () => {
     const res = await axios.get("/api/profile/me");
     return res.data;
@@ -36,7 +50,6 @@ const { data: userDetails } = useQuery({
   staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
-  refetchOnMount: false,
 });
 
   useEffect(() => {
@@ -55,6 +68,152 @@ const { data: userDetails } = useQuery({
 
   const workspace = userDetails?.data?.workspace || null;
   const workspacePreferences = useWorkspacePreferences();
+
+  const authUserRole = String(
+    (auth?.user as any)?.workspaceMembership?.role || (auth?.user as any)?.role || "",
+  )
+    .trim()
+    .toLowerCase();
+  const canEditUnitInfo = ["founder", "owner", "super_admin"].includes(authUserRole);
+
+  // Per-unit editable fields: unit name, location (country/state/city) and
+  // localization (timezone/currency). Everything else stays shared/read-only.
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSavingUnit, setIsSavingUnit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    workspaceName: "",
+    country: "",
+    state: "",
+    city: "",
+    timezone: "",
+    currency: "",
+  });
+  const [countryOptions, setCountryOptions] = useState<string[]>([]);
+  const [stateOptions, setStateOptions] = useState<string[]>([]);
+  const [cityOptions, setCityOptions] = useState<string[]>([]);
+  const [savedPrefs, setSavedPrefs] = useState<{ timezone?: string; currency?: string } | null>(null);
+
+  const displayTimezone = String(savedPrefs?.timezone || workspacePreferences.timezone || "");
+  const displayCurrency = String(savedPrefs?.currency || workspacePreferences.currency || "");
+
+  const timezoneOptions = useMemo(() => {
+    try {
+      const supported = (Intl as any).supportedValuesOf?.("timeZone");
+      if (Array.isArray(supported) && supported.length > 0) return supported as string[];
+    } catch {
+      // fall through to the curated list below
+    }
+    return [
+      "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+      "America/Anchorage", "Pacific/Honolulu", "Asia/Kolkata", "Asia/Dubai",
+      "Asia/Singapore", "Asia/Tokyo", "Asia/Shanghai", "Europe/London",
+      "Europe/Paris", "Europe/Berlin", "Australia/Sydney", "UTC",
+    ];
+  }, []);
+
+  const currencyOptions = useMemo(() => {
+    try {
+      return Array.from(
+        new Set(
+          Country.getAllCountries()
+            .map((item: any) => String(item?.currency || "").trim().toUpperCase())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b));
+    } catch {
+      return ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD", "CAD", "JPY", "CNY"];
+    }
+  }, []);
+
+  useEffect(() => {
+    // When the user switches units, forget the locally overridden prefs so the
+    // new unit's timezone/currency are shown.
+    setSavedPrefs(null);
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    let active = true;
+    getCountries()
+      .then((countries) => { if (active) setCountryOptions(countries); })
+      .catch(() => { if (active) setCountryOptions([]); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!editForm.country) {
+      setStateOptions([]);
+      return;
+    }
+    getStates(editForm.country)
+      .then((states) => { if (active) setStateOptions(states); })
+      .catch(() => { if (active) setStateOptions([]); });
+    return () => { active = false; };
+  }, [editForm.country]);
+
+  useEffect(() => {
+    let active = true;
+    if (!editForm.country || !editForm.state) {
+      setCityOptions([]);
+      return;
+    }
+    getCities(editForm.country, editForm.state)
+      .then((cities) => { if (active) setCityOptions(cities); })
+      .catch(() => { if (active) setCityOptions([]); });
+    return () => { active = false; };
+  }, [editForm.country, editForm.state]);
+
+  const handleOpenEditModal = () => {
+    setEditForm({
+      workspaceName: String(workspace?.workspaceName || ""),
+      country: String(workspace?.country || ""),
+      state: String(workspace?.state || ""),
+      city: String(workspace?.city || ""),
+      timezone: displayTimezone,
+      currency: displayCurrency,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveUnitInfo = async () => {
+    const unitName = editForm.workspaceName.trim();
+    if (!unitName) {
+      toast.error("Unit name is required.");
+      return;
+    }
+    if (!editForm.timezone) {
+      toast.error("Please select a timezone.");
+      return;
+    }
+    if (!editForm.currency) {
+      toast.error("Please select a currency.");
+      return;
+    }
+    setIsSavingUnit(true);
+    try {
+      await updateWorkspaceSettings(axios, {
+        profile: {
+          workspaceName: unitName,
+          country: editForm.country.trim(),
+          state: editForm.state.trim(),
+          city: editForm.city.trim(),
+        },
+        preferences: {
+          timezone: editForm.timezone,
+          currency: editForm.currency,
+        },
+      });
+      setSavedPrefs({ timezone: editForm.timezone, currency: editForm.currency });
+      setIsEditModalOpen(false);
+      toast.success("Unit information updated successfully.");
+      await queryClient.invalidateQueries({ queryKey: ["profileMeCompany", activeWorkspaceId] });
+      await refetchProfile();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update unit information.");
+    } finally {
+      setIsSavingUnit(false);
+    }
+  };
 
   const defaults = useMemo(
     () => ({
@@ -384,14 +543,28 @@ const { data: userDetails } = useQuery({
           <div>
             {/* <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">Company Information</p> */}
             <h2 className="mt-1 text-xl font-pmedium text-slate-900">Unit & Company Information</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-500">Read-only company information synced from your workspace setup.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              Company information synced from your workspace setup. Unit name, location, timezone and currency are specific to this unit.
+            </p>
           </div>
-          {upgradePlanOptions.length > 0 ? (
-            <PrimaryButton
-              title="Upgrade Plan?"
-              handleSubmit={() => setIsUpgradeModalOpen(true)}
-            />
-          ) : null}
+          <div className="flex items-center gap-2">
+            {canEditUnitInfo ? (
+              <button
+                type="button"
+                onClick={handleOpenEditModal}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-[12px] font-pmedium text-slate-700 transition hover:border-blue-200 hover:text-blue-600"
+              >
+                <Pencil size={14} />
+                Edit Unit
+              </button>
+            ) : null}
+            {upgradePlanOptions.length > 0 ? (
+              <PrimaryButton
+                title="Upgrade Plan?"
+                handleSubmit={() => setIsUpgradeModalOpen(true)}
+              />
+            ) : null}
+          </div>
         </div>
 
         <div className="pt-5">
@@ -412,11 +585,11 @@ const { data: userDetails } = useQuery({
             })}
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
               <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">Timezone</p>
-              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{workspacePreferences.timezone || "-"}</p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{displayTimezone || "-"}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
               <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">Currency</p>
-              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{workspacePreferences.currency || "-"}</p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{displayCurrency || "-"}</p>
             </div>
           </div>
           {requestedUpgradePlan ? (
@@ -507,6 +680,140 @@ const { data: userDetails } = useQuery({
           </div>
         </div>
       , document.body) : null}
+
+      <MuiModal
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Unit Information"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              Unit Name
+            </label>
+            <input
+              type="text"
+              value={editForm.workspaceName}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, workspaceName: event.target.value }))}
+              placeholder="Unit name"
+              className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black placeholder:text-[#9aa8bc] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              Country
+            </label>
+            <select
+              value={editForm.country}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, country: event.target.value, state: "", city: "" }))}
+              className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+            >
+              <option value="">Select country</option>
+              {countryOptions.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              State
+            </label>
+            <select
+              value={editForm.state}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, state: event.target.value, city: "" }))}
+              disabled={!editForm.country}
+              className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:opacity-60"
+            >
+              <option value="">
+                {!editForm.country ? "Select country first" : "Select state"}
+              </option>
+              {stateOptions.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              City
+            </label>
+            <select
+              value={editForm.city}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, city: event.target.value }))}
+              disabled={!editForm.country || !editForm.state}
+              className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:opacity-60"
+            >
+              <option value="">
+                {!editForm.country || !editForm.state
+                  ? "Select country and state first"
+                  : "Select city"}
+              </option>
+              {cityOptions.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              Timezone
+            </label>
+            <select
+              value={editForm.timezone}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, timezone: event.target.value }))}
+              className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+            >
+              <option value="">Select timezone</option>
+              {timezoneOptions.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-[#7b8ba3]">
+              Used for bookings, attendance, reminders, and reports in this unit.
+            </p>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              Currency
+            </label>
+            <select
+              value={editForm.currency}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, currency: event.target.value }))}
+              className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+            >
+              <option value="">Select currency</option>
+              {currencyOptions.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-[#7b8ba3]">
+              Defaults to the unit's country currency and can be confirmed by the owner.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[12px] font-pmedium text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveUnitInfo}
+              disabled={isSavingUnit}
+              className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {isSavingUnit ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {isSavingUnit ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </MuiModal>
     </div>
   </div>
   );

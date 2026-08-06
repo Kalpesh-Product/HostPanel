@@ -12,6 +12,10 @@ export const updateWorkspaceSettings = (
       location?: string;
       industry?: string;
       businessType?: string;
+      country?: string;
+      state?: string;
+      city?: string;
+      address?: string;
     };
     preferences?: {
       timezone?: string;

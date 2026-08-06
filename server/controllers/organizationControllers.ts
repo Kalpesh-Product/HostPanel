@@ -23,7 +23,10 @@ import {
   ORGANIZATION_PERMISSION_KEYS,
 } from "../config/organizationPermissionMap.js";
 import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
-import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
+import {
+  ensureEmployeeProfileForMember,
+  copyPersonalDetailsAcrossUnits,
+} from "../services/core/hr.service.js";
 import {
   countActiveAccountUsers,
   isAccountUserAlreadyActive,
@@ -1534,15 +1537,6 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
         ? false
         : !member.isActive;
 
-    // A member's main unit is the unit they were first added to — its access
-    // can never be removed or disabled, only changed via a transfer.
-    if (!nextIsActive && member.isMainUnit) {
-      return res.status(400).json({
-        message:
-          "The user's main unit access cannot be disabled. Transfer the user to another unit to change their main unit.",
-      });
-    }
-
     if (nextIsActive && !member.isActive && isProfessionalPlan(workspace)) {
       // Re-enabling doesn't consume a slot if this person is already active in
       // another unit in the account — only block it if they'd be a genuinely
@@ -2722,11 +2716,33 @@ export const transferOrganizationMember = async (req, res, next) => {
         { $set: { isPrimary: false } },
       ).exec();
     }
+    // Keep the source unit's personal/identity details (phone, address, KYC,
+    // bank, profile photo) on the transferred unit's profile. Work details are
+    // NOT carried over — they are chosen per unit during the transfer.
+    const sourceProfile = await EmployeeProfile.findOne({
+      workspaceId: workspace._id,
+      $or: [
+        { linkedWorkspaceMemberId: member._id },
+        { linkedUserId: member.user },
+      ],
+    }).lean().exec();
     await ensureEmployeeProfileForMember({
       workspace: targetWorkspace,
       member: transferredMembership,
       user: memberUser,
     });
+    if (sourceProfile) {
+      const targetProfile = await EmployeeProfile.findOne({
+        workspaceId: targetWorkspace._id,
+        $or: [
+          { linkedWorkspaceMemberId: transferredMembership._id },
+          { linkedUserId: member.user },
+        ],
+      }).exec();
+      if (targetProfile) {
+        await copyPersonalDetailsAcrossUnits(sourceProfile, targetProfile);
+      }
+    }
 
     member.isActive = false;
     member.status = "disabled";

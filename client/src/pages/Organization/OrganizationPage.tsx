@@ -954,10 +954,11 @@ export function OrganizationPage() {
         role: 'employee',
         departments: [selectedDepartment.id || ''],
       });
-      await loadOrganization(selectedDepartment.id || '');
+      const invitedEmployeeName = employeeFormData.name.trim();
       setEmployeeFormData({ name: '', email: '' });
       setShowEmployeeModal(false);
-      toast.success(`Invite sent to ${employeeFormData.name.trim()}.`);
+      await loadOrganization(selectedDepartment.id || '');
+      toast.success(`Invite sent to ${invitedEmployeeName}.`);
     } catch (error) {
       console.error("Failed to add employee", error);
       toast.error((error as any)?.response?.data?.message || 'Failed to send invite. Please try again.');
@@ -1060,10 +1061,11 @@ export function OrganizationPage() {
           role: normalizedRole,
           departments: teamMemberFormData.departments,
         });
-        await loadOrganization();
-        toast.success(`Invitation sent to ${teamMemberFormData.email}.`);
+        const invitedEmail = teamMemberFormData.email;
         setShowTeamMemberModal(false);
         setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
+        await loadOrganization();
+        toast.success(`Invitation sent to ${invitedEmail}.`);
       } catch (error) {
         console.error("Failed to send invite", error);
         const inviteErrorMessage = (error as any)?.response?.data?.message;

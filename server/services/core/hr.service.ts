@@ -215,6 +215,40 @@ const getNextEmployeeSequence = async (workspaceId: any) => {
   return sequence > 0 ? sequence : 1;
 };
 
+// An employee keeps the SAME employee id across every unit they belong to
+// (main unit + transferred/added units). Each workspace still numbers its own
+// sequence locally, but the stored employeeId is shared so HR records and
+// payroll stay consistent when the same person appears in more than one unit.
+const findCrossWorkspaceEmployeeId = async ({
+  workspaceId,
+  linkedUserId,
+  email,
+}: {
+  workspaceId: any;
+  linkedUserId?: any;
+  email?: string;
+}) => {
+  const match: Record<string, any>[] = [];
+  if (linkedUserId) match.push({ linkedUserId });
+  if (email) match.push({ email: normalizeEmail(email) });
+
+  if (match.length === 0) return "";
+  if (!workspaceId) return "";
+
+  const existing = await EmployeeProfile.findOne({
+    workspaceId: { $ne: workspaceId },
+    $or: match,
+    isActive: true,
+    employeeId: { $regex: /^EMP-\d{5}$/i },
+  })
+    .select("employeeId")
+    .sort({ updatedAt: -1 })
+    .lean()
+    .exec();
+
+  return existing?.employeeId ? String(existing.employeeId).trim().toUpperCase() : "";
+};
+
 const resolveRoleValueFromMember = async (member: any) => {
   if (member?.role && typeof member.role === "object" && member.role.name) {
     return member.role.name;
@@ -454,9 +488,14 @@ const ensureEmployeeProfileForMember = async ({
     user: resolvedUser,
   });
   const employeeSequence = Number(profile?.employeeSequence || 0) || await getNextEmployeeSequence(workspace._id);
-  const employeeId = profile?.employeeId && isFormattedEmployeeId(profile.employeeId)
-    ? String(profile.employeeId).trim().toUpperCase()
-    : formatEmployeeId(employeeSequence);
+  const employeeId =
+    (profile?.employeeId && isFormattedEmployeeId(profile.employeeId)
+      ? String(profile.employeeId).trim().toUpperCase()
+      : await findCrossWorkspaceEmployeeId({
+          workspaceId: workspace._id,
+          linkedUserId: resolvedUser?._id || member.user,
+          email,
+        })) || formatEmployeeId(employeeSequence);
 
   const nextValues = {
     workspaceId: workspace._id,
@@ -721,9 +760,14 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
   const currentDocuments = Array.isArray(profile?.documents) ? profile.documents : [];
   const nextDocuments = Array.isArray(payload?.documents) ? payload.documents : currentDocuments;
   const employeeSequence = Number(profile?.employeeSequence || 0) || await getNextEmployeeSequence(workspace._id);
-  const employeeId = profile?.employeeId && isFormattedEmployeeId(profile.employeeId)
-    ? String(profile.employeeId).trim().toUpperCase()
-    : formatEmployeeId(employeeSequence);
+  const employeeId =
+    (profile?.employeeId && isFormattedEmployeeId(profile.employeeId)
+      ? String(profile.employeeId).trim().toUpperCase()
+      : await findCrossWorkspaceEmployeeId({
+          workspaceId: workspace._id,
+          linkedUserId: payload?.linkedUserId || null,
+          email,
+        })) || formatEmployeeId(employeeSequence);
 
   const nextValues = {
     workspaceId: workspace._id,
@@ -876,6 +920,51 @@ const SELF_EDITABLE_PROFILE_FIELDS = [
   "emergencyContactName",
   "emergencyContactPhone",
 ];
+
+// Personal + identity + bank details that follow an employee when they are
+// transferred from one unit to another. Work details (role, departments,
+// salary, manager) are intentionally NOT copied — they are chosen per unit.
+const TRANSFERABLE_PERSONAL_FIELDS = [
+  "profilePicture",
+  "phone",
+  "gender",
+  "dateOfBirth",
+  "currentAddress",
+  "permanentAddress",
+  "country",
+  "state",
+  "city",
+  "emergencyContactName",
+  "emergencyContactPhone",
+  "bankName",
+  "accountHolderName",
+  "accountNumber",
+  "ifscCode",
+  "nationalIdType",
+  "nationalIdNumber",
+  "taxId",
+  "providentFundNumber",
+];
+
+export const copyPersonalDetailsAcrossUnits = async (sourceProfile: any, targetProfile: any) => {
+  if (!sourceProfile || !targetProfile) return targetProfile;
+
+  const source = sourceProfile?.toObject ? sourceProfile.toObject() : sourceProfile;
+  for (const field of TRANSFERABLE_PERSONAL_FIELDS) {
+    const value = source?.[field];
+    if (value === undefined || value === null || value === "") continue;
+    if (field === "profilePicture") {
+      targetProfile.profilePicture = {
+        url: value?.url || "",
+        publicId: value?.publicId || "",
+      };
+    } else {
+      targetProfile.set(field, value);
+    }
+  }
+  await targetProfile.save();
+  return targetProfile;
+};
 
 const findOwnEmployeeProfile = async (workspace: any, userId: string) => {
   if (!workspace?._id) {

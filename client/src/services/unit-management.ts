@@ -14,6 +14,10 @@ export const updateManagedWorkspace = (
       workspaceName: string;
       businessName?: string;
       location?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      address?: string;
       industry?: string;
       businessType?: string;
     };

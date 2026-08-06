@@ -633,6 +633,10 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         id: workspaceId,
         workspaceName: item.workspaceName || "",
         businessName: item.businessName || "",
+        city: item.city || "",
+        state: item.state || "",
+        country: item.country || "",
+        address: item.address || "",
         location: [item.city, item.state, item.country].filter(Boolean).join(", "),
         industry: "",
         businessType: Array.isArray(item.businessTypes) ? item.businessTypes.join(", ") : "",
@@ -767,9 +771,40 @@ export const updateManagedWorkspace = async (req, res, next) => {
       return res.status(409).json({ message: "Workspace name already taken." });
     }
     target.workspaceName = nextWorkspaceName;
+
+    // Location fields are updated individually so the combined location shown
+    // in dropdowns ("unit name - city, state, country") stays in sync with
+    // what the founder edits in Unit Management.
+    if (profile.city !== undefined) {
+      target.city = String(profile.city || "").trim();
+    }
+    if (profile.state !== undefined) {
+      target.state = String(profile.state || "").trim();
+    }
+    if (profile.country !== undefined) {
+      target.country = String(profile.country || "").trim();
+    }
+    if (profile.countryCode !== undefined) {
+      target.countryCode = String(profile.countryCode || "").trim().toUpperCase();
+    }
+    if (profile.address !== undefined) {
+      target.address = String(profile.address || "").trim();
+    }
     await target.save();
 
-    return res.status(200).json({ message: "Workspace updated successfully." });
+    return res.status(200).json({
+      message: "Workspace updated successfully.",
+      data: {
+        workspace: {
+          id: String(target._id),
+          workspaceName: target.workspaceName,
+          city: target.city || "",
+          state: target.state || "",
+          country: target.country || "",
+          location: [target.city, target.state, target.country].filter(Boolean).join(", "),
+        },
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -1047,6 +1082,7 @@ export const switchWorkspace = async (req, res, next) => {
           .filter(Boolean)
           .join(", "),
         isPrimary: Boolean(membership?.isPrimary),
+        isMain: Boolean(membership?.isMainUnit),
       }));
     return res.status(200).json({
       message: "Workspace switched successfully.",
@@ -1270,7 +1306,22 @@ export const updateWorkspaceSettings = async (req, res, next) => {
 
     workspace.workspaceName = String(profile.workspaceName || workspace.workspaceName).trim();
     workspace.businessName = String(profile.businessName || workspace.businessName || "").trim();
+    // Location is stored as individual fields (city/state/country). The
+    // combined location string shown in dropdowns is derived at read time.
+    if (profile.city !== undefined) {
+      workspace.city = String(profile.city).trim();
+    }
+    if (profile.state !== undefined) {
+      workspace.state = String(profile.state).trim();
+    }
+    if (profile.country !== undefined) {
+      workspace.country = String(profile.country).trim();
+    }
+    if (profile.address !== undefined) {
+      workspace.address = String(profile.address).trim();
+    }
     if (profile.location) {
+      // Back-compat: a plain location string used to be stored into city.
       workspace.city = String(profile.location).trim();
     }
     if (profile.businessType) {
