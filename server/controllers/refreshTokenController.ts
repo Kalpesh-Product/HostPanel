@@ -68,6 +68,7 @@ const getAccessibleWorkspaces = async (userId: any) => {
         businessName: workspace?.businessName || "",
         location: [workspace?.city, workspace?.state, workspace?.country].filter(Boolean).join(", "),
         isPrimary: Boolean(membership?.isPrimary),
+        isMain: Boolean(membership?.isMainUnit),
       };
     });
 };

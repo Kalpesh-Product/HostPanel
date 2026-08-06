@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { Country, State, City } from "country-state-city";
 import {
@@ -13,8 +13,9 @@ import {
   ListItemText,
 } from "@mui/material";
 import PageFrame from "../../../components/Pages/PageFrame";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import publicAxios from "axios";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../components/UploadMultipleFilesInput";
 import useAuth from "../../../hooks/useAuth";
@@ -24,21 +25,7 @@ import useNomadListingCapacity, {
   normalizeNomadListingType,
 } from "../../../hooks/useNomadListingCapacity";
 
-// Dummy inclusions
-const inclusionOptions = [
-  "Private Desk",
-  "Private Storage",
-  "Air Conditioning",
-  "High Speed Wi-Fi",
-  "IT Support",
-  "Tea & Coffee",
-  "Reception Support",
-  "Housekeeping",
-  "Community",
-  "Meeting Room",
-];
-
-// Dummy company types
+// Company types
 const companyTypes = [
   "Coworking",
   "Meeting Room",
@@ -48,6 +35,75 @@ const companyTypes = [
   "Coliving",
   "Hostel",
 ];
+
+// Fixed amenities per company type — mirrors Nomads' own public site
+// (frontend/src/components/AmenitiesList.jsx). Kept as a local constant
+// (like companyTypes above) instead of fetched, so it always works
+// regardless of whether the Nomads backend serving this environment has
+// been redeployed with the newer /api/company/amenities endpoint.
+const AMENITIES_BY_TYPE = {
+  coworking: [
+    "Private Desk", "Private Storage", "Air Conditioning", "High Speed Wi-Fi", "Wi-Fi",
+    "IT Support", "Tea & Coffee", "Reception Support", "Admin Support", "Housekeeping",
+    "Community", "Maintenance", "Power Backup", "Meeting Room", "Cafeteria",
+    "Printing Services", "CCTV Secure", "Purified Water", "Custom Solutions",
+  ],
+  coliving: [
+    "Shared Space", "Private Space", "Private Storage", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Laundry Facilities", "CCTV Secure", "Swimming Pool",
+  ],
+  workation: [
+    "Shared Space", "Private Space", "Private Storage", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Laundry Facilities", "CCTV Secure", "Swimming Pool",
+  ],
+  privatestay: [
+    "Private Space", "Private Storage", "Television", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Washing Machine", "CCTV Secure", "Swimming Pool",
+  ],
+  hostel: [
+    "Shared Space", "Private Space", "Private Storage", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Laundry Facilities", "CCTV Secure", "Swimming Pool",
+  ],
+  cafe: [
+    "Private Desk", "Private Storage", "Air Conditioning", "High Speed Wi-Fi", "Wi-Fi",
+    "IT Support", "Tea & Coffee", "Reception Support", "Admin Support", "Housekeeping",
+    "Community", "Maintenance", "Power Backup", "Visitor allowed", "Cafeteria",
+    "Printing Services", "CCTV Secure", "Water Purifier", "Custom Solutions",
+  ],
+  meetingroom: [
+    "Private Meeting Room", "Smart Television", "Air Conditioning", "High Speed Wi-Fi", "Wi-Fi",
+    "IT Support", "Tea & Coffee", "Reception Support", "Admin Support", "Housekeeping",
+    "Community", "Maintenance", "Power Backup", "Visitor allowed", "Cafeteria",
+    "Printing Services", "CCTV Secure", "Water Purifier", "Custom Solutions",
+  ],
+};
+
+// Best-effort extraction of coordinates from a pasted Google Maps URL.
+// Handles the common "@lat,lng", "q=lat,lng", "ll=lat,lng" and embed
+// "!3dlat!4dlng" formats. Short goo.gl links don't carry coordinates in
+// the URL itself (they redirect), so those can't be auto-filled this way.
+const extractLatLngFromMapUrl = (url) => {
+  const v = String(url || "");
+  const patterns = [
+    /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+  ];
+  for (const pattern of patterns) {
+    const m = v.match(pattern);
+    if (m) return { lat: m[1], lng: m[2] };
+  }
+  return null;
+};
 
 // ✅ Default review structure
 const defaultReview = {
@@ -66,6 +122,30 @@ const NomadListing = () => {
   const companyId = auth?.user?.companyId || ""; // <-- safe fallback
   const listingCompanyId = auth?.user?.effectiveNomadsCompanyId || companyId;
   const companyName = auth?.user?.companyName || "";
+  // Fallback preview when no per-listing logo is uploaded — the listing
+  // then just uses this, the host's own company profile logo.
+  const profileLogoUrl =
+    (typeof auth?.user?.logo === "object" ? auth?.user?.logo?.url : auth?.user?.logo) || "";
+
+  const { data: serviceOptions = [] } = useQuery({
+    queryKey: ["nomad-field-options", "services"],
+    queryFn: async () => {
+      const res = await publicAxios.get("https://wono.co/api/company/field-options", {
+        params: { field: "services" },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+  const { data: unitOptions = [] } = useQuery({
+    queryKey: ["nomad-field-options", "units"],
+    queryFn: async () => {
+      const res = await publicAxios.get("https://wono.co/api/company/field-options", {
+        params: { field: "units" },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+
   const {
     limit,
     used,
@@ -95,24 +175,46 @@ const NomadListing = () => {
       // businessId: `BIZ_${Date.now()}`,
       companyId: companyId, // set default so RHF knows
       companyType: "",
+      companyTitle: "",
+      website: "",
       ratings: "",
       totalReviews: "",
-      productName: "",
-      cost: "",
-      description: "",
+      totalSeats: "",
       latitude: "",
       longitude: "",
       country: "",
       state: "",
       city: "",
       inclusions: [],
+      services: [],
+      units: [],
       about: "",
       address: "",
       images: [],
+      logo: [],
       reviews: [defaultReview], // ✅ initialize with one review
-      mapUrl: "",
+      googleMap: "",
     },
   });
+
+  // "Add new" boxes beside the Services/Units dropdowns — typing a value
+  // here and clicking Add both selects it and adds it to the dropdown.
+  const [newServiceText, setNewServiceText] = useState("");
+  const [newUnitText, setNewUnitText] = useState("");
+  const handleAddService = () => {
+    const trimmed = newServiceText.trim();
+    if (!trimmed) return;
+    const current = getValues("services") || [];
+    if (!current.includes(trimmed)) setValue("services", [...current, trimmed]);
+    setNewServiceText("");
+  };
+  const handleAddUnit = () => {
+    const trimmed = newUnitText.trim();
+    if (!trimmed) return;
+    const current = getValues("units") || [];
+    if (!current.includes(trimmed)) setValue("units", [...current, trimmed]);
+    setNewUnitText("");
+  };
 
   // ✅ Field Array for reviews
   const {
@@ -171,25 +273,30 @@ const NomadListing = () => {
     fd.set("companyName", companyName); // ← SEND THIS
     // fd.set("businessId", values.businessId);
     fd.set("companyType", values.companyType);
+    fd.set("companyTitle", values.companyTitle);
+    fd.set("website", values.website);
     fd.set("ratings", values.ratings);
     fd.set("totalReviews", values.totalReviews);
-    fd.set("productName", values.productName);
-    fd.set("cost", values.cost);
-    fd.set("description", values.description);
+    fd.set("totalSeats", values.totalSeats);
     fd.set("latitude", values.latitude);
     fd.set("longitude", values.longitude);
     fd.set("about", values.about);
-    fd.set("address", values.address);
-    fd.set("mapUrl", values.mapUrl);
+    // Falls back to "city, state, country" when left blank.
+    fd.set(
+      "address",
+      values.address?.trim() ||
+        [values.city, values.state, values.country].filter(Boolean).join(", "),
+    );
+    fd.set("googleMap", values.googleMap);
     fd.set("country", values.country);
     fd.set("state", values.state);
     fd.set("city", values.city);
 
-    // ✅ inclusions as comma-separated string
-    const inclusionsArr = Array.isArray(values.inclusions)
-      ? values.inclusions
-      : [];
-    fd.set("inclusions", inclusionsArr.join(", "));
+    // ✅ inclusions/services/units as comma-separated strings
+    const toCommaString = (arr) => (Array.isArray(arr) ? arr : []).join(", ");
+    fd.set("inclusions", toCommaString(values.inclusions));
+    fd.set("services", toCommaString(values.services));
+    fd.set("units", toCommaString(values.units));
 
     // ✅ reviews JSON
     fd.set("reviews", JSON.stringify(values.reviews || []));
@@ -200,6 +307,13 @@ const NomadListing = () => {
     fd.delete("images");
     if (values.images?.length) {
       values.images.forEach((file) => fd.append("images", file));
+    }
+
+    // Optional per-listing logo — falls back to the company profile logo
+    // server-side when nothing is uploaded here.
+    fd.delete("logo");
+    if (values.logo?.[0] instanceof File) {
+      fd.append("logo", values.logo[0]);
     }
 
     createCompany(fd);
@@ -215,22 +329,24 @@ const NomadListing = () => {
     formRef.current?.reset(); // clears native inputs
     reset({
       companyType: "",
+      companyTitle: "",
       ratings: "",
       totalReviews: "",
-      productName: "",
-      cost: "",
-      description: "",
+      totalSeats: "",
       latitude: "",
       longitude: "",
       country: "",
       state: "",
       city: "",
       inclusions: [],
+      services: [],
+      units: [],
       about: "",
       address: "",
       images: [],
+      logo: [],
       reviews: [defaultReview],
-      mapUrl: "",
+      googleMap: "",
     });
   };
 
@@ -254,22 +370,38 @@ const NomadListing = () => {
           onSubmit={handleSubmit(onSubmit)}
           className="md:grid grid-cols-2 gap-4"
         >
-          {/* Product Name */}
-          {/* <Controller
-            name="productName"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Product Name" />
-            )}
-          /> */}
-          {/* Cost */}
-          {/* <Controller
-            name="cost"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Cost" type="number" />
-            )}
-          /> */}
+          <div className="mb-4 md:mb-0">
+            {/* Company Title */}
+            <Controller
+              name="companyTitle"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Company Title"
+                  helperText="Defaults to your company name if left blank"
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Website URL */}
+            <Controller
+              name="website"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Website URL"
+                  helperText="Defaults to your company's registered website if left blank"
+                  fullWidth
+                />
+              )}
+            />
+          </div>
           <div className="mb-4 md:mb-0">
             {/* Company Type */}
             <Controller
@@ -284,6 +416,14 @@ const NomadListing = () => {
                   label="Company Type"
                   fullWidth
                   error={!!errors.companyType}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    // Inclusions are fixed per company type — drop any
+                    // selected ones that don't apply to the new type.
+                    const allowed = new Set(AMENITIES_BY_TYPE[e.target.value] || []);
+                    const current = getValues("inclusions") || [];
+                    setValue("inclusions", current.filter((v) => allowed.has(v)));
+                  }}
                 >
                   {companyTypes.map((type) => {
                     const normalizedType = normalizeNomadListingType(type);
@@ -340,73 +480,186 @@ const NomadListing = () => {
             )}
           </div>
           <div className="mb-4 md:mb-0">
-            {/* Inclusions */}
+            {/* Inclusions — fixed list per company type, curated on Nomads;
+                hosts can pick from it but not add new ones. */}
             <Controller
               name="inclusions"
               control={control}
-              render={({ field }) => (
-                <FormControl size="small" fullWidth>
-                  <InputLabel>Inclusions</InputLabel>
-                  {/* <Select
-                  {...field}
-                  multiple
-                  input={<OutlinedInput label="Inclusions" />}
-                  renderValue={(selected) => Array.isArray(selected) ? selected.join(", ") : selected}>
-                  {inclusionOptions.map((option) => (
-                    <MenuItem key={option} value={option}>
-                      <Checkbox checked={field.value.indexOf(option) > -1} />
-                      <ListItemText primary={option} />
-                    </MenuItem>
-                  ))}
-                </Select> */}
-                  <Select
-                    {...field}
-                    multiple
-                    value={
-                      Array.isArray(field.value)
-                        ? field.value
-                        : field.value
-                        ? [field.value]
-                        : []
-                    }
-                    input={<OutlinedInput label="Inclusions" />}
-                    renderValue={(selected) =>
-                      Array.isArray(selected) ? selected.join(", ") : ""
-                    }
-                  >
-                    {inclusionOptions.map((option) => (
-                      <MenuItem key={option} value={option}>
-                        <Checkbox
-                          checked={
-                            Array.isArray(field.value) &&
-                            field.value.includes(option)
-                          }
-                        />
-                        <ListItemText primary={option} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
+              render={({ field }) => {
+                const options = AMENITIES_BY_TYPE[selectedCompanyType] || [];
+                return (
+                  <FormControl size="small" fullWidth disabled={!selectedCompanyType}>
+                    <InputLabel>Inclusions</InputLabel>
+                    <Select
+                      {...field}
+                      multiple
+                      value={
+                        Array.isArray(field.value)
+                          ? field.value
+                          : field.value
+                          ? [field.value]
+                          : []
+                      }
+                      input={<OutlinedInput label="Inclusions" />}
+                      renderValue={(selected) =>
+                        Array.isArray(selected) ? selected.join(", ") : ""
+                      }
+                    >
+                      {options.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          <Checkbox
+                            checked={
+                              Array.isArray(field.value) &&
+                              field.value.includes(option)
+                            }
+                          />
+                          <ListItemText primary={option} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }}
             />
+            {!selectedCompanyType && (
+              <p className="mt-1.5 text-[11px] font-pmedium text-slate-500">
+                Select a Company Type first to see its available inclusions.
+              </p>
+            )}
           </div>
-          {/* Description */}
-          {/* <div className="col-span-2">
+          <div className="mb-4 md:mb-0">
+            {/* Services — pick from what other hosts have already used, or
+                type a new one below and click Add. */}
             <Controller
-              name="description"
+              name="services"
               control={control}
+              render={({ field }) => {
+                const options = Array.from(
+                  new Set([...(serviceOptions || []), ...(field.value || [])]),
+                ).sort((a, b) => a.localeCompare(b));
+                return (
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Services</InputLabel>
+                    <Select
+                      {...field}
+                      multiple
+                      value={field.value || []}
+                      input={<OutlinedInput label="Services" />}
+                      renderValue={(selected) =>
+                        Array.isArray(selected) ? selected.join(", ") : ""
+                      }
+                    >
+                      {options.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          <Checkbox checked={field.value?.includes(option)} />
+                          <ListItemText primary={option} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }}
+            />
+            <div className="mt-1.5 flex items-center gap-2">
+              <TextField
+                size="small"
+                fullWidth
+                placeholder="Type a new service, then click Add"
+                value={newServiceText}
+                onChange={(e) => setNewServiceText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddService();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddService}
+                className="shrink-0 px-3 py-2 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg text-[11px] font-pmedium uppercase tracking-wide"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Units — same dropdown + add-new pattern as Services. */}
+            <Controller
+              name="units"
+              control={control}
+              render={({ field }) => {
+                const options = Array.from(
+                  new Set([...(unitOptions || []), ...(field.value || [])]),
+                ).sort((a, b) => a.localeCompare(b));
+                return (
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Units</InputLabel>
+                    <Select
+                      {...field}
+                      multiple
+                      value={field.value || []}
+                      input={<OutlinedInput label="Units" />}
+                      renderValue={(selected) =>
+                        Array.isArray(selected) ? selected.join(", ") : ""
+                      }
+                    >
+                      {options.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          <Checkbox checked={field.value?.includes(option)} />
+                          <ListItemText primary={option} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }}
+            />
+            <div className="mt-1.5 flex items-center gap-2">
+              <TextField
+                size="small"
+                fullWidth
+                placeholder="Type a new unit, then click Add"
+                value={newUnitText}
+                onChange={(e) => setNewUnitText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddUnit();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddUnit}
+                className="shrink-0 px-3 py-2 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg text-[11px] font-pmedium uppercase tracking-wide"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Total Seats */}
+            <Controller
+              name="totalSeats"
+              control={control}
+              rules={{
+                min: { value: 0, message: "Total seats cannot be negative" },
+              }}
               render={({ field }) => (
                 <TextField
                   {...field}
                   size="small"
-                  label="Description"
-                  multiline
-                  minRows={3}
+                  label="Total Seats"
+                  type="number"
+                  inputProps={{ min: 0, step: 1 }}
+                  error={!!errors.totalSeats}
+                  helperText={errors?.totalSeats?.message}
                   fullWidth
                 />
               )}
             />
-          </div> */}
+          </div>
           <div className="mb-4 md:mb-0">
             {/* Ratings */}
             <Controller
@@ -425,79 +678,6 @@ const NomadListing = () => {
                   inputProps={{ min: 1, max: 5, step: 0.1 }}
                   error={!!errors.ratings}
                   helperText={errors?.ratings?.message}
-                  fullWidth
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4 md:mb-0">
-            {/* Total Reviews */}
-            <Controller
-              name="totalReviews"
-              control={control}
-              rules={{
-                min: { value: 0, message: "Total reviews cannot be negative" },
-                max: { value: 100000, message: "Total reviews cannot exceed 100,000" },
-                validate: (value) =>
-                  value === "" ||
-                  Number.isInteger(Number(value)) ||
-                  "Total reviews must be a whole number",
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
-                  label="Total Reviews"
-                  type="number"
-                  inputProps={{ min: 0, max: 100000, step: 1 }}
-                  error={!!errors.totalReviews}
-                  helperText={errors?.totalReviews?.message}
-                  fullWidth
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4 md:mb-0">
-            {/* Latitude */}
-            <Controller
-              name="latitude"
-              control={control}
-              rules={{
-                min: { value: -90, message: "Latitude must be between -90 and 90" },
-                max: { value: 90, message: "Latitude must be between -90 and 90" },
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
-                  label="Latitude"
-                  type="number"
-                  inputProps={{ min: -90, max: 90, step: "any" }}
-                  error={!!errors.latitude}
-                  helperText={errors?.latitude?.message}
-                  fullWidth
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4 md:mb-0">
-            {/* Longitude */}
-            <Controller
-              name="longitude"
-              control={control}
-              rules={{
-                min: { value: -180, message: "Longitude must be between -180 and 180" },
-                max: { value: 180, message: "Longitude must be between -180 and 180" },
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
-                  label="Longitude"
-                  type="number"
-                  inputProps={{ min: -180, max: 180, step: "any" }}
-                  error={!!errors.longitude}
-                  helperText={errors?.longitude?.message}
                   fullWidth
                 />
               )}
@@ -532,6 +712,33 @@ const NomadListing = () => {
                   label="Address"
                   multiline
                   minRows={3}
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Total Reviews */}
+            <Controller
+              name="totalReviews"
+              control={control}
+              rules={{
+                min: { value: 0, message: "Total reviews cannot be negative" },
+                max: { value: 100000, message: "Total reviews cannot exceed 100,000" },
+                validate: (value) =>
+                  value === "" ||
+                  Number.isInteger(Number(value)) ||
+                  "Total reviews must be a whole number",
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Total Reviews"
+                  type="number"
+                  inputProps={{ min: 0, max: 100000, step: 1 }}
+                  error={!!errors.totalReviews}
+                  helperText={errors?.totalReviews?.message}
                   fullWidth
                 />
               )}
@@ -666,30 +873,109 @@ const NomadListing = () => {
             />
           </div>
           <div className="mb-4 md:mb-0">
-            {/* Map URL */}
+            {/* Logo — optional; falls back to your company profile logo */}
             <Controller
-              name="mapUrl"
+              name="logo"
+              control={control}
+              render={({ field }) => (
+                <UploadMultipleFilesInput
+                  {...field}
+                  label="Company Logo (optional)"
+                  maxFiles={1}
+                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                  id="logo"
+                />
+              )}
+            />
+            {!watch("logo")?.length && profileLogoUrl && (
+              <div className="mt-2 flex items-center gap-3">
+                <img
+                  src={profileLogoUrl}
+                  alt="Company logo"
+                  className="h-24 w-24 rounded-lg object-contain border p-1"
+                />
+                <p className="text-[11px] font-pmedium text-slate-500">
+                  Using your company profile logo. Upload one above to override it for this listing.
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Google Map URL */}
+            <Controller
+              name="googleMap"
               control={control}
               rules={{
-                required: "Map URL is required",
                 validate: (val) => {
-                  const MAP_EMBED_REGEX =
-                    /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed(\/v1\/[a-z]+|\?pb=|\/?\?)/i;
                   const v = (val || "").trim();
-                  return (
-                    MAP_EMBED_REGEX.test(v) ||
-                    "Enter a valid Google Maps embed URL"
-                  );
+                  if (!v) return true; // optional
+                  const GOOGLE_MAP_REGEX =
+                    /^https?:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i;
+                  return GOOGLE_MAP_REGEX.test(v) || "Enter a valid Google Maps URL";
                 },
               }}
               render={({ field }) => (
                 <TextField
                   {...field}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    const coords = extractLatLngFromMapUrl(e.target.value);
+                    if (coords) {
+                      setValue("latitude", coords.lat);
+                      setValue("longitude", coords.lng);
+                    }
+                  }}
                   size="small"
-                  label="Embed Map URL"
+                  label="Google Map URL"
                   fullWidth
-                  helperText={errors?.mapUrl?.message}
-                  error={!!errors.mapUrl}
+                  helperText={errors?.googleMap?.message}
+                  error={!!errors.googleMap}
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Latitude — auto-filled from the Google Map URL above when possible */}
+            <Controller
+              name="latitude"
+              control={control}
+              rules={{
+                min: { value: -90, message: "Latitude must be between -90 and 90" },
+                max: { value: 90, message: "Latitude must be between -90 and 90" },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Latitude"
+                  type="number"
+                  inputProps={{ min: -90, max: 90, step: "any" }}
+                  error={!!errors.latitude}
+                  helperText={errors?.latitude?.message}
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Longitude — auto-filled from the Google Map URL above when possible */}
+            <Controller
+              name="longitude"
+              control={control}
+              rules={{
+                min: { value: -180, message: "Longitude must be between -180 and 180" },
+                max: { value: 180, message: "Longitude must be between -180 and 180" },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Longitude"
+                  type="number"
+                  inputProps={{ min: -180, max: 180, step: "any" }}
+                  error={!!errors.longitude}
+                  helperText={errors?.longitude?.message}
+                  fullWidth
                 />
               )}
             />

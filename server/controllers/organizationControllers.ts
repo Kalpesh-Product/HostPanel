@@ -23,7 +23,10 @@ import {
   ORGANIZATION_PERMISSION_KEYS,
 } from "../config/organizationPermissionMap.js";
 import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
-import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
+import {
+  ensureEmployeeProfileForMember,
+  copyPersonalDetailsAcrossUnits,
+} from "../services/core/hr.service.js";
 import {
   countActiveAccountUsers,
   isAccountUserAlreadyActive,
@@ -2653,11 +2656,33 @@ export const transferOrganizationMember = async (req, res, next) => {
         { $set: { isPrimary: false } },
       ).exec();
     }
+    // Keep the source unit's personal/identity details (phone, address, KYC,
+    // bank, profile photo) on the transferred unit's profile. Work details are
+    // NOT carried over — they are chosen per unit during the transfer.
+    const sourceProfile = await EmployeeProfile.findOne({
+      workspaceId: workspace._id,
+      $or: [
+        { linkedWorkspaceMemberId: member._id },
+        { linkedUserId: member.user },
+      ],
+    }).lean().exec();
     await ensureEmployeeProfileForMember({
       workspace: targetWorkspace,
       member: transferredMembership,
       user: memberUser,
     });
+    if (sourceProfile) {
+      const targetProfile = await EmployeeProfile.findOne({
+        workspaceId: targetWorkspace._id,
+        $or: [
+          { linkedWorkspaceMemberId: transferredMembership._id },
+          { linkedUserId: member.user },
+        ],
+      }).exec();
+      if (targetProfile) {
+        await copyPersonalDetailsAcrossUnits(sourceProfile, targetProfile);
+      }
+    }
 
     member.isActive = false;
     member.status = "disabled";

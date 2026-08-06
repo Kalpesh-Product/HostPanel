@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { Country, State, City } from "country-state-city";
 import {
@@ -19,25 +19,12 @@ import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../components/UploadMultipleFilesInput";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import useAuth from "../../../hooks/useAuth";
 import useNomadListingCapacity, {
   normalizeNomadListingType,
 } from "../../../hooks/useNomadListingCapacity";
 
-// Dummy inclusions
-const inclusionOptions = [
-  "Private Desk",
-  "Private Storage",
-  "Air Conditioning",
-  "High Speed Wi-Fi",
-  "IT Support",
-  "Tea & Coffee",
-  "Reception Support",
-  "Housekeeping",
-  "Community",
-  "Meeting Room",
-];
-
-// Dummy company types
+// Company types
 const companyTypes = [
   "Coworking",
   "Meeting Room",
@@ -47,6 +34,75 @@ const companyTypes = [
   "Coliving",
   "Hostel",
 ];
+
+// Fixed amenities per company type — mirrors Nomads' own public site
+// (frontend/src/components/AmenitiesList.jsx). Kept as a local constant
+// (like companyTypes above) instead of fetched, so it always works
+// regardless of whether the Nomads backend serving this environment has
+// been redeployed with the newer /api/company/amenities endpoint.
+const AMENITIES_BY_TYPE = {
+  coworking: [
+    "Private Desk", "Private Storage", "Air Conditioning", "High Speed Wi-Fi", "Wi-Fi",
+    "IT Support", "Tea & Coffee", "Reception Support", "Admin Support", "Housekeeping",
+    "Community", "Maintenance", "Power Backup", "Meeting Room", "Cafeteria",
+    "Printing Services", "CCTV Secure", "Purified Water", "Custom Solutions",
+  ],
+  coliving: [
+    "Shared Space", "Private Space", "Private Storage", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Laundry Facilities", "CCTV Secure", "Swimming Pool",
+  ],
+  workation: [
+    "Shared Space", "Private Space", "Private Storage", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Laundry Facilities", "CCTV Secure", "Swimming Pool",
+  ],
+  privatestay: [
+    "Private Space", "Private Storage", "Television", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Washing Machine", "CCTV Secure", "Swimming Pool",
+  ],
+  hostel: [
+    "Shared Space", "Private Space", "Private Storage", "Air Conditioning", "Wi-Fi",
+    "High Speed Wi-Fi", "IT Support", "Tea & Coffee", "Reception Support", "Admin Support",
+    "Housekeeping", "Community", "Maintenance", "Power Backup", "Cafeteria",
+    "Printing Services", "Laundry Facilities", "CCTV Secure", "Swimming Pool",
+  ],
+  cafe: [
+    "Private Desk", "Private Storage", "Air Conditioning", "High Speed Wi-Fi", "Wi-Fi",
+    "IT Support", "Tea & Coffee", "Reception Support", "Admin Support", "Housekeeping",
+    "Community", "Maintenance", "Power Backup", "Visitor allowed", "Cafeteria",
+    "Printing Services", "CCTV Secure", "Water Purifier", "Custom Solutions",
+  ],
+  meetingroom: [
+    "Private Meeting Room", "Smart Television", "Air Conditioning", "High Speed Wi-Fi", "Wi-Fi",
+    "IT Support", "Tea & Coffee", "Reception Support", "Admin Support", "Housekeeping",
+    "Community", "Maintenance", "Power Backup", "Visitor allowed", "Cafeteria",
+    "Printing Services", "CCTV Secure", "Water Purifier", "Custom Solutions",
+  ],
+};
+
+// Best-effort extraction of coordinates from a pasted Google Maps URL.
+// Handles the common "@lat,lng", "q=lat,lng", "ll=lat,lng" and embed
+// "!3dlat!4dlng" formats. Short goo.gl links don't carry coordinates in
+// the URL itself (they redirect), so those can't be auto-filled this way.
+const extractLatLngFromMapUrl = (url) => {
+  const v = String(url || "");
+  const patterns = [
+    /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+  ];
+  for (const pattern of patterns) {
+    const m = v.match(pattern);
+    if (m) return { lat: m[1], lng: m[2] };
+  }
+  return null;
+};
 
 // ✅ Default review structure
 const defaultReview = {
@@ -73,11 +129,37 @@ const EditNomadListing = () => {
 
   const { addedTypes, canAddNewType, typeLimitMessage } = useNomadListingCapacity(companyId);
 
+  const { auth } = useAuth();
+  // Fallback preview when the listing has no logo of its own — it then
+  // just uses this, the host's own company profile logo.
+  const profileLogoUrl =
+    (typeof auth?.user?.logo === "object" ? auth?.user?.logo?.url : auth?.user?.logo) || "";
+
+  const { data: serviceOptions = [] } = useQuery({
+    queryKey: ["nomad-field-options", "services"],
+    queryFn: async () => {
+      const res = await axios.get("https://wono.co/api/company/field-options", {
+        params: { field: "services" },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+  const { data: unitOptions = [] } = useQuery({
+    queryKey: ["nomad-field-options", "units"],
+    queryFn: async () => {
+      const res = await axios.get("https://wono.co/api/company/field-options", {
+        params: { field: "units" },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+
   const {
     control,
     handleSubmit,
     reset,
     watch,
+    getValues,
     setValue,
     formState: { errors },
   } = useForm({
@@ -85,24 +167,47 @@ const EditNomadListing = () => {
     defaultValues: {
       businessId: `BIZ_${Date.now()}`,
       companyType: "",
+      companyTitle: "",
+      website: "",
       ratings: "",
       totalReviews: "",
-      productName: "",
-      cost: "",
-      description: "",
+      totalSeats: "",
       latitude: "",
       longitude: "",
       country: "",
       state: "",
       city: "",
       inclusions: [],
+      services: [],
+      units: [],
       about: "",
       address: "",
       images: [],
+      logo: [],
+      googleMap: "",
       // reviews: [defaultReview],
       reviews: [],
     },
   });
+
+  // "Add new" boxes beside the Services/Units dropdowns — typing a value
+  // here and clicking Add both selects it and adds it to the dropdown.
+  const [newServiceText, setNewServiceText] = useState("");
+  const [newUnitText, setNewUnitText] = useState("");
+  const handleAddService = () => {
+    const trimmed = newServiceText.trim();
+    if (!trimmed) return;
+    const current = getValues("services") || [];
+    if (!current.includes(trimmed)) setValue("services", [...current, trimmed]);
+    setNewServiceText("");
+  };
+  const handleAddUnit = () => {
+    const trimmed = newUnitText.trim();
+    if (!trimmed) return;
+    const current = getValues("units") || [];
+    if (!current.includes(trimmed)) setValue("units", [...current, trimmed]);
+    setNewUnitText("");
+  };
 
   // ✅ Field Array for reviews
   const {
@@ -139,35 +244,44 @@ const EditNomadListing = () => {
           }))
         : [defaultReview];
 
-    const inclusionsArr = Array.isArray(src.inclusions)
-      ? src.inclusions
-      : typeof src.inclusions === "string" && src.inclusions.trim()
-        ? src.inclusions
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [];
+    const splitCommaList = (value) =>
+      Array.isArray(value)
+        ? value
+        : typeof value === "string" && value.trim()
+          ? value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
 
     reset({
       businessId: src.businessId || businessId || `BIZ_${Date.now()}`,
-      productName: src.productName || src.name || "",
-      cost: src.cost || "",
-      description: src.description || "",
+      companyTitle: src.companyTitle || "",
+      website: src.website || "",
       companyType: src.companyType || "",
       ratings: src.ratings ?? "",
       totalReviews: src.totalReviews ?? "",
+      totalSeats: src.totalSeats ?? "",
       latitude: src.latitude != null ? String(src.latitude) : "",
       longitude: src.longitude != null ? String(src.longitude) : "",
       country: src.country || "",
       state: src.state || "",
       city: src.city || "",
-      inclusions: inclusionsArr,
+      inclusions: splitCommaList(src.inclusions),
+      services: splitCommaList(src.services),
+      units: splitCommaList(src.units),
       about: src.about || "",
       address: src.address || "",
       images: [],
+      logo: [],
+      googleMap: src.googleMap || "",
       reviews,
     });
   }, [navState.website, fetchedListing, businessId, reset]);
+
+  // The listing's own logo (if it has one) — otherwise the form falls back
+  // to the host's profile logo, shown separately below the upload control.
+  const existingLogoUrl = (fetchedListing || navState.website)?.logo?.url || "";
 
   // --------------------------------------------------------------------
 
@@ -213,16 +327,24 @@ const EditNomadListing = () => {
     fd.set("companyId", companyId);
     fd.set("businessId", values.businessId);
 
-    // normalize inclusions
-    const inclusionsArr = Array.isArray(values.inclusions)
-      ? values.inclusions
-      : typeof values.inclusions === "string"
-        ? values.inclusions
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [];
-    fd.set("inclusions", inclusionsArr.join(", "));
+    // Falls back to "city, state, country" when left blank.
+    fd.set(
+      "address",
+      values.address?.trim() ||
+        [values.city, values.state, values.country].filter(Boolean).join(", "),
+    );
+
+    // normalize inclusions/services/units
+    const toCommaString = (value) =>
+      (Array.isArray(value)
+        ? value
+        : typeof value === "string"
+          ? value.split(",").map((s) => s.trim()).filter(Boolean)
+          : []
+      ).join(", ");
+    fd.set("inclusions", toCommaString(values.inclusions));
+    fd.set("services", toCommaString(values.services));
+    fd.set("units", toCommaString(values.units));
 
     // normalize reviews
     const mappedReviews = (values.reviews || []).map((r) => ({
@@ -241,6 +363,13 @@ const EditNomadListing = () => {
       values.images.forEach((file) => fd.append("images", file));
     }
 
+    // Optional per-listing logo replacement — omitted when unchanged, so
+    // the server keeps whatever logo the listing already had.
+    fd.delete("logo");
+    if (values.logo?.[0] instanceof File) {
+      fd.append("logo", values.logo[0]);
+    }
+
     saveListing(fd);
   };
 
@@ -256,20 +385,24 @@ const EditNomadListing = () => {
     reset({
       businessId: "",
       companyType: "",
+      companyTitle: "",
+      website: "",
       ratings: "",
       totalReviews: "",
-      productName: "",
-      cost: "",
-      description: "",
+      totalSeats: "",
       latitude: "",
       longitude: "",
       country: "",
       state: "",
       city: "",
       inclusions: [],
+      services: [],
+      units: [],
       about: "",
       address: "",
       images: [],
+      logo: [],
+      googleMap: "",
       reviews: [defaultReview], // keep one empty review, or [] if you prefer
     });
   };
@@ -296,23 +429,39 @@ const EditNomadListing = () => {
           onSubmit={handleSubmit(onSubmit)}
           className="md:grid grid-cols-2 gap-4"
         >
-          {/* Product Name */}
-          {/* <Controller
-            name="productName"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Product Name" />
-            )}
-          /> */}
-
-          {/* Cost */}
-          {/* <Controller
-            name="cost"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Cost" type="number" />
-            )}
-          /> */}
+          <div className="mb-4 md:mb-0">
+            {/* Company Title */}
+            <Controller
+              name="companyTitle"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Company Title"
+                  disabled={isViewMode}
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Website URL */}
+            <Controller
+              name="website"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Website URL"
+                  disabled={isViewMode}
+                  helperText="Defaults to your company's registered website if left blank"
+                  fullWidth
+                />
+              )}
+            />
+          </div>
           <div className="mb-4 md:mb-0">
             {/* Company Type */}
             <Controller
@@ -327,6 +476,14 @@ const EditNomadListing = () => {
                   label="Company Type"
                   fullWidth
                   disabled={isViewMode}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    // Inclusions are fixed per company type — drop any
+                    // selected ones that don't apply to the new type.
+                    const allowed = new Set(AMENITIES_BY_TYPE[e.target.value] || []);
+                    const current = getValues("inclusions") || [];
+                    setValue("inclusions", current.filter((v) => allowed.has(v)));
+                  }}
                 >
                   {companyTypes.map((type) => {
                     const normalized = normalizeNomadListingType(type);
@@ -356,49 +513,173 @@ const EditNomadListing = () => {
             />
           </div>
           <div className="mb-4 md:mb-0">
-            {/* Inclusions */}
+            {/* Inclusions — fixed list per company type, curated on Nomads;
+                can be picked but not added to. */}
             <Controller
               name="inclusions"
               control={control}
-              render={({ field }) => (
-                <FormControl size="small" fullWidth>
-                  <InputLabel>Inclusions</InputLabel>
-                  <Select
-                    {...field}
-                    multiple
-                    disabled={isViewMode}
-                    input={<OutlinedInput label="Inclusions" />}
-                    renderValue={(selected) => selected.join(", ")}
-                  >
-                    {inclusionOptions.map((option) => (
-                      <MenuItem key={option} value={option}>
-                        <Checkbox checked={field.value.indexOf(option) > -1} />
-                        <ListItemText primary={option} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
+              render={({ field }) => {
+                const selectedType = watch("companyType");
+                const options = AMENITIES_BY_TYPE[selectedType] || [];
+                return (
+                  <FormControl size="small" fullWidth disabled={isViewMode || !selectedType}>
+                    <InputLabel>Inclusions</InputLabel>
+                    <Select
+                      {...field}
+                      multiple
+                      input={<OutlinedInput label="Inclusions" />}
+                      renderValue={(selected) => selected.join(", ")}
+                    >
+                      {options.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          <Checkbox checked={field.value.indexOf(option) > -1} />
+                          <ListItemText primary={option} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }}
             />
           </div>
-
-          {/* Description */}
-          {/* <div className="col-span-2">
+          <div className="mb-4 md:mb-0">
+            {/* Services — pick from what other hosts have already used, or
+                type a new one below and click Add. */}
             <Controller
-              name="description"
+              name="services"
               control={control}
+              render={({ field }) => {
+                const options = Array.from(
+                  new Set([...(serviceOptions || []), ...(field.value || [])]),
+                ).sort((a, b) => a.localeCompare(b));
+                return (
+                  <FormControl size="small" fullWidth disabled={isViewMode}>
+                    <InputLabel>Services</InputLabel>
+                    <Select
+                      {...field}
+                      multiple
+                      value={field.value || []}
+                      input={<OutlinedInput label="Services" />}
+                      renderValue={(selected) =>
+                        Array.isArray(selected) ? selected.join(", ") : ""
+                      }
+                    >
+                      {options.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          <Checkbox checked={field.value?.includes(option)} />
+                          <ListItemText primary={option} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }}
+            />
+            {!isViewMode && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Type a new service, then click Add"
+                  value={newServiceText}
+                  onChange={(e) => setNewServiceText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddService();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddService}
+                  className="shrink-0 px-3 py-2 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg text-[11px] font-pmedium uppercase tracking-wide"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Units — same dropdown + add-new pattern as Services. */}
+            <Controller
+              name="units"
+              control={control}
+              render={({ field }) => {
+                const options = Array.from(
+                  new Set([...(unitOptions || []), ...(field.value || [])]),
+                ).sort((a, b) => a.localeCompare(b));
+                return (
+                  <FormControl size="small" fullWidth disabled={isViewMode}>
+                    <InputLabel>Units</InputLabel>
+                    <Select
+                      {...field}
+                      multiple
+                      value={field.value || []}
+                      input={<OutlinedInput label="Units" />}
+                      renderValue={(selected) =>
+                        Array.isArray(selected) ? selected.join(", ") : ""
+                      }
+                    >
+                      {options.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          <Checkbox checked={field.value?.includes(option)} />
+                          <ListItemText primary={option} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }}
+            />
+            {!isViewMode && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Type a new unit, then click Add"
+                  value={newUnitText}
+                  onChange={(e) => setNewUnitText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddUnit();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddUnit}
+                  className="shrink-0 px-3 py-2 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg text-[11px] font-pmedium uppercase tracking-wide"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Total Seats */}
+            <Controller
+              name="totalSeats"
+              control={control}
+              rules={{
+                min: { value: 0, message: "Total seats cannot be negative" },
+              }}
               render={({ field }) => (
                 <TextField
                   {...field}
                   size="small"
-                  label="Description"
-                  multiline
-                  minRows={3}
+                  label="Total Seats"
+                  type="number"
+                  inputProps={{ min: 0, step: 1 }}
+                  disabled={isViewMode}
+                  error={!!errors.totalSeats}
+                  helperText={errors?.totalSeats?.message}
                   fullWidth
                 />
               )}
             />
-          </div> */}
+          </div>
 
           <div className="mb-4 md:mb-0">
             {/* Ratings */}
@@ -425,82 +706,6 @@ const EditNomadListing = () => {
             />
           </div>
 
-          <div className="mb-4 md:mb-0">
-            {/* Total Reviews */}
-            <Controller
-              name="totalReviews"
-              control={control}
-              rules={{
-                min: { value: 0, message: "Total reviews cannot be negative" },
-                max: { value: 100000, message: "Total reviews cannot exceed 100,000" },
-                validate: (value) =>
-                  value === "" ||
-                  Number.isInteger(Number(value)) ||
-                  "Total reviews must be a whole number",
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
-                  label="Total Reviews"
-                  type="number"
-                  inputProps={{ min: 0, max: 100000, step: 1 }}
-                  error={!!errors.totalReviews}
-                  helperText={errors?.totalReviews?.message}
-                  fullWidth
-                  disabled={isViewMode}
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4 md:mb-0">
-            {/* Latitude */}
-            <Controller
-              name="latitude"
-              control={control}
-              rules={{
-                min: { value: -90, message: "Latitude must be between -90 and 90" },
-                max: { value: 90, message: "Latitude must be between -90 and 90" },
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
-                  label="Latitude"
-                  type="number"
-                  inputProps={{ min: -90, max: 90, step: "any" }}
-                  error={!!errors.latitude}
-                  helperText={errors?.latitude?.message}
-                  fullWidth
-                  disabled={isViewMode}
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4 md:mb-0">
-            {/* Longitude */}
-            <Controller
-              name="longitude"
-              control={control}
-              rules={{
-                min: { value: -180, message: "Longitude must be between -180 and 180" },
-                max: { value: 180, message: "Longitude must be between -180 and 180" },
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
-                  label="Longitude"
-                  type="number"
-                  inputProps={{ min: -180, max: 180, step: "any" }}
-                  error={!!errors.longitude}
-                  helperText={errors?.longitude?.message}
-                  fullWidth
-                  disabled={isViewMode}
-                />
-              )}
-            />
-          </div>
           <div className="mb-4 md:mb-0">
             {/* About */}
             <Controller
@@ -531,6 +736,34 @@ const EditNomadListing = () => {
                   label="Address"
                   multiline
                   minRows={3}
+                  fullWidth
+                  disabled={isViewMode}
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Total Reviews */}
+            <Controller
+              name="totalReviews"
+              control={control}
+              rules={{
+                min: { value: 0, message: "Total reviews cannot be negative" },
+                max: { value: 100000, message: "Total reviews cannot exceed 100,000" },
+                validate: (value) =>
+                  value === "" ||
+                  Number.isInteger(Number(value)) ||
+                  "Total reviews must be a whole number",
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Total Reviews"
+                  type="number"
+                  inputProps={{ min: 0, max: 100000, step: 1 }}
+                  error={!!errors.totalReviews}
+                  helperText={errors?.totalReviews?.message}
                   fullWidth
                   disabled={isViewMode}
                 />
@@ -684,6 +917,123 @@ const EditNomadListing = () => {
                 )}
               />
             )}
+          </div>
+
+          <div className="mb-4 md:mb-0">
+            {/* Logo — optional; falls back to the company profile logo */}
+            {(existingLogoUrl || profileLogoUrl) && !watch("logo")?.length && (
+              <div className="mb-2 flex items-center gap-3">
+                <img
+                  src={existingLogoUrl || profileLogoUrl}
+                  alt="Listing logo"
+                  className="h-24 w-24 rounded-lg object-contain border p-1"
+                />
+                <p className="text-[11px] font-pmedium text-slate-500">
+                  {existingLogoUrl
+                    ? "This listing's current logo."
+                    : "Using your company profile logo."}
+                </p>
+              </div>
+            )}
+            {!isViewMode && (
+              <Controller
+                name="logo"
+                control={control}
+                render={({ field }) => (
+                  <UploadMultipleFilesInput
+                    {...field}
+                    label="Replace Company Logo (optional)"
+                    maxFiles={1}
+                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                    id="logo"
+                  />
+                )}
+              />
+            )}
+          </div>
+
+          <div className="mb-4 md:mb-0">
+            {/* Google Map URL */}
+            <Controller
+              name="googleMap"
+              control={control}
+              rules={{
+                validate: (val) => {
+                  const v = (val || "").trim();
+                  if (!v) return true; // optional
+                  const GOOGLE_MAP_REGEX =
+                    /^https?:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i;
+                  return GOOGLE_MAP_REGEX.test(v) || "Enter a valid Google Maps URL";
+                },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    const coords = extractLatLngFromMapUrl(e.target.value);
+                    if (coords) {
+                      setValue("latitude", coords.lat);
+                      setValue("longitude", coords.lng);
+                    }
+                  }}
+                  size="small"
+                  label="Google Map URL"
+                  disabled={isViewMode}
+                  fullWidth
+                  helperText={errors?.googleMap?.message}
+                  error={!!errors.googleMap}
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Latitude — auto-filled from the Google Map URL above when possible */}
+            <Controller
+              name="latitude"
+              control={control}
+              rules={{
+                min: { value: -90, message: "Latitude must be between -90 and 90" },
+                max: { value: 90, message: "Latitude must be between -90 and 90" },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Latitude"
+                  type="number"
+                  inputProps={{ min: -90, max: 90, step: "any" }}
+                  error={!!errors.latitude}
+                  helperText={errors?.latitude?.message}
+                  fullWidth
+                  disabled={isViewMode}
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Longitude — auto-filled from the Google Map URL above when possible */}
+            <Controller
+              name="longitude"
+              control={control}
+              rules={{
+                min: { value: -180, message: "Longitude must be between -180 and 180" },
+                max: { value: 180, message: "Longitude must be between -180 and 180" },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Longitude"
+                  type="number"
+                  inputProps={{ min: -180, max: 180, step: "any" }}
+                  error={!!errors.longitude}
+                  helperText={errors?.longitude?.message}
+                  fullWidth
+                  disabled={isViewMode}
+                />
+              )}
+            />
           </div>
 
           {/* Reviews */}

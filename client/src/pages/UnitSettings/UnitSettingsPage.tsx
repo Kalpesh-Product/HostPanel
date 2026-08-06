@@ -77,6 +77,10 @@ type WorkspaceItem = {
   workspaceName: string;
   businessName?: string;
   location?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  address?: string;
   selectedPlan?: string;
   status?: string;
   isActiveWorkspace?: boolean;
@@ -148,7 +152,12 @@ export default function WorkspaceSettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewingWorkspace, setViewingWorkspace] = useState<WorkspaceItem | null>(null);
   const [editingWorkspace, setEditingWorkspace] = useState<WorkspaceItem | null>(null);
-  const [editName, setEditName] = useState("");
+  const [editForm, setEditForm] = useState({
+    workspaceName: "",
+    city: "",
+    state: "",
+    country: "",
+  });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [businessStart, setBusinessStart] = useState("09:00");
   const [businessEnd, setBusinessEnd] = useState("22:00");
@@ -398,6 +407,7 @@ export default function WorkspaceSettingsPage() {
         businessName: ws.businessName || "",
         location: ws.location || "",
         isPrimary: Boolean(ws.isActiveWorkspace),
+        isMain: Boolean(ws.isMain),
       }));
     setAuth((prev) =>
       prev.user
@@ -421,13 +431,18 @@ export default function WorkspaceSettingsPage() {
 
   const openEditWorkspace = (workspace: WorkspaceItem) => {
     setEditingWorkspace(workspace);
-    setEditName(workspace.workspaceName || "");
+    setEditForm({
+      workspaceName: workspace.workspaceName || "",
+      city: workspace.city || "",
+      state: workspace.state || "",
+      country: workspace.country || "",
+    });
   };
 
   const handleSaveEdit = async (event: FormEvent) => {
     event.preventDefault();
     if (!editingWorkspace?.id) return;
-    const nextName = editName.trim();
+    const nextName = editForm.workspaceName.trim();
     if (!nextName) {
       toast.error("Unit name is required.");
       return;
@@ -435,7 +450,12 @@ export default function WorkspaceSettingsPage() {
     try {
       setIsSavingEdit(true);
       await updateManagedWorkspace(axiosPrivate, editingWorkspace.id, {
-        profile: { workspaceName: nextName },
+        profile: {
+          workspaceName: nextName,
+          city: editForm.city,
+          state: editForm.state,
+          country: editForm.country,
+        },
       });
       await reloadOverview();
       toast.success("Unit updated successfully.");
@@ -1127,9 +1147,9 @@ export default function WorkspaceSettingsPage() {
                 <Pencil className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[14px] font-pmedium text-slate-950">Rename unit</p>
+                <p className="text-[14px] font-pmedium text-slate-950">Edit unit</p>
                 <p className="mt-1 text-[12px] font-pmedium text-slate-500">
-                  Update the unit name. Other details stay unchanged.
+                  Update the unit name and location. The unit name stays the one you entered; the location (city, state, country) shows beside it in dropdowns.
                 </p>
               </div>
             </div>
@@ -1137,14 +1157,43 @@ export default function WorkspaceSettingsPage() {
               <label className="grid gap-2">
                 <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit Name</span>
                 <input
-                  value={editName}
-                  onChange={(event) => setEditName(event.target.value)}
+                  value={editForm.workspaceName}
+                  onChange={(event) => setEditForm((current) => ({ ...current, workspaceName: event.target.value }))}
                   maxLength={120}
                   autoFocus
                   className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
                   required
                 />
               </label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="grid gap-2">
+                  <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City</span>
+                  <input
+                    value={editForm.city}
+                    onChange={(event) => setEditForm((current) => ({ ...current, city: event.target.value }))}
+                    maxLength={120}
+                    className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+                  />
+                </label>
+                <label className="grid gap-2">
+                  <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State</span>
+                  <input
+                    value={editForm.state}
+                    onChange={(event) => setEditForm((current) => ({ ...current, state: event.target.value }))}
+                    maxLength={120}
+                    className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+                  />
+                </label>
+                <label className="grid gap-2">
+                  <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country</span>
+                  <input
+                    value={editForm.country}
+                    onChange={(event) => setEditForm((current) => ({ ...current, country: event.target.value }))}
+                    maxLength={120}
+                    className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+                  />
+                </label>
+              </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
