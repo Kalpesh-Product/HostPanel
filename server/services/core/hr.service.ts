@@ -327,7 +327,10 @@ const mapEmployeeProfileToResponse = async (profileDoc: any) => {
     taxId: String(profile.taxId || ""),
     providentFundNumber: String(profile.providentFundNumber || ""),
     permissions: {
-      modules: Array.isArray(profile.accessModules) ? profile.accessModules : [],
+      modules: Array.from(new Set([
+        ...(Array.isArray(profile.accessModules) ? profile.accessModules : []),
+        ...(Array.isArray(profile.accessAddOnModules) ? profile.accessAddOnModules : []),
+      ])),
       features: Array.isArray(profile.accessFeatures) ? profile.accessFeatures : [],
     },
     documents: Array.isArray(profile.documents)
@@ -506,6 +509,11 @@ const ensureEmployeeProfileForMember = async ({
       ? member.grantedModules
       : Array.isArray(profile?.accessModules)
         ? profile.accessModules
+        : [],
+    accessAddOnModules: member?.addOnGrantedModules !== undefined && Array.isArray(member.addOnGrantedModules)
+      ? member.addOnGrantedModules
+      : Array.isArray(profile?.accessAddOnModules)
+        ? profile.accessAddOnModules
         : [],
     accessFeatures: Array.isArray(profile?.accessFeatures) ? profile.accessFeatures : [],
     documents: Array.isArray(profile?.documents) ? profile.documents : [],

@@ -3,7 +3,7 @@ import { axiosPrivate } from "../utils/axios";
 export const updateEmployeeAccess = (
   axiosPrivate: any,
   employeeId: string,
-  payload: { accessModules: string[]; accessFeatures?: string[] },
+  payload: { accessModules: string[]; accessFeatures?: string[]; addOnModules?: string[] },
 ) => axiosPrivate.patch(`/api/organization/members/${employeeId}/access`, payload);
 
 export const getEmployeeManagementOverview = async () => {

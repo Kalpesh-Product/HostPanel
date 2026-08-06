@@ -461,6 +461,7 @@ const reapplyDepartmentManagerGrants = async (workspaceId, department) => {
       ...managerDefaultIds,
       ...MANAGER_DEFAULT_ORG_GRANT_IDS,
     ]);
+    
     await member.save();
   }
 };
@@ -841,6 +842,7 @@ export const getOrganizationOverview = async (req, res, next) => {
             ? selfMember.departments.map((d: any) => d.name || String(d))
             : [],
           grantedModules: Array.isArray(selfMember.grantedModules) ? selfMember.grantedModules : [],
+          addOnGrantedModules: Array.isArray(selfMember.addOnGrantedModules) ? selfMember.addOnGrantedModules : [],
           enabledModules: Array.isArray(selfMember.enabledModules) ? selfMember.enabledModules : [],
           workspaceAccesses: [],
           joinedAt: selfMember.createdAt,
@@ -1095,6 +1097,7 @@ export const getOrganizationOverview = async (req, res, next) => {
         ? member.departments.map((d: any) => d.name || String(d))
         : [],
       grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+      addOnGrantedModules: Array.isArray(member.addOnGrantedModules) ? member.addOnGrantedModules : [],
       enabledModules: Array.isArray(member.enabledModules) ? member.enabledModules : [],
       workspaceAccesses: linkedWorkspaces
         .filter((item) =>
@@ -1582,9 +1585,12 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       const linkedProfile = await EmployeeProfile.findOne({
         linkedWorkspaceMemberId: member._id,
         workspaceId: workspace._id,
-      }).select("accessModules").lean().exec();
+      }).select("accessModules accessAddOnModules").lean().exec();
       if (linkedProfile && Array.isArray(linkedProfile.accessModules) && linkedProfile.accessModules.length > 0) {
         member.grantedModules = linkedProfile.accessModules;
+      }
+      if (linkedProfile && Array.isArray(linkedProfile.accessAddOnModules) && linkedProfile.accessAddOnModules.length > 0) {
+        member.addOnGrantedModules = linkedProfile.accessAddOnModules;
       }
     }
 
@@ -2478,8 +2484,25 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
     const nextGrantedModules = Array.isArray(req.body?.accessModules)
       ? req.body.accessModules.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
+    // Modules granted specifically through the Add-ons catalogue are stored
+    // separately (member.addOnGrantedModules) so the sidebar can render them
+    // only inside the expandable Add-ons section. Only owner/super-admin
+    // writes (no managerControllableIds) replace this list; manager edits are
+    // scoped to their shared department's modules and leave add-on grants
+    // untouched.
+    const nextAddOnModules = Array.isArray(req.body?.addOnModules)
+      ? req.body.addOnModules.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
 
     const sanitizedNextGrantedModules = nextGrantedModules.filter((moduleId) => {
+      if (moduleId.startsWith("disabled:")) {
+        const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
+        return Boolean(targetModuleId) && allowedModuleKeys.has(normalizeKey(targetModuleId));
+      }
+      return allowedModuleKeys.has(normalizeKey(moduleId));
+    });
+
+    const sanitizedNextAddOnModules = nextAddOnModules.filter((moduleId) => {
       if (moduleId.startsWith("disabled:")) {
         const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
         return Boolean(targetModuleId) && allowedModuleKeys.has(normalizeKey(targetModuleId));
@@ -2503,6 +2526,7 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       member.grantedModules = Array.from(new Set([...outsideManagerScope, ...withinManagerScope]));
     } else {
       member.grantedModules = sanitizedNextGrantedModules;
+      member.addOnGrantedModules = sanitizedNextAddOnModules;
     }
 
     // Keep custom-department associations in sync with the final granted
@@ -2548,6 +2572,7 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       {
         $set: {
           accessModules: member.grantedModules,
+          accessAddOnModules: member.addOnGrantedModules,
           accessFeatures: [],
           linkedWorkspaceMemberId: member._id,
           linkedUserId: member.user,
@@ -2560,7 +2585,11 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
 
     return res.status(200).json({
       message: "Member access updated successfully.",
-      data: { memberId: toId(member._id), grantedModules: member.grantedModules },
+      data: {
+        memberId: toId(member._id),
+        grantedModules: member.grantedModules,
+        addOnGrantedModules: member.addOnGrantedModules,
+      },
     });
   } catch (error) {
     next(error);

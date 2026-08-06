@@ -82,6 +82,7 @@ export interface IEmployeeProfile extends Document {
     providentFundNumber?: string;
     accessModules: string[];
     accessFeatures: string[];
+    accessAddOnModules: string[];
     documents: IEmployeeDocument[];
     notes?: string;
     lastLoginAt?: Date | null;
@@ -338,6 +339,7 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
         providentFundNumber: { type: String, trim: true, default: "" },
         accessModules: { type: [String], default: [] },
         accessFeatures: { type: [String], default: [] },
+        accessAddOnModules: { type: [String], default: [] },
         documents: { type: [employeeDocumentSchema], default: [] },
         notes: { type: String, trim: true, default: "" },
         lastLoginAt: { type: Date, default: null },

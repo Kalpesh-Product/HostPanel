@@ -1163,6 +1163,13 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
     const explicitGrants: string[] = Array.isArray(currentMember?.grantedModules)
       ? currentMember.grantedModules.map((m) => String(m).trim()).filter(Boolean)
       : [];
+    // Modules granted specifically through the Add-ons catalogue. Kept
+    // separate from grantedModules so the sidebar can render them only inside
+    // the expandable Add-ons section instead of duplicating them in their
+    // normal section. They still count toward the effective permission union.
+    const explicitAddOnGrants: string[] = Array.isArray(currentMember?.addOnGrantedModules)
+      ? currentMember.addOnGrantedModules.map((m) => String(m).trim()).filter(Boolean)
+      : [];
 
     let baseModules: string[] = [];
 
@@ -1197,7 +1204,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
     // through via a stale per-member grant or a department's moduleIds.
     const enabledSet = new Set(enabledModuleIds);
     const effectiveGrantedModules = Array.from(
-      new Set([...baseModules, ...explicitGrants]),
+      new Set([...baseModules, ...explicitGrants, ...explicitAddOnGrants]),
     ).filter((id) => enabledSet.has(id));
 
     return res.status(200).json({
@@ -1210,6 +1217,8 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
         modules,
         moduleMap: catalog,
         currentMemberGrantedModules: effectiveGrantedModules,
+        currentMemberNormalGrantedModules: explicitGrants.filter((id) => enabledSet.has(id)),
+        currentMemberAddOnGrantedModules: explicitAddOnGrants.filter((id) => enabledSet.has(id)),
         currentMemberEnabledModules: Array.isArray(currentMember?.enabledModules)
           ? currentMember.enabledModules
           : [],
