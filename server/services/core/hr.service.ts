@@ -1046,7 +1046,6 @@ export {
   updateOwnEmployeeProfile,
   updateOwnProfilePicture,
   toggleEmployeeProfileStatus,
-  copyPersonalDetailsAcrossUnits,
   mapEmployeeProfileToResponse,
   normalizeRoleForDisplay,
   normalizeRoleForStorage,
