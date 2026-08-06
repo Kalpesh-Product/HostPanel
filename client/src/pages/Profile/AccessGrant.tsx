@@ -739,7 +739,27 @@ export default function AccessGrantsPage() {
 
     const mappedSections = sections
       .map((section) => {
-        const modules = (Array.isArray(section?.items) ? section.items : []).flatMap((item) => {
+        const sectionKey = normalizeModuleKey(
+          section?.sectionId || section?.sectionLabel || '',
+        );
+
+        let sectionItems = Array.isArray(section?.items)
+          ? section.items
+          : [];
+
+        // In Add-ons, hide everything from Dashboard through Analytics.
+        // Only modules listed after Analytics will remain visible.
+        if (sectionKey === 'add-ons') {
+          const analyticsIndex = sectionItems.findIndex(
+            (item) => normalizeModuleKey(item?.id) === 'analytics',
+          );
+
+          if (analyticsIndex !== -1) {
+            sectionItems = sectionItems.slice(analyticsIndex + 1);
+          }
+        }
+
+        const modules = sectionItems.flatMap((item) => {
           if (Array.isArray(item?.tabs) && item.tabs.length > 0) {
             return item.tabs
               .filter((tab) => {
@@ -794,6 +814,20 @@ export default function AccessGrantsPage() {
         label: 'Website Builder',
         description: 'Key Apps',
       });
+    }
+
+    // Show Key Apps first in Add-ons: move the Key Apps modules to the top
+    // of the Add-ons visible list and drop the standalone Key Apps section.
+    const addOnsSection = mappedSections.find(
+      (section) => normalizeModuleKey(section.key) === 'add-ons',
+    );
+    const mergedKeyAppsIndex = mappedSections.findIndex(
+      (section) => normalizeModuleKey(section.key) === 'key-apps',
+    );
+    if (addOnsSection && mergedKeyAppsIndex !== -1) {
+      const keyAppsModules = mappedSections[mergedKeyAppsIndex].modules || [];
+      addOnsSection.modules = [...keyAppsModules, ...addOnsSection.modules];
+      mappedSections.splice(mergedKeyAppsIndex, 1);
     }
 
     return mappedSections;
