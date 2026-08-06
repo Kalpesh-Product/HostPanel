@@ -1524,15 +1524,6 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
         ? false
         : !member.isActive;
 
-    // A member's main unit is the unit they were first added to — its access
-    // can never be removed or disabled, only changed via a transfer.
-    if (!nextIsActive && member.isMainUnit) {
-      return res.status(400).json({
-        message:
-          "The user's main unit access cannot be disabled. Transfer the user to another unit to change their main unit.",
-      });
-    }
-
     if (nextIsActive && !member.isActive && isProfessionalPlan(workspace)) {
       // Re-enabling doesn't consume a slot if this person is already active in
       // another unit in the account — only block it if they'd be a genuinely

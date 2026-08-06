@@ -457,9 +457,9 @@ const NomadListing = () => {
               )}
             />
           </div>
-          {/* <div className="mb-4 md:mb-0"> */}
+          <div className="mb-4 md:mb-0">
             {/* Latitude */}
-            {/* <Controller
+            <Controller
               name="latitude"
               control={control}
               rules={{
@@ -478,11 +478,11 @@ const NomadListing = () => {
                   fullWidth
                 />
               )}
-            /> */}
-          {/* </div> */}
-          {/* <div className="mb-4 md:mb-0"> */}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
             {/* Longitude */}
-            {/* <Controller
+            <Controller
               name="longitude"
               control={control}
               rules={{
@@ -501,8 +501,8 @@ const NomadListing = () => {
                   fullWidth
                 />
               )}
-            /> */}
-          {/* </div> */}
+            />
+          </div>
           <div className="mb-4 md:mb-0">
             {/* About */}
             <Controller

@@ -6,7 +6,6 @@ import {
   ChevronUp,
   CheckCircle2,
   LayoutDashboard,
-  Settings,
   Globe,
   ShieldCheck,
   NotebookText,
@@ -17,7 +16,6 @@ import {
   MonitorCog,
   Package,
   BarChart,
-  Clock,
   ListChecks,
   Ticket,
   CalendarClock,
@@ -25,8 +23,7 @@ import {
   Presentation,
   ContactRound,
   Warehouse,
-  Wallet,
-  MessageSquareCode,
+  Box,
   FileChartColumn,
   Users,
   UserPlus,
@@ -42,7 +39,6 @@ import {
   ShoppingCart,
   Receipt,
   Calculator,
-  ScanSearch,
   Laptop,
   FileSearch,
   User,
@@ -50,6 +46,44 @@ import {
   Handshake,
   Lock,
   X,
+  FileText,
+  History,
+  UserCheck,
+  Banknote,
+  CreditCard,
+  PiggyBank,
+  Landmark,
+  WalletCards,
+  KeyRound,
+  Sparkles,
+  UserSquare,
+  Store,
+  Headphones,
+  Server,
+  Code2,
+  CalendarDays,
+  ClipboardList,
+  CalendarPlus,
+  SlidersHorizontal,
+  LayoutGrid,
+  Puzzle,
+  Megaphone,
+  Palette,
+  Scale,
+  BadgeCheck,
+  PenLine,
+  Factory,
+  Stethoscope,
+  FlaskConical,
+  GraduationCap,
+  Truck,
+  Cog,
+  Target,
+  Briefcase,
+  Layers,
+  Blocks,
+  School,
+  Shapes,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -172,10 +206,10 @@ const companySettingsData: NavNode[] = [
   { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
   { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
-  { id: "unit-settings", label: "Unit Settings", icon: Settings, route: "/company-settings/unit-settings", disabled: true },
-  { id: "unit-management", label: "Unit Management", icon: MonitorCog, route: "/company-settings/unit-management", disabled: true },
+  { id: "unit-settings", label: "Unit Settings", icon: SlidersHorizontal, route: "/company-settings/unit-settings", disabled: true },
+  { id: "unit-management", label: "Unit Management", icon: LayoutGrid, route: "/company-settings/unit-management", disabled: true },
   { id: "analytics", label: "Analytics", icon: BarChart, disabled: true },
-  { id: "customer-support", label: "Customer Support", icon: MessageSquareCode, route: "/company-settings/customer-support" },
+  { id: "customer-support", label: "Customer Support", icon: Headphones, route: "/company-settings/customer-support" },
 ];
 
 const keyAppsData: NavNode[] = [
@@ -192,12 +226,12 @@ const departmentModules: NavNode[] = [
     icon: Users,
     defaultOpen: false,
     children: [
-      { id: "employee-management", label: "Employee Management", icon: Users, route: "/hr/employee-management", disabled: false },
-      { id: "hr-documents", label: "Documents", icon: NotebookText, route: "/hr/documents", disabled: false },
+      { id: "employee-management", label: "Employee Management", icon: UserSquare, route: "/hr/employee-management", disabled: false },
+      { id: "hr-documents", label: "Documents", icon: FileText, route: "/hr/documents", disabled: false },
       { id: "recruitment", label: "Recruitment", icon: UserPlus, route: "/hr/recruitment", disabled: false },
       { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, route: "/hr/leave-request-processing", disabled: false },
       { id: "attendance-review", label: "Attendance Review", icon: ClipboardCheck, route: "/hr/attendance-review", disabled: false },
-      { id: "payroll-management", label: "Payroll Management", icon: Wallet, route: "/hr/payroll-management", disabled: false },
+      { id: "payroll-management", label: "Payroll Management", icon: Banknote, route: "/hr/payroll-management", disabled: false },
       { id: "exit-management",      label: "Exit Management",            icon: UserMinus,    route: "/hr/exit-management", disabled: false },
     ],
   },
@@ -207,7 +241,7 @@ const departmentModules: NavNode[] = [
     icon: Building2,
     defaultOpen: false,
     children: [
-      { id: "tenant-companies-admin", label: "Tenant Companies", icon: Building2, route: "/administration/tenant-companies", disabled: false },
+      { id: "tenant-companies-admin", label: "Tenant Companies", icon: Store, route: "/administration/tenant-companies", disabled: false },
       { id: "bookings", label: "Bookings", icon: Bed, route: "/administration/bookings", disabled: false },
       {
         id: "visitors-management",
@@ -217,7 +251,7 @@ const departmentModules: NavNode[] = [
         disabled: false,
       },
       { id: "resource-management", label: "Resource Management", icon: HandCoins, route: "/administration/resource-management", disabled: false },
-      { id: "house-keeping", label: "House Keeping", icon: Wrench, route: "/administration/house-keeping", disabled: false },
+      { id: "house-keeping", label: "House Keeping", icon: Sparkles, route: "/administration/house-keeping", disabled: false },
     ],
   },
   {
@@ -227,7 +261,7 @@ const departmentModules: NavNode[] = [
     defaultOpen: false,
     children: [
       { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales/leads-management", disabled: false },
-      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, route: "/sales/tenant-companies", disabled: false },
+      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Store, route: "/sales/tenant-companies", disabled: false },
       { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/sales-crm/resource-pricing", disabled: false },
       { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales-crm/sales-architecture", disabled: false },
     ],
@@ -235,10 +269,10 @@ const departmentModules: NavNode[] = [
   {
     id: "finance-department",
     label: "Finance Department",
-    icon: Wallet,
+    icon: WalletCards,
     defaultOpen: false,
     children: [
-      { id: "finance-budget", label: "Finance & Budget", icon: Wallet, route: "/finance/expenses-budget", disabled: false },
+      { id: "finance-budget", label: "Finance & Budget", icon: PiggyBank, route: "/finance/expenses-budget", disabled: false },
       { id: "billing-payments", label: "Billing & Payments", icon: Receipt, route: "/finance/billing-payments", disabled: false },
       { id: "accounting", label: "Accounting", icon: Calculator, route: "/finance/accounting", disabled: false },
     ],
@@ -249,7 +283,7 @@ const departmentModules: NavNode[] = [
     icon: Wrench,
     defaultOpen: false,
     children: [
-      { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ScanSearch, route: "/maintenance/repair-logs" },
+      { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ClipboardList, route: "/maintenance/repair-logs" },
       { id: "amc-maintenance-scheduler", label: "AMC Maintenance Scheduler", icon: CalendarClock, route: "/maintenance/amc-scheduler" },
     ],
   },
@@ -259,7 +293,7 @@ const departmentModules: NavNode[] = [
     icon: Laptop,
     defaultOpen: false,
     children: [
-      { id: "tech-website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
+      { id: "tech-website-builder", label: "Website Builder", icon: Code2, route: "/company-settings/website-builder" },
       { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads" },
       { id: "website-review", label: "Website Review", icon: CheckCircle2, route: "/company-settings/website-builder/dynamic/reviews" },
     ],
@@ -267,7 +301,7 @@ const departmentModules: NavNode[] = [
   {
     id: "it-department",
     label: "IT Department",
-    icon: MonitorCog,
+    icon: Server,
     defaultOpen: false,
     children: [
       { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, route: "/it/repair-logs" },
@@ -356,17 +390,17 @@ const ROUTE_BY_ID: Record<string, string> = {
 
 const ICON_BY_ID: Record<string, ElementType> = {
   dashboard: LayoutDashboard,
-  "customer-support": MessageSquareCode,
-  attendance: Clock,
+  "customer-support": Headphones,
+  attendance: UserCheck,
   tasks: ListChecks,
   tickets: Ticket,
-  "leave-requests": CalendarClock,
+  "leave-requests": CalendarDays,
   "meeting-room-system": Presentation,
   calendar: Calendar,
   assets: Package,
   inventory: Warehouse,
-  "department-inventory": Warehouse,
-  "finance-management": Wallet,
+  "department-inventory": Box,
+  "finance-management": Landmark,
   reports: FileChartColumn,
   "website-builder": Globe,
   "wono-nomad": ShieldCheck,
@@ -375,50 +409,104 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "organization-management": Building,
   "module-management": Boxes,
   "access-grants": UserCog,
-  "unit-settings": Settings,
-  "unit-management": MonitorCog,
+  "unit-settings": SlidersHorizontal,
+  "unit-management": LayoutGrid,
   analytics: BarChart,
   "visitor-management": ContactRound,
   "visitors-management": ContactRound,
   "hr-department": Users,
   "administration-department": Building2,
   "sales-department": BriefcaseBusiness,
-  "finance-department": Wallet,
+  "finance-department": WalletCards,
   "maintenance-department": Wrench,
   "tech-department": Laptop,
-  "it-department": MonitorCog,
-  "employee-management": Users,
-  "hr-documents": NotebookText,
+  "it-department": Server,
+  "employee-management": UserSquare,
+  "hr-documents": FileText,
   recruitment: UserPlus,
   "leave-request-processing": CalendarCheck,
   "attendance-review": ClipboardCheck,
-  "payroll-management": Wallet,
+  "payroll-management": Banknote,
   "exit-management": UserMinus,
-  "tenant-companies-admin": Building2,
+  "tenant-companies-admin": Store,
   bookings: Bed,
   "resource-management": HandCoins,
-  "house-keeping": Wrench,
+  "house-keeping": Sparkles,
   "workspace-layout": LayoutDashboard,
   "leads-management": Magnet,
-  "tenant-companies-sales": Building2,
+  "tenant-companies-sales": Store,
   "resource-pricing": Tag,
   "sales-architecture": ShoppingCart,
-  "finance-budget": Wallet,
+  "finance-budget": PiggyBank,
   "billing-payments": Receipt,
   accounting: Calculator,
-  "maintenance-repair-logs": ScanSearch,
+  "maintenance-repair-logs": ClipboardList,
   "amc-maintenance-scheduler": CalendarClock,
-  "tech-website-builder": Globe,
+  "tech-website-builder": Code2,
   "it-repair-logs": FileSearch,
-  "it-system-access": ShieldCheck,
+  "it-system-access": KeyRound,
   "tenant-dashboard": LayoutDashboard,
-  "tenant-meeting-room-booking": CalendarCheck,
-  "tenant-booking-history": Clock,
-  "tenant-buy-credits": HandCoins,
+  "tenant-meeting-room-booking": CalendarPlus,
+  "tenant-booking-history": History,
+  "tenant-buy-credits": CreditCard,
   "tenant-tickets": Ticket,
   "tenant-profile": User,
   profile: User,
   logout: LogOut,
+};
+
+const DEPT_ICON_KEYWORDS: Array<{ keywords: string[]; icon: ElementType }> = [
+  { keywords: ["hr", "human resource", "people", "talent", "workforce"], icon: Users },
+  { keywords: ["finance", "account", "money", "budget", "billing", "payroll", "treasury"], icon: WalletCards },
+  { keywords: ["sales", "revenue", "business development"], icon: Target },
+  { keywords: ["market", "marketing", "brand", "pr", "growth", "communications"], icon: Megaphone },
+  { keywords: ["legal", "law", "compliance", "contract", "paralegal", "audit"], icon: Scale },
+  { keywords: ["it", "tech", "software", "engineer", "engineering", "development", "devops", "data"], icon: Server },
+  { keywords: ["design", "creative", "ui", "ux", "visual", "graphic"], icon: Palette },
+  { keywords: ["customer", "support", "success", "care", "helpdesk", "service"], icon: Headphones },
+  { keywords: ["operations", "ops", "general", "administration", "office"], icon: Cog },
+  { keywords: ["security", "safety", "guard", "vigilance"], icon: ShieldCheck },
+  { keywords: ["quality", "qa", "testing", "assurance", "inspection"], icon: BadgeCheck },
+  { keywords: ["logistics", "supply", "procurement", "purchase", "inventory", "warehouse", "delivery"], icon: Truck },
+  { keywords: ["maintenance", "facility", "housekeep", "cleaning", "repair", "estate"], icon: Wrench },
+  { keywords: ["research", "r&d", "rd", "innovation", "lab", "analytics"], icon: FlaskConical },
+  { keywords: ["content", "writing", "editorial", "copy", "document", "publication"], icon: PenLine },
+  { keywords: ["production", "manufacturing", "factory", "plant"], icon: Factory },
+  { keywords: ["health", "medical", "clinical", "wellness", "nursing"], icon: Stethoscope },
+  { keywords: ["education", "training", "learning", "academy", "school", "development"], icon: GraduationCap },
+];
+
+const DEPT_ICON_POOL: ElementType[] = [
+  Building2,
+  Store,
+  Briefcase,
+  Landmark,
+  Layers,
+  Blocks,
+  Puzzle,
+  Factory,
+  School,
+  Shapes,
+  Boxes,
+  Package,
+];
+
+const hashString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+};
+
+const resolveDepartmentIcon = (name: string): ElementType => {
+  const normalized = String(name || "").trim().toLowerCase();
+  if (!normalized) return Building2;
+  const matched = DEPT_ICON_KEYWORDS.find((entry) =>
+    entry.keywords.some((keyword) => normalized.includes(keyword)),
+  );
+  if (matched) return matched.icon;
+  return DEPT_ICON_POOL[hashString(normalized) % DEPT_ICON_POOL.length];
 };
 
 const BASIC_PLAN_HARD_LOCK_IDS = new Set([
@@ -1175,7 +1263,7 @@ useEffect(() => {
       .map((department) => ({
         id: "custom-department-" + (department.id || normalizeModuleToken(department.name)),
         label: department.name,
-        icon: Building2,
+        icon: resolveDepartmentIcon(department.name),
         defaultOpen: false,
         children: department.moduleIds.map((moduleId) => {
           const navigation = moduleNavigation.get(moduleId);
@@ -1257,7 +1345,10 @@ useEffect(() => {
         return {
           id: itemId,
           label: String(item?.label || itemId),
-          icon: ICON_BY_ID[itemId] || Boxes,
+          icon: ICON_BY_ID[itemId] ||
+            (sectionKey === "department-accesses"
+              ? resolveDepartmentIcon(String(item?.label || itemId))
+              : Boxes),
           defaultOpen: false,
           children,
         };
@@ -1540,7 +1631,7 @@ useEffect(() => {
                     // Add-Ons is a page now — one click opens the grouped
                     // locked-modules listing instead of expanding a tree here.
                     <NavGroup
-                      item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
+                      item={{ id: "add-ons", label: "Add-Ons", icon: Puzzle, route: "/module-sections/add-ons" }}
                       collapsed={collapsed}
                       pathname={location.pathname}
                       onNavigate={onNavigate}
@@ -1609,7 +1700,7 @@ useEffect(() => {
           <div className="px-4 pt-2">
             <div className="border-t border-black/10 pt-2 space-y-1">
               <NavGroup
-                item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
+                item={{ id: "add-ons", label: "Add-Ons", icon: Puzzle, route: "/module-sections/add-ons" }}
                 collapsed={collapsed}
                 pathname={location.pathname}
                 onNavigate={onNavigate}

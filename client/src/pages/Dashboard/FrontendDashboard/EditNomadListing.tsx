@@ -63,6 +63,7 @@ const EditNomadListing = () => {
   const navState = location?.state || {};
 
   console.log("edit nomad listing");
+  const isViewMode = navState.mode === "view";
   // Pull IDs from state or sessionStorage (works after refresh/back)
   const companyId =
     navState.companyId || sessionStorage.getItem("companyId") || "";
@@ -280,10 +281,12 @@ const EditNomadListing = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5 mb-4">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-              Edit Product
+              {isViewMode ? "View Product" : "Edit Product"}
             </h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">
-              Update the details of your Wono Nomads listing.
+              {isViewMode
+                ? "Viewing the details of this Wono Nomads listing."
+                : "Update the details of your Wono Nomads listing."}
             </p>
           </div>
         </div>
@@ -323,6 +326,7 @@ const EditNomadListing = () => {
                   size="small"
                   label="Company Type"
                   fullWidth
+                  disabled={isViewMode}
                 >
                   {companyTypes.map((type) => {
                     const normalized = normalizeNomadListingType(type);
@@ -362,6 +366,7 @@ const EditNomadListing = () => {
                   <Select
                     {...field}
                     multiple
+                    disabled={isViewMode}
                     input={<OutlinedInput label="Inclusions" />}
                     renderValue={(selected) => selected.join(", ")}
                   >
@@ -414,6 +419,7 @@ const EditNomadListing = () => {
                   error={!!errors.ratings}
                   helperText={errors?.ratings?.message}
                   fullWidth
+                  disabled={isViewMode}
                 />
               )}
             />
@@ -442,6 +448,7 @@ const EditNomadListing = () => {
                   error={!!errors.totalReviews}
                   helperText={errors?.totalReviews?.message}
                   fullWidth
+                  disabled={isViewMode}
                 />
               )}
             />
@@ -465,6 +472,7 @@ const EditNomadListing = () => {
                   error={!!errors.latitude}
                   helperText={errors?.latitude?.message}
                   fullWidth
+                  disabled={isViewMode}
                 />
               )}
             />
@@ -488,6 +496,7 @@ const EditNomadListing = () => {
                   error={!!errors.longitude}
                   helperText={errors?.longitude?.message}
                   fullWidth
+                  disabled={isViewMode}
                 />
               )}
             />
@@ -505,6 +514,7 @@ const EditNomadListing = () => {
                   multiline
                   minRows={3}
                   fullWidth
+                  disabled={isViewMode}
                 />
               )}
             />
@@ -522,6 +532,7 @@ const EditNomadListing = () => {
                   multiline
                   minRows={3}
                   fullWidth
+                  disabled={isViewMode}
                 />
               )}
             />
@@ -540,6 +551,7 @@ const EditNomadListing = () => {
                   size="small"
                   label="Country"
                   fullWidth
+                  disabled={isViewMode}
                   error={!!errors.country}
                   helperText={errors?.country?.message}
                   onChange={(e) => {
@@ -578,7 +590,7 @@ const EditNomadListing = () => {
                     size="small"
                     label="State"
                     fullWidth
-                    disabled={!countryObj}
+                    disabled={isViewMode || !countryObj}
                     error={!!errors.state}
                     helperText={errors?.state?.message}
                     onChange={(e) => {
@@ -624,7 +636,7 @@ const EditNomadListing = () => {
                     size="small"
                     label="City"
                     fullWidth
-                    disabled={!stateObj}
+                    disabled={isViewMode || !stateObj}
                     error={!!errors.city}
                     helperText={errors?.city?.message}
                   >
@@ -657,19 +669,21 @@ const EditNomadListing = () => {
                 ))}
               </div>
             )}
-            <Controller
-              name="images"
-              control={control}
-              render={({ field }) => (
-                <UploadMultipleFilesInput
-                  {...field}
-                  label="Upload New Images"
-                  maxFiles={10}
-                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
-                  id="images"
-                />
-              )}
-            />
+            {!isViewMode && (
+              <Controller
+                name="images"
+                control={control}
+                render={({ field }) => (
+                  <UploadMultipleFilesInput
+                    {...field}
+                    label="Upload New Images"
+                    maxFiles={10}
+                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                    id="images"
+                  />
+                )}
+              />
+            )}
           </div>
 
           {/* Reviews */}
@@ -684,13 +698,15 @@ const EditNomadListing = () => {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-pmedium">Review {index + 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeReview(index)}
-                    className="text-red-500 hover:text-red-700 text-xs font-pmedium"
-                  >
-                    Remove
-                  </button>
+                  {!isViewMode && (
+                    <button
+                      type="button"
+                      onClick={() => removeReview(index)}
+                      className="text-red-500 hover:text-red-700 text-xs font-pmedium"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Controller
@@ -703,6 +719,7 @@ const EditNomadListing = () => {
                         size="small"
                         label="Reviewer Name"
                         fullWidth
+                        disabled={isViewMode}
                         helperText={errors?.reviews?.[index]?.name?.message}
                         error={!!errors?.reviews?.[index]?.name}
                       />
@@ -722,6 +739,7 @@ const EditNomadListing = () => {
                         size="small"
                         label="Rating (1-5)"
                         fullWidth
+                        disabled={isViewMode}
                         inputProps={{ min: 1, max: 5 }}
                         error={!!errors?.reviews?.[index]?.rating}
                         helperText={errors?.reviews?.[index]?.rating?.message}
@@ -741,6 +759,7 @@ const EditNomadListing = () => {
                       fullWidth
                       multiline
                       minRows={3}
+                      disabled={isViewMode}
                       helperText={errors?.reviews?.[index]?.review?.message}
                       error={!!errors?.reviews?.[index]?.review}
                       sx={{ mt: 2 }}
@@ -749,37 +768,51 @@ const EditNomadListing = () => {
                 />
               </div>
             ))}
-            <div>
-              <button
-                type="button"
-                onClick={() => appendReview({ ...defaultReview })}
-                className="text-[#2563EB] text-sm font-pmedium hover:underline inline-flex items-center gap-1"
-              >
-                + Add Review
-              </button>
-            </div>
+            {!isViewMode && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => appendReview({ ...defaultReview })}
+                  className="text-[#2563EB] text-sm font-pmedium hover:underline inline-flex items-center gap-1"
+                >
+                  + Add Review
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Submit / Reset */}
           <div className="col-span-2 flex items-center justify-center gap-4">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSaving ? "Submitting..." : "Submit"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("All entered data will be reset. Are you sure you want to continue?")) {
-                  resetFormToEmpty();
-                }
-              }}
-              className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
-            >
-              Reset
-            </button>
+            {isViewMode ? (
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
+              >
+                Back
+              </button>
+            ) : (
+              <>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? "Submitting..." : "Submit"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("All entered data will be reset. Are you sure you want to continue?")) {
+                      resetFormToEmpty();
+                    }
+                  }}
+                  className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
+                >
+                  Reset
+                </button>
+              </>
+            )}
           </div>
         </form>
       </PageFrame>

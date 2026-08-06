@@ -6,7 +6,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { CheckCircle2, Edit3, Layers, ListChecks, Plus, Search, Target, XCircle } from "lucide-react";
+import { CheckCircle2, Edit3, Eye, Layers, ListChecks, Plus, Search, Target, XCircle } from "lucide-react";
 import { statusPillClass } from '../../../lib/status-pill';
 import useNomadListingCapacity, {
   normalizeNomadListingType,
@@ -126,6 +126,15 @@ export default function NomadListingsOverview() {
     sessionStorage.setItem("businessId", item?.businessId || "");
     navigate(`/company-settings/nomad-listings/edit`, {
       state: { website: item, companyId, isLoading: isPending },
+    });
+  };
+
+  const handleView = (item) => {
+    sessionStorage.setItem("companyId", companyId);
+    sessionStorage.setItem("companyName", item?.companyName || "");
+    sessionStorage.setItem("businessId", item?.businessId || "");
+    navigate(`/company-settings/nomad-listings/view`, {
+      state: { website: item, companyId, isLoading: isPending, mode: "view" },
     });
   };
 
@@ -375,7 +384,16 @@ export default function NomadListingsOverview() {
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"
+                                onClick={() => handleView(item)}
+                                title="View listing"
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-all"
+                              >
+                                <Eye size={15} strokeWidth={2.5} />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => handleEdit(item)}
+                                title="Edit listing"
                                 className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
                               >
                                 <Edit3 size={15} strokeWidth={2.5} />

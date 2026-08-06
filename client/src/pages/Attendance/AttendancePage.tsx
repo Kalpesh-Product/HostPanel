@@ -134,8 +134,12 @@ interface CorrectionBreakForm {
 
 interface CorrectionForm {
   recordId: string;
-  type: string;
   reason: string;
+  includeCheckIn: boolean;
+  includeCheckOut: boolean;
+  includeBreaks: boolean;
+  originalCheckIn: string;
+  originalCheckOut: string;
   requestedCheckIn: string;
   requestedCheckOut: string;
   breaks: CorrectionBreakForm[];
@@ -296,8 +300,12 @@ const getManagedDepartments = (currentUser: any): string[] => {
 
 const INITIAL_CORRECTION_FORM: CorrectionForm = {
   recordId: '',
-  type: 'check_in',
   reason: '',
+  includeCheckIn: true,
+  includeCheckOut: true,
+  includeBreaks: true,
+  originalCheckIn: '',
+  originalCheckOut: '',
   requestedCheckIn: '',
   requestedCheckOut: '',
   breaks: [],
@@ -763,12 +771,18 @@ export function AttendancePage() {
     // <input type="time"> requires a bare 24-hour "HH:MM" value — record.checkIn/
     // checkOut are already formatted as 12-hour labels (e.g. "10:30 AM") for
     // display, so re-derive from the ISO timestamps here instead.
+    const checkInValue = record.checkInAt ? getWorkspaceTime(record.checkInAt, workspacePreferences.timezone) : '';
+    const checkOutValue = record.checkOutAt ? getWorkspaceTime(record.checkOutAt, workspacePreferences.timezone) : '';
     setCorrectionForm({
       recordId: record.recordId || record.id || '',
-      type: 'check_in',
       reason: '',
-      requestedCheckIn: record.checkInAt ? getWorkspaceTime(record.checkInAt, workspacePreferences.timezone) : '',
-      requestedCheckOut: record.checkOutAt ? getWorkspaceTime(record.checkOutAt, workspacePreferences.timezone) : '',
+      includeCheckIn: true,
+      includeCheckOut: true,
+      includeBreaks: true,
+      originalCheckIn: checkInValue,
+      originalCheckOut: checkOutValue,
+      requestedCheckIn: checkInValue,
+      requestedCheckOut: checkOutValue,
       breaks: (record.breaks || []).map((entry, index) => {
         const start = entry.startAt ? getWorkspaceTime(entry.startAt, workspacePreferences.timezone) : '';
         const end = entry.endAt ? getWorkspaceTime(entry.endAt, workspacePreferences.timezone) : '';
@@ -778,7 +792,7 @@ export function AttendancePage() {
           originalEnd: end,
           requestedStart: start,
           requestedEnd: end,
-          include: false,
+          include: true,
         };
       }),
     });
@@ -791,14 +805,31 @@ export function AttendancePage() {
     setIsSubmittingCorrection(true);
     setErrorMessage('');
     try {
+      // Only send a field as "requested" when it's actually been changed from
+      // its original value — otherwise the correction request would carry the
+      // same time back as if it were a fresh change.
+      const requestedCheckIn = correctionForm.includeCheckIn
+        && correctionForm.requestedCheckIn
+        && correctionForm.requestedCheckIn !== correctionForm.originalCheckIn
+        ? correctionForm.requestedCheckIn
+        : undefined;
+      const requestedCheckOut = correctionForm.includeCheckOut
+        && correctionForm.requestedCheckOut
+        && correctionForm.requestedCheckOut !== correctionForm.originalCheckOut
+        ? correctionForm.requestedCheckOut
+        : undefined;
       await requestAttendanceCorrection(correctionForm.recordId, {
-        type: correctionForm.type,
         reason: correctionForm.reason,
-        requestedCheckIn: correctionForm.requestedCheckIn || undefined,
-        requestedCheckOut: correctionForm.requestedCheckOut || undefined,
-        breaks: correctionForm.breaks
-          .filter((b) => b.include && (b.requestedStart || b.requestedEnd))
-          .map((b) => ({ breakIndex: b.breakIndex, requestedStart: b.requestedStart, requestedEnd: b.requestedEnd })),
+        requestedCheckIn,
+        requestedCheckOut,
+        breaks: correctionForm.includeBreaks
+          ? correctionForm.breaks
+            .filter((b) => b.include && (
+              (b.requestedStart && b.requestedStart !== b.originalStart)
+              || (b.requestedEnd && b.requestedEnd !== b.originalEnd)
+            ))
+            .map((b) => ({ breakIndex: b.breakIndex, requestedStart: b.requestedStart, requestedEnd: b.requestedEnd }))
+          : [],
       });
       setShowCorrectionForm(false);
       setCorrectionForm(INITIAL_CORRECTION_FORM);
@@ -1212,14 +1243,6 @@ export function AttendancePage() {
                       {status.charAt(0).toUpperCase() + status.slice(1)}
                     </button>
                   ))}
-                  {activeTab === 'my-attendance' && (
-                    <button
-                      onClick={() => handleViewMonth(selectedMonth)}
-                      className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-pmedium uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-                    >
-                      <Calendar size={13} /> View Month
-                    </button>
-                  )}
                 </div>
 
                 {/* RIGHT: month dropdown, always immediately before search */}
@@ -1237,6 +1260,14 @@ export function AttendancePage() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} />
                   </div>
+                  {activeTab === 'my-attendance' && (
+                    <button
+                      onClick={() => handleViewMonth(selectedMonth)}
+                      className="px-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Calendar size={13} /> View Month
+                    </button>
+                  )}
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
@@ -1303,8 +1334,15 @@ export function AttendancePage() {
                               </button>
                               <button
                                 onClick={() => handleOpenCorrectionForm(record)}
-                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
-                                title="Request Correction"
+                                disabled={record.correction?.status === 'pending' || record.correction?.status === 'approved'}
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all disabled:opacity-40 disabled:hover:bg-slate-100 disabled:hover:text-slate-600 disabled:cursor-not-allowed"
+                                title={
+                                  record.correction?.status === 'pending'
+                                    ? 'A correction request is already pending review'
+                                    : record.correction?.status === 'approved'
+                                      ? 'This day has an approved correction'
+                                      : 'Request Correction'
+                                }
                               >
                                 <Edit3 size={15} strokeWidth={2.5} />
                               </button>
@@ -1377,8 +1415,10 @@ export function AttendancePage() {
                 <table className="w-full text-left min-w-[800px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
+                      {/* <th className="px-5 py-4">Emp ID</th> */}
                       <th className="px-5 py-4">Employee</th>
-                      <th className="px-5 py-4">Date</th>
+                      <th className="px-5 py-4">Attendance Date</th>
+                      <th className="px-5 py-4">Submitted On</th>
                       <th className="px-5 py-4">Type</th>
                       <th className="px-5 py-4">Current</th>
                       <th className="px-5 py-4">Requested</th>
@@ -1389,15 +1429,22 @@ export function AttendancePage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {correctionRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-16 text-slate-400 font-pmedium">
+                        <td colSpan={8} className="text-center py-16 text-slate-400 font-pmedium">
                           No correction requests found.
                         </td>
                       </tr>
                     ) : (
                       correctionRecords.map((record, idx) => (
                         <tr key={record.recordId || record.id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 font-pmedium text-slate-900">{record.employeeName || profile.name}</td>
+                          {/* <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">{record.employeeId || '--'}</td> */}
+                          <td className="px-5 py-4">
+                            <div className="font-pmedium text-slate-900 flex items-center gap-2">
+                              <User size={14} className="text-slate-400" />
+                              {record.employeeName || profile.name}
+                            </div>
+                          </td>
                           <td className="px-5 py-4 text-slate-700 font-pmedium">{formatDateDMY(record.date)}</td>
+                          <td className="px-5 py-4 text-slate-500 font-pmedium">{formatDateDMY(record.correction?.requestedAt)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-700 capitalize">{record.correction?.type?.replace(/_/g, ' ') || '--'}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-700">
                             <span className="text-slate-500 text-[11px]">
@@ -1493,11 +1540,11 @@ export function AttendancePage() {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Date</p>
-                  <p className="mt-1 text-[18px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
+                  <p className="mt-1 text-[10px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Time</p>
-                  <p className="mt-1 text-[12px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="mt-1 text-[10px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
               <canvas ref={canvasRef} className="hidden" />
@@ -1553,21 +1600,34 @@ export function AttendancePage() {
               <form onSubmit={handleSubmitCorrection}>
                 <div className="p-6 space-y-4">
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Correction Type</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Correct</p>
                     <div className="flex gap-2">
-                      {['check_in', 'check_out', 'both'].map((type) => (
+                      <button
+                        type="button"
+                        onClick={() => setCorrectionForm((prev) => ({ ...prev, includeCheckIn: !prev.includeCheckIn }))}
+                        className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.includeCheckIn ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      >
+                        Clock In
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCorrectionForm((prev) => ({ ...prev, includeCheckOut: !prev.includeCheckOut }))}
+                        className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.includeCheckOut ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      >
+                        Clock Out
+                      </button>
+                      {correctionForm.breaks.length > 0 && (
                         <button
-                          key={type}
                           type="button"
-                          onClick={() => setCorrectionForm((prev) => ({ ...prev, type }))}
-                          className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.type === type ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                          onClick={() => setCorrectionForm((prev) => ({ ...prev, includeBreaks: !prev.includeBreaks }))}
+                          className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.includeBreaks ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                         >
-                          {type.replace(/_/g, ' ')}
+                          Missing Break
                         </button>
-                      ))}
+                      )}
                     </div>
                   </div>
-                  {(correctionForm.type === 'check_in' || correctionForm.type === 'both') && (
+                  {correctionForm.includeCheckIn && (
                     <div>
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Check In Time</label>
                       <input
@@ -1578,7 +1638,7 @@ export function AttendancePage() {
                       />
                     </div>
                   )}
-                  {(correctionForm.type === 'check_out' || correctionForm.type === 'both') && (
+                  {correctionForm.includeCheckOut && (
                     <div>
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Check Out Time</label>
                       <input
@@ -1589,7 +1649,7 @@ export function AttendancePage() {
                       />
                     </div>
                   )}
-                  {correctionForm.breaks.length > 0 && (
+                  {correctionForm.includeBreaks && correctionForm.breaks.length > 0 && (
                     <div>
                       <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Break Adjustments</p>
                       <div className="space-y-2">
@@ -1745,12 +1805,29 @@ export function AttendancePage() {
               className="bg-white rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h2 className="text-lg font-pmedium text-primary flex items-center gap-2">
-                  <Calendar size={18} className="text-[#2563EB]" />
-                  Monthly Overview - {monthOptions().find((m) => m.value === viewingMonth)?.label || viewingMonth}
-                </h2>
-                <button onClick={() => setViewingMonth(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
+              <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50 shrink-0 gap-4">
+                <div>
+                  <h2 className="text-lg font-pmedium text-primary flex items-center gap-2">
+                    <Calendar size={18} className="text-[#2563EB]" />
+                    Monthly Overview - {monthOptions().find((m) => m.value === viewingMonth)?.label || viewingMonth}
+                  </h2>
+                  {/* Color legend — explains what each day cell's color means below */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500">
+                      <span className="h-2.5 w-2.5 bg-emerald-500" /> Present (8h+ completed)
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500">
+                      <span className="h-2.5 w-2.5 bg-amber-500" /> Present (8h not completed)
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500">
+                      <span className="h-2.5 w-2.5 bg-rose-500" /> Absent
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500">
+                      <span className="h-2.5 w-2.5 bg-sky-400" /> On Leave
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => setViewingMonth(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform shrink-0"><X size={18} /></button>
               </div>
               <div className="p-6 overflow-y-auto flex-1">
                 <div className="grid grid-cols-7 gap-2">
@@ -1772,19 +1849,23 @@ export function AttendancePage() {
                       const record = recordMap.get(dateStr);
                       const isToday = dateStr === todayDate;
                       // Green only means a full 8h day was completed; any other
-                      // clocked-in day (late arrival, half day, short day) is
-                      // orange. Absent stays red; days that haven't happened
-                      // yet (or Sundays) stay neutral instead of looking absent.
+                      // clocked-in day (late arrival, half day, short day, or
+                      // still in progress today) is yellow. Absent stays red,
+                      // on-leave days are light blue, and days that haven't
+                      // happened yet (or Sundays) stay neutral.
                       const isAbsent = record?.status === 'absent';
+                      const isOnLeave = record?.status === 'on_leave';
                       const hasClockIn = Boolean(record?.checkIn);
                       const completedFullDay = hasClockIn && Number(record?.totalHours || 0) >= 8;
                       const bgColor = isAbsent
                         ? 'bg-rose-100 text-rose-700 border-rose-300'
-                        : hasClockIn
-                          ? (completedFullDay
-                            ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                            : 'bg-orange-100 text-orange-700 border-orange-300')
-                          : 'bg-slate-50/50 text-slate-400';
+                        : isOnLeave
+                          ? 'bg-sky-100 text-sky-700 border-sky-300'
+                          : hasClockIn
+                            ? (completedFullDay
+                              ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                              : 'bg-amber-100 text-amber-700 border-amber-300')
+                            : 'bg-slate-50/50 text-slate-400';
                       return (
                         <button
                           key={dateStr}
@@ -1792,7 +1873,7 @@ export function AttendancePage() {
                           className={`aspect-square rounded-xl border ${isToday ? 'border-[#2563EB] ring-2 ring-[#2563EB]/20' : 'border-slate-100'} ${bgColor} flex flex-col items-center justify-center text-xs font-pbold hover:shadow-md transition-all`}
                         >
                           <span>{day}</span>
-                          {(hasClockIn || isAbsent) && <Circle size={6} className="mt-0.5" fill="currentColor" />}
+                          {(hasClockIn || isAbsent || isOnLeave) && <Circle size={6} className="mt-0.5" fill="currentColor" />}
                         </button>
                       );
                     });
@@ -1881,7 +1962,8 @@ export function AttendancePage() {
                     <p className="text-[15px] font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
                     {getStatusBadge(viewingCorrection.correction?.status)}
                   </div>
-                  <p className="text-[10px] font-pmedium text-slate-500">{formatDateDMY(viewingCorrection.date)} &middot; {viewingCorrection.department || '--'}</p>
+                  <p className="text-[10px] font-pmedium text-slate-500">Attendance date: {formatDateDMY(viewingCorrection.date)} &middot; {viewingCorrection.department || '--'}</p>
+                  <p className="mt-1 text-[10px] font-pmedium text-slate-400">Submitted on {formatDateDMY(viewingCorrection.correction?.requestedAt)}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-xl p-3 border border-slate-100">
