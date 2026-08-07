@@ -78,6 +78,11 @@ export const submitVendor = async (payload: Record<string, any>) => {
   return unwrap(response);
 };
 
+export const submitExtraBudget = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post('/api/finance/department/extra-budget-request', payload);
+  return unwrap(response);
+};
+
 export const uploadInvoice = async (formData: FormData) => {
   const response = await axiosPrivate.post('/api/finance/department/upload-invoice', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

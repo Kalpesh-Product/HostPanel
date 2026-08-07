@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -198,8 +198,8 @@ function getCreditRequestStatusLabel(status = ''): string {
   return labels[status] || String(status || 'Pending');
 }
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
+function formatCurrency(value: number, currency?: string): string {
+  return formatWorkspaceCurrency(value, currency, { maximumFractionDigits: 0 });
 }
 
 function parseFiscalYearRange(fiscalYear = DEFAULT_FISCAL_YEAR): { start: Date; end: Date } {
@@ -248,8 +248,8 @@ function buildTenantBillingReportRows(records: any[] = [], filters: Record<strin
       label: `${index + 1}. ${record.company || 'Tenant'} | ${record.packageName || record.package || 'Package'}`,
       value: [
         `Package: ${record.packageName || record.package || '-'}`,
-        `Security Deposit: ${formatCurrency(record.securityDepositAmount || 0)}`,
-        `Monthly Rent: ${formatCurrency(record.monthlyRent || 0)}`,
+        `Security Deposit: ${formatCurrency(record.securityDepositAmount || 0, filters.currency)}`,
+        `Monthly Rent: ${formatCurrency(record.monthlyRent || 0, filters.currency)}`,
         `Contract: ${record.contractDurationMonths || 0} month(s)`,
         record.dueDate ? `Due Date: ${record.dueDate}` : '',
         record.invoiceNumber ? `Invoice: ${record.invoiceNumber}` : 'Invoice: Pending',
@@ -283,7 +283,7 @@ function buildBookingReportRows(records: any[] = [], filters: Record<string, any
         `Invoice Status: ${record.invoiceStatus || 'Pending'}`,
         record.invoiceNumber ? `Invoice: ${record.invoiceNumber}` : 'Invoice: Pending',
         `Payment Status: ${record.paymentStatus || 'Pending'}`,
-        `Amount: ${formatCurrency(record.totalAmount || record.amount || 0)}`,
+        `Amount: ${formatCurrency(record.totalAmount || record.amount || 0, filters.currency)}`,
       ].filter(Boolean).join(' | '),
     });
   });
@@ -306,7 +306,7 @@ function buildPayrollReportRows(records: any[] = [], cycle: PayrollCycle | null 
       label: `${index + 1}. ${employee.name || 'Employee'} | Dept: ${employee.department || 'N/A'}`,
       value: [
         employee.department ? `Department: ${employee.department}` : '',
-        `Net Salary: ${formatCurrency(employee.financials?.netSalary || 0)}`,
+        `Net Salary: ${formatCurrency(employee.financials?.netSalary || 0, filters.currency)}`,
         `Payment Status: ${paymentStatus}`,
         employee.bankDetails?.bankName ? `Bank: ${employee.bankDetails.bankName}` : '',
         employee.bankDetails?.accountHolderName ? `Account Holder: ${employee.bankDetails.accountHolderName}` : '',
@@ -333,7 +333,7 @@ function buildExtraCreditReportRows(records: any[] = [], filters: Record<string,
       value: [
         `Tenant Code: ${record.tenantCompanyCode || '-'}`,
         `Requested Credits: ${record.requestedCredits || 0}`,
-        `Total Amount: ${formatCurrency(record.totalAmount || 0)}`,
+        `Total Amount: ${formatCurrency(record.totalAmount || 0, filters.currency)}`,
         `Status: ${getCreditRequestStatusLabel(record.status)}`,
         record.paymentTransactionId ? `Transaction: ${record.paymentTransactionId}` : '',
         record.invoiceNumber ? `Invoice: ${record.invoiceNumber}` : 'Invoice: Pending',
@@ -357,7 +357,7 @@ function buildHistoryReportRows(records: any[] = [], filters: Record<string, any
       value: [
         record.date ? `Date: ${record.date}` : '',
         record.entity ? `Entity: ${record.entity}` : '',
-        `Amount: ${formatCurrency(record.amount || 0)}`,
+        `Amount: ${formatCurrency(record.amount || 0, filters.currency)}`,
         record.ref ? `Reference: ${record.ref}` : '',
         record.details ? `Details: ${record.details}` : '',
       ].filter(Boolean).join(' | '),
@@ -370,8 +370,10 @@ function buildHistoryReportRows(records: any[] = [], filters: Record<string, any
 
 export function BillingPaymentsPage() {
   const workspacePreferences = useWorkspacePreferences();
-  const formatCurrency = (value: number) =>
-    formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
+  const formatCurrency = useCallback(
+    (value: number) => formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 }),
+    [workspacePreferences.currency],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
@@ -823,7 +825,7 @@ export function BillingPaymentsPage() {
         period: `${fiscalYearLabel} Tenant Deposits`,
         description: `Tenant security deposit report for ${fiscalYearLabel}.`,
         sourceRef: 'finance-tenant-deposits',
-        reportRows: buildTenantBillingReportRows(visibleTenantBills, { fiscalYear: selectedFY, statusFilter, searchQuery }),
+        reportRows: buildTenantBillingReportRows(visibleTenantBills, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: visibleTenantBills.length > 0,
       },
       bookings: {
@@ -831,7 +833,7 @@ export function BillingPaymentsPage() {
         period: `${fiscalYearLabel} Bookings`,
         description: `Meeting room booking invoice report for ${fiscalYearLabel}.`,
         sourceRef: 'finance-booking-invoices',
-        reportRows: buildBookingReportRows(visibleBookings, { fiscalYear: selectedFY, statusFilter, searchQuery }),
+        reportRows: buildBookingReportRows(visibleBookings, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: visibleBookings.length > 0,
       },
       payroll: {
@@ -839,7 +841,7 @@ export function BillingPaymentsPage() {
         period: `${fiscalYearLabel} Payroll`,
         description: `Payroll report for ${fiscalYearLabel}.`,
         sourceRef: 'finance-payroll',
-        reportRows: buildPayrollReportRows(filteredPayrollEmployees, payrollData?.currentCycle || null, payrollData?.history || [], { fiscalYear: selectedFY, statusFilter, searchQuery }),
+        reportRows: buildPayrollReportRows(filteredPayrollEmployees, payrollData?.currentCycle || null, payrollData?.history || [], { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: filteredPayrollEmployees.length > 0,
       },
       extraCredits: {
@@ -847,7 +849,7 @@ export function BillingPaymentsPage() {
         period: `${fiscalYearLabel} Extra Credits`,
         description: `Extra credit request report for ${fiscalYearLabel}.`,
         sourceRef: 'finance-extra-credits',
-        reportRows: buildExtraCreditReportRows(visibleExtraCredits, { fiscalYear: selectedFY, statusFilter, searchQuery }),
+        reportRows: buildExtraCreditReportRows(visibleExtraCredits, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: visibleExtraCredits.length > 0,
       },
       history: {
@@ -855,7 +857,7 @@ export function BillingPaymentsPage() {
         period: `${fiscalYearLabel} Transactions`,
         description: `Transaction history report for ${fiscalYearLabel}.`,
         sourceRef: 'finance-transaction-history',
-        reportRows: buildHistoryReportRows(transactionHistory, { fiscalYear: selectedFY, searchQuery }),
+        reportRows: buildHistoryReportRows(transactionHistory, { fiscalYear: selectedFY, searchQuery, currency: workspacePreferences.currency }),
         hasData: transactionHistory.length > 0,
       },
     };

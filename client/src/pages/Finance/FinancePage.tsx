@@ -11,6 +11,8 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
 export function FinancePage() {
   const currentUser = getStoredUser();
@@ -267,9 +269,9 @@ export function FinancePage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
-  };
+  const workspacePreferences = useWorkspacePreferences();
+  const formatCurrency = (amount: number) =>
+    formatWorkspaceCurrency(Number(amount || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
 
   // Shared UI logic
   const tabs = [

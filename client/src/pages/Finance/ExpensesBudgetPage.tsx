@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   Wallet,
   TrendingDown,
@@ -866,7 +868,11 @@ export function ExpensesBudgetPage() {
   const [extraBudgets, setExtraBudgets] = useState<ExtraBudget[]>([]);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+  const workspacePreferences = useWorkspacePreferences();
+  const formatCurrency = useCallback(
+    (val: number) => formatWorkspaceCurrency(Number(val || 0), workspacePreferences.currency, { maximumFractionDigits: 0 }),
+    [workspacePreferences.currency],
+  );
 
   /* ── Resolve linked expense for expense detail view ── */
 
@@ -1007,7 +1013,7 @@ export function ExpensesBudgetPage() {
       default:
         return [];
     }
-  }, [activeTab, estimatedBudgets, extraBudgets, ledger]);
+  }, [activeTab, estimatedBudgets, extraBudgets, ledger, formatCurrency]);
 
   const activeFinanceReportLabel =
     activeTab === 'extra' ? 'Extra Budget Requests' : activeTab === 'ledger' ? 'Expense History' : 'Projected Budget';

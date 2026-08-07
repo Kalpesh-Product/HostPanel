@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
   Send, Plus, Eye, Receipt, UserPlus, UploadCloud,
-  CheckCircle2, Clock, Check, X, FileText, ChevronRight, FileWarning, Search, Box, CheckCircle, FileDown, FileSpreadsheet, Calendar
+  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -17,6 +18,7 @@ import {
   resetRejectedAnnualBudget,
   sendReminder,
   submitBudgetRequest,
+  submitExtraBudget,
   submitVendor,
   updateMonthlyExpenseStatus,
   uploadInvoice,
@@ -26,6 +28,8 @@ import { extractDepartmentLabel, titleCase } from '@/utils/user-helpers';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import { statusPillClass } from '@/lib/status-pill';
 import PageFrame from '@/components/Pages/PageFrame';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '@/lib/workspaceLocalization';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -92,6 +96,32 @@ interface BudgetRequest {
   createdAt: string;
 }
 
+interface ExtraBudgetRequest {
+  id: string;
+  month: string;
+  monthKey: string;
+  amount: number;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
+
+interface DraftExpense {
+  id: string;
+  title: string;
+  projectedAmount: number;
+  dueDate: string;
+  description: string;
+}
+
+interface DraftMonth {
+  id: string;
+  month: string;
+  monthKey: string;
+  title: string;
+  expenses: DraftExpense[];
+}
+
 interface DepartmentFinanceData {
   department: string;
   fiscalYear: string;
@@ -104,15 +134,14 @@ interface DepartmentFinanceData {
   monthlyPlan: MonthlyPlan[];
   vendors: VendorData[];
   annualRequest: BudgetRequest | null;
+  extraRequests: ExtraBudgetRequest[];
   recentActivity: any[];
   status: string;
   notes: string;
+  plan?: { _id?: string } | null;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
 
 const monthKeys = [
   'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec', 'jan', 'feb', 'mar',
@@ -122,6 +151,8 @@ const monthLabels: Record<string, string> = {
   apr: 'April', may: 'May', jun: 'June', jul: 'July', aug: 'August', sep: 'September',
   oct: 'October', nov: 'November', dec: 'December', jan: 'January', feb: 'February', mar: 'March',
 };
+
+const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase();
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -134,29 +165,37 @@ export function DepartmentFinancePageV2() {
   const navigate = useNavigate();
   const confirm = useAppConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const workspacePreferences = useWorkspacePreferences();
+  const currency = workspacePreferences.currency;
+  const currencySymbol = getWorkspaceCurrencySymbol(currency);
+  const formatCurrency = (amount: number) =>
+    formatWorkspaceCurrency(Number(amount || 0), currency, { maximumFractionDigits: 0 });
 
   const [selectedFY, setSelectedFY] = useState(DEFAULT_FISCAL_YEAR);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('projected');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [financeData, setFinanceData] = useState<DepartmentFinanceData | null>(null);
-  const [annualRequests, setAnnualRequests] = useState<BudgetRequest[]>([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyPlan[]>([]);
   const [vendors, setVendors] = useState<VendorData[]>([]);
+  const [extraRequests, setExtraRequests] = useState<ExtraBudgetRequest[]>([]);
 
   // Modal state
   const [viewingExpense, setViewingExpense] = useState<{ month: MonthlyPlan; expense: ExpenseData } | null>(null);
   const [viewingVendor, setViewingVendor] = useState<VendorData | null>(null);
-  const [showBudgetRequestForm, setShowBudgetRequestForm] = useState(false);
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showExtraBudgetForm, setShowExtraBudgetForm] = useState(false);
+  const [showVendorList, setShowVendorList] = useState(false);
 
-  // Form state
-  const [budgetRequestAmount, setBudgetRequestAmount] = useState('');
-  const [budgetRequestReason, setBudgetRequestReason] = useState('');
+  // Draft annual budget builder (month-by-month, pre-submission)
+  const [draftMonths, setDraftMonths] = useState<DraftMonth[]>([]);
   const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
+
+  const [extraBudgetForm, setExtraBudgetForm] = useState({ monthKey: '', amount: '', reason: '' });
+  const [isSubmittingExtraBudget, setIsSubmittingExtraBudget] = useState(false);
 
   const [vendorForm, setVendorForm] = useState({
     name: '', contactPerson: '', phone: '', email: '', address: '',
@@ -186,9 +225,9 @@ export function DepartmentFinancePageV2() {
         if (!isMounted) return;
         const data = response?.data || response || {};
         setFinanceData(data);
-        setAnnualRequests(Array.isArray(data.annualRequests) ? data.annualRequests : []);
         setMonthlyExpenses(Array.isArray(data.monthlyPlan) ? data.monthlyPlan : []);
         setVendors(Array.isArray(data.vendors) ? data.vendors : []);
+        setExtraRequests(Array.isArray(data.extraRequests) ? data.extraRequests : []);
       } catch (error: any) {
         if (isMounted) setErrorMessage(error?.message || 'Failed to load department finance data.');
       } finally {
@@ -212,13 +251,6 @@ export function DepartmentFinancePageV2() {
     [monthlyExpenses],
   );
 
-  const remainingBudget = useMemo(
-    () => (financeData?.approvedAnnualBudget || 0) - totalActual,
-    [financeData, totalActual],
-  );
-
-  const approvedBudget = financeData?.approvedAnnualBudget || 0;
-
   const filteredMonthlyExpenses = useMemo(() => {
     if (!searchQuery.trim()) return monthlyExpenses;
     const q = searchQuery.toLowerCase();
@@ -231,39 +263,189 @@ export function DepartmentFinancePageV2() {
     );
   }, [monthlyExpenses, searchQuery]);
 
-  const filteredVendors = useMemo(() => {
-    if (!searchQuery.trim()) return vendors;
+  const paidExpenseHistory = useMemo(() => {
+    const rows: { month: MonthlyPlan; expense: ExpenseData }[] = [];
+    monthlyExpenses.forEach((month) => {
+      (month.expenses || []).forEach((expense) => {
+        if (String(expense.paymentStatus || expense.status || '').toLowerCase() === 'paid') {
+          rows.push({ month, expense });
+        }
+      });
+    });
+    if (!searchQuery.trim()) return rows;
     const q = searchQuery.toLowerCase();
-    return vendors.filter(
-      (v) =>
-        v.name?.toLowerCase().includes(q) ||
-        v.contactPerson?.toLowerCase().includes(q) ||
-        v.category?.toLowerCase().includes(q),
+    return rows.filter(
+      ({ month, expense }) =>
+        expense.title?.toLowerCase().includes(q) ||
+        month.month?.toLowerCase().includes(q) ||
+        expense.invoiceNumber?.toLowerCase().includes(q),
     );
-  }, [vendors, searchQuery]);
+  }, [monthlyExpenses, searchQuery]);
+
+  const totalSavings = useMemo(
+    () =>
+      monthlyExpenses.reduce(
+        (sum, m) =>
+          sum +
+          (m.expenses || []).reduce(
+            (s, e) => s + Math.max(0, Number(e.projectedAmount || 0) - Number(e.actualSpent || 0)),
+            0,
+          ),
+        0,
+      ),
+    [monthlyExpenses],
+  );
+
+  const invoicePendingCount = useMemo(() => {
+    let count = 0;
+    monthlyExpenses.forEach((month) => {
+      (month.expenses || []).forEach((expense) => {
+        if (expense.status === 'Paid' && !expense.invoiceUrl) count += 1;
+      });
+    });
+    return count;
+  }, [monthlyExpenses]);
+
+  const extraRequestsFiltered = useMemo(() => {
+    if (!searchQuery.trim()) return extraRequests;
+    const q = searchQuery.toLowerCase();
+    return extraRequests.filter(
+      (r) =>
+        r.reason?.toLowerCase().includes(q) ||
+        r.month?.toLowerCase().includes(q) ||
+        r.monthKey?.toLowerCase().includes(q),
+    );
+  }, [extraRequests, searchQuery]);
+
+  const totalExtraRequested = useMemo(
+    () => extraRequests.reduce((sum, r) => sum + Number(r.amount || 0), 0),
+    [extraRequests],
+  );
+  const approvedExtraRequests = useMemo(
+    () => extraRequests.filter((r) => r.status?.toLowerCase() === 'approved'),
+    [extraRequests],
+  );
+  const pendingExtraRequests = useMemo(
+    () => extraRequests.filter((r) => r.status?.toLowerCase() === 'pending'),
+    [extraRequests],
+  );
+  const approvedExtraTotal = useMemo(
+    () => approvedExtraRequests.reduce((sum, r) => sum + Number(r.amount || 0), 0),
+    [approvedExtraRequests],
+  );
+
+  const totalPaidHistory = useMemo(
+    () => paidExpenseHistory.reduce((sum, { expense }) => sum + Number(expense.actualSpent || 0), 0),
+    [paidExpenseHistory],
+  );
+  const invoicedHistoryCount = useMemo(
+    () => paidExpenseHistory.filter(({ expense }) => Boolean(expense.invoiceUrl)).length,
+    [paidExpenseHistory],
+  );
 
   // ─── Handlers ───────────────────────────────────────────────────────────
 
-  const handleSubmitBudgetRequest = async () => {
-    if (!budgetRequestAmount || Number(budgetRequestAmount) <= 0) {
-      toast.error('Please enter a valid budget amount.');
+  const handleAddMonth = () => {
+    const usedMonths = new Set(draftMonths.map((m) => m.month.toLowerCase()));
+    const nextKey = monthKeys.find((key) => !usedMonths.has(monthLabels[key].toLowerCase()));
+    if (!nextKey) {
+      toast.info('All fiscal months are already added.');
       return;
     }
+    setDraftMonths((prev) => [
+      ...prev,
+      { id: generateId(), month: monthLabels[nextKey], monthKey: nextKey, title: 'Untitled Budget', expenses: [] },
+    ]);
+  };
+
+  const updateDraftMonthField = (monthId: string, field: 'month' | 'title', value: string) => {
+    setDraftMonths((prev) =>
+      prev.map((m) =>
+        m.id === monthId
+          ? {
+              ...m,
+              [field]: value,
+              ...(field === 'month'
+                ? { monthKey: monthKeys.find((key) => monthLabels[key] === value) || m.monthKey }
+                : {}),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const handleAddExpenseToMonth = (monthId: string) => {
+    setDraftMonths((prev) =>
+      prev.map((m) =>
+        m.id === monthId
+          ? { ...m, expenses: [...m.expenses, { id: generateId(), title: '', projectedAmount: 0, dueDate: '', description: '' }] }
+          : m,
+      ),
+    );
+  };
+
+  const updateDraftExpenseField = (monthId: string, expenseId: string, field: keyof DraftExpense, value: string) => {
+    setDraftMonths((prev) =>
+      prev.map((m) =>
+        m.id === monthId
+          ? {
+              ...m,
+              expenses: m.expenses.map((e) =>
+                e.id === expenseId ? { ...e, [field]: field === 'projectedAmount' ? Number(value || 0) : value } : e,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const removeDraftExpense = (monthId: string, expenseId: string) => {
+    setDraftMonths((prev) =>
+      prev.map((m) => (m.id === monthId ? { ...m, expenses: m.expenses.filter((e) => e.id !== expenseId) } : m)),
+    );
+  };
+
+  const handleSubmitAnnualBudget = async () => {
+    if (draftMonths.length === 0 || draftMonths.some((m) => m.expenses.length === 0)) {
+      toast.error('Please add at least one expense to all months before submitting.');
+      return;
+    }
+    const invalidExpense = draftMonths
+      .flatMap((m) => m.expenses.map((e) => ({ month: m.month, expense: e })))
+      .find(({ expense }) => !expense.title.trim() || expense.projectedAmount <= 0);
+    if (invalidExpense) {
+      toast.error(`Please enter a valid title and amount for each expense in ${invalidExpense.month}.`);
+      return;
+    }
+
     setIsSubmittingBudget(true);
     try {
+      const annualBudgetRequested = draftMonths.reduce(
+        (sum, m) => sum + m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
+        0,
+      );
       await submitBudgetRequest({
         fiscalYear: selectedFY,
         department: departmentLabel,
-        requestedBudget: Number(budgetRequestAmount),
-        reason: budgetRequestReason,
+        annualBudgetRequested,
+        monthlyPlan: draftMonths.map((m) => ({
+          month: m.month,
+          monthKey: m.monthKey,
+          title: m.title,
+          projectedBudget: m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
+          expenses: m.expenses.map((e) => ({
+            title: e.title,
+            projectedAmount: e.projectedAmount,
+            dueDate: e.dueDate,
+            description: e.description,
+          })),
+        })),
       });
-      toast.success('Budget request submitted successfully.');
-      setShowBudgetRequestForm(false);
-      setBudgetRequestAmount('');
-      setBudgetRequestReason('');
+      toast.success('Budget sent for approval!');
+      setDraftMonths([]);
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to submit budget request.');
+      toast.error(error?.message || 'Failed to submit annual budget.');
     } finally {
       setIsSubmittingBudget(false);
     }
@@ -294,6 +476,37 @@ export function DepartmentFinancePageV2() {
       toast.error(error?.message || 'Failed to register vendor.');
     } finally {
       setIsSubmittingVendor(false);
+    }
+  };
+
+  const handleSubmitExtraBudgetRequest = async () => {
+    if (!extraBudgetForm.monthKey) {
+      toast.error('Please select a month.');
+      return;
+    }
+    if (!extraBudgetForm.amount || Number(extraBudgetForm.amount) <= 0) {
+      toast.error('Please enter a valid amount.');
+      return;
+    }
+    setIsSubmittingExtraBudget(true);
+    try {
+      await submitExtraBudget({
+        planId: financeData?.plan?._id,
+        fiscalYear: selectedFY,
+        department: departmentLabel,
+        monthKey: extraBudgetForm.monthKey,
+        month: monthLabels[extraBudgetForm.monthKey] || extraBudgetForm.monthKey,
+        amount: Number(extraBudgetForm.amount),
+        reason: extraBudgetForm.reason,
+      });
+      toast.success('Extra budget request submitted successfully.');
+      setShowExtraBudgetForm(false);
+      setExtraBudgetForm({ monthKey: '', amount: '', reason: '' });
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to submit extra budget request.');
+    } finally {
+      setIsSubmittingExtraBudget(false);
     }
   };
 
@@ -418,15 +631,19 @@ export function DepartmentFinancePageV2() {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'expenses', label: 'Monthly Expenses' },
-    { key: 'budget', label: 'Budget Requests' },
-    { key: 'vendors', label: 'Vendors' },
+    { key: 'projected', label: 'Projected Budget' },
+    { key: 'extra', label: 'Extra Requested' },
+    { key: 'history', label: 'History' },
   ];
 
   const isBudgetRejected = financeData?.status?.toLowerCase() === 'rejected';
   const isBudgetPending = financeData?.status?.toLowerCase() === 'pending';
   const isBudgetApproved = financeData?.status?.toLowerCase() === 'approved';
+  const isDraftBudget = !financeData?.annualRequest;
+  const draftTotalProjected = draftMonths.reduce(
+    (sum, m) => sum + m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
+    0,
+  );
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -436,11 +653,11 @@ export function DepartmentFinancePageV2() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                <Building2 size={18} className="text-[#2563EB]" />
-                Department Finance
+                
+                {departmentLabel} Finance Management
               </h2>
-              <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">
-                {departmentLabel} &middot; {selectedFY}
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                Track projected budgets, extra requests, and expense history for your department for {selectedFY}.
               </p>
               {financeData?.healthStatus && (
                 <span className={statusPillClass(financeData.healthStatus)}>
@@ -448,46 +665,158 @@ export function DepartmentFinancePageV2() {
                 </span>
               )}
             </div>
-            {errorMessage && (
-              <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-semibold border border-red-200">
-                {errorMessage}
-              </div>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {errorMessage && (
+                <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-semibold border border-red-200">
+                  {errorMessage}
+                </div>
+              )}
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                title="Bulk Upload"
+              >
+                <UploadCloud size={15} />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">Bulk Upload</span>
+              </button>
+              <button
+                onClick={handleGenerateReport}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-rose-50 hover:border-rose-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                title="Export as PDF"
+              >
+                <FileDown size={15} />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-rose-500 text-white px-1.5 py-0.5 rounded">Export PDF</span>
+              </button>
+              <button
+                onClick={handleGenerateReport}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                title="Export as Excel"
+              >
+                <FileSpreadsheet size={15} />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Export Excel</span>
+              </button>
+            </div>
           </div>
 
-          {/* STAT CARDS */}
+          {/* MAIN TABS */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                  activeTab === tab.key
+                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* STAT CARDS (tab-aware) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Approved Budget</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(approvedBudget)}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Wallet size={16} /></div>
-            </div>
+            {activeTab === 'projected' && (
+              <>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Projected Annual</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalProjected)}</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Wallet size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-orange-400">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-orange-500 uppercase tracking-widest mb-1">Total Paid / Spent</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalActual)}</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-orange-50 text-orange-500 shrink-0"><TrendingDown size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Total Savings</p>
+                    <p className="text-[15px] font-pmedium text-emerald-600">{formatCurrency(totalSavings)}</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><TrendingUp size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Invoices Pending</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{invoicePendingCount} Items</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-amber-50 text-amber-500 shrink-0"><FileWarning size={16} /></div>
+                </div>
+              </>
+            )}
 
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Spent (YTD)</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalActual)}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><TrendingUp size={16} /></div>
-            </div>
+            {activeTab === 'extra' && (
+              <>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Total Extra Requested</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalExtraRequested)}</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><TrendingUp size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Approved Extra</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(approvedExtraTotal)}</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending Requests</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{pendingExtraRequests.length} Items</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-amber-50 text-amber-500 shrink-0"><Clock size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Requests</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{extraRequests.length} Items</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><FileText size={16} /></div>
+                </div>
+              </>
+            )}
 
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Projected</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalProjected)}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><TrendingDown size={16} /></div>
-            </div>
-
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Remaining</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(remainingBudget)}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Box size={16} /></div>
-            </div>
+            {activeTab === 'history' && (
+              <>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Total Paid</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(totalPaidHistory)}</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Wallet size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Expenses Paid</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{paidExpenseHistory.length} Items</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Invoices Uploaded</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{invoicedHistoryCount} Items</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-amber-50 text-amber-500 shrink-0"><FileText size={16} /></div>
+                </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Avg. Payment</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">
+                      {formatCurrency(paidExpenseHistory.length ? totalPaidHistory / paidExpenseHistory.length : 0)}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Receipt size={16} /></div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* REJECTED BANNER */}
@@ -524,25 +853,19 @@ export function DepartmentFinancePageV2() {
             </div>
           )}
 
-          {/* TAB CONTENT */}
+          {/* DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            {/* INNER TABS & ACTION BAR */}
+            {/* SUB TABS / LABEL + SEARCH + FILTERS */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full xl:w-auto">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
-                      activeTab === tab.key
-                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50">
+                <div className="px-4 py-2 font-bold text-[13px] text-[#0F172A] flex items-center gap-2">
+                  {activeTab === 'projected' && (<><Wallet size={14} className="text-[#2563EB]" /> Monthly Plan</>)}
+                  {activeTab === 'extra' && (<><TrendingUp size={14} className="text-[#2563EB]" /> Extra Budget Requests</>)}
+                  {activeTab === 'history' && (<><CheckCircle2 size={14} className="text-[#2563EB]" /> Paid Expenses History</>)}
+                </div>
               </div>
+
+              {/* SEARCH & FILTERS */}
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
@@ -563,412 +886,362 @@ export function DepartmentFinancePageV2() {
                     ))}
                   </select>
                 </div>
-                <button
-                  onClick={() => setShowBudgetRequestForm(true)}
-                  disabled={isBudgetPending}
-                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus size={14} /> Budget Request
-                </button>
-                <button
-                  onClick={() => setShowVendorForm(true)}
-                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                >
-                  <UserPlus size={14} /> Add Vendor
-                </button>
-                <button
-                  onClick={handleGenerateReport}
-                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                  title="Export Report"
-                >
-                  <FileDown size={15} />
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Export</span>
-                </button>
-                <button
-                  onClick={() => setShowImportModal(true)}
-                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                  title="Import Data"
-                >
-                  <FileSpreadsheet size={15} />
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">Import</span>
-                </button>
+                {activeTab === 'projected' && (
+                  <>
+                    {isDraftBudget && (
+                      <button
+                        onClick={handleSubmitAnnualBudget}
+                        disabled={isSubmittingBudget}
+                        className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Send size={14} /> {isSubmittingBudget ? 'Submitting...' : 'Submit Annual Budget'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowVendorList(true)}
+                      className="bg-white border border-slate-200/60 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <UserPlus size={14} /> Vendors
+                    </button>
+                  </>
+                )}
+                {activeTab === 'extra' && (
+                  <button
+                    onClick={() => setShowExtraBudgetForm(true)}
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                  >
+                    <Plus size={14} /> Extra Budget Request
+                  </button>
+                )}
               </div>
             </div>
-            {activeTab === 'overview' && (
-              <div className="p-4 sm:p-6 lg:p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Budget Summary */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3 mb-4">
-                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Wallet size={16} /></span>
-                      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Budget Summary</span>
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-pmedium text-slate-500">Approved Annual Budget</span>
-                        <span className="text-sm font-bold text-slate-900">{formatCurrency(approvedBudget)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-pmedium text-slate-500">Total Spent (YTD)</span>
-                        <span className="text-sm font-bold text-emerald-600">{formatCurrency(totalActual)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-pmedium text-slate-500">Projected Spend</span>
-                        <span className="text-sm font-bold text-amber-600">{formatCurrency(totalProjected)}</span>
-                      </div>
-                      <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
-                        <span className="text-xs font-pmedium text-slate-700">Remaining Balance</span>
-                        <span className={`text-sm font-bold ${remainingBudget >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                          {formatCurrency(remainingBudget)}
-                        </span>
-                      </div>
-                      {approvedBudget > 0 && (
-                        <div className="w-full bg-slate-200 rounded-full h-2 mt-2">
-                          <div
-                            className={`h-2 rounded-full ${totalActual / approvedBudget > 0.9 ? 'bg-red-500' : totalActual / approvedBudget > 0.75 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                            style={{ width: `${Math.min((totalActual / approvedBudget) * 100, 100)}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Budget Request Status */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3 mb-4">
-                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span>
-                      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Annual Budget Request</span>
-                    </h4>
-                    {financeData?.annualRequest ? (
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-pmedium text-slate-500">Requested Amount</span>
-                          <span className="text-sm font-bold text-slate-900">
-                            {formatCurrency(financeData.annualRequest.requestedBudget)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-pmedium text-slate-500">Previous Year Spend</span>
-                          <span className="text-sm font-bold text-slate-500">
-                            {formatCurrency(financeData.annualRequest.previousSpend)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-pmedium text-slate-500">Status</span>
-                          <span className={statusPillClass(financeData.annualRequest.status)}>
-                            {financeData.annualRequest.status}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <AlertCircle size={24} className="mx-auto text-slate-300 mb-2" />
-                        <p className="text-xs text-slate-400 font-pmedium">No budget request submitted yet.</p>
-                        <button
-                          onClick={() => setShowBudgetRequestForm(true)}
-                          className="mt-3 px-4 py-2 bg-[#2563EB] text-white rounded-xl text-xs font-pmedium uppercase hover:bg-blue-700 transition-colors"
-                        >
-                          Submit Request
-                        </button>
-                      </div>
-                    )}
+            {/* Tab 1: Projected Budget */}
+            {activeTab === 'projected' && isDraftBudget && (
+              <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+                {/* Drafting banner */}
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-pmedium uppercase tracking-widest mb-2 inline-block">Drafting Phase</span>
+                    <h3 className="text-base font-pmedium text-slate-900 flex items-center gap-2"><Building2 size={16} className="text-[#2563EB]" /> Set Projected Annual Budget</h3>
+                    <p className="text-xs font-pmedium text-slate-500 mt-1 max-w-xl">Add months, plot projected expenses for each, and submit for approval.</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-start sm:items-end shrink-0">
+                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Wallet size={11} /> Total Projected</span>
+                    <span className="text-lg font-pmedium text-slate-900">{formatCurrency(draftTotalProjected)}</span>
                   </div>
                 </div>
 
-                {/* Monthly Overview */}
-                <div className="mt-6">
-                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3 mb-4">
-                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Receipt size={16} /></span>
-                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Monthly Overview</span>
-                  </h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[700px]">
-                      <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                        <tr>
-                          <th className="px-5 py-4">Month</th>
-                          <th className="px-5 py-4">Projected</th>
-                          <th className="px-5 py-4">Actual Spent</th>
-                          <th className="px-5 py-4">Variance</th>
-                          <th className="px-5 py-4">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100/60">
-                        {monthlyExpenses.map((month) => {
-                          const variance = Number(month.projectedAmount || 0) - Number(month.actualSpent || 0);
-                          return (
-                            <tr key={month.monthKey} className="hover:bg-blue-50/30 transition-all">
-                              <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
-                              <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(month.projectedAmount)}</td>
-                              <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(month.actualSpent)}</td>
-                              <td className="px-5 py-4 font-pmedium">
-                                <span className={variance >= 0 ? 'text-emerald-600' : 'text-red-600'}>
-                                  {formatCurrency(Math.abs(variance))} {variance >= 0 ? 'under' : 'over'}
-                                </span>
-                              </td>
-                              <td className="px-5 py-4">
-                                <span className={statusPillClass(month.status)}>{month.status}</span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {monthlyExpenses.length === 0 && (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                              No monthly data available.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
+                {/* Month blocks */}
+                <div className="space-y-5">
+                  {draftMonths.map((m, idx) => {
+                    const mTotal = m.expenses.reduce((sum, e) => sum + Number(e.projectedAmount || 0), 0);
+                    return (
+                      <div key={m.id} className="rounded-2xl border border-slate-200/60 bg-white overflow-hidden shadow-sm">
+                        <div className="bg-slate-50/80 border-b border-slate-100 p-4 sm:p-5 flex flex-col xl:flex-row justify-between gap-4">
+                          <div className="flex gap-4 flex-1">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 font-pmedium text-sm flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Target Month</label>
+                                <select
+                                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  value={m.month}
+                                  onChange={(e) => updateDraftMonthField(m.id, 'month', e.target.value)}
+                                >
+                                  {monthKeys.map((key) => (
+                                    <option key={key} value={monthLabels[key]}>{monthLabels[key]}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Budget Title</label>
+                                <input
+                                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                  value={m.title}
+                                  onChange={(e) => updateDraftMonthField(m.id, 'title', e.target.value)}
+                                  placeholder="E.g., Hardware Upgrades Budget"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-start xl:items-end justify-center min-w-[180px] bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                            <div className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5 flex items-center gap-1"><Wallet size={11} /> Month Total Allocation</div>
+                            <div className="text-base font-pmedium text-[#2563EB]">{formatCurrency(mTotal)}</div>
+                            <div className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                              {m.expenses.length} Item{m.expenses.length === 1 ? '' : 's'}
+                            </div>
+                          </div>
+                        </div>
 
-            {/* MONTHLY EXPENSES TAB */}
-            {activeTab === 'expenses' && (
-              <div className="flex flex-col h-full">
-                <div className="p-3 sm:p-4 border-b border-slate-100/60 bg-slate-50/50">
-                  <div className="relative flex-1 min-w-[180px] max-w-sm">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                    <input
-                      type="text"
-                      placeholder="Search expenses..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 overflow-x-auto">
-                  <table className="w-full text-left min-w-[900px]">
-                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                      <tr>
-                        <th className="px-5 py-4">Month</th>
-                        <th className="px-5 py-4">Expense Title</th>
-                        <th className="px-5 py-4">Projected</th>
-                        <th className="px-5 py-4">Actual</th>
-                        <th className="px-5 py-4">Status</th>
-                        <th className="px-5 py-4">Payment</th>
-                        <th className="px-5 py-4 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/60">
-                      {filteredMonthlyExpenses.flatMap((month) =>
-                        month.expenses && month.expenses.length > 0
-                          ? month.expenses.map((expense) => (
-                              <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
-                                <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
-                                <td className="px-5 py-4">
-                                  <div className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</div>
-                                  {expense.invoiceNumber && (
-                                    <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">
-                                      INV: {expense.invoiceNumber}
+                        <div className="p-4 sm:p-5 bg-white">
+                          <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
+                            <h4 className="text-xs font-pmedium text-slate-700 uppercase tracking-widest flex items-center gap-2"><Receipt size={14} className="text-slate-400" /> Projected Expenses</h4>
+                            <button
+                              onClick={() => handleAddExpenseToMonth(m.id)}
+                              className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-[#2563EB] hover:text-white rounded-lg text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center gap-1.5"
+                            >
+                              <Plus size={13} /> Add New Expense
+                            </button>
+                          </div>
+
+                          <div className="space-y-3">
+                            {m.expenses.length === 0 && (
+                              <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-slate-50/50">
+                                <p className="text-xs font-pmedium text-slate-500">No expenses plotted for {m.month} yet.</p>
+                                <p className="text-[10px] font-pmedium text-slate-400 mt-1">Start allocating funds to specific items or services.</p>
+                                <button
+                                  onClick={() => handleAddExpenseToMonth(m.id)}
+                                  className="mt-3 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-pmedium uppercase hover:border-[#2563EB] hover:text-[#2563EB] transition-all"
+                                >
+                                  Add First Expense
+                                </button>
+                              </div>
+                            )}
+                            {m.expenses.map((exp, eIdx) => (
+                              <div key={exp.id} className="relative bg-[#F8FAFC] border border-slate-200/60 rounded-2xl p-4 sm:p-5">
+                                <button
+                                  onClick={() => removeDraftExpense(m.id, exp.id)}
+                                  className="absolute top-3 right-3 w-7 h-7 bg-white text-red-400 border border-red-100 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"
+                                  title="Remove Expense"
+                                >
+                                  <X size={13} />
+                                </button>
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pr-8">
+                                  <div className="md:col-span-12">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-pmedium uppercase tracking-widest">
+                                      #{String(eIdx + 1).padStart(2, '0')}
+                                    </span>
+                                  </div>
+                                  <div className="md:col-span-4 space-y-1">
+                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Expense Title</label>
+                                    <input
+                                      className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                      placeholder="e.g. Server Hosting"
+                                      value={exp.title}
+                                      onChange={(e) => updateDraftExpenseField(m.id, exp.id, 'title', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="md:col-span-4 space-y-1">
+                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Estimated Amount</label>
+                                    <div className="relative">
+                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[12px] font-pmedium">{currencySymbol}</span>
+                                      <input
+                                        className="w-full pl-7 pr-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={exp.projectedAmount || ''}
+                                        onChange={(e) => updateDraftExpenseField(m.id, exp.id, 'projectedAmount', e.target.value)}
+                                      />
                                     </div>
-                                  )}
-                                </td>
-                                <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(expense.projectedAmount)}</td>
-                                <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(expense.actualSpent)}</td>
-                                <td className="px-5 py-4">
-                                  <span className={statusPillClass(expense.status)}>{expense.status || 'Pending'}</span>
-                                </td>
-                                <td className="px-5 py-4">
-                                  <span className={statusPillClass(expense.paymentStatus)}>{expense.paymentStatus || 'Unpaid'}</span>
-                                </td>
-                                <td className="px-5 py-4 text-center">
-                                  <button
-                                    onClick={() => setViewingExpense({ month, expense })}
-                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                                    title="View Details"
-                                  >
-                                    <Eye size={15} strokeWidth={2.5} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          : [
-                              <tr key={`empty-${month.monthKey}`} className="hover:bg-blue-50/30 transition-all">
-                                <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
-                                <td colSpan={5} className="px-5 py-4 text-slate-400 font-pmedium text-xs">No expenses recorded</td>
-                                <td className="px-5 py-4 text-center">
-                                  <span className={statusPillClass(month.status)}>{month.status}</span>
-                                </td>
-                              </tr>,
-                            ]
-                      )}
-                      {filteredMonthlyExpenses.length === 0 && (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                            No expenses found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                                  </div>
+                                  <div className="md:col-span-4 space-y-1">
+                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Expected Due Date</label>
+                                    <input
+                                      className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                      type="date"
+                                      value={exp.dueDate}
+                                      onChange={(e) => updateDraftExpenseField(m.id, exp.id, 'dueDate', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="md:col-span-12 space-y-1">
+                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Justification / Details</label>
+                                    <input
+                                      className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                      placeholder="Why is this expense necessary?"
+                                      value={exp.description}
+                                      onChange={(e) => updateDraftExpenseField(m.id, exp.id, 'description', e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                <button
+                  onClick={handleAddMonth}
+                  className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 hover:text-[#2563EB] hover:border-blue-300 hover:bg-blue-50/50 transition-all font-pmedium text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  <Plus size={16} /> Add Another Budget Month
+                </button>
               </div>
             )}
 
-            {/* BUDGET REQUESTS TAB */}
-            {activeTab === 'budget' && (
-              <div className="p-4 sm:p-6 lg:p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h4 className="flex items-center gap-2.5">
-                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span>
-                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Annual Budget Request</span>
-                  </h4>
-                  {!isBudgetPending && !isBudgetApproved && (
-                    <button
-                      onClick={() => setShowBudgetRequestForm(true)}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                    >
-                      <Plus size={14} /> New Request
-                    </button>
-                  )}
-                </div>
-
-                {financeData?.annualRequest ? (
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
+            {activeTab === 'projected' && !isDraftBudget && (
+              <div className="flex-1 overflow-x-auto">
+                {financeData?.annualRequest && (
+                  <div className="m-4 sm:m-6 mb-0 bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Requested</p>
-                        <p className="text-lg font-black text-slate-900">{formatCurrency(financeData.annualRequest.requestedBudget)}</p>
+                        <p className="text-sm font-bold text-slate-900">{formatCurrency(financeData.annualRequest.requestedBudget)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Previous Spend</p>
-                        <p className="text-lg font-black text-slate-500">{formatCurrency(financeData.annualRequest.previousSpend)}</p>
+                        <p className="text-sm font-bold text-slate-500">{formatCurrency(financeData.annualRequest.previousSpend)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Status</p>
-                        <span className={statusPillClass(financeData.annualRequest.status)}>
-                          {financeData.annualRequest.status}
-                        </span>
+                        <span className={statusPillClass(financeData.annualRequest.status)}>{financeData.annualRequest.status}</span>
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Submitted</p>
-                        <p className="text-sm font-pmedium text-slate-700">{financeData.annualRequest.createdAt || 'N/A'}</p>
+                        <p className="text-xs font-pmedium text-slate-700">{financeData.annualRequest.createdAt || 'N/A'}</p>
                       </div>
                     </div>
-                    {financeData.annualRequest.reason && (
-                      <div>
-                        <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Justification</p>
-                        <p className="text-xs text-slate-700 bg-white p-3 rounded-xl border border-slate-200 italic">
-                          "{financeData.annualRequest.reason}"
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-20">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100">
-                      <FileText className="text-slate-400" size={24} />
-                    </div>
-                    <p className="text-slate-500 font-pmedium mb-1">No budget request submitted for this fiscal year.</p>
-                    <p className="text-slate-400 text-[13px] mb-4">Submit a budget request to get started.</p>
-                    <button
-                      onClick={() => setShowBudgetRequestForm(true)}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 mx-auto"
-                    >
-                      Submit Budget Request
-                    </button>
                   </div>
                 )}
-
-                {annualRequests.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-[12px] font-pmedium text-slate-700 uppercase tracking-widest mb-3">Request History</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left min-w-[600px]">
-                        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                          <tr>
-                            <th className="px-5 py-4">Amount</th>
-                            <th className="px-5 py-4">Status</th>
-                            <th className="px-5 py-4">Reason</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100/60">
-                          {annualRequests.map((req) => (
-                            <tr key={req.id} className="hover:bg-blue-50/30 transition-all">
-                              <td className="px-5 py-4 font-pmedium text-slate-900">{formatCurrency(req.requestedBudget)}</td>
+                <table className="w-full text-left min-w-[900px]">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <tr>
+                      <th className="px-5 py-4">Month</th>
+                      <th className="px-5 py-4">Expense Title</th>
+                      <th className="px-5 py-4">Projected</th>
+                      <th className="px-5 py-4">Actual</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Payment</th>
+                      <th className="px-5 py-4 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60">
+                    {filteredMonthlyExpenses.flatMap((month) =>
+                      month.expenses && month.expenses.length > 0
+                        ? month.expenses.map((expense) => (
+                            <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
+                              <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
                               <td className="px-5 py-4">
-                                <span className={statusPillClass(req.status)}>{req.status}</span>
+                                <div className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</div>
+                                {expense.invoiceNumber && (
+                                  <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">
+                                    INV: {expense.invoiceNumber}
+                                  </div>
+                                )}
                               </td>
-                              <td className="px-5 py-4 text-xs text-slate-600 max-w-[300px] truncate">{req.reason || '-'}</td>
+                              <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(expense.projectedAmount)}</td>
+                              <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(expense.actualSpent)}</td>
+                              <td className="px-5 py-4">
+                                <span className={statusPillClass(expense.status)}>{expense.status || 'Pending'}</span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className={statusPillClass(expense.paymentStatus)}>{expense.paymentStatus || 'Unpaid'}</span>
+                              </td>
+                              <td className="px-5 py-4 text-center">
+                                <button
+                                  onClick={() => setViewingExpense({ month, expense })}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                  title="View Details"
+                                >
+                                  <Eye size={15} strokeWidth={2.5} />
+                                </button>
+                              </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                          ))
+                        : [
+                            <tr key={`empty-${month.monthKey}`} className="hover:bg-blue-50/30 transition-all">
+                              <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
+                              <td colSpan={5} className="px-5 py-4 text-slate-400 font-pmedium text-xs">No expenses recorded</td>
+                              <td className="px-5 py-4 text-center">
+                                <span className={statusPillClass(month.status)}>{month.status}</span>
+                              </td>
+                            </tr>,
+                          ]
+                    )}
+                    {filteredMonthlyExpenses.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                          No expenses found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
 
-            {/* VENDORS TAB */}
-            {activeTab === 'vendors' && (
-              <div className="flex flex-col h-full">
-                <div className="p-3 sm:p-4 border-b border-slate-100/60 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div className="relative flex-1 min-w-[180px] max-w-sm">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                    <input
-                      type="text"
-                      placeholder="Search vendors..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
-                    />
-                  </div>
-                  <button
-                    onClick={() => setShowVendorForm(true)}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-pmedium text-xs uppercase hover:bg-emerald-700 transition-colors flex items-center gap-2"
-                  >
-                    <UserPlus size={14} /> Add Vendor
-                  </button>
-                </div>
-                <div className="flex-1 overflow-x-auto">
-                  <table className="w-full text-left min-w-[800px]">
-                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                      <tr>
-                        <th className="px-5 py-4">Vendor Name</th>
-                        <th className="px-5 py-4">Contact Person</th>
-                        <th className="px-5 py-4">Phone</th>
-                        <th className="px-5 py-4">Category</th>
-                        <th className="px-5 py-4">Payment Terms</th>
-                        <th className="px-5 py-4 text-center">Action</th>
+            {/* Tab 2: Extra Requested */}
+            {activeTab === 'extra' && (
+              <div className="flex-1 overflow-x-auto">
+                <table className="w-full text-left min-w-[700px]">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <tr>
+                      <th className="px-5 py-4">Month</th>
+                      <th className="px-5 py-4">Amount</th>
+                      <th className="px-5 py-4">Reason</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60">
+                    {extraRequestsFiltered.map((request) => (
+                      <tr key={request.id} className="hover:bg-blue-50/30 transition-all">
+                        <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[request.monthKey] || request.month}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(request.amount)}</td>
+                        <td className="px-5 py-4 text-xs text-slate-600 max-w-[300px] truncate">{request.reason || '-'}</td>
+                        <td className="px-5 py-4">
+                          <span className={statusPillClass(request.status)}>{request.status}</span>
+                        </td>
+                        <td className="px-5 py-4 font-pmedium text-slate-700">{request.createdAt || 'N/A'}</td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/60">
-                      {filteredVendors.map((vendor) => (
-                        <tr key={vendor.id} className="hover:bg-blue-50/30 transition-all">
-                          <td className="px-5 py-4">
-                            <div className="font-pmedium text-slate-900">{vendor.name}</div>
-                            {vendor.email && <div className="text-[9px] text-slate-400 mt-0.5">{vendor.email}</div>}
-                          </td>
-                          <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.contactPerson || '-'}</td>
-                          <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.phone || '-'}</td>
-                          <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.category || '-'}</td>
-                          <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.paymentTerms || '-'}</td>
-                          <td className="px-5 py-4 text-center">
-                            <button
-                              onClick={() => setViewingVendor(vendor)}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                              title="View Details"
-                            >
-                              <Eye size={15} strokeWidth={2.5} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredVendors.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                            No vendors registered.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                    {extraRequestsFiltered.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                          No extra budget requests submitted for this fiscal year.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Tab 3: History */}
+            {activeTab === 'history' && (
+              <div className="flex-1 overflow-x-auto">
+                <table className="w-full text-left min-w-[800px]">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <tr>
+                      <th className="px-5 py-4">Month</th>
+                      <th className="px-5 py-4">Expense Title</th>
+                      <th className="px-5 py-4">Actual Paid</th>
+                      <th className="px-5 py-4">Invoice</th>
+                      <th className="px-5 py-4 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60">
+                    {paidExpenseHistory.map(({ month, expense }) => (
+                      <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
+                        <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-900">{expense.title || 'Untitled'}</td>
+                        <td className="px-5 py-4 font-pmedium text-emerald-600">{formatCurrency(expense.actualSpent)}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-700">{expense.invoiceNumber || '-'}</td>
+                        <td className="px-5 py-4 text-center">
+                          <button
+                            onClick={() => setViewingExpense({ month, expense })}
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                            title="View Details"
+                          >
+                            <Eye size={15} strokeWidth={2.5} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {paidExpenseHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                          No paid expenses yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -1065,183 +1338,333 @@ export function DepartmentFinancePageV2() {
       )}
 
       {/* Vendor Detail Modal */}
-      {viewingVendor && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <UserPlus size={20} className="text-emerald-600" /> {viewingVendor.name}
-              </h2>
-              <button onClick={() => setViewingVendor(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto bg-white space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { label: 'Contact Person', value: viewingVendor.contactPerson },
-                  { label: 'Phone', value: viewingVendor.phone },
-                  { label: 'Email', value: viewingVendor.email },
-                  { label: 'Address', value: viewingVendor.address },
-                  { label: 'Category', value: viewingVendor.category },
-                  { label: 'Payment Terms', value: viewingVendor.paymentTerms },
-                  { label: 'GSTIN', value: viewingVendor.gstin },
-                  { label: 'PAN', value: viewingVendor.panNumber },
-                  { label: 'Bank Name', value: viewingVendor.bankName },
-                  { label: 'Account Name', value: viewingVendor.accountName },
-                  { label: 'Account Number', value: viewingVendor.accountNumber },
-                  { label: 'IFSC', value: viewingVendor.ifscCode },
-                  { label: 'UPI ID', value: viewingVendor.upiId },
-                  { label: 'Website', value: viewingVendor.website },
-                ].filter((f) => f.value).map((field) => (
-                  <div key={field.label}>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">{field.label}</p>
-                    <p className="text-sm font-bold text-slate-900">{field.value}</p>
+      <AnimatePresence>
+        {viewingVendor && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/55 p-4 backdrop-blur-sm"
+            onClick={() => setViewingVendor(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+              className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[1.75rem] border border-white/70 bg-white font-pmedium shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><UserPlus size={17} /></div>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-base font-pmedium text-slate-900">{viewingVendor.name}</h2>
+                    <p className="mt-0.5 text-[10px] uppercase tracking-widest text-slate-400">{viewingVendor.category || 'Vendor'}</p>
                   </div>
-                ))}
-              </div>
-              {viewingVendor.notes && (
-                <div className="mt-4">
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Notes</p>
-                  <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200">{viewingVendor.notes}</p>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                <button
+                  type="button"
+                  onClick={() => setViewingVendor(null)}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="space-y-4 overflow-y-auto p-5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {[
+                    { label: 'Contact Person', value: viewingVendor.contactPerson },
+                    { label: 'Phone', value: viewingVendor.phone },
+                    { label: 'Email', value: viewingVendor.email },
+                    { label: 'Address', value: viewingVendor.address },
+                    { label: 'Category', value: viewingVendor.category },
+                    { label: 'Payment Terms', value: viewingVendor.paymentTerms },
+                    { label: 'GSTIN', value: viewingVendor.gstin },
+                    { label: 'PAN', value: viewingVendor.panNumber },
+                    { label: 'Bank Name', value: viewingVendor.bankName },
+                    { label: 'Account Name', value: viewingVendor.accountName },
+                    { label: 'Account Number', value: viewingVendor.accountNumber },
+                    { label: 'IFSC', value: viewingVendor.ifscCode },
+                    { label: 'UPI ID', value: viewingVendor.upiId },
+                    { label: 'Website', value: viewingVendor.website },
+                  ].filter((f) => f.value).map((field) => (
+                    <div key={field.label} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                      <p className="text-[9px] uppercase tracking-widest text-slate-400">{field.label}</p>
+                      <p className="mt-1 text-[12px] text-slate-800">{field.value}</p>
+                    </div>
+                  ))}
+                </div>
+                {viewingVendor.notes && (
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-slate-400">Notes</p>
+                    <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">{viewingVendor.notes}</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Budget Request Form Modal */}
-      {showBudgetRequestForm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <FileText size={20} className="text-[#2563EB]" /> Submit Budget Request
-              </h2>
-              <button onClick={() => setShowBudgetRequestForm(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 lg:p-8 space-y-5">
-              <div>
-                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1 block">Requested Amount (INR)</label>
-                <input
-                  type="number"
-                  value={budgetRequestAmount}
-                  onChange={(e) => setBudgetRequestAmount(e.target.value)}
-                  placeholder="Enter budget amount"
-                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
-                />
+      {/* Extra Budget Request Form Modal */}
+      <AnimatePresence>
+        {showExtraBudgetForm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
+            onClick={() => setShowExtraBudgetForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+              className="w-full max-w-lg overflow-hidden rounded-[1.75rem] bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-pmedium text-slate-900">Submit Extra Budget Request</h2>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Spend beyond the approved annual budget</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExtraBudgetForm(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700"
+                >
+                  <X size={15} />
+                </button>
               </div>
-              <div>
-                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1 block">Justification / Reason</label>
-                <textarea
-                  value={budgetRequestReason}
-                  onChange={(e) => setBudgetRequestReason(e.target.value)}
-                  placeholder="Explain why this budget is needed"
-                  rows={4}
-                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
-                />
+              <div className="space-y-4 p-5 font-pmedium">
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Month</label>
+                  <select
+                    value={extraBudgetForm.monthKey}
+                    onChange={(e) => setExtraBudgetForm((prev) => ({ ...prev, monthKey: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">Select month</option>
+                    {monthKeys.map((key) => (
+                      <option key={key} value={key}>{monthLabels[key]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Requested Amount ({currency})</label>
+                  <input
+                    type="number"
+                    value={extraBudgetForm.amount}
+                    onChange={(e) => setExtraBudgetForm((prev) => ({ ...prev, amount: e.target.value }))}
+                    placeholder="Enter amount"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Reason</label>
+                  <textarea
+                    value={extraBudgetForm.reason}
+                    onChange={(e) => setExtraBudgetForm((prev) => ({ ...prev, reason: e.target.value }))}
+                    placeholder="Explain why this extra budget is needed"
+                    rows={4}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-              <button
-                onClick={() => setShowBudgetRequestForm(false)}
-                className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitBudgetRequest}
-                disabled={isSubmittingBudget}
-                className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSubmittingBudget ? 'Submitting...' : 'Submit Request'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => setShowExtraBudgetForm(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitExtraBudgetRequest}
+                  disabled={isSubmittingExtraBudget}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmittingExtraBudget ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  {isSubmittingExtraBudget ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Vendor List Modal */}
+      <AnimatePresence>
+        {showVendorList && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
+            onClick={() => setShowVendorList(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+              className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-pmedium text-slate-900">Registered Vendors</h2>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{vendors.length} vendor{vendors.length === 1 ? '' : 's'} on file</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowVendorList(false); setShowVendorForm(true); }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700"
+                  >
+                    <Plus size={13} /> Add Vendor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowVendorList(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto overflow-x-auto font-pmedium">
+                <table className="w-full min-w-[700px] text-left">
+                  <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] uppercase tracking-widest text-slate-500">
+                    <tr>
+                      <th className="px-5 py-4">Vendor Name</th>
+                      <th className="px-5 py-4">Contact Person</th>
+                      <th className="px-5 py-4">Phone</th>
+                      <th className="px-5 py-4">Category</th>
+                      <th className="px-5 py-4">Payment Terms</th>
+                      <th className="px-5 py-4 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60">
+                    {vendors.map((vendor) => (
+                      <tr key={vendor.id} className="transition-all hover:bg-blue-50/30">
+                        <td className="px-5 py-4">
+                          <div className="text-slate-900">{vendor.name}</div>
+                          {vendor.email && <div className="mt-0.5 text-[9px] text-slate-400">{vendor.email}</div>}
+                        </td>
+                        <td className="px-5 py-4 text-slate-700">{vendor.contactPerson || '-'}</td>
+                        <td className="px-5 py-4 text-slate-700">{vendor.phone || '-'}</td>
+                        <td className="px-5 py-4 text-slate-700">{vendor.category || '-'}</td>
+                        <td className="px-5 py-4 text-slate-700">{vendor.paymentTerms || '-'}</td>
+                        <td className="px-5 py-4 text-center">
+                          <button
+                            onClick={() => setViewingVendor(vendor)}
+                            className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-all hover:bg-blue-100 hover:text-blue-700"
+                            title="View Details"
+                          >
+                            <Eye size={15} strokeWidth={2.5} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {vendors.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
+                          No vendors registered.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Vendor Form Modal */}
-      {showVendorForm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <UserPlus size={20} className="text-emerald-600" /> Add Vendor
-              </h2>
-              <button onClick={() => setShowVendorForm(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { key: 'name', label: 'Vendor Name *', type: 'text' },
-                  { key: 'contactPerson', label: 'Contact Person', type: 'text' },
-                  { key: 'phone', label: 'Phone', type: 'text' },
-                  { key: 'email', label: 'Email', type: 'email' },
-                  { key: 'category', label: 'Category', type: 'text' },
-                  { key: 'paymentTerms', label: 'Payment Terms', type: 'text' },
-                  { key: 'gstin', label: 'GSTIN', type: 'text' },
-                  { key: 'panNumber', label: 'PAN Number', type: 'text' },
-                  { key: 'bankName', label: 'Bank Name', type: 'text' },
-                  { key: 'accountName', label: 'Account Name', type: 'text' },
-                  { key: 'accountNumber', label: 'Account Number', type: 'text' },
-                  { key: 'ifscCode', label: 'IFSC Code', type: 'text' },
-                  { key: 'upiId', label: 'UPI ID', type: 'text' },
-                  { key: 'website', label: 'Website', type: 'text' },
-                ].map((field) => (
-                  <div key={field.key}>
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1 block">{field.label}</label>
-                    <input
-                      type={field.type}
-                      value={(vendorForm as any)[field.key]}
-                      onChange={(e) => setVendorForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
-                    />
-                  </div>
-                ))}
+      <AnimatePresence>
+        {showVendorForm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
+            onClick={() => setShowVendorForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+              className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-pmedium text-slate-900">Add Vendor</h2>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Register a new vendor for this department</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowVendorForm(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700"
+                >
+                  <X size={15} />
+                </button>
               </div>
-              <div>
-                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1 block">Address</label>
-                <textarea
-                  value={vendorForm.address}
-                  onChange={(e) => setVendorForm((prev) => ({ ...prev, address: e.target.value }))}
-                  rows={2}
-                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1 block">Notes</label>
-                <textarea
-                  value={vendorForm.notes}
-                  onChange={(e) => setVendorForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  rows={2}
-                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-              <button
-                onClick={() => setShowVendorForm(false)}
-                className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitVendor}
-                disabled={isSubmittingVendor}
-                className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSubmittingVendor ? 'Registering...' : 'Register Vendor'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <form onSubmit={(e) => { e.preventDefault(); handleSubmitVendor(); }} className="flex-1 space-y-4 overflow-y-auto p-5 font-pmedium">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {[
+                    { key: 'name', label: 'Vendor Name *', type: 'text' },
+                    { key: 'contactPerson', label: 'Contact Person', type: 'text' },
+                    { key: 'phone', label: 'Phone', type: 'text' },
+                    { key: 'email', label: 'Email', type: 'email' },
+                    { key: 'category', label: 'Category', type: 'text' },
+                    { key: 'paymentTerms', label: 'Payment Terms', type: 'text' },
+                    { key: 'gstin', label: 'GSTIN', type: 'text' },
+                    { key: 'panNumber', label: 'PAN Number', type: 'text' },
+                    { key: 'bankName', label: 'Bank Name', type: 'text' },
+                    { key: 'accountName', label: 'Account Name', type: 'text' },
+                    { key: 'accountNumber', label: 'Account Number', type: 'text' },
+                    { key: 'ifscCode', label: 'IFSC Code', type: 'text' },
+                    { key: 'upiId', label: 'UPI ID', type: 'text' },
+                    { key: 'website', label: 'Website', type: 'text' },
+                  ].map((field) => (
+                    <div key={field.key}>
+                      <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">{field.label}</label>
+                      <input
+                        type={field.type}
+                        value={(vendorForm as any)[field.key]}
+                        onChange={(e) => setVendorForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Address</label>
+                  <textarea
+                    value={vendorForm.address}
+                    onChange={(e) => setVendorForm((prev) => ({ ...prev, address: e.target.value }))}
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Notes</label>
+                  <textarea
+                    value={vendorForm.notes}
+                    onChange={(e) => setVendorForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowVendorForm(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingVendor}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSubmittingVendor ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                    {isSubmittingVendor ? 'Registering...' : 'Register Vendor'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Import Modal */}
       {showImportModal && (
