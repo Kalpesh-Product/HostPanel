@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import useLogout from "../../hooks/useLogout";
+import useRefresh from "../../hooks/useRefresh";
 import { switchWorkspaceSession } from "../../services/workspace-session";
 import Footer from "../../components/Footer";
 import logo from "../../assets/WONO_LOGO_Black_TP.svg";
@@ -21,8 +22,9 @@ type WorkspaceOption = {
 export default function FounderWorkspaceSelectionPage() {
   const navigate = useNavigate();
   const axiosPrivate = useAxiosPrivate();
-  const { auth, setAuth } = useAuth();
+  const { auth } = useAuth();
   const logout = useLogout();
+  const refresh = useRefresh();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const user = (auth.user as {
     accessibleWorkspaces?: WorkspaceOption[];
@@ -53,21 +55,14 @@ export default function FounderWorkspaceSelectionPage() {
     }
     try {
       setIsSubmitting(true);
-      const response = await switchWorkspaceSession(axiosPrivate, selectedWorkspaceId);
-      const switchedWorkspaceId = String(response?.data?.data?.activeWorkspaceId || selectedWorkspaceId);
-      const nextAccessible = Array.isArray(response?.data?.data?.accessibleWorkspaces)
-        ? response.data.data.accessibleWorkspaces
-        : workspaces;
-      setAuth((prev) => ({
-        ...prev,
-        user: prev.user
-          ? {
-              ...(prev.user as Record<string, unknown>),
-              primaryWorkspace: switchedWorkspaceId,
-              accessibleWorkspaces: nextAccessible,
-            }
-          : prev.user,
-      }));
+      await switchWorkspaceSession(axiosPrivate, selectedWorkspaceId);
+      // Re-fetch the full session so the header role badge and sidebar pick up
+      // the selected unit's role/modules instead of the previous unit's.
+      try {
+        await refresh();
+      } catch {
+        // Session refresh errors are handled inside useRefresh.
+      }
       navigate("/dashboard", { replace: true });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Unable to open the selected unit.");

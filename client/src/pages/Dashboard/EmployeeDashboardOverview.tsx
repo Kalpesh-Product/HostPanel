@@ -32,7 +32,7 @@ import {
   humanRelTime,
   statusBadgeColor,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
-import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
+import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import { getTasks } from "@/services/tasks";
 import { getTickets } from "@/services/tickets";
 import { getLeaveRequests } from "@/services/leave-requests";
@@ -353,7 +353,7 @@ export function EmployeeDashboardOverview() {
         </div>
       ) : null}
 
-      <TodayAttendanceCard />
+      <DashboardAttendanceCard />
 
       {/* Overview — only the metrics that matter */}
       <WidgetSection layout={3} title="Overview" border normalCase>

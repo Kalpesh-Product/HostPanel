@@ -85,6 +85,51 @@ const AMENITIES_BY_TYPE = {
   ],
 };
 
+const MULTI_SELECT_MENU_PROPS = {
+  PaperProps: {
+    sx: {
+      mt: 0.5,
+      maxHeight: 320,
+      border: "1px solid #e2e8f0",
+      borderRadius: "10px",
+      boxShadow: "0 12px 28px rgba(15, 23, 42, 0.14)",
+      "& .MuiMenu-list": {
+        padding: "6px",
+      },
+      "& .MuiMenuItem-root": {
+        minHeight: 38,
+        marginBottom: "2px",
+        borderRadius: "8px",
+        fontSize: "0.875rem",
+        whiteSpace: "normal",
+        overflowWrap: "anywhere",
+        "&:last-of-type": {
+          marginBottom: 0,
+        },
+        "&.Mui-selected": {
+          backgroundColor: "#eff6ff",
+        },
+        "&.Mui-selected:hover": {
+          backgroundColor: "#dbeafe",
+        },
+      },
+    },
+  },
+};
+const getMultiSelectMenuProps = (anchorRef) => ({
+  ...MULTI_SELECT_MENU_PROPS,
+  PaperProps: {
+    ...MULTI_SELECT_MENU_PROPS.PaperProps,
+    ref: (paperElement) => {
+      const anchorWidth = anchorRef.current?.getBoundingClientRect().width;
+      if (!paperElement || !anchorWidth) return;
+      const exactWidth = `${anchorWidth}px`;
+      paperElement.style.width = exactWidth;
+      paperElement.style.minWidth = exactWidth;
+      paperElement.style.maxWidth = exactWidth;
+    },
+  },
+});
 // Best-effort extraction of coordinates from a pasted Google Maps URL.
 // Handles the common "@lat,lng", "q=lat,lng", "ll=lat,lng" and embed
 // "!3dlat!4dlng" formats. Short goo.gl links don't carry coordinates in
@@ -115,6 +160,9 @@ const EditNomadListing = () => {
   const navigate = useNavigate();
   const axiosPriv = useAxiosPrivate();
   const formRef = useRef(null);
+  const inclusionsSelectRef = useRef(null);
+  const servicesSelectRef = useRef(null);
+  const unitsSelectRef = useRef(null);
   const location = useLocation();
   const navState = location?.state || {};
 
@@ -522,12 +570,13 @@ const EditNomadListing = () => {
                 const selectedType = watch("companyType");
                 const options = AMENITIES_BY_TYPE[selectedType] || [];
                 return (
-                  <FormControl size="small" fullWidth disabled={isViewMode || !selectedType}>
+                  <FormControl size="small" fullWidth disabled={isViewMode || !selectedType} ref={inclusionsSelectRef}>
                     <InputLabel>Inclusions</InputLabel>
                     <Select
                       {...field}
                       multiple
                       input={<OutlinedInput label="Inclusions" />}
+                      MenuProps={getMultiSelectMenuProps(inclusionsSelectRef)}
                       renderValue={(selected) => selected.join(", ")}
                     >
                       {options.map((option) => (
@@ -553,13 +602,14 @@ const EditNomadListing = () => {
                   new Set([...(serviceOptions || []), ...(field.value || [])]),
                 ).sort((a, b) => a.localeCompare(b));
                 return (
-                  <FormControl size="small" fullWidth disabled={isViewMode}>
+                  <FormControl size="small" fullWidth disabled={isViewMode} ref={servicesSelectRef}>
                     <InputLabel>Services</InputLabel>
                     <Select
                       {...field}
                       multiple
                       value={field.value || []}
                       input={<OutlinedInput label="Services" />}
+                      MenuProps={getMultiSelectMenuProps(servicesSelectRef)}
                       renderValue={(selected) =>
                         Array.isArray(selected) ? selected.join(", ") : ""
                       }
@@ -610,13 +660,14 @@ const EditNomadListing = () => {
                   new Set([...(unitOptions || []), ...(field.value || [])]),
                 ).sort((a, b) => a.localeCompare(b));
                 return (
-                  <FormControl size="small" fullWidth disabled={isViewMode}>
+                  <FormControl size="small" fullWidth disabled={isViewMode} ref={unitsSelectRef}>
                     <InputLabel>Units</InputLabel>
                     <Select
                       {...field}
                       multiple
                       value={field.value || []}
                       input={<OutlinedInput label="Units" />}
+                      MenuProps={getMultiSelectMenuProps(unitsSelectRef)}
                       renderValue={(selected) =>
                         Array.isArray(selected) ? selected.join(", ") : ""
                       }

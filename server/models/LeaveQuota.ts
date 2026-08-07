@@ -9,6 +9,12 @@ export interface ILeaveQuota extends Document {
     Casual: number;
     Sick: number;
     Vacation: number;
+    balances: Map<string, number>;
+    annualBalances: Map<string, number>;
+    assignedLeaveTypeIds: mongoose.Types.ObjectId[];
+    cycleType: "calendar_year" | "financial_year";
+    carryForward: boolean;
+    carryForwardLimit?: number | null;
     createdBy?: mongoose.Types.ObjectId | null;
     updatedBy?: mongoose.Types.ObjectId | null;
     createdAt?: Date;
@@ -49,6 +55,34 @@ const leaveQuotaSchema = new Schema<ILeaveQuota>(
         Vacation: {
             type: Number,
             default: 0,
+            min: 0,
+        },
+        balances: {
+            type: Map,
+            of: { type: Number, min: 0 },
+            default: {},
+        },
+        annualBalances: {
+            type: Map,
+            of: { type: Number, min: 0 },
+            default: {},
+        },
+        assignedLeaveTypeIds: {
+            type: [{ type: Schema.Types.ObjectId, ref: "LeaveType" }],
+            default: [],
+        },
+        cycleType: {
+            type: String,
+            enum: ["calendar_year", "financial_year"],
+            default: "calendar_year",
+        },
+        carryForward: {
+            type: Boolean,
+            default: false,
+        },
+        carryForwardLimit: {
+            type: Number,
+            default: null,
             min: 0,
         },
         createdBy: {

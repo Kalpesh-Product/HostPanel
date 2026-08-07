@@ -143,8 +143,8 @@ const MONTHS = [
 
 const YEARS = ['2025', '2026', '2027'];
 const TASK_TYPES = ['Meeting Room Cleaning', 'Desk Cleaning', 'Floor Cleaning', 'Washroom Cleaning', 'Custom'];
-const FLOOR_OPTIONS = ['501', '601', '701'];
-const WING_OPTIONS = ['A', 'B'];
+const FLOOR_OPTIONS = ['', '', ''];
+const WING_OPTIONS = ['', ''];
 const BULK_UPLOAD_INSTRUCTIONS_SHEET = 'Instructions';
 const BULK_UPLOAD_STAFF_SHEET = 'Housekeeping Staff';
 const BULK_UPLOAD_TASK_SHEET = 'Scheduled Tasks';

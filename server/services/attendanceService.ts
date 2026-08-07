@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { uploadFileToS3 } from "../config/s3config.js";
 import Attendance from "../models/Attendance.js";
 import LeaveRequest from "../models/LeaveRequest.js";
+import Holiday from "../models/Holiday.js";
 import Department from "../models/Department.js";
 import EmployeeProfile from "../models/EmployeeProfile.js";
 import HostUser from "../models/HostUser.js";
@@ -1081,6 +1082,24 @@ const canManageTeamAttendance = async (membership) => {
 // Block clock-in when the user has an approved leave covering today. Full-day
 // leaves block all day; half-day leaves block only during the affected
 // session so the user can still clock in for the other half.
+const assertNotOnHoliday = async (workspace) => {
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const todayKey = toDateKey(new Date(), timezone);
+  const holiday = await Holiday.findOne({
+    workspaceId: workspace._id,
+    dateKey: todayKey,
+    isActive: true,
+    $or: [{ entryKind: "holiday" }, { entryKind: { $exists: false } }],
+  })
+    .select("name type")
+    .lean()
+    .exec();
+  if (!holiday) return;
+  throw Object.assign(
+    new Error(`${holiday.name} is a company holiday, so clock-in is disabled today.`),
+    { statusCode: 409 },
+  );
+};
 const assertNotOnLeave = async (workspace, user) => {
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
   const todayKey = toDateKey(new Date(), timezone);
@@ -1120,6 +1139,7 @@ const assertNotOnLeave = async (workspace, user) => {
 
 export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
+  await assertNotOnHoliday(workspace);
   await assertNotOnLeave(workspace, user);
   if (!isAttendanceConfigured(workspace)) {
     throw Object.assign(
@@ -1590,6 +1610,21 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     .select("leaveCode leaveType leaveMode leaveHours halfDaySession startDate endDate")
     .lean()
     .exec();
+  const holidays = await Holiday.find({
+    workspaceId: workspace._id,
+    isActive: true,
+    dateKey: { $gte: keys[0], $lte: keys[keys.length - 1] },
+    $or: [{ entryKind: "holiday" }, { entryKind: { $exists: false } }],
+  })
+    .select("name description dateKey type source")
+    .lean()
+    .exec();
+  const holidayByDateKey = new Map(holidays.map((holiday) => [holiday.dateKey, holiday]));
+  const dailyWorkingSeconds = Math.round(
+    ((Number(workspace?.attendanceSettings?.weeklyWorkingHours) > 0
+      ? Number(workspace.attendanceSettings.weeklyWorkingHours) / 5
+      : 8) * 3600),
+  );
   const leaveByDateKey = new Map();
   for (const leave of approvedLeaves) {
     const startKey = (leave.startDate ? new Date(leave.startDate) : new Date()).toISOString().slice(0, 10);
@@ -1609,6 +1644,74 @@ export async function getMyAttendanceHistory(userId, query = {}) {
   for (const dateKey of keys) {
     const existing = recordMap.get(dateKey);
     const activeLeave = leaveByDateKey.get(dateKey) || null;
+    const activeHoliday = holidayByDateKey.get(dateKey) || null;
+    if (activeHoliday) {
+      rows.push({
+        recordId: `holiday-${user._id}-${dateKey}`,
+        id: `holiday-${user._id}-${dateKey}`,
+        userId: toId(user._id),
+        employeeName: user.name || "",
+        employeeId: "",
+        employeeRole: myRoleName,
+        department: myDepartmentLabel,
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: "holiday",
+        source: "system",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: formatDuration(dailyWorkingSeconds),
+        totalHours: Number((dailyWorkingSeconds / 3600).toFixed(2)),
+        overtime: 0,
+        isPresent: true,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
+        activeHoliday,
+        activeLeave: null,
+      });
+      continue;
+    }
+    const isFullDayLeave = activeLeave && String(activeLeave.leaveMode || "full_day") === "full_day";
+    if (isFullDayLeave) {
+      rows.push({
+        recordId: `leave-${user._id}-${dateKey}`,
+        id: `leave-${user._id}-${dateKey}`,
+        userId: toId(user._id),
+        employeeName: user.name || "",
+        employeeId: "",
+        employeeRole: myRoleName,
+        department: myDepartmentLabel,
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: "on_leave",
+        source: "system",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: formatDuration(dailyWorkingSeconds),
+        totalHours: Number((dailyWorkingSeconds / 3600).toFixed(2)),
+        overtime: 0,
+        isPresent: true,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
+        activeLeave,
+        activeHoliday: null,
+      });
+      continue;
+    }
     if (existing) {
       rows.push({
         ...(await formatRecordForFrontend(existing, membership)),
@@ -1834,6 +1937,22 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     }
   }
 
+  const holidays = await Holiday.find({
+    workspaceId: workspace._id,
+    isActive: true,
+    dateKey: { $gte: fromKey, $lte: toKey },
+    $or: [{ entryKind: "holiday" }, { entryKind: { $exists: false } }],
+  })
+    .select("name description dateKey type source")
+    .lean()
+    .exec();
+  const holidayByDateKey = new Map(holidays.map((holiday) => [holiday.dateKey, holiday]));
+  const dailyWorkingSeconds = Math.round(
+    ((Number(workspace?.attendanceSettings?.weeklyWorkingHours) > 0
+      ? Number(workspace.attendanceSettings.weeklyWorkingHours) / 5
+      : 8) * 3600),
+  );
+
   const rows = [];
   for (const member of uniqueVisibleMembers) {
     const memberDepartmentName = resolveDepartmentDisplayLabel(
@@ -1848,6 +1967,42 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       const dateIsFuture = dateKey > todayKey;
       const existing = recordByUserAndDate.get(`${memberUserId}:${dateKey}`);
       const activeLeave = leaveByUserAndDate.get(`${memberUserId}:${dateKey}`) || null;
+      const activeHoliday = holidayByDateKey.get(dateKey) || null;
+      const isFullDayLeave = activeLeave && String(activeLeave.leaveMode || "full_day") === "full_day";
+      if (activeHoliday || isFullDayLeave) {
+        const creditedStatus = activeHoliday ? "holiday" : "on_leave";
+        rows.push({
+          recordId: `${creditedStatus}-${member.user._id}-${dateKey}`,
+          id: `${creditedStatus}-${member.user._id}-${dateKey}`,
+          userId: memberUserId,
+          employeeName: member.user.name || member.user.email || "Unknown",
+          employeeId: empId,
+          employeeRole: getRoleName(member?.role || ""),
+          department: memberDepartmentName,
+          date: dateKey,
+          checkIn: "",
+          checkOut: "",
+          status: creditedStatus,
+          source: "system",
+          checkInLocation: "",
+          checkOutLocation: "",
+          checkInSelfie: "",
+          checkOutSelfie: "",
+          workingHours: formatDuration(dailyWorkingSeconds),
+          totalHours: Number((dailyWorkingSeconds / 3600).toFixed(2)),
+          overtime: 0,
+          isPresent: true,
+          isLate: false,
+          isEarlyDeparture: false,
+          lateMinutes: 0,
+          earlyMinutes: 0,
+          breaks: [],
+          correction: null,
+          activeLeave: activeHoliday ? null : activeLeave,
+          activeHoliday,
+        });
+        continue;
+      }
       if (existing) {
         rows.push({
           // department is already resolved above from populated, in-memory

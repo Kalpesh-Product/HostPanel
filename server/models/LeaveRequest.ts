@@ -11,7 +11,8 @@ export interface ILeaveRequest extends Document {
     department?: mongoose.Types.ObjectId | null;
     departments: mongoose.Types.ObjectId[];
     requesterRole: "founder" | "super_admin" | "admin" | "manager" | "employee";
-    leaveType: "Casual" | "Sick" | "Vacation";
+    leaveType: string;
+    leaveTypeId?: mongoose.Types.ObjectId | null;
     leaveMode: "full_day" | "half_day" | "hours";
     halfDaySession?: "" | "morning" | "evening";
     leaveHours?: number;
@@ -30,6 +31,9 @@ export interface ILeaveRequest extends Document {
     medicalCertMimeType?: string;
     actionedByUserId?: mongoose.Types.ObjectId | null;
     actionedByName?: string;
+    actionedByDesignation?: string;
+    actionedByDepartment?: string;
+    actionedAt?: Date | null;
     rejectionReason?: string;
     createdAt?: Date;
     updatedAt?: Date;
@@ -95,8 +99,15 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
         },
         leaveType: {
             type: String,
-            enum: ["Casual", "Sick", "Vacation"],
+            trim: true,
+            maxlength: 100,
             required: true,
+            index: true,
+        },
+        leaveTypeId: {
+            type: Schema.Types.ObjectId,
+            ref: "LeaveType",
+            default: null,
             index: true,
         },
         leaveMode: {
@@ -199,6 +210,22 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
             default: "",
             trim: true,
             maxlength: 140,
+        },
+        actionedByDesignation: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 140,
+        },
+        actionedByDepartment: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 140,
+        },
+        actionedAt: {
+            type: Date,
+            default: null,
         },
         rejectionReason: {
             type: String,

@@ -80,6 +80,7 @@ interface LinkedWorkspace {
   workspaceName?: string;
   location?: string;
   isCurrentWorkspace?: boolean;
+  isMain?: boolean;
   selectedPlan?: string;
   departments?: Array<{ id: string; name: string }>;
   [key: string]: unknown;
@@ -566,6 +567,12 @@ export default function AccessGrantsPage() {
     isFounderRole || !['owner', 'founder', 'super_admin'].includes(selectedUserRole)
   );
   const currentWorkspaceId = String(workspace?.id || '');
+  // Ownership transfer may only be initiated from the account's main unit (the
+  // unit the founder was first registered on, which can never be deleted).
+  const mainWorkspaceId = linkedWorkspaces.find((item) => item?.isMain === true)?.id
+    ? String(linkedWorkspaces.find((item) => item?.isMain === true)?.id || '')
+    : '';
+  const isMainUnitWorkspace = Boolean(mainWorkspaceId && currentWorkspaceId === mainWorkspaceId);
   const userOtherUnitAccessCount = Array.isArray(selectedUser?.workspaceAccesses)
     ? selectedUser.workspaceAccesses.filter((access) => String(access?.id || '') !== currentWorkspaceId).length
     : 0;
@@ -685,6 +692,23 @@ export default function AccessGrantsPage() {
     () => users.find((user) => String(user.id) === String(transferTargetUserId)) || null,
     [users, transferTargetUserId],
   );
+
+  const selectedOwnershipWorkspaceIds = useMemo(
+    () =>
+      Array.from(
+        new Set([currentWorkspaceId, ...ownershipTransferWorkspaceIds].filter(Boolean)),
+      ),
+    [ownershipTransferWorkspaceIds, currentWorkspaceId],
+  );
+
+  // Ownership handover covers the whole account: every linked unit must be
+  // selected before the transfer can be confirmed.
+  const allOwnershipUnitsSelected = useMemo(() => {
+    const allUnitIds = linkedWorkspaces
+      .map((item) => String(item.id || ''))
+      .filter(Boolean);
+    return allUnitIds.length > 0 && allUnitIds.every((id) => selectedOwnershipWorkspaceIds.includes(id));
+  }, [linkedWorkspaces, selectedOwnershipWorkspaceIds]);
 
   const getRoleBadge = (group) => {
     switch (group) {
@@ -1110,6 +1134,10 @@ export default function AccessGrantsPage() {
       toast.error('Only the workspace founder can transfer ownership.');
       return;
     }
+    if (!isMainUnitWorkspace) {
+      toast.error('Ownership can only be transferred from your main unit.');
+      return;
+    }
 
     const targetMemberId = transferTargetUser?.id || eligibleOwnershipCandidates[0]?.id;
     if (!targetMemberId) {
@@ -1126,7 +1154,6 @@ export default function AccessGrantsPage() {
 
     setIsSaving(true);
     try {
-      const currentWorkspaceId = String(workspace?.id || '');
       const workspaceIds = Array.from(
         new Set(
           [
@@ -1456,7 +1483,7 @@ export default function AccessGrantsPage() {
                   </select>
                 </div>
 
-                {/* Transfer Ownership */}
+                {/* Transfer Ownership — only allowed from the founder's main unit */}
                 {canEditAccessGrants && eligibleOwnershipCandidates.length > 0 && (
                   <button
                     onClick={() => {
@@ -1467,7 +1494,13 @@ export default function AccessGrantsPage() {
                       setShowTransferWarning(false);
                       setShowTransferDialog(true);
                     }}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                    disabled={!isMainUnitWorkspace}
+                    title={
+                      isMainUnitWorkspace
+                        ? undefined
+                        : 'Ownership can only be transferred from your main unit.'
+                    }
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#2563EB]"
                   >
                     <ArrowRightLeft size={13} strokeWidth={2.5} />
                     Transfer Ownership
@@ -2500,7 +2533,7 @@ export default function AccessGrantsPage() {
                 {!showTransferWarning ? (
                   <>
                     <p className="text-sm font-pmedium text-slate-500">
-                      Select the Super Admin who will become Founder, then choose the linked units included in this ownership handover.
+                      Select the Super Admin who will become Founder. All linked units are included — the new Founder takes over every one of them.
                     </p>
 
                     <div className="space-y-2">
@@ -2529,13 +2562,24 @@ export default function AccessGrantsPage() {
                       </div>
                     ) : null}
 
+                    {!allOwnershipUnitsSelected ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-xs font-semibold text-amber-900">
+                          Every linked unit must be selected to transfer ownership.
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-amber-700">
+                          The new Founder will take over all selected units. Check every unit to enable the transfer.
+                        </p>
+                      </div>
+                    ) : null}
+
                     <div className="space-y-2">
                       <div>
                         <p className="text-xs font-pmedium uppercase tracking-wider text-slate-500">
                           Linked Units
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
-                          The current unit is required. Select other units to add Founder access there in the same transfer.
+                          Every linked unit is included — the new Founder takes over all of them.
                         </p>
                       </div>
                       <div className="max-h-52 space-y-2 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
@@ -2598,7 +2642,7 @@ export default function AccessGrantsPage() {
                             Final warning before ownership transfer
                           </p>
                           <p className="text-sm leading-relaxed text-amber-800">
-                            The selected Super Admin will become Founder in every selected unit. The current Founder will remain in those units only as a linked Super Admin.
+                            The Founder will be transferred to <b>{transferTargetUser?.name || 'the selected user'}</b> in all these units. They will become Founder of every unit below, and the current Founder ({ownerName}) will remain in them only as a linked Super Admin.
                           </p>
                           <p className="text-xs font-medium text-amber-700">
                             New Founder: {transferTargetUser?.name || 'Unknown user'} - {transferTargetUser?.roleGroup || 'Super-Admin'} ({transferTargetUser?.email || 'Email unavailable'})
@@ -2657,7 +2701,8 @@ export default function AccessGrantsPage() {
                     !canEditAccessGrants ||
                     eligibleOwnershipCandidates.length === 0 ||
                     isReadOnlySession ||
-                    ownershipTransferWorkspaceIds.length === 0
+                    ownershipTransferWorkspaceIds.length === 0 ||
+                    !allOwnershipUnitsSelected
                   }
                   title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
                   className="rounded-2xl bg-red-500 px-5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-red-600 disabled:opacity-60"

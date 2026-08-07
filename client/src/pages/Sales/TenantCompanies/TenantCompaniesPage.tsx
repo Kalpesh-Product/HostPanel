@@ -37,12 +37,12 @@ import { SalesTenantCompaniesSkeleton } from '../../../components/ui/SalesPageSk
 import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
 
 const tenantLocationOptions = [
-  { floor: '501', wing: 'A', locationCode: '501A', label: '501 A' },
-  { floor: '501', wing: 'B', locationCode: '501B', label: '501 B' },
-  { floor: '601', wing: 'A', locationCode: '601A', label: '601 A' },
-  { floor: '601', wing: 'B', locationCode: '601B', label: '601 B' },
-  { floor: '701', wing: 'A', locationCode: '701A', label: '701 A' },
-  { floor: '701', wing: 'B', locationCode: '701B', label: '701 B' },
+  { floor: '', wing: '', locationCode: '', label: ' ' },
+  { floor: '', wing: '', locationCode: '', label: ' ' },
+  { floor: '', wing: '', locationCode: '', label: ' ' },
+  { floor: '', wing: '', locationCode: '', label: ' ' },
+  { floor: '', wing: '', locationCode: '', label: ' ' },
+  { floor: '', wing: '', locationCode: '', label: ' ' },
 ];
 
 const BULK_TEMPLATE_HEADERS = [
@@ -2208,7 +2208,7 @@ export default function TenantCompaniesPage() {
       { Field: 'HO State', Requirement: 'Optional', Notes: 'Head office state.' },
       { Field: 'HO City', Requirement: 'Optional', Notes: 'Head office city.' },
       { Field: 'Building Name', Requirement: 'Optional', Notes: 'Use Sunteck Kanaka for this template. Editable later in the manager screen.' },
-      { Field: 'Unit No', Requirement: 'Optional', Notes: 'Use floors 701, 601, or 501 with A or B understood, for example 701 A or 601 B.' },
+      { Field: 'Unit No', Requirement: 'Optional', Notes: ' for example 701 A or 601 B.' },
       { Field: 'Local POC Name', Requirement: 'Optional', Notes: 'Local point of contact name.' },
       { Field: 'Local POC Email', Requirement: 'Optional', Notes: 'Local point of contact email.' },
       { Field: 'Local POC Phone', Requirement: 'Optional', Notes: 'Local point of contact phone.' },
@@ -2230,7 +2230,7 @@ export default function TenantCompaniesPage() {
       { Field: 'HO State', Format: 'Text', Example: 'Maharashtra', Notes: 'Optional.' },
       { Field: 'HO City', Format: 'Text', Example: 'Mumbai', Notes: 'Optional.' },
       { Field: 'Building Name', Format: 'Text', Example: 'Sunteck Kanaka', Notes: 'Use this building name for the template.' },
-      { Field: 'Unit No', Format: 'Text', Example: '701 A', Notes: 'Use 701, 601, or 501 with A or B understood.' },
+      { Field: 'Unit No', Format: 'Text', Example: '701 A' },
       { Field: 'Local POC Name', Format: 'Text', Example: '[sample person name]', Notes: 'Optional.' },
       { Field: 'Local POC Email', Format: 'Text', Example: '[sample email]', Notes: 'Optional.' },
       { Field: 'Local POC Phone', Format: 'Text', Example: '[sample phone]', Notes: 'Optional.' },

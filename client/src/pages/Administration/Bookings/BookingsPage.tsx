@@ -306,7 +306,7 @@ function deriveRoomType(room: Record<string, unknown> = {}): string {
 
 function normalizeRoomCatalogEntry(room: Record<string, unknown> = {}): RoomCatalogEntry {
   const name = String(room.name || '').trim();
-  const floor = String(room.floor || '501').trim() || '501';
+  const floor = String(room.floor || '').trim() || '';
   const wing = String(room.wing || '').trim().toUpperCase();
   const type = String(room.type || '').trim() || deriveRoomType(room);
 

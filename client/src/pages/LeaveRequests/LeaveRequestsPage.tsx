@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect, useCallback, type FormEvent } from 'react';
 import {
   Search, Eye, X, Calendar, AlertCircle, CheckCircle2,
-  Clock, XCircle, Filter, User, Building2, ArrowRight, FileText, ShieldAlert,
+  Clock, XCircle, Filter, Building2, FileText, ShieldAlert,
   Send, CalendarDays, UploadCloud, Users, ThumbsUp, ThumbsDown, Plus, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import PageFrame from '@/components/Pages/PageFrame';
-import { getLeaveRequests, updateLeaveRequest, createLeaveRequest, uploadLeaveCertificate } from '@/services/leave-requests';
+import { getLeaveRequests, updateLeaveRequest, createLeaveRequest, uploadLeaveCertificate, getHolidays } from '@/services/leave-requests';
 import {
   canAccessAdminDashboard,
   canAccessFinanceDashboard,
@@ -21,6 +21,8 @@ import {
 import { extractDepartmentLabel } from '@/utils/user-helpers';
 import { LeaveSkeleton } from '@/components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
+import { toast } from 'sonner';
+import { getWorkspaceDateKey } from '@/lib/workspaceLocalization';
 
 interface LeaveRequest {
   recordId?: string;
@@ -28,6 +30,9 @@ interface LeaveRequest {
   status: string;
   rejectionReason?: string;
   actionedBy?: string;
+  actionedByDesignation?: string;
+  actionedByDepartment?: string;
+  actionedAt?: string;
   leaveMode: string;
   halfDaySession?: string;
   leaveHours?: number;
@@ -46,13 +51,20 @@ interface LeaveRequest {
   medicalCertName?: string;
   medicalCertUrl?: string;
   isMe?: boolean;
+  isApprovalRecipient?: boolean;
+  canAction?: boolean;
 }
 
-interface LeaveBalances {
-  Casual: { total: number; used: number; remaining: number };
-  Sick: { total: number; used: number; remaining: number };
-  Vacation: { total: number; used: number; remaining: number };
+interface LeaveTypeConfig {
+  id: string;
+  name: string;
+  code: string;
+  requiresBalance: boolean;
+  medicalCertificateAfterDays?: number | null;
+  color?: string;
 }
+
+type LeaveBalances = Record<string, { total: number; used: number; remaining: number }>;
 
 interface LeaveForm {
   type: string;
@@ -92,42 +104,52 @@ const getManagedOrganizationDepartments = (currentUser: any): string[] => {
 
 const toDateKey = (value: string) => value ? String(value).slice(0, 10) : '';
 
-const calculateInclusiveDays = (startValue: string, endValue: string): number => {
+const PARTIAL_LEAVE_DAY_HOURS = 10;
+const parseTimeMinutes = (value: string): number | null => {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+const formatMinutes12h = (minutes: number): string => {
+  const normalized = ((Math.round(minutes) % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+  return `${hours % 12 || 12}:${String(minute).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+};
+
+const isWorkingLeaveDate = (dateKey: string, holidayDateKeys: Set<string>): boolean => {
+  if (!dateKey) return false;
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.getUTCDay() !== 0 && !holidayDateKeys.has(dateKey);
+};
+
+const calculateWorkingDays = (startValue: string, endValue: string, holidayDateKeys: Set<string>): number => {
   if (!startValue || !endValue) return 0;
-  const start = new Date(`${startValue}T00:00:00.000Z`);
+  const cursor = new Date(`${startValue}T00:00:00.000Z`);
   const end = new Date(`${endValue}T00:00:00.000Z`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
-  return Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime()) || end < cursor) return 0;
+  let count = 0;
+  while (cursor <= end) {
+    const dateKey = cursor.toISOString().slice(0, 10);
+    if (isWorkingLeaveDate(dateKey, holidayDateKeys)) count += 1;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return count;
 };
 
-const calculateRequestedDays = ({ leaveMode, startValue, endValue, partialDayHours }: { leaveMode: string; startValue: string; endValue: string; partialDayHours?: number }): number => {
-  if (leaveMode === 'half_day') return startValue ? 0.5 : 0;
-  if (leaveMode === 'partial_day') return (partialDayHours || 0) / 8;
-  return calculateInclusiveDays(startValue, endValue);
+const calculateRequestedDays = ({ leaveMode, startValue, endValue, partialDayHours, holidayDateKeys }: { leaveMode: string; startValue: string; endValue: string; partialDayHours?: number; holidayDateKeys: Set<string> }): number => {
+  if (!isWorkingLeaveDate(startValue, holidayDateKeys)) return 0;
+  if (leaveMode === 'half_day') return 0.5;
+  if (leaveMode === 'partial_day') return Math.round(Math.min(1, (partialDayHours || 0) / PARTIAL_LEAVE_DAY_HOURS) * 100) / 100;
+  return calculateWorkingDays(startValue, endValue, holidayDateKeys);
 };
 
-const getLocalDateKey = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const normalizeLeaveMode = (value: string) => {
   const n = String(value || '').trim().toLowerCase();
   if (n === 'half_day' || n === 'half-day') return 'half_day';
   if (n === 'partial_day' || n === 'partial-day' || n === 'hours') return 'partial_day';
   return 'full_day';
-};
-
-const isAdministrationDepartmentLabel = (value: string) => {
-  const n = String(value || '').trim().toLowerCase().replace(/[_\s]+/g, '-');
-  return n === 'admin' || n === 'administration' || n.startsWith('admin-') || n.includes('administration');
-};
-
-const isHrDepartmentLabel = (value: string) => {
-  const n = String(value || '').trim().toLowerCase().replace(/[_\s]+/g, '-');
-  return n === 'hr' || n.startsWith('hr-') || n.includes('human-resources') || n.includes('hr-department') || n.includes('hr-team');
 };
 
 const normalizeHalfDaySession = (value: string) => {
@@ -137,17 +159,64 @@ const normalizeHalfDaySession = (value: string) => {
   return '';
 };
 
-const getHalfDaySessionLabel = (session: string) => {
-  if (session === 'morning') return 'Morning (9:30 AM - 1:30 PM)';
-  if (session === 'evening') return 'Evening (2:30 PM - 6:30 PM)';
+const getHalfDaySessionLabel = (session: string, dailyWorkingHours: number) => {
+  const halfDayHours = Math.round((dailyWorkingHours / 2) * 100) / 100;
+  if (session === 'morning') return `First Half (${halfDayHours} hrs)`;
+  if (session === 'evening') return `Second Half (${halfDayHours} hrs)`;
   return '';
 };
 
 const normalizeRole = (role: string) =>
   String(role || '').trim().toLowerCase().replace(/[_\s]+/g, '-');
 
+const ROLE_LABEL_UPPERCASE_WORDS = new Set(['hr', 'it']);
+const formatRoleLabel = (role?: string) => {
+  const raw = String(role || '').trim();
+  if (!raw) return '-';
+  return raw
+    .replace(/[_\s]+/g, '-')
+    .split('-')
+    .filter(Boolean)
+    .map((word) => (ROLE_LABEL_UPPERCASE_WORDS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .join(' ');
+};
+
+const formatDepartmentLabel = (department?: string) => {
+  const raw = String(department || '').trim();
+  if (!raw) return 'All Departments';
+  return raw
+    .split(/\s+/)
+    .map((word) => (ROLE_LABEL_UPPERCASE_WORDS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .join(' ');
+};
+
+const getInitials = (name?: string) => {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts.map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+};
+
+const formatActionedBy = (entry: { actionedBy?: string; actionedByDesignation?: string; actionedByDepartment?: string }) => {
+  const name = (entry.actionedBy || '').trim();
+  if (!name) return '-';
+  const bracket = [entry.actionedByDesignation, entry.actionedByDepartment].filter(Boolean).join(' · ');
+  return bracket ? `${name} (${bracket})` : name;
+};
+
+const formatLeaveModeLabel = (entry: { leaveMode?: string; halfDaySession?: string; leaveHours?: number }, dailyWorkingHours: number) => {
+  const leaveMode = normalizeLeaveMode(entry?.leaveMode || '');
+  if (leaveMode === 'half_day') {
+    return `Half Day${entry?.halfDaySession ? ` | ${getHalfDaySessionLabel(entry.halfDaySession, dailyWorkingHours)}` : ''}`;
+  }
+  if (leaveMode === 'partial_day') {
+    const hours = Number(entry?.leaveHours || 0);
+    return hours > 0 ? `${hours} ${hours === 1 ? 'Hour' : 'Hours'}` : 'Partial Day';
+  }
+  return 'Full Day';
+};
+
 const INITIAL_LEAVE_FORM: LeaveForm = {
-  type: 'Casual',
+  type: '',
   leaveMode: 'full_day',
   halfDaySession: '',
   partialDayHours: 0,
@@ -201,7 +270,7 @@ export function LeaveRequestsPage() {
   const isTechProfile = canAccessTechDashboard(currentUser);
   const isITProfile = canAccessITDashboard(currentUser);
   const isMaintenanceProfile = canAccessMaintenanceDashboard(currentUser);
-  const isDepartmentManagerProfile = isHrProfile || isAdministrationProfile || isSalesProfile || isFinanceProfile || isTechProfile || isITProfile || isMaintenanceProfile;
+  const isDepartmentManagerProfile = membershipRole === 'manager' || membershipRole === 'admin-manager' || isHrProfile || isAdministrationProfile || isSalesProfile || isFinanceProfile || isTechProfile || isITProfile || isMaintenanceProfile;
   const profile = {
     name: currentUser?.fullName || [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') || currentUser?.name || 'Super Admin',
     role: currentUser?.role || currentUser?.designation || (isOwnerProfile ? 'Founder' : 'Super-Admin'),
@@ -209,12 +278,7 @@ export function LeaveRequestsPage() {
 
   const canManageLeaveRequests = isDepartmentManagerProfile || isAdminProfile || isSuperAdminProfile || isOwnerProfile;
   const [activeTab, setActiveTab] = useState(
-    isActingManagerView ? 'leave-requests'
-    : isHrPersonalLeaveRoute ? 'my-leaves'
-    : (isOwnerProfile || isSuperAdminProfile) ? 'company-leaves'
-    : isAdminProfile && assignedDepartmentNames.length > 0 ? 'assigned-dept-leaves'
-    : canManageLeaveRequests ? 'leave-requests'
-    : 'my-leaves',
+    isActingManagerView ? 'leave-requests' : 'my-leaves',
   );
   const [requestQueueStatus, setRequestQueueStatus] = useState('all');
   const [myLeaveStatus, setMyLeaveStatus] = useState('all');
@@ -228,16 +292,21 @@ export function LeaveRequestsPage() {
   const [formData, setFormData] = useState<LeaveForm>(INITIAL_LEAVE_FORM);
   const [medicalCertFile, setMedicalCertFile] = useState<File | null>(null);
   const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
-  const [leaveBalances, setLeaveBalances] = useState<LeaveBalances>({
-    Casual: { total: 0, used: 0, remaining: 0 },
-    Sick: { total: 0, used: 0, remaining: 0 },
-    Vacation: { total: 0, used: 0, remaining: 0 },
-  });
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalances>({});
+  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeConfig[]>([]);
+  const [dailyWorkingHours, setDailyWorkingHours] = useState(8);
+  const [workingSchedule, setWorkingSchedule] = useState({ start: '09:30', end: '18:30', breakMinutes: 60, timezone: 'Asia/Kolkata' });
+  const [holidayDatesByYear, setHolidayDatesByYear] = useState<Record<string, string[]>>({});
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [allEntries, setAllEntries] = useState<LeaveRequest[]>([]);
-  const todayDateKey = useMemo(() => getLocalDateKey(), []);
+  const todayDateKey = useMemo(() => getWorkspaceDateKey(new Date(), workingSchedule.timezone), [workingSchedule.timezone]);
+  const holidayDateKeys = useMemo(
+    () => new Set(Object.values(holidayDatesByYear).flat()),
+    [holidayDatesByYear],
+  );
 
   const adminDepartmentKeys = useMemo(
     () => new Set(currentUserDepartments.map((d: string) => normalizeRole(d)).filter(Boolean)),
@@ -268,11 +337,25 @@ export function LeaveRequestsPage() {
       try {
         const response = await getLeaveRequests();
         if (!isMounted) return;
-        const entries = response?.data?.leaveRequests || [];
-        const balances = response?.data?.leaveBalances;
-        if (balances?.Casual && balances?.Sick && balances?.Vacation) {
-          setLeaveBalances(balances);
-        }
+        const data = response?.data || response || {};
+        const entries = data.leaveRequests || [];
+        const balanceData = data.leaveBalances || {};
+        const configuredTypes = Array.isArray(balanceData.leaveTypes) ? balanceData.leaveTypes : [];
+        setLeaveTypes(configuredTypes);
+        setLeaveBalances(balanceData.balances || {});
+        setDailyWorkingHours(Math.max(1, Number(balanceData.dailyWorkingHours) || 8));
+        setWorkingSchedule({
+          start: String(balanceData.workingHoursStart || '09:30'),
+          end: String(balanceData.workingHoursEnd || '18:30'),
+          breakMinutes: Math.max(0, Number(balanceData.breakDurationMinutes ?? 60) || 0),
+          timezone: String(balanceData.timezone || 'Asia/Kolkata'),
+        });
+        setFormData((prev) => ({
+          ...prev,
+          type: configuredTypes.some((type: LeaveTypeConfig) => type.id === prev.type)
+            ? prev.type
+            : (configuredTypes[0]?.id || ""),
+        }));
         setAllEntries(entries.map(normalizeLeaveRequest));
         setErrorMessage('');
       } catch (error: any) {
@@ -282,8 +365,38 @@ export function LeaveRequestsPage() {
       }
     };
     loadLeaveRequests();
-    return () => { isMounted = false; };
+    const intervalId = window.setInterval(loadLeaveRequests, 3000);
+    return () => { isMounted = false; window.clearInterval(intervalId); };
   }, []);
+
+  useEffect(() => {
+    const years = Array.from(new Set(
+      [todayDateKey, formData.start, formData.end]
+        .filter(Boolean)
+        .map((dateKey) => String(dateKey).slice(0, 4)),
+    ));
+    const missingYears = years.filter((year) => !(year in holidayDatesByYear));
+    if (missingYears.length === 0) return;
+
+    let isMounted = true;
+    Promise.all(missingYears.map(async (year) => {
+      const response = await getHolidays({ year: Number(year) });
+      const holidays = Array.isArray(response?.holidays) ? response.holidays : [];
+      return [year, holidays
+        .filter((holiday: any) => holiday?.entryKind !== 'event' && holiday?.isActive !== false)
+        .map((holiday: any) => toDateKey(holiday?.date || holiday?.dateKey || ''))
+        .filter(Boolean)] as const;
+    }))
+      .then((entries) => {
+        if (!isMounted) return;
+        setHolidayDatesByYear((previous) => ({ ...previous, ...Object.fromEntries(entries) }));
+      })
+      .catch(() => {
+        // The server remains authoritative if a holiday preview request fails.
+      });
+
+    return () => { isMounted = false; };
+  }, [formData.end, formData.start, holidayDatesByYear, todayDateKey]);
 
   useEffect(() => {
     if (isActingManagerView) {
@@ -294,9 +407,8 @@ export function LeaveRequestsPage() {
       if (activeTab !== 'my-leaves') setActiveTab('my-leaves');
       return;
     }
-    const defaultTab = isOwnerProfile || isSuperAdminProfile ? 'company-leaves'
-      : isAdminProfile && assignedDepartmentNames.length > 0 ? 'assigned-dept-leaves'
-      : canManageLeaveRequests ? 'leave-requests' : 'my-leaves';
+    const defaultTab = 'my-leaves';
+
     const allowedTabs = new Set(['my-leaves']);
     if (isOwnerProfile || isSuperAdminProfile) allowedTabs.add('company-leaves');
     if (isAdminProfile && assignedDepartmentNames.length > 0) allowedTabs.add('assigned-dept-leaves');
@@ -320,25 +432,42 @@ export function LeaveRequestsPage() {
       return;
     }
     if (formData.leaveMode === 'partial_day') {
-      setFormData((prev) => ({ ...prev, days: (prev.partialDayHours || 0) / 8 }));
+      setFormData((prev) => ({ ...prev, days: Math.round(Math.min(1, (prev.partialDayHours || 0) / PARTIAL_LEAVE_DAY_HOURS) * 100) / 100 }));
       return;
     }
     if (formData.end) {
-      setFormData((prev) => ({ ...prev, days: calculateInclusiveDays(prev.start, prev.end) }));
+      setFormData((prev) => ({ ...prev, days: calculateWorkingDays(prev.start, prev.end, holidayDateKeys) }));
     }
-  }, [formData.start, formData.end, formData.leaveMode, formData.partialDayHours]);
+  }, [dailyWorkingHours, formData.start, formData.end, formData.leaveMode, formData.partialDayHours, holidayDateKeys]);
 
   const requestedDays = useMemo(
-    () => calculateRequestedDays({ leaveMode: formData.leaveMode, startValue: formData.start, endValue: formData.end, partialDayHours: formData.partialDayHours }),
-    [formData.leaveMode, formData.start, formData.end, formData.partialDayHours],
+    () => calculateRequestedDays({ leaveMode: formData.leaveMode, startValue: formData.start, endValue: formData.end, partialDayHours: formData.partialDayHours, holidayDateKeys }),
+    [formData.leaveMode, formData.start, formData.end, formData.partialDayHours, holidayDateKeys],
   );
 
-  const selectedBalance = leaveBalances[formData.type as keyof LeaveBalances] || { total: 0, used: 0, remaining: 0 };
+  const halfDaySlots = useMemo(() => {
+    const configuredStart = parseTimeMinutes(workingSchedule.start);
+    const configuredEnd = parseTimeMinutes(workingSchedule.end);
+    const startMinutes = configuredStart ?? 9 * 60 + 30;
+    const fallbackEnd = startMinutes + Math.round(dailyWorkingHours * 60) + workingSchedule.breakMinutes;
+    const endMinutes = configuredEnd != null && configuredEnd > startMinutes ? configuredEnd : fallbackEnd;
+    const workingMinutes = Math.max(60, endMinutes - startMinutes - workingSchedule.breakMinutes);
+    const halfMinutes = workingMinutes / 2;
+    const firstEnd = startMinutes + halfMinutes;
+    const secondStart = firstEnd + workingSchedule.breakMinutes;
+    return [
+      { value: 'morning', label: 'First Half', time: `${formatMinutes12h(startMinutes)} - ${formatMinutes12h(firstEnd)}`, hours: halfMinutes / 60 },
+      { value: 'evening', label: 'Second Half', time: `${formatMinutes12h(secondStart)} - ${formatMinutes12h(endMinutes)}`, hours: halfMinutes / 60 },
+    ];
+  }, [dailyWorkingHours, workingSchedule]);
+
+  const selectedLeaveType = leaveTypes.find((type) => type.id === formData.type) || null;
+  const selectedBalance = leaveBalances[formData.type] || { total: 0, used: 0, remaining: 0 };
   const remainingBalance = Number(selectedBalance.remaining || 0);
-  const isBalanceExceeded = requestedDays > remainingBalance;
-  const requiresMedicalCert = formData.type === 'Sick' && requestedDays >= 2;
-  const canSubmitHalfDay = formData.leaveMode === 'half_day' ? Boolean(formData.halfDaySession && formData.start) : true;
-  const canSubmitPartialDay = formData.leaveMode === 'partial_day' ? formData.partialDayHours >= 1 && Boolean(formData.start) : true;
+  const isBalanceExceeded = selectedLeaveType?.requiresBalance !== false && requestedDays > remainingBalance;
+  const medicalCertificateThreshold = selectedLeaveType?.medicalCertificateAfterDays ??
+    (/sick/i.test(`${selectedLeaveType?.code || ''} ${selectedLeaveType?.name || ''}`) ? 2 : null);
+  const requiresMedicalCert = medicalCertificateThreshold != null && requestedDays > Number(medicalCertificateThreshold);
   const selectedDepartmentKey = normalizeRole(
     currentUser?.workspaceMembership?.department ||
       currentUser?.department ||
@@ -401,7 +530,21 @@ export function LeaveRequestsPage() {
   }, [allEntries, currentUserId, formData.end, formData.leaveMode, formData.start]);
 
   const hasApprovedLeaveConflict = Boolean(currentLeaveConflict);
-  const isFormValid = !isBalanceExceeded && !hasApprovedLeaveConflict && canSubmitHalfDay && canSubmitPartialDay && requestedDays > 0 && formData.reason.trim() !== '' && (!requiresMedicalCert || (requiresMedicalCert && medicalCertFile !== null));
+  const formValidationMessage = (() => {
+    if (!formData.type) return 'Select a leave category.';
+    if (!formData.start) return 'Select the leave date.';
+    if (formData.start < todayDateKey) return 'Past dates cannot be selected for this unit.';
+    if (formData.leaveMode === 'full_day' && !formData.end) return 'Select the leave end date.';
+    if (formData.end && formData.end < formData.start) return 'End date must be on or after the start date.';
+    if (formData.leaveMode === 'half_day' && !formData.halfDaySession) return 'Select the first-half or second-half slot.';
+    if (formData.leaveMode === 'partial_day' && (formData.partialDayHours < 0.5 || formData.partialDayHours > dailyWorkingHours)) return `Select partial leave between 30 minutes and ${dailyWorkingHours} hours.`;
+    if (requestedDays <= 0) return 'The selected date or range contains no working days. Sundays and company holidays are excluded.';
+    if (formData.reason.trim().length < 3) return 'Enter a reason of at least 3 characters.';
+    if (requiresMedicalCert && !medicalCertFile) return `Upload a medical certificate for sick leave longer than ${medicalCertificateThreshold} days.`;
+    if (isBalanceExceeded) return 'The requested duration exceeds your available leave balance.';
+    if (hasApprovedLeaveConflict) return 'You already have approved leave during the selected dates.';
+    return '';
+  })();
   const isTeamCapacityLow = formData.start && requestedDays > 2;
 
   const thisMonth = new Date().getMonth();
@@ -424,30 +567,20 @@ export function LeaveRequestsPage() {
     Boolean(item.department) && assignedDepartmentKeys.has(normalizeRole(item.department)) && normalizeRole(item.requesterRole) === 'employee',
   [assignedDepartmentKeys]);
   const canViewApprovalQueueRequest = useCallback((item: LeaveRequest, isMyEntry: boolean) => {
-    if (isMyEntry) return false;
-    if (!canManageLeaveRequests) return false;
-    const requesterRole = normalizeRole(item.requesterRole);
-    const requesterDepartment = normalizeRole(item.department);
-    const isEmployeeRequest = requesterRole === 'employee' || requesterRole === 'staff';
-    const isManagerRequest = requesterRole === 'manager';
-    const isAdminRequest = requesterRole === 'admin' || requesterRole === 'admin-manager';
-    const isSuperAdminRequest = requesterRole === 'super-admin';
-    if (isActingManagerView) return isEmployeeRequest && Boolean(requesterDepartment) && requesterDepartment === normalizeRole(actingContext?.departmentName);
-    if (isOwnerProfile) return isSuperAdminRequest;
-    if (isSuperAdminProfile) return isAdminRequest || isManagerRequest;
-    if (isHrProfile) return true;
-    if (isAdminProfile) {
-      const matchesDepartment = assignedDepartmentKeys.has(requesterDepartment) || currentUserDepartments.some((d: string) => normalizeRole(d) === requesterDepartment);
-      return isManagerRequest && Boolean(requesterDepartment) && matchesDepartment;
-    }
-    const itemDepartment = normalizeRole(item.department);
-    const matchesDepartment = assignedDepartmentKeys.has(itemDepartment) || currentUserDepartments.some((d: string) => normalizeRole(d) === itemDepartment);
-    return isEmployeeRequest && Boolean(requesterDepartment) && matchesDepartment;
-  }, [canManageLeaveRequests, isActingManagerView, actingContext, isOwnerProfile, isSuperAdminProfile, isHrProfile, isAdminProfile, assignedDepartmentKeys, currentUserDepartments]);
+    if (isMyEntry || !canManageLeaveRequests) return false;
+    // HR's shared queue only surfaces employee-submitted requests here;
+    // requests from managers/admins/HR/etc. are handled in HR's dedicated
+    // Leave Requests Processing console instead.
+    if (isHrProfile) return normalizeRole(item.requesterRole) === 'employee';
+    return item.isApprovalRecipient === true;
+  }, [canManageLeaveRequests, isHrProfile]);
 
-  const canCurrentUserActionRequest = useCallback((item: LeaveRequest, isMyEntry: boolean) => item.status === 'pending' && canViewApprovalQueueRequest(item, isMyEntry), [canViewApprovalQueueRequest]);
-
-  const availableBalance = Object.values(leaveBalances).reduce((sum, b) => sum + (b.remaining || 0), 0);
+  const canCurrentUserActionRequest = useCallback(
+    (item: LeaveRequest, isMyEntry: boolean) =>
+      !isMyEntry && item.status === 'pending' && item.canAction === true,
+    [],
+  );
+  const availableBalance = Object.values(leaveBalances).reduce((sum, balance) => sum + Math.max(0, Number(balance.remaining) || 0), 0);
 
   const tabCards = useMemo((): { key: string; label: string; value: number | string; cardClass: string; icon: any; iconClass: string }[] => {
     if (activeTab === 'my-leaves') {
@@ -527,7 +660,8 @@ export function LeaveRequestsPage() {
     setErrorMessage('');
     try {
       const response = await updateLeaveRequest(viewingRequest.recordId, { status: 'approved' });
-      const updated = response?.data?.leaveRequest ? normalizeLeaveRequest(response.data.leaveRequest) : null;
+      const updatedPayload = response?.data?.leaveRequest || response?.leaveRequest;
+      const updated = updatedPayload ? normalizeLeaveRequest(updatedPayload) : null;
       if (updated) setAllEntries((prev) => prev.map((r) => (r.recordId === updated.recordId ? updated : r)));
       setViewingRequest(null);
       setIsRejecting(false);
@@ -545,7 +679,8 @@ export function LeaveRequestsPage() {
     setErrorMessage('');
     try {
       const response = await updateLeaveRequest(viewingRequest.recordId, { status: 'rejected', rejectionReason });
-      const updated = response?.data?.leaveRequest ? normalizeLeaveRequest(response.data.leaveRequest) : null;
+      const updatedPayload = response?.data?.leaveRequest || response?.leaveRequest;
+      const updated = updatedPayload ? normalizeLeaveRequest(updatedPayload) : null;
       if (updated) setAllEntries((prev) => prev.map((r) => (r.recordId === updated.recordId ? updated : r)));
       setViewingRequest(null);
       setIsRejecting(false);
@@ -559,7 +694,7 @@ export function LeaveRequestsPage() {
 
   const handleSubmitOwnLeave = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
+    if (formValidationMessage) { toast.error(formValidationMessage); return; }
     setIsSubmittingLeave(true);
     setErrorMessage('');
     try {
@@ -571,12 +706,13 @@ export function LeaveRequestsPage() {
         uploadedCert = uploadResponse?.data?.certificate || null;
       }
       const payload = {
-        leaveType: formData.type,
+        leaveTypeId: formData.type,
+        leaveType: selectedLeaveType?.name || "",
         leaveMode: formData.leaveMode === 'partial_day' ? 'hours' : formData.leaveMode,
         leaveHours: formData.leaveMode === 'partial_day' ? (Number(formData.partialDayHours) || 0) : undefined,
         halfDaySession: formData.leaveMode === 'half_day' ? (normalizeHalfDaySession(formData.halfDaySession) || undefined) : undefined,
         startDate: formData.start,
-        endDate: formData.end,
+        endDate: formData.end || formData.start,
         days: requestedDays,
         reason: formData.reason,
         medicalCertAttached: !!medicalCertFile,
@@ -586,11 +722,12 @@ export function LeaveRequestsPage() {
         medicalCertMimeType: uploadedCert?.mimeType || '',
       };
       const response = await createLeaveRequest(payload);
-      const newEntry = response?.data?.leaveRequest ? normalizeLeaveRequest(response.data.leaveRequest) : null;
+      const createdPayload = response?.data?.leaveRequest || response?.leaveRequest;
+      const newEntry = createdPayload ? normalizeLeaveRequest(createdPayload) : null;
       if (newEntry) setAllEntries(prev => [newEntry, ...prev]);
       setIsApplyModalOpen(false);
       setActiveTab('my-leaves');
-      setFormData(INITIAL_LEAVE_FORM);
+      setFormData({ ...INITIAL_LEAVE_FORM, type: leaveTypes[0]?.id || "" });
       setMedicalCertFile(null);
     } catch (error: any) {
       setErrorMessage(error.message || 'Failed to submit leave request.');
@@ -620,6 +757,7 @@ export function LeaveRequestsPage() {
   const showAssignedDepartmentTabs = !isActingManagerView && !isHrPersonalLeaveRoute && isAdminProfile && assignedDepartmentNames.length > 0;
   const showCompanyTabs = !isActingManagerView && !isHrPersonalLeaveRoute && (isOwnerProfile || isSuperAdminProfile);
   const showApprovalTabs = !isHrPersonalLeaveRoute && canManageLeaveRequests;
+  const isMyLeavesTab = activeTab === 'my-leaves';
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -627,71 +765,6 @@ export function LeaveRequestsPage() {
       case 'rejected': return <span className={statusPillClass("Rejected")}>Rejected</span>;
       default: return <span className={statusPillClass("Pending")}>Pending</span>;
     }
-  };
-
-  const getLeaveTypeBadge = (type?: string) => {
-    if (type === 'Sick') return <span className={statusPillClass(type)}>{type}</span>;
-    if (type === 'Vacation') return <span className={statusPillClass(type)}>{type}</span>;
-    return <span className={statusPillClass(type || 'Casual')}>{type || 'Casual'}</span>;
-  };
-
-  const getLeaveModeBadge = (entry: LeaveRequest) => {
-    const leaveMode = normalizeLeaveMode(entry?.leaveMode || '');
-    if (leaveMode === 'half_day') {
-      return (
-        <span className={statusPillClass("Half Day")}>
-          Half Day{entry?.halfDaySession ? ` | ${getHalfDaySessionLabel(entry.halfDaySession)}` : ''}
-        </span>
-      );
-    }
-    if (leaveMode === 'partial_day') {
-      const hours = Number(entry?.leaveHours || 0);
-      return (
-        <span className={statusPillClass("Half Day")}>
-          {hours > 0 ? `${hours} ${hours === 1 ? 'Hour' : 'Hours'}` : 'Partial Day'}
-        </span>
-      );
-    }
-    return (
-      <span className={statusPillClass("Full Day")}>
-        Full Day
-      </span>
-    );
-  };
-
-  const getApprovalFlowMeta = (entry: LeaveRequest) => {
-    const requesterRole = (entry?.requesterRole || '').toLowerCase();
-    const requesterDepartment = normalizeRole(entry?.department);
-    const status = (entry?.status || '').toLowerCase();
-    const actionedByRaw = (entry?.actionedBy || '').trim();
-    if (status === 'pending') {
-      if (requesterRole === 'employee' || requesterRole === 'staff') {
-        if (isHrDepartmentLabel(requesterDepartment)) return { label: 'Pending with HR Manager', tone: 'amber' };
-        if (isAdministrationDepartmentLabel(requesterDepartment)) return { label: 'Pending with Admin Manager and HR', tone: 'amber' };
-        return { label: 'Pending with Manager and HR', tone: 'amber' };
-      }
-      if (requesterRole === 'owner') return { label: 'Pending with HR Manager', tone: 'amber' };
-      if (requesterRole === 'super-admin') return { label: 'Pending with Founder / HR Manager', tone: 'amber' };
-      if (requesterRole === 'admin' || requesterRole === 'admin-manager') return { label: 'Pending with Super Admin / HR Manager', tone: 'amber' };
-      if (requesterRole === 'manager') {
-        if (isHrDepartmentLabel(requesterDepartment)) return { label: 'Pending with Assigned Admin or Super Admin', tone: 'amber' };
-        return { label: 'Pending with Assigned Admin or Super Admin and HR', tone: 'amber' };
-      }
-      if (isAdministrationDepartmentLabel(requesterDepartment)) return { label: 'Pending with Super Admin', tone: 'amber' };
-      if (isHrDepartmentLabel(requesterDepartment)) return { label: 'Pending with Super Admin', tone: 'amber' };
-      return { label: 'Pending review', tone: 'amber' };
-    }
-    if (status === 'approved') return { label: actionedByRaw ? `Approved by ${actionedByRaw}` : 'Approved', tone: 'emerald' };
-    if (status === 'rejected') return { label: actionedByRaw ? `Rejected by ${actionedByRaw}` : 'Rejected', tone: 'rose' };
-    return { label: 'In progress', tone: 'slate' };
-  };
-
-  const getApprovalFlowBadge = (entry: LeaveRequest) => {
-    const flow = getApprovalFlowMeta(entry);
-    if (flow.tone === 'emerald') return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
-    if (flow.tone === 'rose') return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
-    if (flow.tone === 'amber') return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
-    return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
   };
 
   const isViewingOwnEntry = viewingRequest
@@ -709,7 +782,7 @@ export function LeaveRequestsPage() {
       if (showAssignedDepartmentTabs) tabs.push({ id: 'assigned-dept-leaves', label: 'Assigned Dept Leaves' });
       if (showCompanyTabs) tabs.push({ id: 'company-leaves', label: 'Company Leaves' });
       if (showApprovalTabs) tabs.push({ id: 'leave-requests', label: 'Leave Requests' });
-      tabs.push({ id: 'my-leaves', label: 'My Leaves' });
+      tabs.unshift({ id: 'my-leaves', label: 'My Leaves' });
     }
     return tabs;
   }, [isActingManagerView, showAssignedDepartmentTabs, showCompanyTabs, showApprovalTabs]);
@@ -737,7 +810,7 @@ export function LeaveRequestsPage() {
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">{errorMessage}</div>
             ) : null}
 
-            {/* 2. MAIN TABS (Pill-Style Navigation) — above cards per DESIGN.md */}
+            {/* 2. MAIN TABS (Pill-Style Navigation) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â above cards per DESIGN.md */}
             {mainTabs.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
                 {mainTabs.map((tab) => (
@@ -755,7 +828,7 @@ export function LeaveRequestsPage() {
               </div>
             )}
 
-            {/* 3. STAT CARDS — per-tab contextual cards */}
+            {/* 3. STAT CARDS ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â per-tab contextual cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {tabCards.map((card) => {
                 const Icon = card.icon;
@@ -805,7 +878,7 @@ export function LeaveRequestsPage() {
                     ))}
                   </div>
                 )}
-                {activeTab === 'my-leaves' && isDepartmentManagerProfile && (
+                {activeTab === 'my-leaves' && (
                   <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     {['all', 'pending', 'approved', 'rejected'].map((status) => (
                       <button
@@ -860,9 +933,15 @@ export function LeaveRequestsPage() {
                       </div>
                     </>
                   )}
-                  {!isActingManagerView && (
+                  {!isActingManagerView && activeTab === 'my-leaves' && (
                     <button
-                      onClick={() => setIsApplyModalOpen(true)}
+                      onClick={() => {
+                        if (leaveTypes.length === 0) {
+                          toast.error('Leave types are not configured. Contact your HR manager to enable them.');
+                          return;
+                        }
+                        setIsApplyModalOpen(true);
+                      }}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <Plus size={13} strokeWidth={3} /> APPLY LEAVE
@@ -874,62 +953,89 @@ export function LeaveRequestsPage() {
               {/* Table (Desktop) / Cards (Mobile) */}
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
                 {/* Desktop Table */}
-                <table className="hidden lg:table w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <table className={`hidden lg:table w-full text-left ${isMyLeavesTab ? 'min-w-[1080px]' : 'min-w-[1200px]'}`}>
+                  <thead className="bg-slate-50/80 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-5 py-4">Employee / Role</th>
-                      <th className="px-5 py-4">Leave Type</th>
-                      <th className="px-5 py-4">Duration</th>
-                      <th className="px-5 py-4 text-center">Status</th>
-                      <th className="px-5 py-4">Workflow</th>
-                      {activeTab === 'company-leaves' && showCompanyTabs && <th className="px-5 py-4">Managed By</th>}
-                      <th className="px-5 py-4 text-right">Actions</th>
+                      {isMyLeavesTab ? (
+                        <>
+                          <th className="px-4 py-4">Type</th>
+                          <th className="px-4 py-4">From</th>
+                          <th className="px-4 py-4">To</th>
+                          <th className="px-4 py-4">Duration</th>
+                          <th className="px-4 py-4">Leave Mode</th>
+                          <th className="px-4 py-4 text-center">Status</th>
+                          <th className="px-4 py-4">Approved By</th>
+                          <th className="px-4 py-4 text-right">Action</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="px-4 py-4">Employee ID</th>
+                          <th className="px-4 py-4">Employee Name</th>
+                          <th className="px-4 py-4">Role</th>
+                          <th className="px-4 py-4">Department</th>
+                          <th className="px-4 py-4">Type</th>
+                          <th className="px-4 py-4">From</th>
+                          <th className="px-4 py-4">To</th>
+                          <th className="px-4 py-4">Duration</th>
+                          <th className="px-4 py-4 text-center">Status</th>
+                          <th className="px-4 py-4 text-right">Action</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredData.map((item) => (
-                      <tr key={item.recordId || item.id} className="hover:bg-slate-50/50 transition-all group">
-                        <td className="px-5 py-4 align-top">
-                          <p className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px] flex items-center gap-2">
-                            <User size={14} className="text-slate-400" />
-                            {item.employeeName}
-                          </p>
-                          {item.employeeId && (
-                            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{item.employeeId}</p>
-                          )}
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">
-                            {item.department || <span className="text-slate-600 font-pmedium">GLOBAL</span>} &bull; <span className="text-slate-700">{item.requesterRole}</span>
-                          </p>
-                        </td>
-                        <td className="px-5 py-4 align-top">
-                          {getLeaveTypeBadge(item.leaveType)}
-                          <div className="mt-2 flex flex-wrap gap-1.5">{getLeaveModeBadge(item)}</div>
-                          <p className="text-[11px] font-pmedium text-slate-500 uppercase mt-2">{item.days} Total {item.days && item.days > 1 ? 'Days' : 'Day'}</p>
-                        </td>
-                        <td className="px-5 py-4 align-top">
-                          <p className="font-pmedium text-[#0F172A] text-[13px] flex items-center gap-1.5"><Calendar size={14} className="text-slate-400" /> {item.startDate}</p>
-                          <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1 ml-5">To: {item.endDate}</p>
-                        </td>
-                        <td className="px-5 py-4 align-top text-center">{getStatusBadge(item.status)}</td>
-                        <td className="px-5 py-4 align-top">{getApprovalFlowBadge(item)}</td>
-                        {activeTab === 'company-leaves' && showCompanyTabs && (
-                          <td className="px-5 py-4 align-top">
-                            {item.actionedBy ? (
-                              <span className={statusPillClass(item.actionedBy)}>{item.actionedBy}</span>
-                            ) : (
-                              <span className={statusPillClass("Awaiting Action")}>Awaiting Action</span>
-                            )}
-                          </td>
+                      <tr key={item.recordId || item.id} className="group transition-colors hover:bg-blue-50/30">
+                        {isMyLeavesTab ? (
+                          <>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600">{item.leaveType || 'Leave'}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-[#0F172A] whitespace-nowrap">{item.startDate || '-'}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-[#0F172A] whitespace-nowrap">{item.endDate || item.startDate || '-'}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{item.days ?? 0} {item.days === 1 ? 'Day' : 'Days'}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{formatLeaveModeLabel(item, dailyWorkingHours)}</td>
+                            <td className="px-4 py-4 align-middle text-center">{getStatusBadge(item.status)}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{item.actionedBy ? formatActionedBy(item) : '-'}</td>
+                            <td className="px-4 py-4 align-middle text-right">
+                              <button
+                                type="button"
+                                onClick={() => { setViewingRequest(item); setIsRejecting(false); setRejectionReason(''); }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB]"
+                                title="View request"
+                              >
+                                <Eye size={14} strokeWidth={2.25} />
+                              </button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-500">{item.employeeId || '-'}</td>
+                            <td className="px-4 py-4 align-middle">
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#2563EB] to-[#1e40af] text-white text-[11px] font-semibold shadow-sm">
+                                  {getInitials(item.employeeName)}
+                                </div>
+                                <p className="whitespace-nowrap text-[12px] font-pmedium text-[#0F172A]">{item.employeeName || '-'}</p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600">{formatRoleLabel(item.requesterRole)}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600">{formatDepartmentLabel(item.department)}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600">{item.leaveType || 'Leave'}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-[#0F172A] whitespace-nowrap">{item.startDate || '-'}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-[#0F172A] whitespace-nowrap">{item.endDate || item.startDate || '-'}</td>
+                            <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{item.days ?? 0} {item.days === 1 ? 'Day' : 'Days'}</td>
+                            <td className="px-4 py-4 align-middle text-center">{getStatusBadge(item.status)}</td>
+                            <td className="px-4 py-4 align-middle text-right">
+                              <button
+                                type="button"
+                                onClick={() => { setViewingRequest(item); setIsRejecting(false); setRejectionReason(''); }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB]"
+                                title={activeTab === 'leave-requests' ? 'Review request' : 'View request'}
+                              >
+                                <Eye size={14} strokeWidth={2.25} />
+                              </button>
+                            </td>
+                          </>
                         )}
-                        <td className="px-5 py-4 align-top text-right">
-                          <button
-                            onClick={() => { setViewingRequest(item); setIsRejecting(false); setRejectionReason(''); }}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                            title={activeTab === 'leave-requests' ? 'Review' : 'View'}
-                          >
-                            <Eye size={15} strokeWidth={2.5} />
-                          </button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -940,36 +1046,53 @@ export function LeaveRequestsPage() {
                   {filteredData.map((item) => (
                     <div key={item.recordId || item.id} className="bg-white border border-slate-200/60 shadow-sm rounded-[20px] p-4 sm:p-5 flex flex-col gap-3">
                       <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${item.requesterRole === 'Admin' ? 'bg-indigo-50 border-indigo-100' : 'bg-blue-50 border-blue-100'}`}>
-                            <User className={item.requesterRole === 'Admin' ? 'text-indigo-600' : 'text-[#2563EB]'} size={18} />
-                          </div>
+                        {isMyLeavesTab ? (
                           <div>
-                            <h3 className="text-[14px] font-bold text-[#0F172A] leading-tight mb-1">{item.employeeName}</h3>
-                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-                              {item.department || <span className="text-indigo-600 font-black">GLOBAL</span>} &bull; {item.requesterRole}
-                            </p>
+                            <h3 className="text-[14px] font-pmedium text-[#0F172A] leading-tight mb-1">{item.leaveType || 'Leave'}</h3>
+                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{formatLeaveModeLabel(item, dailyWorkingHours)}</p>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-linear-to-br from-[#2563EB] to-[#1e40af] text-white text-xs font-semibold shadow-sm">
+                              {getInitials(item.employeeName)}
+                            </div>
+                            <div>
+                              <h3 className="text-[14px] font-pmedium text-[#0F172A] leading-tight mb-1">{item.employeeName}</h3>
+                              <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">{item.employeeId || '-'}</p>
+                              <p className="mt-1 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                                {formatDepartmentLabel(item.department)} &bull; {formatRoleLabel(item.requesterRole)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         {getStatusBadge(item.status)}
                       </div>
-                      <div>{getApprovalFlowBadge(item)}</div>
-                      <div className="grid grid-cols-2 gap-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+                        {!isMyLeavesTab && (
+                          <div>
+                            <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Type</p>
+                            <p className="text-[12px] font-pmedium text-[#0F172A]">{item.leaveType || 'Leave'}</p>
+                          </div>
+                        )}
                         <div>
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Leave Type</p>
-                          {getLeaveTypeBadge(item.leaveType)}
-                          <div className="mt-2">{getLeaveModeBadge(item)}</div>
+                          <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Duration</p>
+                          <p className="text-[12px] font-pmedium text-[#0F172A]">{item.days ?? 0} {item.days === 1 ? 'Day' : 'Days'}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Duration</p>
-                          <p className="text-[12px] font-bold text-[#0F172A] truncate flex items-center gap-1.5"><Calendar size={12} className="text-slate-400" /> {item.days} Day{item.days && item.days > 1 ? 's' : ''}</p>
+                          <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">From</p>
+                          <p className="flex items-center gap-1.5 text-[11px] font-pmedium text-[#0F172A]"><Calendar size={12} className="text-slate-400" /> {item.startDate || '-'}</p>
                         </div>
+                        <div>
+                          <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">To</p>
+                          <p className="flex items-center gap-1.5 text-[11px] font-pmedium text-[#0F172A]"><Calendar size={12} className="text-slate-400" /> {item.endDate || item.startDate || '-'}</p>
+                        </div>
+                        {isMyLeavesTab && (
+                          <div className="col-span-2">
+                            <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Approved By</p>
+                            <p className="text-[12px] font-pmedium text-[#0F172A]">{item.actionedBy ? formatActionedBy(item) : '-'}</p>
+                          </div>
+                        )}
                       </div>
-                      {activeTab === 'company-leaves' && showCompanyTabs && item.actionedBy && (
-                        <div className="text-[10px] font-pmedium text-slate-500 border-t border-slate-100 pt-2 shrink-0">
-                          <span className="uppercase tracking-widest opacity-80">Actioned By:</span> {item.actionedBy}
-                        </div>
-                      )}
                       <div className="flex gap-2 pt-2 border-t border-slate-100">
                         <button
                           onClick={() => { setViewingRequest(item); setIsRejecting(false); setRejectionReason(''); }}
@@ -1002,76 +1125,79 @@ export function LeaveRequestsPage() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ duration: 0.2 }}
-                    className="bg-white rounded-t-[32px] sm:rounded-[32px] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] border border-slate-200/50"
+                    className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] border border-slate-200/60 bg-white shadow-2xl sm:max-h-[85vh] sm:rounded-[24px]"
                   >
-                    <div className="w-full flex justify-center py-3 sm:hidden">
-                      <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+                    <div className="flex w-full justify-center py-2 sm:hidden">
+                      <div className="h-1 w-10 rounded-full bg-slate-200" />
                     </div>
-                    <div className="p-6 md:p-8 bg-slate-50/80 border-b border-slate-100/80 flex justify-between items-start shrink-0">
-                      <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] flex items-center gap-2">
-                          {activeTab === 'my-leaves' ? 'My Leave Details' : activeTab === 'leave-requests' ? 'Review Admin Request' : 'Leave Summary'}
-                        </h2>
-                        <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">Request #{viewingRequest.id} &bull; {viewingRequest.requesterRole}</p>
+                    <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><FileText size={17} /></div>
+                        <div className="min-w-0">
+                          <h2 className="text-base font-pmedium text-slate-900">{activeTab === 'leave-requests' ? 'Review Leave Request' : 'Leave Request Details'}</h2>
+                          <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Request #{viewingRequest.id || viewingRequest.recordId || '-'} &bull; {viewingRequest.status}</p>
+                        </div>
                       </div>
-                      <button onClick={() => setViewingRequest(null)} className="w-9 h-9 sm:w-10 sm:h-10 bg-white border border-slate-200/60 shadow-sm rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={18} /></button>
+                      <button type="button" onClick={() => setViewingRequest(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
                     </div>
-                    <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden">
-                      <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                    <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 [&::-webkit-scrollbar]:hidden">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
                         <div>
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Employee Details</p>
-                          <p className="font-bold text-[#0F172A] flex items-center gap-1.5"><User size={14} className={viewingRequest.requesterRole === 'Admin' ? 'text-indigo-600' : 'text-[#2563EB]'} /> {viewingRequest.employeeName}</p>
-                          {viewingRequest.employeeId && <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{viewingRequest.employeeId}</p>}
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">{viewingRequest.department || <span className="text-indigo-600 font-black">GLOBAL JURISDICTION</span>}</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee ID</p>
+                          <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{viewingRequest.employeeId || '-'}</p>
                         </div>
-                        <div className="text-right">{getStatusBadge(viewingRequest.status)}</div>
-                      </div>
-                      <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Workflow State</p>
-                          <p className="text-[12px] font-semibold text-slate-600">Approval routing and final decision provenance.</p>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee Name</p>
+                          <p className="mt-1 flex items-center gap-2 text-[12px] font-pmedium text-[#0F172A]">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#2563EB] to-[#1e40af] text-[9px] font-semibold text-white">{getInitials(viewingRequest.employeeName)}</span>
+                            {viewingRequest.employeeName || '-'}
+                          </p>
                         </div>
-                        {getApprovalFlowBadge(viewingRequest)}
-                      </div>
-                      {viewingRequest.status !== 'pending' && viewingRequest.actionedBy ? (
-                        <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.status === 'approved' ? 'Approved By' : 'Rejected By'}</p>
-                            <p className="text-[13px] font-semibold text-[#0F172A]">{viewingRequest.actionedBy}</p>
-                          </div>
-                          <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">
-                            {viewingRequest.status}
-                          </div>
+                        <div>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p>
+                          <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{formatRoleLabel(viewingRequest.requesterRole)}</p>
                         </div>
-                      ) : null}
-                      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                        <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1.5">Request Type</p>
-                          {getLeaveTypeBadge(viewingRequest.leaveType)}
+                        <div>
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Department</p>
+                          <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{formatDepartmentLabel(viewingRequest.department)}</p>
                         </div>
-                        <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 text-right">
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1.5">Total Duration</p>
-                          <p className="font-bold text-[#0F172A] text-lg leading-none">{viewingRequest.days} <span className="text-sm font-semibold text-slate-500">{viewingRequest.days && viewingRequest.days > 1 ? 'Days' : 'Day'}</span></p>
-                        </div>
-                        <div className="col-span-2 bg-slate-50/80 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                          <p className="font-semibold text-[#0F172A] text-[13px] flex items-center gap-2"><Calendar size={14} className="text-slate-400" /> {viewingRequest.startDate}</p>
-                          <ArrowRight size={14} className="text-slate-300" />
-                          <p className="font-semibold text-[#0F172A] text-[13px] flex items-center gap-2"><Calendar size={14} className="text-slate-400" /> {viewingRequest.endDate}</p>
+                        <div className="col-span-2 flex items-center justify-between border-t border-slate-200/70 pt-3">
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Status</p>
+                          {getStatusBadge(viewingRequest.status)}
                         </div>
                       </div>
-                      <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-3">
-                        <div>
+                      <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
+                        <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.status === 'rejected' ? 'Rejected By' : 'Approved By'}</p>
+                        <p className="text-[13px] font-pmedium text-[#0F172A]">{viewingRequest.actionedBy ? formatActionedBy(viewingRequest) : '-'}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                          <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Type</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{viewingRequest.leaveType || 'Leave'}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-right">
+                          <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Duration</p>
+                          <p className="text-[14px] font-pmedium text-[#0F172A]">{viewingRequest.days ?? 0} {viewingRequest.days === 1 ? 'Day' : 'Days'}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                          <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">From</p>
+                          <p className="flex items-center gap-2 text-[12px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-[#2563EB]" /> {viewingRequest.startDate || '-'}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                          <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">To</p>
+                          <p className="flex items-center gap-2 text-[12px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-[#2563EB]" /> {viewingRequest.endDate || viewingRequest.startDate || '-'}</p>
+                        </div>
+                      </div>
+                      {normalizeLeaveMode(viewingRequest.leaveMode || '') !== 'full_day' && (
+                        <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
                           <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Leave Mode</p>
                           <p className="text-[13px] font-semibold text-[#0F172A]">
                             {normalizeLeaveMode(viewingRequest.leaveMode || '') === 'half_day'
-                              ? `Half Day${viewingRequest.halfDaySession ? ` | ${getHalfDaySessionLabel(viewingRequest.halfDaySession)}` : ''}`
-                              : normalizeLeaveMode(viewingRequest.leaveMode || '') === 'partial_day'
-                                ? `${Number(viewingRequest.leaveHours || 0) > 0 ? `${viewingRequest.leaveHours} Hours` : 'Partial Day'}`
-                                : 'Full Day'}
+                              ? `Half Day${viewingRequest.halfDaySession ? ` | ${getHalfDaySessionLabel(viewingRequest.halfDaySession, dailyWorkingHours)}` : ''}`
+                              : `${Number(viewingRequest.leaveHours || 0) > 0 ? `${viewingRequest.leaveHours} Hours` : 'Partial Day'}`}
                           </p>
                         </div>
-                        {getLeaveModeBadge(viewingRequest)}
-                      </div>
+                      )}
                       {isActionable && (
                         <div className={`p-4 rounded-2xl border flex justify-between items-center ${(viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0) ? 'bg-red-50/50 border-red-200' : 'bg-blue-50/50 border-blue-200/60'}`}>
                           <div>
@@ -1085,7 +1211,7 @@ export function LeaveRequestsPage() {
                           )}
                         </div>
                       )}
-                      {viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && (
+                      {viewingRequest.medicalCertAttached && (
                         <div className={`p-4 rounded-2xl border flex items-center justify-between ${viewingRequest.medicalCertAttached ? 'bg-emerald-50/50 border-emerald-100' : 'bg-orange-50/50 border-orange-200'}`}>
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${viewingRequest.medicalCertAttached ? 'bg-emerald-500 shadow-md shadow-emerald-500/20' : 'bg-orange-500 shadow-md shadow-orange-500/20'}`}>
@@ -1143,17 +1269,16 @@ export function LeaveRequestsPage() {
                           <button disabled={isSavingDecision} onClick={() => {
                             setIsRejecting(true);
                             if ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) setRejectionReason('Insufficient leave balance available.');
-                            else if (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) setRejectionReason('A medical certificate must be provided for extended sick leave.');
+
                           }} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-red-200/80 text-red-600 rounded-xl font-pmedium hover:bg-red-50 shadow-sm transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">
                             REJECT
                           </button>
                           <button
                             onClick={handleApprove}
-                            disabled={isSavingDecision || (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) || ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0))}
+                            disabled={isSavingDecision || ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0))}
                             className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                           >
-                            {isSavingDecision ? 'SAVING...' : (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) ? 'MISSING CERTIFICATE'
-                            : ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) ? 'INSUFFICIENT BALANCE'
+                            {isSavingDecision ? 'SAVING...' : ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) ? 'INSUFFICIENT BALANCE'
                             : 'AUTHORIZE LEAVE'}
                             <CheckCircle2 size={16} />
                           </button>
@@ -1185,19 +1310,23 @@ export function LeaveRequestsPage() {
                     <div className="w-full flex justify-center py-2 sm:hidden">
                       <div className="w-10 h-1 bg-slate-200 rounded-full"></div>
                     </div>
-                    <div className="p-4 sm:p-6 bg-[#0F172A] border-b border-slate-800 flex justify-between items-center shrink-0">
-                      <div>
-                        <h2 className="text-lg sm:text-xl font-pmedium text-white flex items-center gap-2"><Calendar size={18} /> Apply for Leave</h2>
-                        <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">{isOwnerProfile ? 'Submit to HR & Manager for approval' : 'Submit to Founder / HR Manager for approval'}</p>
+                    <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><Calendar size={17} /></div>
+                        <div className="min-w-0">
+                          <h2 className="text-base font-pmedium text-slate-900">Apply for Leave</h2>
+                          <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{isOwnerProfile ? 'Submit to HR and Manager for approval' : 'Submit to Founder or HR Manager for approval'}</p>
+                        </div>
                       </div>
-                      <button onClick={() => setIsApplyModalOpen(false)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={15} /></button>
-                    </div>
-                    <form onSubmit={handleSubmitOwnLeave} className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 bg-white [&::-webkit-scrollbar]:hidden">
+                      <button type="button" onClick={() => setIsApplyModalOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+                    </div>                    <form noValidate onSubmit={handleSubmitOwnLeave} className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 bg-white [&::-webkit-scrollbar]:hidden">
                       <div className="space-y-1">
                         <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Leave Category *</label>
                         <div className="relative">
                           <select className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer appearance-none" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>
-                            <option>Casual</option><option>Sick</option><option>Vacation</option>
+                            {leaveTypes.length === 0 ? <option value="">No leave types configured</option> : leaveTypes.map((type) => (
+                              <option key={type.id} value={type.id}>{type.name}</option>
+                            ))}
                           </select>
                           <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
                         </div>
@@ -1216,11 +1345,11 @@ export function LeaveRequestsPage() {
                                 ...prev,
                                 leaveMode: mode.value,
                                 halfDaySession: mode.value === 'half_day' ? (prev.halfDaySession || 'morning') : '',
-                                partialDayHours: mode.value === 'partial_day' ? (prev.partialDayHours || 1) : 0,
+                                partialDayHours: mode.value === 'partial_day' ? Math.min(prev.partialDayHours || 1, dailyWorkingHours) : 0,
                                 end: mode.value === 'half_day' ? (prev.start || prev.end) : (mode.value === 'partial_day' ? '' : (prev.end || prev.start)),
-                                days: mode.value === 'half_day' ? (prev.start ? 0.5 : 0) : mode.value === 'partial_day' ? ((prev.partialDayHours || 1) / 8) : calculateInclusiveDays(prev.start, prev.end || prev.start),
+                                days: mode.value === 'half_day' ? (prev.start ? 0.5 : 0) : mode.value === 'partial_day' ? (Math.round((Math.min(prev.partialDayHours || 1, dailyWorkingHours) / PARTIAL_LEAVE_DAY_HOURS) * 100) / 100) : calculateWorkingDays(prev.start, prev.end || prev.start, holidayDateKeys),
                               }))}
-                              className={`px-3 py-2 rounded-xl border text-[11px] font-pmedium uppercase tracking-wider transition-all ${formData.leaveMode === mode.value ? 'bg-[#0F172A] text-white border-[#0F172A]' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                              className={`px-3 py-2 rounded-xl border text-[11px] font-pmedium uppercase tracking-wider transition-all ${formData.leaveMode === mode.value ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-sm shadow-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-200 hover:text-[#2563EB]'}`}
                             >
                               {mode.label}
                             </button>
@@ -1231,20 +1360,18 @@ export function LeaveRequestsPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: e.target.value })} />
+                            <input type="date" required min={todayDateKey} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: e.target.value })} />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Session *</label>
                             <div className="grid grid-cols-2 gap-1.5">
-                              {[
-                                { value: 'morning', label: 'AM', time: '9:30-1:30' },
-                                { value: 'evening', label: 'PM', time: '2:30-6:30' },
-                              ].map((session) => (
+                              {halfDaySlots.map((session) => (
                                 <button key={session.value} type="button" onClick={() => setFormData((prev) => ({ ...prev, halfDaySession: session.value }))}
                                   className={`px-2 py-2 rounded-xl border text-[10px] font-pmedium uppercase tracking-wider transition-all ${formData.halfDaySession === session.value ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
                                 >
                                   <span className="block">{session.label}</span>
                                   <span className="block mt-0.5 text-[8px] font-semibold normal-case tracking-normal opacity-80">{session.time}</span>
+                                  <span className="block text-[8px] font-semibold normal-case tracking-normal opacity-70">{Number(session.hours.toFixed(2))} hrs</span>
                                 </button>
                               ))}
                             </div>
@@ -1254,12 +1381,12 @@ export function LeaveRequestsPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: '' })} />
+                            <input type="date" required min={todayDateKey} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: '' })} />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Hours *</label>
-                            <select className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer appearance-none" value={formData.partialDayHours} onChange={(e) => { const h = Number(e.target.value); setFormData((prev) => ({ ...prev, partialDayHours: h, days: h / 8 })); }}>
-                              {[1, 2, 3, 4, 5, 6, 7, 8].map((h) => <option key={h} value={h}>{h} {h === 1 ? 'Hour' : 'Hours'}</option>)}
+                            <select className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer appearance-none" value={formData.partialDayHours} onChange={(e) => { const h = Number(e.target.value); setFormData((prev) => ({ ...prev, partialDayHours: h, days: Math.round((h / PARTIAL_LEAVE_DAY_HOURS) * 100) / 100 })); }}>
+                              {Array.from({ length: Math.max(1, Math.round(dailyWorkingHours * 2)) }, (_, index) => (index + 1) / 2).filter((hours) => hours <= dailyWorkingHours).map((h) => <option key={h} value={h}>{h} {h === 1 ? 'Hour' : 'Hours'}</option>)}
                             </select>
                           </div>
                         </div>
@@ -1267,11 +1394,11 @@ export function LeaveRequestsPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">From Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value })} />
+                            <input type="date" required min={todayDateKey} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value })} />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">To Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" min={formData.start} value={formData.end} onChange={(e) => setFormData({ ...formData, end: e.target.value })} />
+                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" min={formData.start && formData.start > todayDateKey ? formData.start : todayDateKey} value={formData.end} onChange={(e) => setFormData({ ...formData, end: e.target.value })} />
                           </div>
                         </div>
                       )}
@@ -1293,15 +1420,20 @@ export function LeaveRequestsPage() {
                           </div>
                         </div>
                       )}
-                      <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isBalanceExceeded ? 'bg-red-50 border-red-200' : requestedDays > 0 ? 'bg-blue-50/50 border-blue-200/60' : 'bg-slate-50 border-slate-200'}`}>
-                        <div>
+                      <div className={`grid grid-cols-3 gap-3 rounded-xl border p-3 transition-colors ${isBalanceExceeded ? 'bg-red-50 border-red-200' : requestedDays > 0 ? 'bg-blue-50/50 border-blue-200/60' : 'bg-slate-50 border-slate-200'}`}>
+                        <div >
                           <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Duration</p>
-                          <p className="text-lg font-black text-[#2563EB]">{requestedDays > 0 ? (formData.leaveMode === 'partial_day' ? `${formData.partialDayHours} ${formData.partialDayHours === 1 ? 'Hr' : 'Hrs'}` : `${requestedDays} ${requestedDays > 1 ? 'Days' : 'Day'}`) : '-'}</p>
+                          <p className="text-xs font-bold text-[#2563EB]">{requestedDays > 0 ? (formData.leaveMode === 'partial_day' ? `${formData.partialDayHours} ${formData.partialDayHours === 1 ? 'Hr' : 'Hrs'}` : `${requestedDays} ${requestedDays > 1 ? 'Days' : 'Day'}`) : '-'}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Deduction</p>
+                          <p className="text-xs font-bold text-[#DC143C]">{requestedDays > 0 ? `${requestedDays} ${requestedDays === 1 ? 'Day' : 'Days'}` : '-'}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Balance</p>
-                          <p className="text-xs font-bold text-[#0F172A]">{remainingBalance} Days Left</p>
+                          <p className="text-xs font-bold text-[#27d10d]">{remainingBalance} Days Left</p>
                         </div>
+                        <p className="col-span-3 border-t border-blue-100/70 pt-2 text-[9px] font-pmedium text-slate-500">Sundays and company holidays are excluded from the deduction.</p>
                       </div>
                       {isBalanceExceeded && (
                         <div className="flex items-center gap-2 p-3 bg-red-600 text-white rounded-xl text-[11px] font-bold"><AlertCircle size={14} /> INSUFFICIENT BALANCE</div>
@@ -1321,7 +1453,7 @@ export function LeaveRequestsPage() {
                       </div>
                       {requiresMedicalCert && (
                         <div className="space-y-1.5">
-                          <label className="text-[9px] font-pmedium text-red-500 uppercase tracking-widest flex items-center gap-1"><AlertCircle size={11} /> Medical Certificate Required (Sick &gt; 2 Days)</label>
+                          <label className="text-[9px] font-pmedium text-red-500 uppercase tracking-widest flex items-center gap-1"><AlertCircle size={11} /> Medical Certificate Required ({selectedLeaveType?.name}, longer than {medicalCertificateThreshold} days)</label>
                           <div className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-colors cursor-pointer ${medicalCertFile ? 'border-emerald-300 bg-emerald-50/50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100/50 hover:border-[#2563EB]'}`}>
                             <input type="file" id="med-cert-sa" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => setMedicalCertFile(e.target.files?.[0] || null)} />
                             <label htmlFor="med-cert-sa" className="flex flex-col items-center cursor-pointer">
@@ -1344,7 +1476,7 @@ export function LeaveRequestsPage() {
                       )}
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setIsApplyModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px] uppercase tracking-wider">CANCEL</button>
-                        <button type="submit" disabled={!isFormValid || isSubmittingLeave} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
+                        <button type="submit" disabled={isSubmittingLeave} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
                           {isSubmittingLeave ? 'SUBMITTING...' : 'SUBMIT REQUEST'} <Send size={13} />
                         </button>
                       </div>

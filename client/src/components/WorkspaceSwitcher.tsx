@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useAuth from "../hooks/useAuth";
+import useRefresh from "../hooks/useRefresh";
 import { switchWorkspaceSession } from "../services/workspace-session";
 
 type WorkspaceOption = {
@@ -23,7 +24,8 @@ const getWorkspaceLabel = (workspace: WorkspaceOption) => {
 export default function WorkspaceSwitcher() {
   const navigate = useNavigate();
   const axiosPrivate = useAxiosPrivate();
-  const { auth, setAuth } = useAuth();
+  const { auth } = useAuth();
+  const refresh = useRefresh();
   const [isSwitching, setIsSwitching] = useState(false);
 
   const currentUser = (auth.user as {
@@ -43,21 +45,16 @@ export default function WorkspaceSwitcher() {
     if (!workspaceId || workspaceId === activeWorkspaceId) return;
     try {
       setIsSwitching(true);
-      const response = await switchWorkspaceSession(axiosPrivate, workspaceId);
-      const switchedWorkspaceId = String(response?.data?.data?.activeWorkspaceId || workspaceId);
-      const nextAccessible = Array.isArray(response?.data?.data?.accessibleWorkspaces)
-        ? response.data.data.accessibleWorkspaces
-        : accessibleWorkspaces;
-      setAuth((prev) => ({
-        ...prev,
-        user: prev.user
-          ? {
-              ...(prev.user as Record<string, unknown>),
-              primaryWorkspace: switchedWorkspaceId,
-              accessibleWorkspaces: nextAccessible,
-            }
-          : prev.user,
-      }));
+      await switchWorkspaceSession(axiosPrivate, workspaceId);
+      // The switch endpoint only returns the active workspace id + list. Re-fetch
+      // the full session so the header role badge and the sidebar nav pick up the
+      // new unit's role / granted modules instead of showing the previous unit's.
+      try {
+        await refresh();
+      } catch {
+        // Session refresh errors are handled inside useRefresh (token rotation,
+        // session clearing). The switch itself already succeeded.
+      }
       toast.success("Unit switched.");
       navigate("/dashboard", { replace: true });
     } catch (error: any) {

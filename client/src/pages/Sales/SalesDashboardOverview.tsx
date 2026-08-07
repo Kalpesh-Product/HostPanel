@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
+import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import WidgetSection from "@/components/WidgetSection";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
@@ -405,6 +406,8 @@ export function SalesDashboardOverview() {
       ) : null}
 
       {/* Overview — only the metrics that matter */}
+      <DashboardAttendanceCard />
+
       <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} color="#2563EB" route="/sales-crm/leads-management" />
         <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/sales-crm/tenant-companies" />

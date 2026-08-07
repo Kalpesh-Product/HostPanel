@@ -648,8 +648,8 @@ function normalizeMeetingRoom(room = {}) {
     walkInBlockedByAssignment: Boolean(room.walkInBlockedByAssignment),
     activationReady: room.activationReady !== false,
     status: room.status || 'Active',
-    floor: room.floor || '501',
-    wing: String(room.wing || 'A').trim().toUpperCase() || 'A',
+    floor: room.floor || '',
+    wing: String(room.wing || '').trim().toUpperCase() || '',
     capacity: Number(room.capacity || 0),
     pricing: room.pricing || '',
     pricePerHour: Number(room.pricePerHour || 0),
@@ -2083,7 +2083,7 @@ export default function VisitorsManagementPage() {
 
   const availableFloors = useMemo(() => {
     const floors = Array.from(new Set(normalizedMeetingRoomCatalog.map((room) => room.floor).filter(Boolean)));
-    return floors.length > 0 ? floors : ['501', '601', '701'];
+    return floors.length > 0 ? floors : ['', '', ''];
   }, [normalizedMeetingRoomCatalog]);
 
   const walkInFloorOptions = useMemo(() => {

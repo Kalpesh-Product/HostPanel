@@ -19,7 +19,7 @@ import PageFrame from '@/components/Pages/PageFrame';
 import useModuleAccessMap from '@/hooks/useModuleAccessMap';
 import { statusPillClass } from '../../lib/status-pill';
 
-type EventType = 'booking' | 'task' | 'ticket' | 'leave' | 'holiday';
+type EventType = 'booking' | 'task' | 'ticket' | 'leave' | 'holiday' | 'event';
 
 interface EventInvite {
   invitedName?: string;
@@ -106,10 +106,11 @@ const META: Record<string, EventMeta> = {
   ticket: { label: 'Ticket', icon: Ticket, tone: 'bg-purple-100 text-purple-700 border-purple-200' },
   leave: { label: 'Leave', icon: CalendarIcon, tone: 'bg-amber-100 text-amber-700 border-amber-200' },
   holiday: { label: 'Holiday', icon: CalendarIcon, tone: 'bg-rose-100 text-rose-700 border-rose-200' },
+  event: { label: 'Event', icon: CalendarDays, tone: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
 };
 
-const ALL_EVENT_FILTERS: Array<'all' | EventType> = ['all', 'booking', 'task', 'ticket', 'leave', 'holiday'];
-const PROFESSIONAL_EVENT_FILTERS: Array<'all' | EventType> = ['all', 'booking', 'ticket', 'holiday'];
+const ALL_EVENT_FILTERS: Array<'all' | EventType> = ['all', 'booking', 'task', 'ticket', 'holiday', 'event'];
+const PROFESSIONAL_EVENT_FILTERS: Array<'all' | EventType> = ['all', 'booking', 'ticket'];
 
 function getEventTypeIcon(type: string) {
   switch (type) {
@@ -118,6 +119,7 @@ function getEventTypeIcon(type: string) {
     case 'ticket': return Ticket;
     case 'leave': return CalendarIcon;
     case 'holiday': return CalendarIcon;
+    case 'event': return CalendarDays;
     default: return CalendarIcon;
   }
 }
@@ -294,31 +296,6 @@ function isUpcomingInVisibleMonth(event: CalendarEvent, visibleDate: Date, today
   return eventStartKey <= monthEnd && eventEndKey >= monthStart;
 }
 
-const GANESH_CHATURTHI_DATES: Record<number, string> = {
-  2024: '2024-09-07',
-  2025: '2025-08-27',
-  2026: '2026-09-14',
-  2027: '2027-09-04',
-  2028: '2028-09-22',
-  2029: '2029-09-12',
-  2030: '2030-09-01',
-};
-
-function getSupplementaryHolidays(year: number): CalendarEvent[] {
-  const result: CalendarEvent[] = [];
-  const ganeshDate = GANESH_CHATURTHI_DATES[year];
-  if (ganeshDate) {
-    result.push({
-      id: `supp-holiday-ganesh-${year}`,
-      type: 'holiday' as EventType,
-      title: 'Ganesh Chaturthi',
-      date: ganeshDate,
-      description: 'Ganesh Chaturthi festival',
-    });
-  }
-  return result;
-}
-
 function CalendarSkeleton() {
   return (
     <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
@@ -416,7 +393,7 @@ const summaryCards = [
   { label: 'Bookings', key: 'bookings', icon: CalendarDays, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
   { label: 'Tasks', key: 'tasks', icon: CheckCircle2, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
   { label: 'Tickets', key: 'tickets', icon: Ticket, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-purple-500', iconClass: 'bg-purple-50 text-purple-600' },
-  { label: 'Leave', key: 'leaveRequests', icon: CalendarIcon, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+  { label: 'Events', key: 'events', icon: CalendarDays, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-cyan-500', iconClass: 'bg-cyan-50 text-cyan-600' },
 ] as const;
 
 function UnifiedCalendar() {
@@ -425,9 +402,8 @@ function UnifiedCalendar() {
   const [loadError, setLoadError] = useState('');
   const [calendarFeed, setCalendarFeed] = useState<CalendarFeed>({
     events: [],
-    summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0, holidays: 0 }
+    summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0, holidays: 0, events: 0 }
   });
-  const [holidayEvents, setHolidayEvents] = useState<CalendarEvent[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
@@ -438,7 +414,7 @@ function UnifiedCalendar() {
   const isEventTypeVisible = (type: EventType) => visibleEventFilters.includes(type);
 
   useEffect(() => {
-    if (workspacePlan !== 'custom' && (filterType === 'task' || filterType === 'leave')) {
+    if (workspacePlan !== 'custom' && (filterType === 'task' || filterType === 'leave' || filterType === 'holiday' || filterType === 'event')) {
       setFilterType('all');
     }
   }, [filterType, workspacePlan]);
@@ -450,7 +426,7 @@ function UnifiedCalendar() {
         setIsLoading(true);
         const response = await getMyCalendar();
         if (!isMounted) return;
-        setCalendarFeed(response?.data || response || { events: [], summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0 } });
+        setCalendarFeed(response?.data || response || { events: [], summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0, holidays: 0, events: 0 } });
         setLoadError('');
       } catch (error: any) {
         if (isMounted) setLoadError(error.message || 'Unable to load calendar right now.');
@@ -462,51 +438,6 @@ function UnifiedCalendar() {
     return () => { isMounted = false; };
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function loadHolidays() {
-      try {
-        const year = new Date().getFullYear();
-        const seenDates = new Set<string>();
-        const merged: CalendarEvent[] = [];
-
-        const res = await fetch(`https://tallyfy.com/national-holidays/api/IN/${year}.json`);
-        if (res.ok) {
-          const data = await res.json();
-          if (!isMounted) return;
-          (data?.holidays || []).forEach((h: any) => {
-            if (!seenDates.has(h.date)) {
-              seenDates.add(h.date);
-              merged.push({
-                id: `holiday-${h.date}`,
-                type: 'holiday' as EventType,
-                title: h.name || h.local_name,
-                date: h.date,
-                description: h.description || '',
-              });
-            }
-          });
-        }
-
-        const supplementary = getSupplementaryHolidays(year);
-        supplementary.forEach((s) => {
-          if (!seenDates.has(s.date)) {
-            seenDates.add(s.date);
-            merged.push(s);
-          }
-        });
-
-        if (isMounted) setHolidayEvents(merged);
-      } catch {
-        if (isMounted) {
-          const year = new Date().getFullYear();
-          setHolidayEvents(getSupplementaryHolidays(year));
-        }
-      }
-    }
-    loadHolidays();
-    return () => { isMounted = false; };
-  }, []);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -523,6 +454,7 @@ function UnifiedCalendar() {
       case 'ticket': return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'leave': return 'bg-amber-100 text-amber-700 border-amber-200';
       case 'holiday': return 'bg-rose-100 text-rose-700 border-rose-200';
+      case 'event': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
@@ -557,7 +489,7 @@ function UnifiedCalendar() {
 
   const getEventsForDate = (date: Date) => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const allForDate = [...(calendarFeed?.events || []), ...holidayEvents].filter((event) => isEventTypeVisible(event.type));
+    const allForDate = [...(calendarFeed?.events || [])].filter((event) => isEventTypeVisible(event.type));
     return allForDate.filter(event => {
       const matchesDate = event.date && dateStr >= event.date && dateStr <= (event.endDate || event.date);
       const matchesFilter = filterType === 'all' || event.type === filterType;
@@ -578,7 +510,7 @@ function UnifiedCalendar() {
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
   const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const allEvents = [...(calendarFeed?.events || []), ...holidayEvents].filter((event) => isEventTypeVisible(event.type));
+  const allEvents = [...(calendarFeed?.events || [])].filter((event) => isEventTypeVisible(event.type));
   const filteredEvents = allEvents.filter(event => {
     const matchesFilter = filterType === 'all' || event.type === filterType;
     const matchesSearch = searchQuery === '' || getEventSearchText(event).includes(searchQuery.toLowerCase());
@@ -595,7 +527,7 @@ function UnifiedCalendar() {
   const summary = calendarFeed?.summary;
   const visibleSummaryCards = summaryCards.filter((card) => {
     if (workspacePlan === 'custom') return true;
-    return card.key === 'holidays' || card.key === 'bookings' || card.key === 'tickets';
+    return card.key === 'bookings' || card.key === 'tickets';
   });
 
   if (showLoadingState) {
@@ -619,8 +551,8 @@ function UnifiedCalendar() {
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 {workspacePlan === 'custom'
-                  ? 'Unified view of your bookings, tasks, tickets, leave requests, and holidays'
-                  : 'Unified view of your bookings, tickets, and holidays'}
+                  ? 'Unified view of your bookings, tasks, tickets, holidays, and company events'
+                  : 'Unified view of your bookings and tickets'}
               </p>
             </div>
           </div>
@@ -631,7 +563,7 @@ function UnifiedCalendar() {
             </div>
           )}
 
-          <div className={`grid grid-cols-2 gap-3 mb-3 shrink-0 ${workspacePlan === 'custom' ? 'md:grid-cols-5' : 'md:grid-cols-3'}`}>
+          <div className={`grid grid-cols-2 gap-3 mb-3 shrink-0 ${workspacePlan === 'custom' ? 'md:grid-cols-5' : 'md:grid-cols-2'}`}>
             {visibleSummaryCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -642,7 +574,7 @@ function UnifiedCalendar() {
                       <Skeleton className="h-5 w-10 rounded-lg" />
                     ) : (
                       <p className="text-[15px] font-pmedium text-slate-900">
-                        {card.key === 'holidays' ? holidayEvents.length : (summary?.[card.key as keyof CalendarSummary] || 0)}
+                        {summary?.[card.key as keyof CalendarSummary] || 0}
                       </p>
                     )}
                   </div>
@@ -691,7 +623,7 @@ function UnifiedCalendar() {
                           : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                         }`}
                     >
-                      {type === 'all' ? 'All' : type === 'booking' ? 'Bookings' : type === 'task' ? 'Tasks' : type === 'ticket' ? 'Tickets' : type === 'leave' ? 'Leave' : 'Holiday'}
+                      {type === 'all' ? 'All' : type === 'booking' ? 'Bookings' : type === 'task' ? 'Tasks' : type === 'ticket' ? 'Tickets' : type === 'event' ? 'Events' : 'Holiday'}
                     </button>
                   ))}
                 </div>
@@ -943,7 +875,7 @@ function UnifiedCalendar() {
                 })}
               </div>
 
-              {(selectedEvent.priority || selectedEvent.status) && (
+              {(selectedEvent.priority || (selectedEvent.status && selectedEvent.type !== 'holiday' && selectedEvent.type !== 'event')) && (
                 <div className="flex flex-wrap items-center gap-5 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
                   {selectedEvent.priority && (
                     <div>
@@ -951,7 +883,7 @@ function UnifiedCalendar() {
                       {getPriorityBadge(selectedEvent.priority)}
                     </div>
                   )}
-                  {selectedEvent.status && (
+                  {selectedEvent.status && selectedEvent.type !== 'holiday' && selectedEvent.type !== 'event' && (
                     <div>
                       <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Status</p>
                       {getStatusBadge(selectedEvent.status)}

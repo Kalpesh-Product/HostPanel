@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
+import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import WidgetSection from "@/components/WidgetSection";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
@@ -358,6 +359,8 @@ export function ITDashboardOverview() {
           {error}
         </div>
       ) : null}
+
+      <DashboardAttendanceCard />
 
       <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={MonitorCog} label="Resolution Rate" value={`${resolutionRate}%`} sub={`${totalLogs} total logs`} color="#0891b2" route="/it/repair-logs" />

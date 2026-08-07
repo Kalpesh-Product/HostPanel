@@ -24,6 +24,20 @@ export const uploadLeaveCertificate = async (formData: FormData) => {
   return unwrap(response);
 };
 
+export const getLeaveTypes = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/leave-requests/leave-types", { params });
+  return unwrap(response);
+};
+
+export const createLeaveType = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/leave-requests/leave-types", payload);
+  return unwrap(response);
+};
+
+export const updateLeaveType = async (leaveTypeId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/leave-requests/leave-types/${leaveTypeId}`, payload);
+  return unwrap(response);
+};
 export const getLeaveQuotas = async (params?: Record<string, any>) => {
   const response = await axiosPrivate.get("/api/leave-requests/quotas", { params });
   return unwrap(response);

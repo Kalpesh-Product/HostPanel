@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
+import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import WidgetSection from "@/components/WidgetSection";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
@@ -369,6 +370,8 @@ export function MaintenanceDashboardOverview() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
+        <DashboardAttendanceCard />
+
         <WidgetSection layout={4} title="Overview" border normalCase>
           <StatCard icon={Activity} label="Uptime" value={`${uptimePercentage}%`} sub={`${totalSchedules} schedules tracked`} color="#1E3D73" route="/maintenance/amc-scheduler" />
           <StatCard icon={Wrench} label="Open Repair Logs" value={openRepairLogs} sub={`${repairLogs.length} logged total`} color="#ef4444" route="/maintenance/repair-logs" />

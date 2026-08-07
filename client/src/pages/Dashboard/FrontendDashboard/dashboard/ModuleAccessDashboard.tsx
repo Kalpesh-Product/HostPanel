@@ -20,6 +20,7 @@ import { StatCard, QuickLink, DonutWidget } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import TodayAttendanceCard from "./TodayAttendanceCard";
+import { useShouldShowDashboardAttendance } from "./useDashboardAttendanceVisibility";
 import { useModuleStats } from "./moduleStatProviders";
 import type { RoleBand, WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
 
@@ -104,7 +105,8 @@ const ModuleAccessDashboard = ({
     ? statCards.filter((c) => !allDeptModuleIds.has(c.moduleId))
     : [];
 
-  const showAttendanceCard = showCommonModules && grantedModuleIds.has("attendance");
+  const canShowAttendanceCard = useShouldShowDashboardAttendance();
+  const showAttendanceCard = showCommonModules && canShowAttendanceCard;
   const isEmpty = departmentSections.length === 0 && dedupedCommonLinks.length === 0 && commonStatCards.length === 0 && !showAttendanceCard;
 
   if (isEmpty) {

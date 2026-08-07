@@ -46,6 +46,7 @@ import hrRoutes from "./routes/hrRoutes.js";
 import { publicRouter as recruitmentPublicRoutes } from "./routes/recruitmentRoutes.js";
 import { getPublicRecruitmentJobOpenings } from "./controllers/recruitmentController.js";
 import { seedSystemRoles } from "./config/seedRoles.js";
+import { migrateHolidayEntryIndexes } from "./models/Holiday.js";
 import { startBookingReminderScheduler } from "./services/bookingReminderService.js";
 import { startAttendanceAutoCheckoutScheduler } from "./services/attendanceService.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
@@ -80,6 +81,10 @@ const startServer = async () => {
     });
 
     console.log("Connected to MongoDB");
+
+    migrateHolidayEntryIndexes().catch((error) => {
+      console.error("Holiday index migration error:", error?.message || error);
+    });
 
     // Run seeds without blocking the API after MongoDB is connected.
     seedSystemRoles().catch((error) => {

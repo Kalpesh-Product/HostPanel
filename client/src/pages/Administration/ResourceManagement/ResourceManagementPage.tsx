@@ -100,8 +100,8 @@ const inventoryModeOptions = [
 ];
 
 const statusOptions = ['Active', 'Under Maintenance', 'Disabled'];
-const floorFallbacks = ['501', '601', '701'];
-const wingOptions = ['A', 'B'];
+const floorFallbacks = ['', '', ''];
+const wingOptions = ['', ''];
 
 const areaCapacityOptions: Record<string, number[]> = {
   open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -139,7 +139,7 @@ const initialFormState: FormState = {
   resourceCategory: '',
   inventoryMode: '',
   location: '',
-  floor: '501',
+  floor: '',
   wing: '',
   capacity: '6',
   description: '',
@@ -151,7 +151,7 @@ const ADD_NEW_OPTION = '__add_new__';
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function normalizeResource(resource: Partial<Resource> = {}): Resource {
-  const floor = String(resource.floor || '501').trim() || '501';
+  const floor = String(resource.floor || '').trim() || '';
   const wing = String(resource.wing || '').trim().toUpperCase();
   const locationArea = [floor, wing].filter(Boolean).join(' ').trim();
   const location = String(resource.location || locationArea).trim();
@@ -218,7 +218,7 @@ function deriveResourceTypeFromCategory(category = ''): string {
 
 function getLocationLabel(resource: Resource = {}): string {
   const location = String(resource.location || '').trim();
-  const floor = String(resource.floor || '501').trim();
+  const floor = String(resource.floor || '').trim();
   const wing = String(resource.wing || '').trim();
   const locationArea = [floor, wing].filter(Boolean).join(' ').trim();
   return [location, locationArea].filter(Boolean).join(' • ').trim();
@@ -631,7 +631,7 @@ function ResourceManagementPageInner() {
       resourceCategory: resource.resourceCategory || 'open_desk',
       inventoryMode,
       location: resource.location || '',
-      floor: resource.floor || '501',
+      floor: resource.floor || '',
       wing: resource.wing || '',
       capacity: normalizeCapacityForSelection(resource.resourceCategory || 'open_desk', inventoryMode, String(resource.capacity)),
       description: resource.description || '',

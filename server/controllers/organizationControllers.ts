@@ -598,6 +598,7 @@ const getWorkspaceDepartmentModuleIds = (workspace: any) => {
 
 const buildLinkedWorkspaceOptions = async (workspace) => {
   if (!workspace?.owner) return [];
+  const mainWorkspaceId = await resolveMainWorkspaceId(workspace.owner);
   const workspaces = await Workspace.find({
     owner: workspace.owner,
     isActive: true,
@@ -626,6 +627,7 @@ const buildLinkedWorkspaceOptions = async (workspace) => {
     workspaceName: item.workspaceName || item.businessName || "Workspace",
     location: [item.city, item.state, item.country].filter(Boolean).join(", "),
     isCurrentWorkspace: toId(item._id) === toId(workspace._id),
+    isMain: toId(item._id) === toId(mainWorkspaceId),
     selectedPlan: item.selectedPlan || "basic",
     departments: (deptsByWorkspace.get(toId(item._id)) || []).map((department) => ({
       id: toId(department?._id),
@@ -752,7 +754,8 @@ const resolveMemberStatus = (isActive: boolean, inviteStatus?: string) => {
 // legacy records created before the main-unit concept existed: the earliest
 // active membership wins, with the account main workspace preferred when the
 // user is a founder (so the founder's main unit is always the registration
-// unit that cannot be deleted).
+// unit that cannot be deleted). Also repairs corrupted records where a user
+// somehow ended up with more than one isMainUnit=true membership.
 const ensureUserMainUnit = async ({
   userId,
   accountMainWorkspaceId = "",
@@ -761,11 +764,38 @@ const ensureUserMainUnit = async ({
   accountMainWorkspaceId?: string;
 }): Promise<string> => {
   if (!userId) return "";
-  const existing = await WorkspaceMember.findOne({ user: userId, isActive: true, isMainUnit: true })
-    .select("workspace")
+  const existingMains = await WorkspaceMember.find({
+    user: userId,
+    isActive: true,
+    isMainUnit: true,
+  })
+    .select("workspace createdAt")
+    .sort({ createdAt: 1 })
     .lean()
     .exec();
-  if (existing) return toId(existing.workspace);
+
+  if (existingMains.length > 1) {
+    // Corrupted data: keep exactly one (the account main workspace for a
+    // founder, otherwise the earliest-created membership) and clear the rest.
+    let survivor: any = null;
+    if (accountMainWorkspaceId) {
+      survivor =
+        existingMains.find((m) => toId(m.workspace) === toId(accountMainWorkspaceId)) || null;
+    }
+    if (!survivor) survivor = existingMains[0];
+    await WorkspaceMember.updateMany(
+      {
+        user: userId,
+        isActive: true,
+        isMainUnit: true,
+        _id: { $ne: survivor._id },
+      },
+      { $set: { isMainUnit: false } },
+    ).exec();
+    return toId(survivor.workspace);
+  }
+
+  if (existingMains.length === 1) return toId(existingMains[0].workspace);
 
   let candidate: any = null;
   if (accountMainWorkspaceId) {
@@ -912,12 +942,13 @@ export const getOrganizationOverview = async (req, res, next) => {
     // Legacy data predates the main-unit concept. Guarantee every visible member
     // has exactly one isMainUnit membership so the main-unit access guard is
     // always enforceable (earliest active membership wins; the founder's account
-    // main workspace is preferred since it can never be deleted).
+    // main workspace is preferred since it can never be deleted). Also repairs
+    // corrupted memberships that ended up with more than one main flag.
     {
       const overviewUserIds = [
         ...new Set(members.map((member: any) => member.user?._id).filter(Boolean)),
       ];
-      const alreadyFlagged = overviewUserIds.length
+      const mainFlags = overviewUserIds.length
         ? await WorkspaceMember.find({
             user: { $in: overviewUserIds },
             isActive: true,
@@ -927,9 +958,14 @@ export const getOrganizationOverview = async (req, res, next) => {
             .lean()
             .exec()
         : [];
-      const flaggedUserIds = new Set(alreadyFlagged.map((hit: any) => toId(hit.user)));
+      const flaggedCountByUser = new Map<string, number>();
+      for (const hit of mainFlags) {
+        const uid = toId(hit.user);
+        flaggedCountByUser.set(uid, (flaggedCountByUser.get(uid) || 0) + 1);
+      }
       for (const userId of overviewUserIds) {
-        if (flaggedUserIds.has(toId(userId))) continue;
+        const flagCount = flaggedCountByUser.get(toId(userId)) || 0;
+        if (flagCount === 1) continue;
         const accountMainWorkspaceId =
           toId(userId) === toId(workspace.owner) ? await resolveMainWorkspaceId(userId) : "";
         await ensureUserMainUnit({ userId, accountMainWorkspaceId });
@@ -1873,6 +1909,16 @@ export const inviteOrganizationMember = async (req, res, next) => {
       ...managerOrgGrantIds,
     ]);
 
+    // An invite usually creates a brand-new account, so the invited unit is the
+    // user's first unit and becomes their main unit. If the upsert below hits an
+    // existing member (re-invite/edge case), keep their current main unit
+    // elsewhere untouched so a user never ends up with two main units.
+    const hasOtherActiveMembership = await WorkspaceMember.exists({
+      user: targetUser._id,
+      isActive: true,
+      workspace: { $ne: workspace._id },
+    });
+
     const workspaceMember = await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: targetUser._id },
       {
@@ -1881,8 +1927,9 @@ export const inviteOrganizationMember = async (req, res, next) => {
           departments: uniqueResolvedDepartmentIds,
           isPrimary: false,
           // An invite always creates a brand-new account, so the invited unit
-          // is this user's first unit — it becomes their main unit.
-          isMainUnit: true,
+          // is this user's first unit — it becomes their main unit (unless
+          // they somehow already have active access elsewhere).
+          isMainUnit: !hasOtherActiveMembership,
           isActive: true,
           status: isExistingRegisteredUser ? "joined" : "invited",
           grantedModules: nextGrantedModules,
@@ -2991,6 +3038,17 @@ export const transferOrganizationOwnership = async (req, res, next) => {
       return res.status(403).json({ message: "Only the current founder can transfer ownership." });
     }
 
+    // Ownership may only be transferred from the account's main unit (the unit
+    // the founder was first registered on). This keeps the main unit as the
+    // single place where account-level ownership changes can happen.
+    const mainWorkspaceId = await resolveMainWorkspaceId(user._id);
+    if (!mainWorkspaceId || toId(workspace._id) !== toId(mainWorkspaceId)) {
+      return res.status(400).json({
+        message:
+          "Ownership can only be transferred from your main unit. Switch to your main unit first.",
+      });
+    }
+
     const targetMember = await WorkspaceMember.findOne({
       _id: req.body?.memberId,
       workspace: workspace._id,
@@ -3029,10 +3087,28 @@ export const transferOrganizationOwnership = async (req, res, next) => {
       });
     }
 
+    // Ownership handover covers the whole account: every linked unit must be
+    // included, otherwise the former founder would keep ownership somewhere.
+    const allLinkedWorkspaces = await Workspace.find({
+      owner: user._id,
+      isActive: true,
+    })
+      .select("_id")
+      .lean()
+      .exec();
+    const allLinkedWorkspaceIds = allLinkedWorkspaces.map((item) => toId(item._id));
+    const allUnitsIncluded = allLinkedWorkspaceIds.every((id) => requestedWorkspaceIds.includes(id));
+    if (!allUnitsIncluded) {
+      return res.status(400).json({
+        message: "Every linked unit must be included in the ownership transfer.",
+      });
+    }
+
     const nextOwner = await HostUser.findById(targetMember.user);
     if (!nextOwner) {
       return res.status(404).json({ message: "Selected user not found." });
     }
+
     const previousOwner = await HostUser.findById(workspace.owner);
 
     let superAdminRole = await Role.findOne({ name: "super_admin" });

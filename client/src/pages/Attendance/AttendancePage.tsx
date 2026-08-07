@@ -224,6 +224,8 @@ const formatDuration = (hours?: number): string => {
 const getStatusColor = (status?: string) => {
   switch (String(status || '').toLowerCase()) {
     case 'present': case 'approved': return 'emerald';
+    case 'holiday': return 'violet';
+    case 'on_leave': return 'sky';
     case 'late': return 'amber';
     case 'absent': case 'rejected': return 'rose';
     case 'half-day': case 'half_day': return 'orange';
@@ -241,6 +243,8 @@ const getStatusBadge = (status?: string) => {
     rose: 'bg-rose-50 text-rose-700 border-rose-200',
     orange: 'bg-orange-50 text-orange-700 border-orange-200',
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    violet: 'bg-violet-50 text-violet-700 border-violet-200',
+    sky: 'bg-sky-50 text-sky-700 border-sky-200',
     slate: 'bg-slate-100 text-slate-600 border-slate-200',
   };
   return (
@@ -1825,6 +1829,9 @@ export function AttendancePage() {
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500">
                       <span className="h-2.5 w-2.5 bg-sky-400" /> On Leave
                     </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 bg-violet-400" /> Holiday
+                    </span>
                   </div>
                 </div>
                 <button onClick={() => setViewingMonth(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform shrink-0"><X size={18} /></button>
@@ -1855,17 +1862,20 @@ export function AttendancePage() {
                       // happened yet (or Sundays) stay neutral.
                       const isAbsent = record?.status === 'absent';
                       const isOnLeave = record?.status === 'on_leave';
+                      const isHoliday = record?.status === 'holiday';
                       const hasClockIn = Boolean(record?.checkIn);
                       const completedFullDay = hasClockIn && Number(record?.totalHours || 0) >= 8;
                       const bgColor = isAbsent
                         ? 'bg-rose-100 text-rose-700 border-rose-300'
-                        : isOnLeave
-                          ? 'bg-sky-100 text-sky-700 border-sky-300'
-                          : hasClockIn
-                            ? (completedFullDay
+                        : isHoliday
+                          ? 'bg-violet-100 text-violet-700 border-violet-300'
+                          : isOnLeave
+                            ? 'bg-sky-100 text-sky-700 border-sky-300'
+                            : hasClockIn
+                              ? (completedFullDay
                               ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                              : 'bg-amber-100 text-amber-700 border-amber-300')
-                            : 'bg-slate-50/50 text-slate-400';
+                                : 'bg-amber-100 text-amber-700 border-amber-300')
+                              : 'bg-slate-50/50 text-slate-400';
                       return (
                         <button
                           key={dateStr}
@@ -1873,7 +1883,7 @@ export function AttendancePage() {
                           className={`aspect-square rounded-xl border ${isToday ? 'border-[#2563EB] ring-2 ring-[#2563EB]/20' : 'border-slate-100'} ${bgColor} flex flex-col items-center justify-center text-xs font-pbold hover:shadow-md transition-all`}
                         >
                           <span>{day}</span>
-                          {(hasClockIn || isAbsent || isOnLeave) && <Circle size={6} className="mt-0.5" fill="currentColor" />}
+                          {(hasClockIn || isAbsent || isOnLeave || isHoliday) && <Circle size={6} className="mt-0.5" fill="currentColor" />}
                         </button>
                       );
                     });

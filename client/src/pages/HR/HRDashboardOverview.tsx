@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
+import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import WidgetSection from "@/components/WidgetSection";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
@@ -650,6 +651,8 @@ export function HRDashboardOverview() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
+        <DashboardAttendanceCard />
+
         <WidgetSection layout={4} title="Overview" border normalCase>
           <StatCard icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} color="#1E3D73" route="/hr/employee-management" />
           <StatCard icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} color="#f59e0b" route="/hr/leave-request-processing" />

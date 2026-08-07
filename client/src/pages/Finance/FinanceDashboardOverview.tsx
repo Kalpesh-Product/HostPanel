@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Building2, Clock, Wallet, UserCheck, CreditCard, Receipt, Calculator } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
+import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import WidgetSection from "@/components/WidgetSection";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
@@ -293,6 +294,8 @@ export function FinanceDashboardOverview() {
           {error}
         </div>
       ) : null}
+
+      <DashboardAttendanceCard />
 
       <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard

@@ -48,7 +48,7 @@ export interface IAttendance extends Document {
     dateKey: string; // YYYY-MM-DD in timezone
     timezone: string;
     mode: "office" | "wfh";
-    status: "present" | "present_late" | "wfh" | "on_break" | "shortfall" | "half_day" | "absent" | "overtime" | "sunday_off" | "on_leave";
+    status: "present" | "present_late" | "wfh" | "on_break" | "shortfall" | "half_day" | "absent" | "overtime" | "sunday_off" | "on_leave" | "holiday";
     checkInAt?: Date | null;
     checkInSelfieUrl?: string;
     checkInSelfiePublicId?: string;
@@ -210,6 +210,7 @@ const attendanceSchema = new Schema<IAttendance>(
                 "overtime",
                 "sunday_off",
                 "on_leave",
+                "holiday",
             ],
             default: "absent",
             required: true,

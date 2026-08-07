@@ -2,13 +2,16 @@ import { Request, Response, NextFunction } from "express";
 import {
   createHolidayForWorkspace,
   createLeaveRequestForUser,
+  createLeaveTypeForWorkspace,
   deleteHolidayForWorkspace,
   listHolidaysForWorkspace,
   listLeaveQuotasForWorkspace,
   listLeaveRequestsForUser,
+  listLeaveTypesForWorkspace,
   updateHolidayForWorkspace,
   updateLeaveQuotaForUser,
   updateLeaveRequestForUser,
+  updateLeaveTypeForWorkspace,
   uploadLeaveCertificateForUser,
 } from "../services/core/leave.service.js";
 
@@ -63,6 +66,26 @@ export async function uploadLeaveCertificate(req: AuthenticatedRequest, res: Res
   }
 }
 
+export async function listLeaveTypes(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const result = await listLeaveTypesForWorkspace(req.user as string, req.query as Record<string, any>, getWorkspaceId(req));
+    res.status(200).json({ success: true, message: "Leave types loaded successfully.", data: result });
+  } catch (error) { next(error); }
+}
+
+export async function createLeaveType(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const result = await createLeaveTypeForWorkspace(req.user as string, req.body || {}, getWorkspaceId(req));
+    res.status(201).json({ success: true, message: "Leave type added successfully.", data: result });
+  } catch (error) { next(error); }
+}
+
+export async function updateLeaveType(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const result = await updateLeaveTypeForWorkspace(req.user as string, String(req.params.leaveTypeId), req.body || {}, getWorkspaceId(req));
+    res.status(200).json({ success: true, message: "Leave type updated successfully.", data: result });
+  } catch (error) { next(error); }
+}
 export async function listLeaveQuotas(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const result = await listLeaveQuotasForWorkspace(req.user as string, req.query as Record<string, any>, getWorkspaceId(req));

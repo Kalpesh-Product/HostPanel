@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import LeaveRequest from "../../models/LeaveRequest.js";
 import LeaveQuota from "../../models/LeaveQuota.js";
+import LeaveType from "../../models/LeaveType.js";
 import Holiday from "../../models/Holiday.js";
 import Workspace from "../../models/Workspace.js";
 import WorkspaceMember from "../../models/WorkspaceMember.js";
@@ -10,20 +11,10 @@ import { getCurrentWorkspace } from "./hr.service.js";
 import { resolveMembershipByWorkspace } from "../../utils/resolveMembership.js";
 import { uploadFileToS3 } from "../../config/s3config.js";
 import { createNotification, notifyMultipleRecipients } from "../../utils/notify.js";
+import { getZonedDateKey, normalizeTimeZone } from "../../utils/workspaceLocalization.js";
 
-export type LeaveTypeKey = "Casual" | "Sick" | "Vacation";
 export type LeaveStatus = "pending" | "approved" | "rejected";
 export type LeaveMode = "full_day" | "half_day" | "hours";
-
-const LEAVE_TYPE_KEYS: LeaveTypeKey[] = ["Casual", "Sick", "Vacation"];
-
-const DEFAULT_ROLE_LEAVE_QUOTAS: Record<string, Record<LeaveTypeKey, number>> = {
-  super_admin: { Casual: 12, Sick: 10, Vacation: 15 },
-  founder: { Casual: 12, Sick: 10, Vacation: 15 },
-  admin: { Casual: 10, Sick: 8, Vacation: 12 },
-  manager: { Casual: 8, Sick: 8, Vacation: 10 },
-  employee: { Casual: 8, Sick: 6, Vacation: 8 },
-};
 
 const toId = (value: any): string => {
   if (value == null) return "";
@@ -40,6 +31,8 @@ const getRoleName = (role: any): string => {
 const normalizeRoleKey = (role: any): string => {
   const normalized = getRoleName(role).trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (normalized === "owner") return "founder";
+  if (normalized === "superadmin") return "super_admin";
+  if (normalized === "hrmanager") return "hr_manager";
   return normalized || "employee";
 };
 
@@ -90,6 +83,19 @@ const getYearFromDate = (value: any): number => {
 };
 
 const roundDays = (value: number): number => Math.round(value * 100) / 100;
+const PARTIAL_LEAVE_DAY_HOURS = 10;
+
+const countWorkingLeaveDays = (startDate: Date, endDate: Date, holidayDateKeys: Set<string>): number => {
+  let count = 0;
+  const cursor = new Date(`${formatDateOnly(startDate)}T00:00:00.000Z`);
+  const endKey = formatDateOnly(endDate);
+  while (formatDateOnly(cursor) <= endKey) {
+    const dateKey = formatDateOnly(cursor);
+    if (cursor.getUTCDay() !== 0 && !holidayDateKeys.has(dateKey)) count += 1;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return count;
+};
 
 const getDailyWorkingHours = (workspace: any): number => {
   const weekly = Number(workspace?.attendanceSettings?.weeklyWorkingHours);
@@ -99,16 +105,13 @@ const getDailyWorkingHours = (workspace: any): number => {
   return 8;
 };
 
-const getRoleLeaveQuota = (roleKey: string): Record<LeaveTypeKey, number> =>
-  DEFAULT_ROLE_LEAVE_QUOTAS[roleKey] || DEFAULT_ROLE_LEAVE_QUOTAS.employee;
-
 const httpError = (message: string, statusCode: number) => Object.assign(new Error(message), { statusCode });
 
 const isHrManagerMembership = (membership: any): boolean => {
   const roleKey = normalizeRoleKey(membership?.role);
   const departmentNames = getDepartmentNames(membership?.departments || []);
   const inHrDepartment = departmentNames.some(isHrDepartmentName);
-  if (roleKey.includes("hr")) return true;
+  if (roleKey === "hr" || roleKey === "hr_manager") return true;
   if ((roleKey === "manager" || roleKey === "admin" || roleKey === "admin_manager") && inHrDepartment) return true;
   return false;
 };
@@ -127,40 +130,12 @@ interface ActorContext {
   departments: any[];
   membership: any;
   displayName: string;
+  designation: string;
+  departmentName: string;
 }
 
 const isFounder = (actor: ActorContext) => actor.roleKey === "founder";
 const isSuperAdmin = (actor: ActorContext) => actor.roleKey === "super_admin";
-
-const canActionRequester = (
-  actor: ActorContext,
-  requesterRoleKey: string,
-  requesterDepartmentIds: string[],
-  requesterDepartmentName: string,
-): boolean => {
-  const actorIsHrManager = isHrManagerMembership(actor.membership);
-  const actorIsDeptManager =
-    (actor.roleKey === "manager" || actor.roleKey === "admin_manager") &&
-    inSameDepartment(actor, requesterDepartmentIds, requesterDepartmentName);
-  const actorIsAssignedAdmin =
-    (actor.roleKey === "admin" || actor.roleKey === "admin_manager") &&
-    inSameDepartment(actor, requesterDepartmentIds, requesterDepartmentName);
-
-  switch (requesterRoleKey) {
-    case "founder":
-      return actorIsHrManager;
-    case "super_admin":
-      return isFounder(actor) || actorIsHrManager;
-    case "admin":
-      return isFounder(actor) || isSuperAdmin(actor) || actorIsHrManager;
-    case "manager":
-      return isFounder(actor) || isSuperAdmin(actor) || actorIsHrManager || actorIsAssignedAdmin;
-    case "employee":
-      return isFounder(actor) || isSuperAdmin(actor) || actorIsHrManager || actorIsDeptManager;
-    default:
-      return false;
-  }
-};
 
 const canViewAllLeaveRequests = (actor: ActorContext): boolean =>
   isFounder(actor) || isSuperAdmin(actor) || isHrManagerMembership(actor.membership);
@@ -200,6 +175,22 @@ const resolveLeaveWorkspaceContext = async (userId: string, workspaceId?: string
   if (!workspace) throw httpError("Workspace not found for this user.", 404);
   if (!membership) throw httpError("You do not have workspace access.", 403);
 
+  const hasPopulatedDepartments = Array.isArray(membership.departments)
+    && membership.departments.some((department: any) => typeof department === "object" && department?.name);
+  if (!hasPopulatedDepartments && Array.isArray(membership.departments) && membership.departments.length > 0) {
+    const departmentIds = getDepartmentIds(membership.departments).filter((id) => mongoose.isValidObjectId(id));
+    if (departmentIds.length > 0) {
+      const departmentDocs = await Department.find({
+        _id: { $in: departmentIds },
+        workspaceId: workspace._id,
+      })
+        .select("_id name")
+        .lean()
+        .exec();
+      if (departmentDocs.length > 0) membership = { ...membership, departments: departmentDocs };
+    }
+  }
+
   const roleKey = normalizeRoleKey(membership.role);
   const displayName = getRoleName(membership.role);
 
@@ -213,6 +204,8 @@ const resolveLeaveWorkspaceContext = async (userId: string, workspaceId?: string
       departments: membership.departments || [],
       membership,
       displayName: user?.name || displayName || "Team Member",
+      designation: displayName || roleKey.replace(/_/g, " "),
+      departmentName: getDepartmentNames(membership.departments || [])[0] || "",
     },
   };
 };
@@ -239,51 +232,172 @@ const getNextLeaveNumber = async (workspaceId: any): Promise<number> => {
 
 const buildLeaveCode = (number: number): string => `LV-${String(number).padStart(4, "0")}`;
 
-const getApprovedDaysForUser = async (workspaceId: any, userId: any, year: number): Promise<Record<LeaveTypeKey, number>> => {
-  const used: Record<LeaveTypeKey, number> = { Casual: 0, Sick: 0, Vacation: 0 };
+const toLeaveTypeCode = (value: any): string =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+
+const formatLeaveType = (leaveType: any) => ({
+  id: String(leaveType._id),
+  name: leaveType.name,
+  code: leaveType.code,
+  description: leaveType.description || "",
+  isActive: Boolean(leaveType.isActive),
+  requiresBalance: leaveType.requiresBalance !== false,
+  medicalCertificateAfterDays: leaveType.medicalCertificateAfterDays ?? null,
+  color: leaveType.color || "#2563EB",
+  sortOrder: Number(leaveType.sortOrder || 0),
+});
+
+const getWorkspaceLeaveTypes = async (workspaceId: any, includeInactive = false): Promise<any[]> =>
+  LeaveType.find({ workspaceId, ...(includeInactive ? {} : { isActive: true }) })
+    .sort({ sortOrder: 1, name: 1 })
+    .lean()
+    .exec();
+
+const getApprovedDaysForUser = async (
+  workspaceId: any,
+  userId: any,
+  year: number,
+  leaveTypes?: any[],
+): Promise<Record<string, number>> => {
+  const types = leaveTypes || await getWorkspaceLeaveTypes(workspaceId, true);
+  const used: Record<string, number> = Object.fromEntries(types.map((type: any) => [String(type._id), 0]));
+  const byId = new Map(types.map((type: any) => [String(type._id), String(type._id)]));
+  const byCode = new Map(types.map((type: any) => [type.code, String(type._id)]));
   const approved = await LeaveRequest.find({
     workspaceId,
     requesterUserId: userId,
     status: "approved",
     quotaYear: year,
   })
-    .select("leaveType days")
+    .select("leaveType leaveTypeId days")
     .lean()
     .exec();
   approved.forEach((request: any) => {
-    if (LEAVE_TYPE_KEYS.includes(request.leaveType)) {
-      used[request.leaveType as LeaveTypeKey] += Number(request.days || 0);
-    }
+    const typeId = byId.get(toId(request.leaveTypeId)) || byCode.get(toLeaveTypeCode(request.leaveType));
+    if (typeId) used[typeId] = roundDays(Number(used[typeId] || 0) + Number(request.days || 0));
   });
   return used;
 };
 
-export async function getLeaveBalancesForUser(
-  userId: string,
-  workspaceId?: string,
-): Promise<Record<LeaveTypeKey, { total: number; used: number; remaining: number }>> {
-  const { workspace, membership, user } = await resolveLeaveWorkspaceContext(userId, workspaceId);
-  const roleKey = normalizeRoleKey(membership.role);
-  const year = new Date().getFullYear();
-  const quota = await LeaveQuota.findOne({ workspaceId: workspace._id, userId: user?._id || userId, year })
+const mapToObject = (value: any): Record<string, number> => {
+  if (!value) return {};
+  if (value instanceof Map) return Object.fromEntries(value.entries());
+  return { ...value };
+};
+
+const quotaHasAssignmentConfig = (quota: any): boolean =>
+  Boolean(quota) && Object.prototype.hasOwnProperty.call(quota, "assignedLeaveTypeIds");
+
+const getAssignedLeaveTypes = (quota: any, leaveTypes: any[]): any[] => {
+  if (!quota) return [];
+  if (!quotaHasAssignmentConfig(quota)) return leaveTypes;
+  const assignedIds = new Set((quota.assignedLeaveTypeIds || []).map((id: any) => toId(id)));
+  return leaveTypes.filter((type: any) => assignedIds.has(String(type._id)));
+};
+
+const resolveQuotaYearForDate = async (workspaceId: any, userId: any, date: Date): Promise<number> => {
+  const calendarYear = date.getUTCFullYear();
+  const financialYear = date.getUTCMonth() < 3 ? calendarYear - 1 : calendarYear;
+  const candidates: any[] = await LeaveQuota.find({
+    workspaceId,
+    userId,
+    year: { $in: [calendarYear, financialYear] },
+  })
+    .select("year cycleType")
     .lean()
     .exec();
+  if (candidates.some((quota) => quota.cycleType === "financial_year" && quota.year === financialYear)) return financialYear;
+  if (candidates.some((quota) => quota.cycleType !== "financial_year" && quota.year === calendarYear)) return calendarYear;
+  const latest: any = await LeaveQuota.findOne({ workspaceId, userId }).sort({ year: -1 }).select("cycleType").lean().exec();
+  return latest?.cycleType === "financial_year" ? financialYear : calendarYear;
+};
 
-  const total: Record<LeaveTypeKey, number> = quota
-    ? { Casual: quota.Casual, Sick: quota.Sick, Vacation: quota.Vacation }
-    : getRoleLeaveQuota(roleKey);
-  const used = await getApprovedDaysForUser(workspace._id, user?._id || userId, year);
+const ensureQuotaForYear = async (workspaceId: any, userId: any, year: number, leaveTypes: any[]): Promise<any> => {
+  const current: any = await LeaveQuota.findOne({ workspaceId, userId, year }).lean().exec();
+  if (current) return current;
+  const previous: any = await LeaveQuota.findOne({ workspaceId, userId, year: year - 1 }).lean().exec();
+  if (!previous) return null;
 
-  return LEAVE_TYPE_KEYS.reduce((acc, key) => {
-    acc[key] = {
-      total: Number(total[key] || 0),
-      used: roundDays(used[key]),
-      remaining: Math.max(0, roundDays(Number(total[key] || 0) - used[key])),
+  const assignedTypes = getAssignedLeaveTypes(previous, leaveTypes);
+  const previousBalances = mapToObject(previous.balances);
+  const annualBalances = Object.keys(mapToObject(previous.annualBalances)).length > 0
+    ? mapToObject(previous.annualBalances)
+    : previousBalances;
+  const previousUsed = await getApprovedDaysForUser(workspaceId, userId, year - 1, leaveTypes);
+  const nextBalances: Record<string, number> = {};
+  const nextAnnualBalances: Record<string, number> = {};
+
+  assignedTypes.forEach((type: any) => {
+    const base = Math.max(0, Number(annualBalances[type.code] ?? previousBalances[type.code] ?? 0));
+    const previousRemaining = Math.max(0, Number(previousBalances[type.code] || 0) - Number(previousUsed[String(type._id)] || 0));
+    const carryLimit = previous.carryForwardLimit == null ? previousRemaining : Math.max(0, Number(previous.carryForwardLimit));
+    const carried = previous.carryForward ? Math.min(previousRemaining, carryLimit) : 0;
+    nextAnnualBalances[type.code] = base;
+    nextBalances[type.code] = roundDays(base + carried);
+  });
+
+  try {
+    return await LeaveQuota.create({
+      workspaceId,
+      userId,
+      year,
+      assignedLeaveTypeIds: assignedTypes.map((type: any) => type._id),
+      balances: nextBalances,
+      annualBalances: nextAnnualBalances,
+      cycleType: previous.cycleType || "calendar_year",
+      carryForward: Boolean(previous.carryForward),
+      carryForwardLimit: previous.carryForwardLimit ?? null,
+      createdBy: previous.updatedBy || previous.createdBy || null,
+      updatedBy: previous.updatedBy || previous.createdBy || null,
+    });
+  } catch (error: any) {
+    if (error?.code === 11000) return LeaveQuota.findOne({ workspaceId, userId, year }).lean().exec();
+    throw error;
+  }
+};
+
+export async function getLeaveBalancesForUser(userId: string, workspaceId?: string, quotaYear?: number) {
+  const { workspace, user } = await resolveLeaveWorkspaceContext(userId, workspaceId);
+  const resolvedUserId = user?._id || userId;
+  const year = Number(quotaYear) || await resolveQuotaYearForDate(workspace._id, resolvedUserId, new Date());
+  const allLeaveTypes = await getWorkspaceLeaveTypes(workspace._id);
+  const quota: any = await ensureQuotaForYear(workspace._id, resolvedUserId, year, allLeaveTypes);
+  const leaveTypes = getAssignedLeaveTypes(quota, allLeaveTypes);
+  const storedBalances = mapToObject(quota?.balances);
+  const used = await getApprovedDaysForUser(workspace._id, resolvedUserId, year, allLeaveTypes);
+  const balances: Record<string, { total: number; used: number; remaining: number }> = {};
+
+  leaveTypes.forEach((type: any) => {
+    const id = String(type._id);
+    const legacyTotal = Number(quota?.[type.name] || 0);
+    const total = Math.max(0, Number(storedBalances[type.code] ?? legacyTotal ?? 0));
+    const usedDays = Number(used[id] || 0);
+    balances[id] = {
+      total,
+      used: roundDays(usedDays),
+      remaining: type.requiresBalance === false ? -1 : Math.max(0, roundDays(total - usedDays)),
     };
-    return acc;
-  }, {} as Record<LeaveTypeKey, { total: number; used: number; remaining: number }>);
-}
+  });
 
+  return {
+    year,
+    dailyWorkingHours: getDailyWorkingHours(workspace),
+    workingHoursStart: workspace?.attendanceSettings?.workingHoursStart || null,
+    workingHoursEnd: workspace?.attendanceSettings?.workingHoursEnd || null,
+    breakDurationMinutes: Number(workspace?.attendanceSettings?.breakDurationMinutes || 0),
+    timezone: normalizeTimeZone(workspace?.preferences?.timezone),
+    cycleType: quota?.cycleType || "calendar_year",
+    carryForward: Boolean(quota?.carryForward),
+    carryForwardLimit: quota?.carryForwardLimit ?? null,
+    leaveTypes: leaveTypes.map(formatLeaveType),
+    balances,
+  };
+}
 interface FormattedLeaveRequest {
   recordId: string;
   id: string;
@@ -311,8 +425,13 @@ interface FormattedLeaveRequest {
   medicalCertMimeType: string;
   actionedBy: string;
   actionedByUserId: string | null;
+  actionedByDesignation: string;
+  actionedByDepartment: string;
+  actionedAt: Date | null;
   rejectionReason: string;
   isMe: boolean;
+  isApprovalRecipient: boolean;
+  canAction: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -321,6 +440,7 @@ const formatLeaveRequest = (
   leaveRequest: any,
   departmentNameById: Map<string, string>,
   requesterUserId: string,
+  isApprovalRecipient = false,
 ): FormattedLeaveRequest => {
   const departmentIds = Array.isArray(leaveRequest.departments)
     ? leaveRequest.departments.map((id: any) => toId(id)).filter(Boolean)
@@ -338,7 +458,7 @@ const formatLeaveRequest = (
     employeeName: leaveRequest.employeeName,
     employeeId: leaveRequest.employeeId || "",
     requesterUserId: leaveRequest.requesterUserId ? String(leaveRequest.requesterUserId) : null,
-    department: departmentNames[0] || "General",
+    department: departmentNames[0] || "All Departments",
     departments: departmentNames,
     requesterRole: leaveRequest.requesterRole || "employee",
     leaveType: leaveRequest.leaveType,
@@ -358,8 +478,13 @@ const formatLeaveRequest = (
     medicalCertMimeType: leaveRequest.medicalCertMimeType || "",
     actionedBy: leaveRequest.actionedByName || "",
     actionedByUserId: leaveRequest.actionedByUserId ? String(leaveRequest.actionedByUserId) : null,
+    actionedByDesignation: leaveRequest.actionedByDesignation || "",
+    actionedByDepartment: leaveRequest.actionedByDepartment || "",
+    actionedAt: leaveRequest.actionedAt || null,
     rejectionReason: leaveRequest.rejectionReason || "",
     isMe: Boolean(leaveRequest.requesterUserId) && String(leaveRequest.requesterUserId) === String(requesterUserId),
+    isApprovalRecipient,
+    canAction: leaveRequest.status === "pending" && isApprovalRecipient,
     createdAt: leaveRequest.createdAt,
     updatedAt: leaveRequest.updatedAt,
   };
@@ -378,6 +503,7 @@ const getApproversForRequester = async (
   requesterRoleKey: string,
   requesterDepartmentIds: string[],
   requesterDepartmentName: string,
+  requesterUserId?: string,
 ): Promise<string[]> => {
   const members = await WorkspaceMember.find({ workspace: workspaceId, isActive: true })
     .populate("role")
@@ -388,20 +514,15 @@ const getApproversForRequester = async (
   const recipients = new Set<string>();
   const addMembers = (predicate: (member: any) => boolean) => {
     members.forEach((member: any) => {
-      if (predicate(member) && toId(member.user)) recipients.add(toId(member.user));
+      const memberUserId = toId(member.user);
+      if (memberUserId && memberUserId !== requesterUserId && predicate(member)) {
+        recipients.add(memberUserId);
+      }
     });
   };
 
   const addHrManagers = () => {
-    addMembers((member: any) => {
-      const roleKey = normalizeRoleKey(member.role);
-      const departmentNames = getDepartmentNames(member.departments || []);
-      if (roleKey.includes("hr")) return true;
-      return (
-        (roleKey === "manager" || roleKey === "admin" || roleKey === "admin_manager") &&
-        departmentNames.some(isHrDepartmentName)
-      );
-    });
+    addMembers((member: any) => isHrManagerMembership(member));
   };
 
   const addSuperAdmins = () => {
@@ -411,46 +532,56 @@ const getApproversForRequester = async (
   const addDepartmentManagers = async () => {
     addMembers((member: any) => {
       const roleKey = normalizeRoleKey(member.role);
-      if (roleKey !== "manager" && roleKey !== "admin_manager") return false;
-      return inSameDepartment(member, requesterDepartmentIds, requesterDepartmentName);
+      return (
+        (roleKey === "manager" || roleKey === "admin_manager") &&
+        inSameDepartment(member, requesterDepartmentIds, requesterDepartmentName)
+      );
     });
+
     if (requesterDepartmentIds.length === 1) {
-      const department = await Department.findById(requesterDepartmentIds[0]).select("managerUser").lean().exec();
-      if (department?.managerUser) recipients.add(toId(department.managerUser));
+      const department = await Department.findById(requesterDepartmentIds[0])
+        .select("managerUser")
+        .lean()
+        .exec();
+      const managerUserId = toId(department?.managerUser);
+      if (managerUserId && managerUserId !== requesterUserId) recipients.add(managerUserId);
     }
   };
 
   const addAssignedAdmins = () => {
     addMembers((member: any) => {
       const roleKey = normalizeRoleKey(member.role);
-      if (roleKey !== "admin" && roleKey !== "admin_manager") return false;
-      return inSameDepartment(member, requesterDepartmentIds, requesterDepartmentName);
+      return (
+        (roleKey === "admin" || roleKey === "admin_manager") &&
+        inSameDepartment(member, requesterDepartmentIds, requesterDepartmentName)
+      );
     });
   };
 
   const workspace = await Workspace.findById(workspaceId).select("owner").lean().exec();
-  if (workspace?.owner) recipients.add(toId(workspace.owner));
+
+  // HR is a common approval authority for every request. The role hierarchy is
+  // added separately, so either authority may make the single final decision.
+  addHrManagers();
+  const hrRecipientCount = recipients.size;
 
   if (requesterRoleKey === "founder") {
-    addHrManagers();
+    // A founder request is routed to HR; a requester can never approve their own request.
   } else if (requesterRoleKey === "super_admin") {
-    addHrManagers();
-  } else if (requesterRoleKey === "admin") {
+    const founderUserId = toId(workspace?.owner);
+    if (founderUserId && founderUserId !== requesterUserId) recipients.add(founderUserId);
+  } else if (requesterRoleKey === "admin" || requesterRoleKey === "admin_manager") {
     addSuperAdmins();
-    addHrManagers();
   } else if (requesterRoleKey === "manager") {
-    addSuperAdmins();
-    addHrManagers();
     addAssignedAdmins();
+    if (recipients.size === hrRecipientCount) addSuperAdmins();
   } else {
-    addSuperAdmins();
-    addHrManagers();
+    // Employee requests go to their department manager as well as HR.
     await addDepartmentManagers();
   }
 
   return [...recipients];
 };
-
 const notifyApprovers = async (
   workspaceId: any,
   actorUserId: string,
@@ -499,6 +630,7 @@ const notifyApprovers = async (
 };
 
 interface CreateLeaveInput {
+  leaveTypeId?: string;
   leaveType?: string;
   leaveMode?: string;
   halfDaySession?: string;
@@ -532,10 +664,21 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
   const context = await resolveLeaveWorkspaceContext(userId, workspaceId);
   const { workspace, membership, actor } = context;
 
-  const leaveType = String(input?.leaveType || "").trim();
-  if (!LEAVE_TYPE_KEYS.includes(leaveType as LeaveTypeKey)) {
-    throw httpError("Invalid leave type. Choose Casual, Sick or Vacation.", 400);
+  const requestedLeaveTypeId = String(input?.leaveTypeId || "").trim();
+  const requestedLeaveTypeName = String(input?.leaveType || "").trim();
+  const leaveTypeRecord = await LeaveType.findOne({
+    workspaceId: workspace._id,
+    isActive: true,
+    ...(mongoose.isValidObjectId(requestedLeaveTypeId)
+      ? { _id: requestedLeaveTypeId }
+      : { $or: [{ name: requestedLeaveTypeName }, { code: toLeaveTypeCode(requestedLeaveTypeName) }] }),
+  })
+    .lean()
+    .exec();
+  if (!leaveTypeRecord) {
+    throw httpError("Choose an active leave type configured by HR.", 400);
   }
+  const leaveType = leaveTypeRecord.name;
 
   const leaveMode = normalizeLeaveModeInput(input?.leaveMode);
   const halfDaySession = normalizeHalfDaySessionInput(input?.halfDaySession);
@@ -548,6 +691,27 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
   if (endDate < startDate) {
     throw httpError("End date must be on or after start date.", 400);
   }
+  const workspaceTimezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const workspaceTodayKey = getZonedDateKey(new Date(), workspaceTimezone);
+  if (formatDateOnly(startDate) < workspaceTodayKey) {
+    throw httpError("Leave cannot be requested for a past date in this unit.", 400);
+  }
+
+  const startDateKey = formatDateOnly(startDate);
+  const endDateKey = formatDateOnly(endDate);
+  const holidayRows = await Holiday.find({
+    workspaceId: workspace._id,
+    dateKey: { $gte: startDateKey, $lte: endDateKey },
+    isActive: true,
+    $or: [{ entryKind: "holiday" }, { entryKind: { $exists: false } }],
+  })
+    .select("dateKey date")
+    .lean()
+    .exec();
+  const holidayDateKeys = new Set(
+    holidayRows.map((holiday: any) => String(holiday.dateKey || formatDateOnly(holiday.date))).filter(Boolean),
+  );
+  const selectedDateIsNonWorking = startDate.getUTCDay() === 0 || holidayDateKeys.has(startDateKey);
 
   let leaveHours = Math.max(0, Number(input?.leaveHours) || 0);
   let days = 0;
@@ -559,11 +723,17 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     if (!halfDaySession) {
       throw httpError("Half-day leave requires a morning or evening session.", 400);
     }
+    if (selectedDateIsNonWorking) {
+      throw httpError("Leave cannot be requested on a Sunday or company holiday.", 400);
+    }
     days = 0.5;
-    leaveHours = 4;
+    leaveHours = roundDays(getDailyWorkingHours(workspace) / 2);
   } else if (leaveMode === "hours") {
     if (!isSameCalendarDay(startDate, endDate)) {
       throw httpError("Hour-based leave must use the same start and end date.", 400);
+    }
+    if (selectedDateIsNonWorking) {
+      throw httpError("Leave cannot be requested on a Sunday or company holiday.", 400);
     }
     if (leaveHours <= 0) {
       leaveHours = Math.max(0, Number(input?.days) || 0) * getDailyWorkingHours(workspace);
@@ -571,11 +741,13 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     if (leaveHours <= 0 || leaveHours > 24) {
       throw httpError("Partial leave requires hours between 0 and 24.", 400);
     }
-    const dailyHours = getDailyWorkingHours(workspace);
-    days = roundDays(Math.min(1, leaveHours / dailyHours));
+    days = roundDays(Math.min(1, leaveHours / PARTIAL_LEAVE_DAY_HOURS));
     if (days <= 0) throw httpError("Leave duration must be greater than 0.", 400);
   } else {
-    days = Math.floor((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+    days = countWorkingLeaveDays(startDate, endDate, holidayDateKeys);
+    if (days <= 0) {
+      throw httpError("The selected range contains no working days. Sundays and company holidays are excluded.", 400);
+    }
     leaveHours = roundDays(days * getDailyWorkingHours(workspace));
   }
 
@@ -584,15 +756,17 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     throw httpError("Please provide a reason for the leave (at least 3 characters).", 400);
   }
 
-  if (leaveType === "Sick" && days >= 2 && !input?.medicalCertAttached) {
-    throw httpError("Medical certificate is required for sick leave of 2 or more days.", 400);
+  const medicalCertificateThreshold = leaveTypeRecord.medicalCertificateAfterDays ??
+    (/sick/i.test(`${leaveTypeRecord.code || ""} ${leaveTypeRecord.name || ""}`) ? 2 : null);
+  if (medicalCertificateThreshold != null && days > Number(medicalCertificateThreshold) && !input?.medicalCertAttached) {
+    throw httpError(`Medical certificate is required for ${leaveType} leave longer than ${medicalCertificateThreshold} days.`, 400);
   }
 
-  const quotaYear = getYearFromDate(startDate);
-  const balances = await getLeaveBalancesForUser(userId, workspaceId);
-  const selectedBalance = balances[leaveType as LeaveTypeKey];
-  if (!selectedBalance) throw httpError("Invalid leave type.", 400);
-  if (days > selectedBalance.remaining + 1e-9) {
+  const quotaYear = await resolveQuotaYearForDate(workspace._id, actor.userId, startDate);
+  const balanceData = await getLeaveBalancesForUser(userId, workspaceId, quotaYear);
+  const selectedBalance = balanceData.balances[String(leaveTypeRecord._id)];
+  if (!selectedBalance) throw httpError("No leave quota is configured for this leave type.", 400);
+  if (leaveTypeRecord.requiresBalance !== false && days > selectedBalance.remaining + 1e-9) {
     throw httpError(
       `Insufficient ${leaveType.toLowerCase()} leave balance. Remaining: ${selectedBalance.remaining} day(s).`,
       400,
@@ -636,6 +810,19 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
   const departmentIds = memberDepartmentIds.length > 0 ? memberDepartmentIds : [null];
   const requesterDepartmentName = memberDepartmentNames[0] || "";
 
+  const approverUserIds = await getApproversForRequester(
+    workspace._id,
+    actor.roleKey,
+    departmentIds.filter((id): id is string => Boolean(id)),
+    requesterDepartmentName,
+    actor.userId,
+  );
+  if (approverUserIds.length === 0) {
+    const message = actor.roleKey === "employee"
+      ? "No department manager is configured for your leave request. Ask an admin to assign your department manager first."
+      : "No leave approver is configured for your role in this workspace.";
+    throw httpError(message, 409);
+  }
   const leaveRequest = await LeaveRequest.create({
     workspaceId: workspace._id,
     ownerId: workspace.owner || null,
@@ -648,6 +835,7 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     departments: memberDepartmentIds,
     requesterRole: actor.roleKey,
     leaveType,
+    leaveTypeId: leaveTypeRecord._id,
     leaveMode,
     halfDaySession,
     leaveHours,
@@ -657,7 +845,7 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     days,
     status: "pending",
     reason,
-    requesterBalance: selectedBalance.remaining,
+    requesterBalance: leaveTypeRecord.requiresBalance === false ? 0 : selectedBalance.remaining,
     medicalCertAttached: Boolean(input?.medicalCertAttached),
     medicalCertName: String(input?.medicalCertName || ""),
     medicalCertUrl: String(input?.medicalCertUrl || ""),
@@ -668,12 +856,6 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     rejectionReason: "",
   });
 
-  const approverUserIds = await getApproversForRequester(
-    workspace._id,
-    actor.roleKey,
-    departmentIds.filter((id): id is string => Boolean(id)),
-    requesterDepartmentName,
-  );
   await notifyApprovers(workspace._id, actor.userId, leaveRequest, approverUserIds);
 
   const departmentNameById = await loadWorkspaceDepartmentMap(workspace._id);
@@ -698,7 +880,7 @@ export async function listLeaveRequestsForUser(userId: string, query: ListQuery 
   const status = String(query?.status || "").trim().toLowerCase();
   if (["pending", "approved", "rejected"].includes(status)) filter.status = status;
   const leaveType = String(query?.leaveType || "").trim();
-  if (LEAVE_TYPE_KEYS.includes(leaveType as LeaveTypeKey)) filter.leaveType = leaveType;
+  if (leaveType) filter.leaveType = leaveType;
   if (query?.year && /^\d{4}$/.test(String(query.year).trim())) {
     filter.quotaYear = Number(String(query.year).trim());
   } else if (query?.month && /^\d{4}-\d{2}$/.test(String(query.month).trim())) {
@@ -763,10 +945,48 @@ export async function listLeaveRequestsForUser(userId: string, query: ListQuery 
 
   const leaveBalances = await getLeaveBalancesForUser(userId, workspaceId);
 
+  const approverCache = new Map<string, Promise<string[]>>();
+  const formattedRequests = await Promise.all(
+    filtered.map(async (request: any) => {
+      const requestDepartmentIds = (request.departments || [])
+        .map((id: any) => toId(id))
+        .filter(Boolean);
+      const requestDepartmentName = requestDepartmentIds
+        .map((id: string) => departmentNameById.get(id) || "")
+        .find(Boolean) || "";
+      const requesterRoleKey = normalizeRoleKey(request.requesterRole || "employee");
+      const requesterId = toId(request.requesterUserId);
+      const cacheKey = [
+        requesterRoleKey,
+        [...requestDepartmentIds].sort().join(","),
+        normalizeDepartmentKey(requestDepartmentName),
+        requesterId,
+      ].join("|");
+
+      if (!approverCache.has(cacheKey)) {
+        approverCache.set(
+          cacheKey,
+          getApproversForRequester(
+            workspace._id,
+            requesterRoleKey,
+            requestDepartmentIds,
+            requestDepartmentName,
+            requesterId,
+          ),
+        );
+      }
+      const approverUserIds = await approverCache.get(cacheKey)!;
+      return formatLeaveRequest(
+        request,
+        departmentNameById,
+        actor.userId,
+        approverUserIds.includes(actor.userId),
+      );
+    }),
+  );
+
   return {
-    leaveRequests: filtered.map((request: any) =>
-      formatLeaveRequest(request, departmentNameById, actor.userId),
-    ),
+    leaveRequests: formattedRequests,
     leaveBalances,
     accessLevel: canViewAllLeaveRequests(actor)
       ? "all"
@@ -784,7 +1004,7 @@ export async function updateLeaveRequestForUser(userId: string, leaveRequestId: 
     throw httpError("Invalid leave request id.", 400);
   }
 
-  const leaveRequest = await LeaveRequest.findOne({ _id: leaveRequestId, workspaceId: workspace._id }).exec();
+  const leaveRequest = await LeaveRequest.findOne({ _id: leaveRequestId, workspaceId: workspace._id }).lean().exec();
   if (!leaveRequest) throw httpError("Leave request not found.", 404);
 
   const status = String(input?.status || "").trim().toLowerCase();
@@ -801,7 +1021,8 @@ export async function updateLeaveRequestForUser(userId: string, leaveRequestId: 
   }
 
   if (leaveRequest.status !== "pending") {
-    throw httpError("Only pending leave requests can be actioned.", 400);
+    const actionedBy = leaveRequest.actionedByName ? ` by ${leaveRequest.actionedByName}` : "";
+    throw httpError(`This leave request was already ${leaveRequest.status}${actionedBy}.`, 409);
   }
 
   const requesterRoleKey = normalizeRoleKey(leaveRequest.requesterRole || "employee");
@@ -811,52 +1032,89 @@ export async function updateLeaveRequestForUser(userId: string, leaveRequestId: 
     .map((id: string) => departmentNameById.get(id) || "")
     .filter(Boolean)[0] || "";
 
-  if (!canActionRequester(actor, requesterRoleKey, requesterDepartmentIds, requesterDepartmentName)) {
-    throw httpError("You do not have permission to action this leave request.", 403);
+  const approverUserIds = await getApproversForRequester(
+    workspace._id,
+    requesterRoleKey,
+    requesterDepartmentIds,
+    requesterDepartmentName,
+    toId(leaveRequest.requesterUserId),
+  );
+  if (!approverUserIds.includes(actor.userId)) {
+    throw httpError("This leave request is assigned to another approver.", 403);
   }
 
-  leaveRequest.status = status as LeaveStatus;
-  leaveRequest.actionedByUserId = actor.userId as any;
-  leaveRequest.actionedByName = actor.displayName;
-  if (status === "rejected") {
-    leaveRequest.rejectionReason = rejectionReason;
-  } else {
-    leaveRequest.rejectionReason = "";
-    leaveRequest.balanceDeducted = true;
+  const approverProfile: any = await EmployeeProfile.findOne({
+    workspaceId: workspace._id,
+    $or: [{ linkedUserId: actor.userId }, { linkedWorkspaceMemberId: actor.userId }],
+  })
+    .select("jobTitle departments")
+    .populate("departments", "name")
+    .lean()
+    .exec();
+  const actionedByDesignation = String(approverProfile?.jobTitle || actor.designation || "").trim();
+  const actionedByDepartment = String(
+    getDepartmentNames(approverProfile?.departments || [])[0] || actor.departmentName || "",
+  ).trim();
+  const actionedAt = new Date();
+
+  // Conditional update makes the first decision final even if HR and the
+  // hierarchy approver act at the same instant.
+  const actionedLeaveRequest = await LeaveRequest.findOneAndUpdate(
+    { _id: leaveRequestId, workspaceId: workspace._id, status: "pending" },
+    {
+      $set: {
+        status,
+        actionedByUserId: actor.userId,
+        actionedByName: actor.displayName,
+        actionedByDesignation,
+        actionedByDepartment,
+        actionedAt,
+        rejectionReason: status === "rejected" ? rejectionReason : "",
+        balanceDeducted: status === "approved",
+      },
+    },
+    { new: true, runValidators: true },
+  ).exec();
+
+  if (!actionedLeaveRequest) {
+    const latest = await LeaveRequest.findOne({ _id: leaveRequestId, workspaceId: workspace._id }).lean().exec();
+    const actionedBy = latest?.actionedByName ? ` by ${latest.actionedByName}` : "";
+    throw httpError(`This leave request was already ${latest?.status || "processed"}${actionedBy}.`, 409);
   }
-  await leaveRequest.save();
 
   await createNotification({
     workspaceId: workspace._id,
-    recipientUserId: (leaveRequest.requesterUserId || null) as any,
+    recipientUserId: (actionedLeaveRequest.requesterUserId || null) as any,
     actorUserId: actor.userId,
     type: status === "approved" ? "leave_approved" : "leave_rejected",
     category: "leave",
-    title: `Leave request ${status}: ${leaveRequest.leaveCode}`,
+    title: `Leave request ${status}: ${actionedLeaveRequest.leaveCode}`,
     description:
       status === "approved"
         ? `${actor.displayName} approved your leave request.`
         : `${actor.displayName} rejected your leave request.`,
     entityType: "leave",
-    entityId: String(leaveRequest._id),
-    entityCode: leaveRequest.leaveCode,
+    entityId: String(actionedLeaveRequest._id),
+    entityCode: actionedLeaveRequest.leaveCode,
     targetUrl: "/leave-requests",
     priority: status === "approved" ? "high" : "normal",
     data: {
-      leaveType: leaveRequest.leaveType,
-      leaveMode: leaveRequest.leaveMode,
-      startDate: formatDateOnly(leaveRequest.startDate),
-      endDate: formatDateOnly(leaveRequest.endDate),
-      days: leaveRequest.days,
-      rejectionReason: leaveRequest.rejectionReason || "",
-      status: leaveRequest.status,
+      leaveType: actionedLeaveRequest.leaveType,
+      leaveMode: actionedLeaveRequest.leaveMode,
+      startDate: formatDateOnly(actionedLeaveRequest.startDate),
+      endDate: formatDateOnly(actionedLeaveRequest.endDate),
+      days: actionedLeaveRequest.days,
+      rejectionReason: actionedLeaveRequest.rejectionReason || "",
+      status: actionedLeaveRequest.status,
       actionedBy: actor.displayName,
+      actionedByDesignation,
+      actionedByDepartment,
+      actionedAt,
     },
   });
 
-  return { leaveRequest: formatLeaveRequest(leaveRequest, departmentNameById, actor.userId) };
+  return { leaveRequest: formatLeaveRequest(actionedLeaveRequest, departmentNameById, actor.userId) };
 }
-
 export async function findApprovedLeaveOnDate(workspaceId: any, userId: any, dateKey: string): Promise<any> {
   const start = new Date(`${dateKey}T00:00:00.000Z`);
   const end = new Date(`${dateKey}T23:59:59.999Z`);
@@ -875,11 +1133,109 @@ export async function findApprovedLeaveOnDate(workspaceId: any, userId: any, dat
 const canManageLeaveSettings = (actor: ActorContext): boolean =>
   isFounder(actor) || isSuperAdmin(actor) || isHrManagerMembership(actor.membership);
 
+export const COMMON_LEAVE_TYPE_SUGGESTIONS = [
+  "Casual Leave",
+  "Sick Leave",
+  "Annual Leave",
+  "Maternity Leave",
+  "Paternity Leave",
+  "Bereavement Leave",
+  "Compensatory Off",
+  "Unpaid Leave",
+  "Work From Home",
+];
+
+export async function listLeaveTypesForWorkspace(userId: string, query: any = {}, workspaceId?: string) {
+  const { workspace, actor } = await resolveLeaveWorkspaceContext(userId, workspaceId);
+  const includeInactive = String(query?.includeInactive || "").toLowerCase() === "true" && canManageLeaveSettings(actor);
+  const leaveTypes = await getWorkspaceLeaveTypes(workspace._id, includeInactive);
+  return {
+    leaveTypes: leaveTypes.map(formatLeaveType),
+    suggestions: COMMON_LEAVE_TYPE_SUGGESTIONS,
+    canManage: canManageLeaveSettings(actor),
+  };
+}
+
+interface LeaveTypeInput {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  requiresBalance?: boolean;
+  medicalCertificateAfterDays?: number | null;
+  color?: string;
+  sortOrder?: number;
+}
+
+export async function createLeaveTypeForWorkspace(userId: string, input: LeaveTypeInput, workspaceId?: string) {
+  const { workspace, actor } = await resolveLeaveWorkspaceContext(userId, workspaceId);
+  if (!canManageLeaveSettings(actor)) {
+    throw httpError("Only HR managers, founders and super admins can configure leave types.", 403);
+  }
+  const name = String(input?.name || "").trim();
+  const code = toLeaveTypeCode(name);
+  if (name.length < 2 || !code) throw httpError("Leave type name is required.", 400);
+  const existing = await LeaveType.findOne({ workspaceId: workspace._id, code }).lean().exec();
+  if (existing) throw httpError("This leave type already exists. Enable or edit the existing type instead.", 409);
+  const leaveType = await LeaveType.create({
+    workspaceId: workspace._id,
+    name,
+    code,
+    description: String(input?.description || "").trim(),
+    isActive: input?.isActive !== false,
+    requiresBalance: input?.requiresBalance !== false,
+    medicalCertificateAfterDays: input?.medicalCertificateAfterDays == null
+      ? null
+      : Math.max(0.5, Number(input.medicalCertificateAfterDays)),
+    color: String(input?.color || "#2563EB"),
+    sortOrder: Number(input?.sortOrder || 0),
+    createdBy: actor.userId,
+    updatedBy: actor.userId,
+  });
+  return { leaveType: formatLeaveType(leaveType) };
+}
+
+export async function updateLeaveTypeForWorkspace(
+  userId: string,
+  leaveTypeId: string,
+  input: LeaveTypeInput,
+  workspaceId?: string,
+) {
+  const { workspace, actor } = await resolveLeaveWorkspaceContext(userId, workspaceId);
+  if (!canManageLeaveSettings(actor)) {
+    throw httpError("Only HR managers, founders and super admins can configure leave types.", 403);
+  }
+  if (!mongoose.isValidObjectId(leaveTypeId)) throw httpError("Invalid leave type id.", 400);
+  const leaveType = await LeaveType.findOne({ _id: leaveTypeId, workspaceId: workspace._id }).exec();
+  if (!leaveType) throw httpError("Leave type not found.", 404);
+  if (input?.name !== undefined) {
+    const name = String(input.name).trim();
+    const code = toLeaveTypeCode(name);
+    if (name.length < 2 || !code) throw httpError("Leave type name is required.", 400);
+    const duplicate = await LeaveType.findOne({ workspaceId: workspace._id, code, _id: { $ne: leaveType._id } }).lean().exec();
+    if (duplicate) throw httpError("Another leave type already uses this name.", 409);
+    leaveType.name = name;
+    leaveType.code = code;
+  }
+  if (input?.description !== undefined) leaveType.description = String(input.description).trim();
+  if (input?.isActive !== undefined) leaveType.isActive = Boolean(input.isActive);
+  if (input?.requiresBalance !== undefined) leaveType.requiresBalance = Boolean(input.requiresBalance);
+  if (input?.medicalCertificateAfterDays !== undefined) {
+    leaveType.medicalCertificateAfterDays = input.medicalCertificateAfterDays == null
+      ? null
+      : Math.max(0.5, Number(input.medicalCertificateAfterDays));
+  }
+  if (input?.color !== undefined) leaveType.color = String(input.color || "#2563EB");
+  if (input?.sortOrder !== undefined) leaveType.sortOrder = Number(input.sortOrder || 0);
+  leaveType.updatedBy = actor.userId as any;
+  await leaveType.save();
+  return { leaveType: formatLeaveType(leaveType) };
+}
+
 export async function listLeaveQuotasForWorkspace(userId: string, query: any = {}, workspaceId?: string) {
   const context = await resolveLeaveWorkspaceContext(userId, workspaceId);
   const { workspace, actor } = context;
-
   const year = Number(query?.year) || new Date().getFullYear();
+  const leaveTypes = await getWorkspaceLeaveTypes(workspace._id);
 
   const members = await WorkspaceMember.find({ workspace: workspace._id, isActive: true })
     .populate("role")
@@ -887,46 +1243,58 @@ export async function listLeaveQuotasForWorkspace(userId: string, query: any = {
     .populate("user", "name email")
     .lean()
     .exec();
-
   const memberUserIds = members.map((member: any) => toId(member.user)).filter(Boolean);
-  const quotas = memberUserIds.length
+  const quotas: any[] = memberUserIds.length
     ? await LeaveQuota.find({ workspaceId: workspace._id, userId: { $in: memberUserIds }, year }).lean().exec()
     : [];
   const quotaByUserId = new Map(quotas.map((quota: any) => [String(quota.userId), quota]));
-
   const rows = [];
+
   for (const member of members) {
     const memberUserId = toId(member.user);
     if (!memberUserId) continue;
-    const roleKey = normalizeRoleKey(member.role);
-    const storedQuota = quotaByUserId.get(memberUserId);
-    const defaults = getRoleLeaveQuota(roleKey);
-    const used = await getApprovedDaysForUser(workspace._id, memberUserId, year);
-    const total = storedQuota
-      ? { Casual: storedQuota.Casual, Sick: storedQuota.Sick, Vacation: storedQuota.Vacation }
-      : defaults;
+    let storedQuota: any = quotaByUserId.get(memberUserId);
+    if (!storedQuota) storedQuota = await ensureQuotaForYear(workspace._id, memberUserId, year, leaveTypes);
+    const assignedTypes = getAssignedLeaveTypes(storedQuota, leaveTypes);
+    const storedBalances = mapToObject(storedQuota?.balances);
+    const used = await getApprovedDaysForUser(workspace._id, memberUserId, year, leaveTypes);
+    const total: Record<string, number> = {};
+    const remaining: Record<string, number> = {};
+    assignedTypes.forEach((type: any) => {
+      const id = String(type._id);
+      total[id] = Math.max(0, Number(storedBalances[type.code] ?? storedQuota?.[type.name] ?? 0));
+      remaining[id] = type.requiresBalance === false
+        ? -1
+        : Math.max(0, roundDays(total[id] - Number(used[id] || 0)));
+    });
 
+    const memberRole = normalizeRoleKey(member.role);
     rows.push({
       userId: memberUserId,
       name: (member as any).user?.name || (member as any).user?.email || "Unnamed",
       email: (member as any).user?.email || "",
       employeeId: await resolveEmployeeId(workspace._id, memberUserId),
-      role: roleKey,
-      departments: getDepartmentNames(member.departments || []),
+      role: memberRole,
+      departments: memberRole === "founder" || memberRole === "super_admin"
+        ? ["All Departments"]
+        : getDepartmentNames(member.departments || []),
       year,
       quotaConfigured: Boolean(storedQuota),
+      assignedLeaveTypeIds: assignedTypes.map((type: any) => String(type._id)),
+      assignedLeaveTypes: assignedTypes.map(formatLeaveType),
+      cycleType: storedQuota?.cycleType || "calendar_year",
+      carryForward: Boolean(storedQuota?.carryForward),
+      carryForwardLimit: storedQuota?.carryForwardLimit ?? null,
       total,
       used,
-      remaining: LEAVE_TYPE_KEYS.reduce((acc, key) => {
-        acc[key] = Math.max(0, roundDays(Number(total[key] || 0) - Number(used[key] || 0)));
-        return acc;
-      }, {} as Record<LeaveTypeKey, number>),
+      remaining,
     });
   }
 
   return {
     quotas: rows,
-    leaveTypes: LEAVE_TYPE_KEYS,
+    leaveTypes: leaveTypes.map(formatLeaveType),
+    suggestions: COMMON_LEAVE_TYPE_SUGGESTIONS,
     year,
     canManage: canManageLeaveSettings(actor),
   };
@@ -940,33 +1308,76 @@ export async function updateLeaveQuotaForUser(
 ) {
   const context = await resolveLeaveWorkspaceContext(userId, workspaceId);
   const { workspace, actor } = context;
-
   if (!canManageLeaveSettings(actor)) {
     throw httpError("Only HR managers, founders and super admins can configure leave quotas.", 403);
   }
-  if (!targetUserId || !mongoose.isValidObjectId(targetUserId)) {
-    throw httpError("Invalid user id.", 400);
-  }
-
+  if (!targetUserId || !mongoose.isValidObjectId(targetUserId)) throw httpError("Invalid user id.", 400);
   const membership = await resolveMembershipByWorkspace(workspace._id, targetUserId, "role");
   if (!membership) throw httpError("The requested user is not part of this workspace.", 404);
 
   const year = Number(input?.year) || new Date().getFullYear();
-  const total: Record<LeaveTypeKey, number> = {
-    Casual: Math.max(0, Number(input?.Casual ?? input?.casual ?? 0)),
-    Sick: Math.max(0, Number(input?.Sick ?? input?.sick ?? 0)),
-    Vacation: Math.max(0, Number(input?.Vacation ?? input?.vacation ?? 0)),
-  };
+  const leaveTypes = await getWorkspaceLeaveTypes(workspace._id);
+  if (leaveTypes.length === 0) throw httpError("Add at least one leave type before assigning quotas.", 409);
+  const typeById = new Map(leaveTypes.map((type: any) => [String(type._id), type]));
+  const existing: any = await LeaveQuota.findOne({ workspaceId: workspace._id, userId: targetUserId, year }).lean().exec();
 
-  if (total.Casual + total.Sick + total.Vacation <= 0) {
-    throw httpError("At least one leave type must have a quota greater than 0.", 400);
+  const assignmentWasProvided = Array.isArray(input?.assignedLeaveTypeIds);
+  const requestedAssignments = assignmentWasProvided
+    ? [...new Set(input.assignedLeaveTypeIds.map((id: any) => String(id)).filter((id: string) => typeById.has(id)))]
+    : (quotaHasAssignmentConfig(existing)
+      ? (existing.assignedLeaveTypeIds || []).map((id: any) => toId(id)).filter((id: string) => typeById.has(id))
+      : []);
+  if (assignmentWasProvided && requestedAssignments.length !== input.assignedLeaveTypeIds.length) {
+    throw httpError("One or more selected leave types are invalid or disabled.", 400);
   }
 
-  const quota = await LeaveQuota.findOneAndUpdate(
+  const existingBalances = mapToObject(existing?.balances);
+  const existingAnnualBalances = Object.keys(mapToObject(existing?.annualBalances)).length > 0
+    ? mapToObject(existing?.annualBalances)
+    : existingBalances;
+  const incoming = input?.balances || input?.total;
+  const balances: Record<string, number> = { ...existingBalances };
+  const annualBalances: Record<string, number> = { ...existingAnnualBalances };
+  if (incoming && typeof incoming === "object") {
+    leaveTypes.forEach((type: any) => {
+      const raw = incoming[String(type._id)] ?? incoming[type.code] ?? incoming[type.name];
+      if (raw !== undefined) {
+        balances[type.code] = Math.max(0, Number(raw) || 0);
+        annualBalances[type.code] = Math.max(0, Number(raw) || 0);
+      }
+    });
+  }
+
+  const cycleType = input?.cycleType === "financial_year"
+    ? "financial_year"
+    : input?.cycleType === "calendar_year"
+      ? "calendar_year"
+      : existing?.cycleType || "calendar_year";
+  const carryForward = input?.carryForward !== undefined ? Boolean(input.carryForward) : Boolean(existing?.carryForward);
+  const carryForwardLimit = input?.carryForwardLimit === null || input?.carryForwardLimit === ""
+    ? null
+    : input?.carryForwardLimit !== undefined
+      ? Math.max(0, Number(input.carryForwardLimit) || 0)
+      : existing?.carryForwardLimit ?? null;
+
+  const quota: any = await LeaveQuota.findOneAndUpdate(
     { workspaceId: workspace._id, userId: targetUserId, year },
-    { $set: { ...total, updatedBy: actor.userId } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    {
+      $set: {
+        assignedLeaveTypeIds: requestedAssignments,
+        balances,
+        annualBalances,
+        cycleType,
+        carryForward,
+        carryForwardLimit,
+        updatedBy: actor.userId,
+      },
+      $setOnInsert: { createdBy: actor.userId },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true },
   ).exec();
+  const assignedTypes = requestedAssignments.map((id: string) => typeById.get(id)).filter(Boolean);
+  const totalById = Object.fromEntries(assignedTypes.map((type: any) => [String(type._id), Number(balances[type.code] || 0)]));
 
   await createNotification({
     workspaceId: workspace._id,
@@ -974,24 +1385,28 @@ export async function updateLeaveQuotaForUser(
     actorUserId: actor.userId,
     type: "leave_quota_updated",
     category: "leave",
-    title: "Your leave balance was updated",
-    description: `${actor.displayName} updated your ${year} leave quota (Casual ${total.Casual}, Sick ${total.Sick}, Vacation ${total.Vacation}).`,
+    title: "Your leave policy was updated",
+    description: `${actor.displayName} updated your ${year} leave types and balances.`,
     entityType: "leave-quota",
     entityId: String(quota._id),
     targetUrl: "/leave-requests",
-    data: { year, total },
+    data: { year, total: totalById, assignedLeaveTypeIds: requestedAssignments, cycleType, carryForward, carryForwardLimit },
   });
 
   return {
     quota: {
       userId: targetUserId,
       year,
-      total,
-      used: await getApprovedDaysForUser(workspace._id, targetUserId, year),
+      assignedLeaveTypeIds: requestedAssignments,
+      assignedLeaveTypes: assignedTypes.map(formatLeaveType),
+      cycleType,
+      carryForward,
+      carryForwardLimit,
+      total: totalById,
+      used: await getApprovedDaysForUser(workspace._id, targetUserId, year, leaveTypes),
     },
   };
 }
-
 export async function listHolidaysForWorkspace(userId: string, query: any = {}, workspaceId?: string) {
   const context = await resolveLeaveWorkspaceContext(userId, workspaceId);
   const { workspace, actor } = context;
@@ -1007,9 +1422,14 @@ export async function listHolidaysForWorkspace(userId: string, query: any = {}, 
       id: String(holiday._id),
       name: holiday.name,
       description: holiday.description || "",
+      time: holiday.time || "",
+      location: holiday.location || "",
       date: formatDateOnly(holiday.date),
       year: holiday.year,
       type: holiday.type,
+      entryKind: holiday.entryKind || "holiday",
+      source: holiday.source || "manual",
+      externalId: holiday.externalId || "",
       recurring: Boolean(holiday.recurring),
       isActive: Boolean(holiday.isActive),
       createdAt: holiday.createdAt,
@@ -1022,9 +1442,14 @@ export async function listHolidaysForWorkspace(userId: string, query: any = {}, 
 interface HolidayInput {
   name?: string;
   description?: string;
+  time?: string;
+  location?: string;
   date?: string;
   type?: string;
   recurring?: boolean;
+  entryKind?: "holiday" | "event";
+  source?: "manual" | "public_api";
+  externalId?: string;
 }
 
 export async function createHolidayForWorkspace(userId: string, input: HolidayInput, workspaceId?: string) {
@@ -1042,17 +1467,23 @@ export async function createHolidayForWorkspace(userId: string, input: HolidayIn
   if (Number.isNaN(date.getTime())) throw httpError("Invalid holiday date.", 400);
 
   const dateKey = formatDateOnly(date);
-  const existing = await Holiday.findOne({ workspaceId: workspace._id, dateKey }).lean().exec();
-  if (existing) throw httpError("A holiday already exists on this date.", 409);
+  const entryKind = input?.entryKind === "event" ? "event" : "holiday";
+  const existing = await Holiday.findOne({ workspaceId: workspace._id, dateKey, entryKind, name, isActive: true }).lean().exec();
+  if (existing) throw httpError(`This ${entryKind} already exists on this date.`, 409);
 
   const holiday = await Holiday.create({
     workspaceId: workspace._id,
     name,
     description: String(input?.description || "").trim(),
+    time: entryKind === "event" ? String(input?.time || "").trim() : "",
+    location: entryKind === "event" ? String(input?.location || "").trim() : "",
     date,
     dateKey,
     year: date.getUTCFullYear(),
     type: input?.type === "public" ? "public" : "company",
+    entryKind,
+    source: input?.source === "public_api" ? "public_api" : "manual",
+    externalId: String(input?.externalId || "").trim(),
     recurring: Boolean(input?.recurring),
     isActive: true,
     createdBy: actor.userId,
@@ -1082,6 +1513,11 @@ export async function updateHolidayForWorkspace(userId: string, holidayId: strin
   if (input?.type !== undefined) {
     holiday.type = input.type === "public" ? "public" : "company";
   }
+  if (input?.entryKind !== undefined) holiday.entryKind = input.entryKind === "event" ? "event" : "holiday";
+  if (input?.time !== undefined) holiday.time = holiday.entryKind === "event" ? String(input.time || "").trim() : "";
+  if (input?.location !== undefined) holiday.location = holiday.entryKind === "event" ? String(input.location || "").trim() : "";
+  if (input?.source !== undefined) holiday.source = input.source === "public_api" ? "public_api" : "manual";
+  if (input?.externalId !== undefined) holiday.externalId = String(input.externalId || "").trim();
   if (input?.recurring !== undefined) holiday.recurring = Boolean(input.recurring);
 
   if (input?.date !== undefined) {
@@ -1091,11 +1527,14 @@ export async function updateHolidayForWorkspace(userId: string, holidayId: strin
     const conflicting = await Holiday.findOne({
       workspaceId: workspace._id,
       dateKey,
+      entryKind: holiday.entryKind,
+      name: holiday.name,
+      isActive: true,
       _id: { $ne: holiday._id },
     })
       .lean()
       .exec();
-    if (conflicting) throw httpError("A holiday already exists on this date.", 409);
+    if (conflicting) throw httpError(`This ${holiday.entryKind} already exists on this date.`, 409);
     holiday.date = date;
     holiday.dateKey = dateKey;
     holiday.year = date.getUTCFullYear();
@@ -1124,9 +1563,14 @@ const formatHoliday = (holiday: any) => ({
   id: String(holiday._id),
   name: holiday.name,
   description: holiday.description || "",
+  time: holiday.time || "",
+  location: holiday.location || "",
   date: formatDateOnly(holiday.date),
   year: holiday.year,
   type: holiday.type,
+  entryKind: holiday.entryKind || "holiday",
+  source: holiday.source || "manual",
+  externalId: holiday.externalId || "",
   recurring: Boolean(holiday.recurring),
   isActive: Boolean(holiday.isActive),
   createdAt: holiday.createdAt,

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
+import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import WidgetSection from "@/components/WidgetSection";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
@@ -308,6 +309,8 @@ export function TechDashboardOverview() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
+        <DashboardAttendanceCard />
+
         <WidgetSection layout={4} title="Overview" border normalCase>
           <StatCard icon={Magnet} label="Website Leads" value={leads.length} sub={`${pendingLeads.length} new/uncontacted`} color="#2563EB" route="/company-settings/website-builder/leads" />
           <StatCard icon={UserCheck} label="Contacted Leads" value={contactedLeads.length} sub={`${closedLeads.length} closed`} color="#f59e0b" route="/company-settings/website-builder/leads" />
