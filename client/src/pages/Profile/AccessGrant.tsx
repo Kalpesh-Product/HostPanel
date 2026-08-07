@@ -59,6 +59,7 @@ interface MappedMember {
   accountDeleted?: boolean;
   departments: string[];
   grantedModules: string[];
+  addOnGrantedModules: string[];
   enabledModules: string[];
   workspaceAccesses: WorkspaceAccess[];
 }
@@ -107,7 +108,11 @@ interface WorkspaceData {
 
 interface MemberAccessDraft {
   db?: Record<string, boolean>;
-  [key: string]: Record<string, boolean> | undefined;
+  // Where each module was granted: "add-ons" when toggled inside the
+  // Add-ons catalogue, "normal" for every other section. Used on save to
+  // split the grants into grantedModules vs addOnGrantedModules.
+  sources?: Record<string, "normal" | "add-ons">;
+  [key: string]: Record<string, boolean> | Record<string, "normal" | "add-ons"> | undefined;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -392,6 +397,7 @@ function mapOverviewMember(member: Record<string, unknown> = {}): MappedMember {
         ? (member.departments as string[])
         : [],
     grantedModules: Array.isArray(member.grantedModules) ? (member.grantedModules as string[]) : [],
+    addOnGrantedModules: Array.isArray(member.addOnGrantedModules) ? (member.addOnGrantedModules as string[]) : [],
     enabledModules: Array.isArray(member.enabledModules) ? (member.enabledModules as string[]) : [],
     workspaceAccesses: Array.isArray(member.workspaceAccesses) ? (member.workspaceAccesses as WorkspaceAccess[]) : [],
   };
@@ -514,6 +520,11 @@ export default function AccessGrantsPage() {
     if (!direct.length) return [];
     return direct.flatMap((child) => [child.id, ...collectChildIds(child.id)]);
   };
+
+  // Grants made inside the Add-ons catalogue are stored separately
+  // (addOnGrantedModules) so the sidebar renders them only under Add-ons.
+  const getSectionSource = (sectionKey = ''): 'normal' | 'add-ons' =>
+    normalizeModuleKey(sectionKey) === 'add-ons' ? 'add-ons' : 'normal';
 
   const isModuleCheckedFromDraft = (moduleId = '', draft: Record<string, boolean> = {}, includeChildren = true) => {
     const directChecked = Boolean(draft?.[moduleId]);
@@ -763,12 +774,33 @@ export default function AccessGrantsPage() {
 
     const mappedSections = sections
       .map((section) => {
-        const modules = (Array.isArray(section?.items) ? section.items : []).flatMap((item) => {
+        const sectionKey = normalizeModuleKey(
+          section?.sectionId || section?.sectionLabel || '',
+        );
+
+        let sectionItems = Array.isArray(section?.items)
+          ? section.items
+          : [];
+
+        // In Add-ons, hide everything from Dashboard through Analytics.
+        // Only modules listed after Analytics will remain visible.
+        if (sectionKey === 'add-ons') {
+          const analyticsIndex = sectionItems.findIndex(
+            (item) => normalizeModuleKey(item?.id) === 'analytics',
+          );
+
+          if (analyticsIndex !== -1) {
+            sectionItems = sectionItems.slice(analyticsIndex + 1);
+          }
+        }
+
+        const modules = sectionItems.flatMap((item) => {
           if (Array.isArray(item?.tabs) && item.tabs.length > 0) {
             return item.tabs
               .filter((tab) => {
                 const tabId = String(tab?.id || '').trim();
-                return tabId && enabledCanonical.has(tabId);
+                if (!tabId) return false;
+                return tab?.unlockedInWorkspace === true || enabledCanonical.has(tabId);
               })
               .map((tab) => ({
                 id: String(tab?.id || '').trim(),
@@ -779,7 +811,8 @@ export default function AccessGrantsPage() {
           }
 
           const itemId = String(item?.id || '').trim();
-          if (!itemId || !enabledCanonical.has(itemId)) return [];
+          if (!itemId) return [];
+          if (!(item?.unlockedInWorkspace === true || enabledCanonical.has(itemId))) return [];
           return [{
             id: itemId,
             label: String(item?.label || item?.id || '').trim(),
@@ -816,6 +849,20 @@ export default function AccessGrantsPage() {
         label: 'Website Builder',
         description: 'Key Apps',
       });
+    }
+
+    // Also show Key Apps modules at the top of the Add-ons list, so they can
+    // be granted from either place. The standalone Key Apps section stays:
+    // grants made there are normal source, grants made inside Add-ons are
+    // add-ons source.
+    const addOnsSection = mappedSections.find(
+      (section) => normalizeModuleKey(section.key) === 'add-ons',
+    );
+    if (addOnsSection && keyAppsSection) {
+      addOnsSection.modules = [
+        ...(keyAppsSection.modules || []),
+        ...addOnsSection.modules,
+      ];
     }
 
     return mappedSections;
@@ -871,6 +918,15 @@ export default function AccessGrantsPage() {
         .filter((item) => item && !normalizeModuleKey(item).startsWith('disabled:'))
         .map((item) => normalizeModuleKey(item)),
     );
+    const addOnGrantedModuleValues = Array.isArray(member?.addOnGrantedModules)
+      ? member.addOnGrantedModules
+      : [];
+    const effectiveAddOnAccessModules = expandModuleAliases(
+      addOnGrantedModuleValues
+        .map((item) => String(item || ''))
+        .filter((item) => item && !normalizeModuleKey(item).startsWith('disabled:'))
+        .map((item) => normalizeModuleKey(item)),
+    );
     // Department-key compatibility from master panel payloads:
     // keep department rows independent from key-app rows.
     if (effectiveAccessModules.has('administration-visitor-management')) {
@@ -885,9 +941,19 @@ export default function AccessGrantsPage() {
         ...collectChildIds(module.id),
       ]),
     );
-    const nextDraft = {
-      db: allModuleIds.reduce((acc, moduleId) => {
-        acc[moduleId] = effectiveAccessModules.has(normalizeModuleKey(moduleId));
+    const nextDraft: MemberAccessDraft = {
+      db: allModuleIds.reduce<Record<string, boolean>>((acc, moduleId) => {
+        acc[moduleId] =
+          effectiveAccessModules.has(normalizeModuleKey(moduleId)) ||
+          effectiveAddOnAccessModules.has(normalizeModuleKey(moduleId));
+        return acc;
+      }, {}),
+      sources: allModuleIds.reduce<Record<string, 'normal' | 'add-ons'>>((acc, moduleId) => {
+        if (effectiveAddOnAccessModules.has(normalizeModuleKey(moduleId))) {
+          acc[moduleId] = 'add-ons';
+        } else if (effectiveAccessModules.has(normalizeModuleKey(moduleId))) {
+          acc[moduleId] = 'normal';
+        }
         return acc;
       }, {}),
     };
@@ -898,7 +964,7 @@ export default function AccessGrantsPage() {
     setShowMemberAccessDialog(true);
   };
 
-  const toggleMemberModule = (moduleId: string) => {
+  const toggleMemberModule = (moduleId: string, source: 'normal' | 'add-ons') => {
     if (!memberAccessTarget) {
       return;
     }
@@ -906,24 +972,33 @@ export default function AccessGrantsPage() {
     const childModuleIds = collectChildIds(moduleId);
     setMemberAccessDraft((current) => {
       const db = current?.db || {};
+      const sources = current?.sources || {};
       const nextValue = !db[moduleId];
       const nextDb: Record<string, boolean> = {
         ...db,
         [moduleId]: nextValue,
       };
+      const nextSources: Record<string, 'normal' | 'add-ons'> = { ...sources };
+      if (nextValue) {
+        nextSources[moduleId] = source;
+      } else {
+        delete nextSources[moduleId];
+      }
       if (nextValue && childModuleIds.length > 0) {
         childModuleIds.forEach((childId) => {
           if (nextDb[childId] == null) {
             nextDb[childId] = true;
           }
+          nextSources[childId] = source;
         });
       }
       if (!nextValue && childModuleIds.length > 0) {
         childModuleIds.forEach((childId) => {
           nextDb[childId] = false;
+          delete nextSources[childId];
         });
       }
-      return { ...current, db: nextDb };
+      return { ...current, db: nextDb, sources: nextSources };
     });
   };
 
@@ -932,7 +1007,7 @@ export default function AccessGrantsPage() {
     return section.modules.length > 0 && section.modules.every((module) => Boolean(db[module.id]));
   };
 
-  const toggleSectionSelectAll = (section: { modules: Array<{ id: string }> }) => {
+  const toggleSectionSelectAll = (section: { modules: Array<{ id: string }> }, source: 'normal' | 'add-ons') => {
     if (!memberAccessTarget || section.modules.length === 0) {
       return;
     }
@@ -940,18 +1015,30 @@ export default function AccessGrantsPage() {
     const nextValue = !isSectionFullySelected(section);
     setMemberAccessDraft((current) => {
       const db = current?.db || {};
+      const sources = current?.sources || {};
       const nextDb: Record<string, boolean> = { ...db };
+      const nextSources: Record<string, 'normal' | 'add-ons'> = { ...sources };
       section.modules.forEach((module) => {
         nextDb[module.id] = nextValue;
+        if (nextValue) {
+          nextSources[module.id] = source;
+        } else {
+          delete nextSources[module.id];
+        }
         collectChildIds(module.id).forEach((childId) => {
           nextDb[childId] = nextValue;
+          if (nextValue) {
+            nextSources[childId] = source;
+          } else {
+            delete nextSources[childId];
+          }
         });
       });
-      return { ...current, db: nextDb };
+      return { ...current, db: nextDb, sources: nextSources };
     });
   };
 
-  const toggleMemberChildModule = (moduleId: string) => {
+  const toggleMemberChildModule = (moduleId: string, source: 'normal' | 'add-ons') => {
     if (!memberAccessTarget) {
       return;
     }
@@ -959,17 +1046,25 @@ export default function AccessGrantsPage() {
     const childModuleIds = collectChildIds(moduleId);
     setMemberAccessDraft((current) => {
       const db = current?.db || {};
+      const sources = current?.sources || {};
       const nextValue = !isModuleCheckedFromDraft(moduleId, db, true);
       const nextDb: Record<string, boolean> = {
         ...db,
         [moduleId]: nextValue,
       };
+      const nextSources: Record<string, 'normal' | 'add-ons'> = { ...sources };
+      if (nextValue) {
+        nextSources[moduleId] = source;
+      } else {
+        delete nextSources[moduleId];
+      }
       if (!nextValue && childModuleIds.length > 0) {
         childModuleIds.forEach((childId) => {
           nextDb[childId] = false;
+          delete nextSources[childId];
         });
       }
-      return { ...current, db: nextDb };
+      return { ...current, db: nextDb, sources: nextSources };
     });
   };
 
@@ -984,10 +1079,21 @@ export default function AccessGrantsPage() {
       .filter(([, enabled]) => Boolean(enabled))
       .map(([moduleId]) => String(moduleId || '').trim())
       .filter(Boolean);
-    const originalByNormalized = new Map(
-      rawCheckedModules.map((moduleId) => [normalizeModuleKey(moduleId), moduleId]),
+    // Split grants by their source section: modules toggled inside the
+    // Add-ons catalogue go to addOnGrantedModules; everything else stays in
+    // grantedModules. This lets the sidebar render each module only where it
+    // was granted instead of duplicating it.
+    const sources = memberAccessDraft?.sources || {};
+    const normalCheckedModules = rawCheckedModules.filter(
+      (moduleId) => sources[moduleId] !== 'add-ons',
     );
-    rawCheckedModules.forEach((moduleId) => {
+    const addOnCheckedModules = rawCheckedModules.filter(
+      (moduleId) => sources[moduleId] === 'add-ons',
+    );
+    const originalByNormalized = new Map(
+      normalCheckedModules.map((moduleId) => [normalizeModuleKey(moduleId), moduleId]),
+    );
+    normalCheckedModules.forEach((moduleId) => {
       const chain = visitorParentChainByChild.get(normalizeModuleKey(moduleId)) || [];
       chain.forEach((parentIdRaw) => {
         const parentId = String(parentIdRaw || '').trim();
@@ -1017,6 +1123,7 @@ export default function AccessGrantsPage() {
     try {
       await updateEmployeeAccessRequest(axiosPrivate, memberAccessTarget.id, {
         accessModules: effectiveModules,
+        addOnModules: addOnCheckedModules,
         accessFeatures: [],
       });
       toast.success(`Sidebar access updated for ${memberAccessTarget.name}.`);
@@ -1820,7 +1927,7 @@ export default function AccessGrantsPage() {
                       {section.modules.length > 0 ? (
                         <button
                           type="button"
-                          onClick={() => toggleSectionSelectAll(section)}
+                          onClick={() => toggleSectionSelectAll(section, getSectionSource(section.key))}
                           disabled={!canManageModuleAccess || (isTargetEmployee && normalizeModuleKey(section.key) === 'founder-core-modules')}
                           className="text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:text-blue-800 transition-colors disabled:text-slate-300 disabled:cursor-not-allowed"
                         >
@@ -1880,7 +1987,7 @@ export default function AccessGrantsPage() {
                                                 <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                               </button>
                                             ) : null}
-                                            <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule(module.id)} />
+                                            <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule(module.id, getSectionSource(section.key))} />
                                           </div>
                                         </div>
                                         {hasChildren && isExpanded ? (
@@ -1916,7 +2023,7 @@ export default function AccessGrantsPage() {
                                                       <Switch
                                                         checked={childChecked}
                                                         disabled={!canManageModuleAccess || !checked}
-                                                        onCheckedChange={() => toggleMemberChildModule(child.id)}
+                                                          onCheckedChange={() => toggleMemberChildModule(child.id, getSectionSource(section.key))}
                                                       />
                                                     </div>
                                                   </div>
@@ -1933,7 +2040,7 @@ export default function AccessGrantsPage() {
                                                             <Switch
                                                               checked={subtabChecked}
                                                               disabled={!canManageModuleAccess || !checked || !childChecked}
-                                                              onCheckedChange={() => toggleMemberChildModule(subtab.id)}
+                                                              onCheckedChange={() => toggleMemberChildModule(subtab.id, getSectionSource(section.key))}
                                                             />
                                                           </div>
                                                         );
@@ -1987,7 +2094,7 @@ export default function AccessGrantsPage() {
                                   </button>
                                 ) : null}
                                {/* Disable the switch if the user cannot manage module access or if the target employee is trying to access a core module section */}
-                              <Switch checked={checked} disabled={!canManageModuleAccess  || (isTargetEmployee && isCoreModuleSection)} onCheckedChange={() => toggleMemberModule(module.id)} />
+                               <Switch checked={checked} disabled={!canManageModuleAccess  || (isTargetEmployee && isCoreModuleSection)} onCheckedChange={() => toggleMemberModule(module.id, getSectionSource(section.key))} />
                               </div>
                             </div>
                             {hasChildren && isExpanded ? (
@@ -2024,7 +2131,7 @@ export default function AccessGrantsPage() {
                                           <Switch
                                             checked={childChecked}
                                             disabled={!canManageModuleAccess || !checked || (isTargetEmployee && isCoreModuleSection)}
-                                            onCheckedChange={() => toggleMemberChildModule(child.id)}
+                                            onCheckedChange={() => toggleMemberChildModule(child.id, getSectionSource(section.key))}
                                           />
                                         </div>
                                       </div>
@@ -2042,7 +2149,7 @@ export default function AccessGrantsPage() {
                                                 <Switch
                                                   checked={subtabChecked}
                                                   disabled={!canManageModuleAccess || !checked || !childChecked || (isTargetEmployee && isCoreModuleSection)}
-                                                  onCheckedChange={() => toggleMemberChildModule(subtab.id)}
+                                                  onCheckedChange={() => toggleMemberChildModule(subtab.id, getSectionSource(section.key))}
                                                 />
                                               </div>
                                             );

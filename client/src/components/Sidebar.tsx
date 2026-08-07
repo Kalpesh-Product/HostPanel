@@ -174,6 +174,7 @@ interface RoleAccessContext {
   role: string;
   departments: string[];
   grantedModules: string[];
+  addOnGrantedModules: string[];
 }
 
 interface WorkspaceDepartmentAccess {
@@ -729,6 +730,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     role: "",
     departments: [],
     grantedModules: [],
+    addOnGrantedModules: [],
   });
   const [workspaceDepartments, setWorkspaceDepartments] = useState<WorkspaceDepartmentAccess[]>([]);
   const workspaceSetup = readWorkspaceSetup();
@@ -806,6 +808,9 @@ useEffect(() => {
         const memberGranted = Array.isArray(payload?.currentMemberGrantedModules)
           ? payload.currentMemberGrantedModules
           : [];
+        const memberAddOnGranted = Array.isArray(payload?.currentMemberAddOnGrantedModules)
+          ? payload.currentMemberAddOnGrantedModules
+          : [];
         setRoleAccessContext({
           role: String(
             me?.role ||
@@ -815,6 +820,7 @@ useEffect(() => {
           ),
           departments: Array.isArray(me?.departmentNames) ? me.departmentNames : [],
           grantedModules: memberGranted,
+          addOnGrantedModules: memberAddOnGranted,
         });
         setWorkspaceDepartments(
           departments.map((department: any) => ({
@@ -836,6 +842,7 @@ useEffect(() => {
           ),
           departments: [],
           grantedModules: [],
+          addOnGrantedModules: [],
         });
         setWorkspaceDepartments([]);
       } finally {
@@ -1213,18 +1220,24 @@ useEffect(() => {
   const dynamicDepartmentItems = useMemo<NavNode[]>(() => {
     if (!["professional", "custom"].includes(planLabel)) return [];
 
-    const canSeeDepartmentAccess =
-      isFounderRole ||
-      isSuperAdmin ||
-      currentRole === "admin" ||
-      currentRole === "manager";
-    if (!canSeeDepartmentAccess) return [];
-
     const assignedDepartmentNames = new Set(
       roleAccessContext.departments
         .map((name) => String(name || "").trim().toLowerCase())
         .filter(Boolean),
     );
+
+    // Founder/super_admin/admin/manager can see every custom department (a
+    // management overview). A plain employee only sees the custom
+    // department(s) actually assigned to them — but must still be able to
+    // see those, not blocked outright, so their granted modules can group
+    // under the right heading instead of falling back to a static section.
+    const canSeeDepartmentAccess =
+      isFounderRole ||
+      isSuperAdmin ||
+      currentRole === "admin" ||
+      currentRole === "manager" ||
+      assignedDepartmentNames.size > 0;
+    if (!canSeeDepartmentAccess) return [];
     const moduleNavigation = new Map<
       string,
       { label: string; route?: string; icon?: ElementType }
@@ -1298,6 +1311,20 @@ useEffect(() => {
     workspaceDepartments,
     workspaceEnabledCanonicalIds,
   ]);
+
+  // Modules claimed by a visible custom department (e.g. "Marketing
+  // Department") should render only there, not duplicated under their
+  // static home section (Finance Department, Tech Department, etc).
+  const claimedByCustomDepartmentIds = useMemo(() => {
+    const claimed = new Set<string>();
+    dynamicDepartmentItems.forEach((department) => {
+      (department.children || []).forEach((child) => {
+        if (!child.disabled) claimed.add(child.id);
+      });
+    });
+    return claimed;
+  }, [dynamicDepartmentItems]);
+
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
     workspaceAccessMap?.moduleMap?.sections || []
   ).map((section) => {
@@ -1322,6 +1349,11 @@ useEffect(() => {
       }
       if (hasTabs) {
         const children = (item.tabs || [])
+          .filter((tab) => {
+            if (sectionKey !== "department-accesses") return true;
+            const tabId = String(tab?.id || "").trim();
+            return !claimedByCustomDepartmentIds.has(tabId);
+          })
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
             const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
@@ -1519,86 +1551,67 @@ useEffect(() => {
                 ...(planLabel !== "basic" ? [{ key: "department-accesses", title: "Department Accesses", items: departmentItems }] : []),
               ];
 
-            // Recursively splits a node tree into its locked and unlocked halves,
-            // preserving group nesting (a group keeps the same expand/collapse
-            // shape on both sides, just with only its locked/unlocked children).
-            const splitLockedTree = (nodes: NavNode[]): { locked: NavNode[]; unlocked: NavNode[] } => {
-              const locked: NavNode[] = [];
-              const unlocked: NavNode[] = [];
+            // Grants are split by source: modules granted inside the Add-ons
+            // catalogue live in addOnGrantedModules, every other grant (role
+            // defaults + normal section toggles) lives in grantedModules.
+            // Grouping rule:
+            // - The expandable "Add-ons" section ALWAYS renders (whenever the
+            //   Add-ons catalogue exists) so the member can see it's there,
+            //   but its expanded list shows ONLY modules actually granted
+            //   from the Add-ons catalogue (empty until any are granted).
+            // - Every other section renders ONLY modules the member can access
+            //   WITHOUT those add-on grants (effective minus add-on), so a
+            //   module never appears in both places.
+            const addOnGrantedSet = new Set(
+              (roleAccessContext.addOnGrantedModules || [])
+                .map((id) => normalizeModuleToken(String(id || "")))
+                .filter((id) => id && !id.startsWith("disabled:")),
+            );
+            const normalGrantedSet = new Set(
+              (roleAccessContext.grantedModules || [])
+                .map((id) => normalizeModuleToken(String(id || "")))
+                .filter((id) => id && !id.startsWith("disabled:") && !addOnGrantedSet.has(id)),
+            );
+
+            // Recursively keeps only nodes (or groups whose children) are
+            // present in the granted set, preserving group nesting.
+            const keepGrantedTree = (nodes: NavNode[], grantedIds: Set<string>): NavNode[] => {
+              const kept: NavNode[] = [];
 
               for (const node of nodes) {
                 if (node.children?.length) {
-                  const child = splitLockedTree(node.children);
-
-                  // group node itself should appear in locked/unlocked only if it has locked/unlocked children
-                  if (child.locked.length > 0) {
-                    locked.push({ ...node, children: child.locked, defaultOpen: true });
+                  const children = keepGrantedTree(node.children, grantedIds);
+                  if (children.length > 0) {
+                    kept.push({ ...node, children });
                   }
-                  if (child.unlocked.length > 0) {
-                    unlocked.push({ ...node, children: child.unlocked });
-                  }
-                } else if (node.disabled) {
-                  locked.push(node);
-                } else {
-                  unlocked.push(node);
+                } else if (grantedIds.has(normalizeModuleToken(node.id))) {
+                  kept.push(node);
                 }
               }
 
-              return { locked, unlocked };
+              return kept;
             };
 
-            // New rule, applied uniformly to every real section (Common
-            // Modules, Extra Common Modules, Key Apps, Founder Core Modules,
-            // Department Accesses) — not just Key Apps/Department Accesses:
-            // - "Add-ons" should render ONLY the locked tree nodes, grouped
-            //   by the section they came from.
-            // - Every other section (outside Add-ons) should render ONLY its
-            //   unlocked tree nodes.
-            // This prevents duplicate modules (locked items appearing in
-            // both places) and stops locked items from sitting greyed-out in
-            // their normal section instead of moving to Add-ons.
-            const sectionSplits = new Map<string, { locked: NavNode[]; unlocked: NavNode[] }>();
-            rawSections.forEach((s) => {
-              if (s.key === "add-ons") return;
-              sectionSplits.set(s.key, splitLockedTree(s.items));
-            });
+            const addOnsSection = rawSections.find(
+              (section) => section.key === "add-ons",
+            );
 
-            const addonsItems: NavNode[] = [];
-            if (planLabel !== "basic") {
-              rawSections.forEach((s) => {
-                const split = sectionSplits.get(s.key);
-                if (!split || !split.locked.length) return;
-
-                if (s.key === "key-apps") {
-                  addonsItems.push({ id: "key-apps", label: "Key Apps", icon: Boxes, defaultOpen: true, children: split.locked });
-                  return;
-                }
-                if (s.key === "department-accesses") {
-                  addonsItems.push({ id: "department-accesses", label: "Department", icon: Building, defaultOpen: true, children: split.locked });
-                  return;
-                }
-                addonsItems.push({ id: s.key, label: s.title, icon: Boxes, defaultOpen: true, children: split.locked });
-              });
-            }
+            const addonsItems: NavNode[] = addOnsSection
+              ? keepGrantedTree(addOnsSection.items, addOnGrantedSet)
+              : [];
 
             const cleanedSections = rawSections
               .map((s) => {
                 if (s.key === "add-ons") {
-                  return addonsItems.length > 0 ? { ...s, items: addonsItems } : null;
+                  return null;
                 }
 
-                const split = sectionSplits.get(s.key);
-                if (!split) return s;
-                return split.unlocked.length > 0 ? { ...s, items: split.unlocked } : null;
+                const items = keepGrantedTree(s.items, normalGrantedSet);
+                return items.length > 0 ? { ...s, items } : null;
               })
               .filter(Boolean) as Array<{ key: string; title: string; items: NavNode[] }>;
 
-            // if Key Apps/departments have locked items but there is no existing add-ons section, create it
-            if (
-              planLabel !== "basic" &&
-              addonsItems.length > 0 &&
-              !cleanedSections.some((s) => s.key === "add-ons")
-            ) {
+            if (addOnsSection) {
               cleanedSections.push({ key: "add-ons", title: "Add-ons", items: addonsItems });
             }
 
@@ -1628,15 +1641,84 @@ useEffect(() => {
               <div key={section.key} className="px-4 pt-3">
                 <div className="border-t border-black/10 pt-2">
                   {section.key === "add-ons" ? (
-                    // Add-Ons is a page now — one click opens the grouped
-                    // locked-modules listing instead of expanding a tree here.
-                    <NavGroup
-                      item={{ id: "add-ons", label: "Add-Ons", icon: Puzzle, route: "/module-sections/add-ons" }}
-                      collapsed={collapsed}
-                      pathname={location.pathname}
-                      onNavigate={onNavigate}
-                      sectionKey="add-ons"
-                    />
+                    !collapsed ? (
+                      <>
+                        <div className="flex w-full items-center justify-between">
+                          {/* Opens the Add-ons page */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigate("/module-sections/add-ons");
+                              onNavigate(
+                                {
+                                  id: "add-ons",
+                                  label: "Add-ons",
+                                  route: "/module-sections/add-ons",
+                                },
+                                "add-ons",
+                              );
+                            }}
+                            className="flex-1 text-left font-['Poppins'] text-xs font-semibold uppercase tracking-wide text-black/80 hover:text-blue-600"
+                          >
+                            Add-ons
+                          </button>
+
+                          {/* Only expands or collapses — hidden when no add-ons are granted yet */}
+                          {section.items.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenSections((current) => ({
+                                  ...current,
+                                  "add-ons": !current["add-ons"],
+                                }))
+                              }
+                              className="rounded p-1 text-black/70 hover:bg-black/5"
+                              aria-label={
+                                openSections["add-ons"]
+                                  ? "Collapse Add-ons"
+                                  : "Expand Add-ons"
+                              }
+                              aria-expanded={Boolean(openSections["add-ons"])}
+                            >
+                              {openSections["add-ons"] ? (
+                                <ChevronUp size={16} />
+                              ) : (
+                                <ChevronDown size={16} />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {openSections["add-ons"] && section.items.length > 0 && (
+                          <div className="mt-1 space-y-1">
+                            {section.items.map((item) => (
+                              <NavGroup
+                                key={`add-ons-${item.id}`}
+                                item={item}
+                                collapsed={false}
+                                pathname={location.pathname}
+                                onNavigate={onNavigate}
+                                sectionKey="add-ons"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <NavGroup
+                        item={{
+                          id: "add-ons",
+                          label: "Add-ons",
+                          icon: Boxes,
+                          route: "/module-sections/add-ons",
+                        }}
+                        collapsed
+                        pathname={location.pathname}
+                        onNavigate={onNavigate}
+                        sectionKey="add-ons"
+                      />
+                    )
                   ) : !collapsed ? (
                     <>
                       <button

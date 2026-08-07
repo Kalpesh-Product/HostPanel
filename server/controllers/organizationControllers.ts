@@ -464,6 +464,7 @@ const reapplyDepartmentManagerGrants = async (workspaceId, department) => {
       ...managerDefaultIds,
       ...MANAGER_DEFAULT_ORG_GRANT_IDS,
     ]);
+    
     await member.save();
   }
 };
@@ -874,6 +875,7 @@ export const getOrganizationOverview = async (req, res, next) => {
             ? selfMember.departments.map((d: any) => d.name || String(d))
             : [],
           grantedModules: Array.isArray(selfMember.grantedModules) ? selfMember.grantedModules : [],
+          addOnGrantedModules: Array.isArray(selfMember.addOnGrantedModules) ? selfMember.addOnGrantedModules : [],
           enabledModules: Array.isArray(selfMember.enabledModules) ? selfMember.enabledModules : [],
           workspaceAccesses: [],
           joinedAt: selfMember.createdAt,
@@ -1134,6 +1136,7 @@ export const getOrganizationOverview = async (req, res, next) => {
         ? member.departments.map((d: any) => d.name || String(d))
         : [],
       grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+      addOnGrantedModules: Array.isArray(member.addOnGrantedModules) ? member.addOnGrantedModules : [],
       enabledModules: Array.isArray(member.enabledModules) ? member.enabledModules : [],
       workspaceAccesses: linkedWorkspaces
         .filter((item) =>
@@ -1174,6 +1177,13 @@ export const getOrganizationOverview = async (req, res, next) => {
             enabledModuleIds: Array.isArray(workspace.enabledModuleIds)
               ? workspace.enabledModuleIds
               : [],
+            customDepartments: departments
+              .filter((department) => isCustomDepartmentName(department.name))
+              .map((department) => ({
+                id: department.id,
+                name: department.name,
+                moduleIds: department.moduleIds,
+              })),
           }),
           availableCoreModules: Array.isArray(workspace.modules)
             ? workspace.modules.flatMap((category) =>
@@ -1605,9 +1615,12 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       const linkedProfile = await EmployeeProfile.findOne({
         linkedWorkspaceMemberId: member._id,
         workspaceId: workspace._id,
-      }).select("accessModules").lean().exec();
+      }).select("accessModules accessAddOnModules").lean().exec();
       if (linkedProfile && Array.isArray(linkedProfile.accessModules) && linkedProfile.accessModules.length > 0) {
         member.grantedModules = linkedProfile.accessModules;
+      }
+      if (linkedProfile && Array.isArray(linkedProfile.accessAddOnModules) && linkedProfile.accessAddOnModules.length > 0) {
+        member.addOnGrantedModules = linkedProfile.accessAddOnModules;
       }
     }
 
@@ -2512,8 +2525,25 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
     const nextGrantedModules = Array.isArray(req.body?.accessModules)
       ? req.body.accessModules.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
+    // Modules granted specifically through the Add-ons catalogue are stored
+    // separately (member.addOnGrantedModules) so the sidebar can render them
+    // only inside the expandable Add-ons section. Only owner/super-admin
+    // writes (no managerControllableIds) replace this list; manager edits are
+    // scoped to their shared department's modules and leave add-on grants
+    // untouched.
+    const nextAddOnModules = Array.isArray(req.body?.addOnModules)
+      ? req.body.addOnModules.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
 
     const sanitizedNextGrantedModules = nextGrantedModules.filter((moduleId) => {
+      if (moduleId.startsWith("disabled:")) {
+        const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
+        return Boolean(targetModuleId) && allowedModuleKeys.has(normalizeKey(targetModuleId));
+      }
+      return allowedModuleKeys.has(normalizeKey(moduleId));
+    });
+
+    const sanitizedNextAddOnModules = nextAddOnModules.filter((moduleId) => {
       if (moduleId.startsWith("disabled:")) {
         const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
         return Boolean(targetModuleId) && allowedModuleKeys.has(normalizeKey(targetModuleId));
@@ -2537,7 +2567,32 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       member.grantedModules = Array.from(new Set([...outsideManagerScope, ...withinManagerScope]));
     } else {
       member.grantedModules = sanitizedNextGrantedModules;
+      member.addOnGrantedModules = sanitizedNextAddOnModules;
     }
+
+    // Keep custom-department associations in sync with the final granted
+    // modules, so the sidebar can group these modules under the custom
+    // department they were granted through (see Sidebar.tsx
+    // dynamicDepartmentItems) instead of only their static home section.
+    // Formal (non-custom) department assignments made at invite time are
+    // left untouched — only the custom-department subset is recomputed.
+    const workspaceDepartmentDocs = await Department.find({ workspaceId: workspace._id })
+      .select("name moduleIds")
+      .lean();
+    const grantedModuleSet = new Set(member.grantedModules.map((id) => String(id || "").trim()));
+    const customDepartmentDocs = workspaceDepartmentDocs.filter((dept) => isCustomDepartmentName(dept.name));
+    const customDepartmentIdSet = new Set(customDepartmentDocs.map((dept) => String(dept._id)));
+    const nextCustomDepartmentIds = customDepartmentDocs
+      .filter((dept) =>
+        (Array.isArray(dept.moduleIds) ? dept.moduleIds : []).some((id) =>
+          grantedModuleSet.has(String(id || "").trim()),
+        ),
+      )
+      .map((dept) => String(dept._id));
+    const preservedNonCustomDepartmentIds = (Array.isArray(member.departments) ? member.departments : [])
+      .map((dept: any) => String(dept?._id || dept))
+      .filter((id) => !customDepartmentIdSet.has(id));
+    member.departments = Array.from(new Set([...preservedNonCustomDepartmentIds, ...nextCustomDepartmentIds]));
 
     await member.save();
 
@@ -2558,6 +2613,7 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       {
         $set: {
           accessModules: member.grantedModules,
+          accessAddOnModules: member.addOnGrantedModules,
           accessFeatures: [],
           linkedWorkspaceMemberId: member._id,
           linkedUserId: member.user,
@@ -2570,7 +2626,11 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
 
     return res.status(200).json({
       message: "Member access updated successfully.",
-      data: { memberId: toId(member._id), grantedModules: member.grantedModules },
+      data: {
+        memberId: toId(member._id),
+        grantedModules: member.grantedModules,
+        addOnGrantedModules: member.addOnGrantedModules,
+      },
     });
   } catch (error) {
     next(error);

@@ -31,6 +31,14 @@ const workspaceMemberSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Modules granted specifically through the Add-ons catalogue (Access
+    // Grants dialog). Kept separate from grantedModules so the sidebar can
+    // render them only inside the expandable Add-ons section instead of
+    // duplicating them in their normal section.
+    addOnGrantedModules: {
+      type: [String],
+      default: [],
+    },
     tourProgress: {
       type: Map,
       of: new mongoose.Schema(
