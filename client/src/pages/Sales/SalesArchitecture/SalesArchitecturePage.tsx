@@ -369,6 +369,12 @@ export default function SalesArchitecturePage() {
     return list.length ? list : floors;
   }, [buildingResources]);
 
+  const availableWings = useMemo(() => {
+    const list = Array.from(new Set(buildingResources.map((r) => String(r.wing || '').trim().toUpperCase()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return list.length ? list : wings;
+  }, [buildingResources]);
+
   useEffect(() => {
     if (selectedFloor !== "All" && !availableFloors.includes(selectedFloor)) {
       setSelectedFloor("All");
@@ -421,10 +427,14 @@ export default function SalesArchitecturePage() {
   const bookingOnly = useMemo(() => filtered.filter((r) => bookingOnlyCats.has(r.resourceCategory)), [filtered]);
   const desks = useMemo(() => filtered.filter((r) => deskCats.has(r.resourceCategory)), [filtered]);
   const wingGroups = useMemo(() => {
-    const g = { A: [], B: [] };
-    desks.forEach((r) => { (r.wing === "B" ? g.B : g.A).push(r); });
-    g.A.sort((a, b) => String(a.name || a.resourceCode || "").localeCompare(String(b.name || b.resourceCode || "")));
-    g.B.sort((a, b) => String(a.name || a.resourceCode || "").localeCompare(String(b.name || b.resourceCode || "")));
+    const groupKeys = Array.from(new Set(desks.map((r) => String(r.wing || '').trim().toUpperCase() || 'Unassigned'))).sort();
+    const g: Record<string, any[]> = {};
+    groupKeys.forEach((key) => { g[key] = []; });
+    desks.forEach((r) => {
+      const key = String(r.wing || '').trim().toUpperCase() || 'Unassigned';
+      g[key].push(r);
+    });
+    Object.values(g).forEach((list) => list.sort((a, b) => String(a.name || a.resourceCode || "").localeCompare(String(b.name || b.resourceCode || ""))));
     return g;
   }, [desks]);
 
@@ -687,7 +697,7 @@ export default function SalesArchitecturePage() {
           className="bg-transparent text-[12px] font-pmedium text-slate-900 outline-none cursor-pointer"
         >
           <option value="All">All Wings</option>
-          {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
+          {availableWings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
         </select>
       </div>
 
@@ -805,8 +815,8 @@ export default function SalesArchitecturePage() {
               )}
 
               <div className="space-y-6">
-                {(["A", "B"].filter((w) => selectedWing === "All" || selectedWing === w)).map((wing) => {
-                  const items = wingGroups[wing] || [];
+                          {Object.keys(wingGroups).filter((w) => selectedWing === "All" || selectedWing === w).map((wing) => {
+                            const items = wingGroups[wing] || [];
                   return (
                     <section key={wing}>
                       <div className="mb-2 flex items-center justify-between">
@@ -1496,7 +1506,7 @@ export default function SalesArchitecturePage() {
                       className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
                     >
                       <option value="All">All Wings</option>
-                      {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
+                      {availableWings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1635,7 +1645,7 @@ export default function SalesArchitecturePage() {
                       className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
                     >
                       <option value="All">All Wings</option>
-                      {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
+                      {availableWings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1655,8 +1665,11 @@ export default function SalesArchitecturePage() {
                         (selectedFloor === "All" || r.floor === selectedFloor) &&
                         (selectedWing === "All" || r.wing === selectedWing)
                       );
-                      const wingGroups = { A: [], B: [] };
-                      availDesks.forEach((r) => { (r.wing === "B" ? wingGroups.B : wingGroups.A).push(r); });
+                      const wingGroups: Record<string, any[]> = {};
+                      availDesks.forEach((r) => {
+                        const key = String(r.wing || '').trim().toUpperCase() || 'Unassigned';
+                        (wingGroups[key] = wingGroups[key] || []).push(r);
+                      });
 
                       if (availDesks.length === 0) {
                         return <p className="text-center text-[11px] text-slate-400 py-6 border border-dashed border-slate-200 rounded-xl">No available desks matching filters.</p>;
@@ -1664,7 +1677,7 @@ export default function SalesArchitecturePage() {
 
                       return (
                         <div className="space-y-4">
-                          {(["A", "B"].filter((w) => selectedWing === "All" || selectedWing === w)).map((wing) => {
+                {Object.keys(wingGroups).filter((w) => selectedWing === "All" || selectedWing === w).map((wing) => {
                             const items = wingGroups[wing] || [];
                             if (items.length === 0) return null;
                             return (

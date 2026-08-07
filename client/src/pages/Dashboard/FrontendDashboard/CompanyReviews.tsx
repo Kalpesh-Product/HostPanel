@@ -57,6 +57,8 @@ export default function CompanyReviews() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
+  const [ratingFilter, setRatingFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [selectedReviewId, setSelectedReviewId] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
 
@@ -136,15 +138,28 @@ export default function CompanyReviews() {
     ];
   }, [reviews]);
 
+  const productTypeOptions = useMemo(() => {
+    const seen = new Map();
+    reviews.forEach((r) => {
+      const normalized = String(r.companyType || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+      if (normalized && !seen.has(normalized)) seen.set(normalized, formatNomadsType(r.companyType));
+    });
+    return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [reviews]);
+
   const visibleReviews = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return reviews.filter((r) => {
       const matchesStage = stageFilter === "all" || (r.status || "pending") === stageFilter;
+      const rating = Number(r.starCount || r.rating || r.ratingValue);
+      const matchesRating = ratingFilter === "all" || rating === Number(ratingFilter);
+      const normalizedType = String(r.companyType || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+      const matchesType = typeFilter === "all" || normalizedType === typeFilter;
       const matchesQuery = !query || [r.name, r.reviewerName, r.reviewSource, r.companyType, r.description, r.review]
         .filter(Boolean).some((v) => String(v).toLowerCase().includes(query));
-      return matchesStage && matchesQuery;
+      return matchesStage && matchesRating && matchesType && matchesQuery;
     });
-  }, [reviews, searchQuery, stageFilter]);
+  }, [reviews, searchQuery, stageFilter, ratingFilter, typeFilter]);
 
   const selectedReview = useMemo(
     () => reviews.find((r) => r._id === selectedReviewId) || null,
@@ -276,11 +291,31 @@ export default function CompanyReviews() {
               </div>
               <div />
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                <select
+                  value={ratingFilter}
+                  onChange={(e) => setRatingFilter(e.target.value)}
+                  className="px-3 py-2.5 bg-slate-100/70 text-slate-500 rounded-lg text-[11px] sm:text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all hover:bg-slate-200/70 hover:text-slate-700 border-0"
+                >
+                  <option value="all">All Ratings</option>
+                  {[5, 4, 3, 2, 1].map((n) => (
+                    <option key={n} value={n}>{n} Star{n === 1 ? "" : "s"}</option>
+                  ))}
+                </select>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="px-3 py-2.5 bg-slate-100/70 text-slate-500 rounded-lg text-[11px] sm:text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all hover:bg-slate-200/70 hover:text-slate-700 border-0"
+                >
+                  <option value="all">All Product Types</option>
+                  {productTypeOptions.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
                 <div className="relative flex-1 min-w-[180px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input type="text" placeholder="Search by name, source, description..."
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                  <input type="text" placeholder="Search"
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" />
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-100/70 border-0 rounded-lg text-[12px] font-pmedium text-slate-500 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all placeholder:text-slate-500" />
                 </div>
               </div>
             </div>

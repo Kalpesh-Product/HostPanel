@@ -11,8 +11,6 @@ export const resourceCategories = [
 ];
 export const resourceTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
 export const resourceStatuses = ["Active", "Under Maintenance", "Disabled"];
-export const floorFallbacks = ["501", "601", "701"];
-export const wingFallbacks = ["A", "B"];
 export const areaCapacityCatalog: Record<string, number[]> = {
     open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     cabin_desk: [4, 6, 8, 10],
@@ -20,8 +18,7 @@ export const areaCapacityCatalog: Record<string, number[]> = {
 const DEFAULT_BOOKING_SPAN_HOURS = 13;
 
 export function normalizeResourceFloor(value = "") {
-    const normalized = String(value || "").trim();
-    return normalized || "501";
+    return String(value || "").trim();
 }
 
 export function normalizeResourceLocation(value = "") {

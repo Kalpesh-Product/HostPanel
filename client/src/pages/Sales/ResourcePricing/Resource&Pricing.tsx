@@ -306,6 +306,10 @@ function isDeskCategory(category = '') {
   return category === 'open_desk' || category === 'cabin_desk' || category === 'virtual_office';
 }
 
+function isPerPersonPricingCategory(category = '') {
+  return category === 'open_desk' || category === 'cabin_desk';
+}
+
 function deriveResourceTypeFromCategory(category = '') {
   if (!category) return '';
   if (category === 'open_desk') return 'Open Desk';
@@ -455,8 +459,8 @@ function buildResourceExportRows(resource = {}, currency = 'INR') {
     { label: 'Floor', value: resource.floor || '--' },
     { label: 'Wing', value: resource.wing || '--' },
     { label: 'Capacity', value: String(resource.capacity || 0) },
-    { label: 'Price Per Hour', value: resource.pricePerHour ? formatCurrency(resource.pricePerHour, currency) : '--' },
-    { label: 'Price Per Day', value: resource.pricePerDay ? formatCurrency(resource.pricePerDay, currency) : '--' },
+    { label: isPerPersonPricingCategory(resource.resourceCategory) ? 'Price Per Hour Per Person' : 'Price Per Hour', value: resource.pricePerHour ? formatCurrency(resource.pricePerHour, currency) : '--' },
+    { label: isPerPersonPricingCategory(resource.resourceCategory) ? 'Price Per Day Per Person' : 'Price Per Day', value: resource.pricePerDay ? formatCurrency(resource.pricePerDay, currency) : '--' },
     { label: 'Credits', value: String(getResourceCreditValue(resource)) },
     { label: 'Credit Summary', value: getResourceCreditSummary(resource) },
     { label: 'Status', value: resource.status || 'Active' },
@@ -1178,7 +1182,7 @@ export default function PricingPackagesPage() {
       { Field: 'location', Requirement: 'Required', Notes: 'Location label shown in dropdowns.' },
       { Field: 'capacity', Requirement: 'Required', Notes: 'Seats or capacity based on category.' },
       { Field: 'inventoryMode', Requirement: 'Optional', Notes: 'area or single (open desk only).' },
-      { Field: 'floor', Requirement: 'Optional', Notes: 'Floor label, e.g. 501.' },
+      { Field: 'floor', Requirement: 'Optional', Notes: 'Floor label as configured for this company.' },
       { Field: 'wing', Requirement: 'Optional', Notes: 'Short wing label, or blank.' },
       { Field: 'pricePerHour', Requirement: 'Optional', Notes: 'Hourly price set by Sales.' },
       { Field: 'pricePerDay', Requirement: 'Optional', Notes: 'Daily price set by Sales.' },
@@ -1298,7 +1302,7 @@ export default function PricingPackagesPage() {
     const nextTenantScope = category === 'Tenant'
       ? getTenantPackageScope(item?.locationMappings || item?.packageDetails?.locationMappings) || (() => {
         const firstScopeResource = tenantAreaResources[0] || null;
-        return firstScopeResource ? { floor: firstScopeResource.floor, wing: firstScopeResource.wing } : { floor: tenantFloorOptions[0] || '', wing: tenantWingOptions[0] || 'A' };
+        return firstScopeResource ? { floor: firstScopeResource.floor, wing: firstScopeResource.wing } : { floor: tenantFloorOptions[0] || '', wing: tenantWingOptions[0] || '' };
       })()
       : { floor: '', wing: '' };
     const nextTenantScopeResources = category === 'Tenant'
@@ -1871,8 +1875,8 @@ export default function PricingPackagesPage() {
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.floor || '--'}</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.wing || '--'}</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.capacity} Pax</td>
-                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} ` : item.pricing || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} ` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)}${isPerPersonPricingCategory(item.resourceCategory) ? ' / person' : ''}` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)}${isPerPersonPricingCategory(item.resourceCategory) ? ' / person' : ''}` : item.pricing || '--'}</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900 text-center">{getResourceCreditValue(item)}</td>
                     <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
                     <td className="px-3.5 py-2">
@@ -2241,7 +2245,7 @@ export default function PricingPackagesPage() {
                         <div className="mt-2 space-y-2 text-[12px] font-pmedium leading-relaxed text-blue-950">
                           <p>Before creating meeting or walk-in bookings, add a bookable meeting space so it becomes available for selection during the booking process.</p>
                           <ul className="list-disc pl-4 space-y-1 text-blue-900/90">
-                            <li>Select the resource type: <span className="font-pmedium">Meeting Room</span> or <span className="font-pmedium">Conference Room</span>.</li>
+                            <li>Select the resource type: <span className="font-pmedium">Meeting Room</span> , <span className="font-pmedium">Conference Room</span> , <span className="font-pmedium">Open Desk</span> , <span className="font-pmedium">Cabin Desk</span> , <span className="font-pmedium">Virtual Office</span>.</li>
                             <li>Enter the hourly price and credit rate that will be displayed on the booking screens</li>
                             <li>Save the meeting space.</li>
                             <li>Return to the booking page and select the newly created resource to start accepting bookings.</li>
@@ -2449,7 +2453,7 @@ export default function PricingPackagesPage() {
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour ({currencySymbol})</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isPerPersonPricingCategory(addResourceForm.resourceCategory) ? `Price Per Hour Per Person (${currencySymbol})` : `Price Per Hour (${currencySymbol})`}</label>
                           <input type="number" min="0" required placeholder="e.g. 100" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
@@ -2459,7 +2463,7 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day ({currencySymbol})</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isPerPersonPricingCategory(addResourceForm.resourceCategory) ? `Price Per Day Per Person (${currencySymbol})` : `Price Per Day (${currencySymbol})`}</label>
                           <input type="number" min="0" required placeholder="e.g. 1000" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
@@ -2675,7 +2679,7 @@ export default function PricingPackagesPage() {
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Hour ({currencySymbol})</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isPerPersonPricingCategory(resourceForm.resourceCategory) ? `Price Per Hour Per Person (${currencySymbol})` : `Price Per Hour (${currencySymbol})`}</label>
                           <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
                             const nextHour = e.target.value;
                             if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
@@ -2685,7 +2689,7 @@ export default function PricingPackagesPage() {
                           })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Day ({currencySymbol})</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isPerPersonPricingCategory(resourceForm.resourceCategory) ? `Price Per Day Per Person (${currencySymbol})` : `Price Per Day (${currencySymbol})`}</label>
                           <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
                             const nextDay = e.target.value;
                             if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
@@ -2716,7 +2720,7 @@ export default function PricingPackagesPage() {
                       <FormSectionHeader icon={View} label="Preview" />
                       {/* <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p> */}
                       <p className="mt-1 text-sm font-pmedium text-slate-800">
-                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day` : 'Daily rate not set'}
+                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' / person' : ''}` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' / person' : ''}` : 'Daily rate not set'}
                       </p>
                       <p className="mt-1 text-[11px] font-pmedium uppercase tracking-widest text-slate-400">
                         {getResourceCreditSummary({

@@ -26,18 +26,11 @@ function normalizeSearchText(value: unknown): string {
 }
 
 function normalizeFloor(value: unknown): string {
-  const normalized = normalizeText(value);
-  if (!normalized) return '501';
-  const compact = normalized.toLowerCase().replace(/\s+/g, '');
-  if (compact.includes('floor1') || compact === '1') return '501';
-  if (compact.includes('floor2') || compact === '2') return '601';
-  if (compact.includes('floor3') || compact === '3') return '701';
-  return normalized;
+  return normalizeText(value);
 }
 
 function normalizeWing(value: unknown): string {
-  const normalized = normalizeText(value).toUpperCase();
-  return normalized || 'A';
+  return normalizeText(value).toUpperCase();
 }
 
 interface NormalizedRoom {

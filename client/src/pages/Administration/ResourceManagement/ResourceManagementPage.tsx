@@ -267,6 +267,10 @@ function isDeskCategory(category = ''): boolean {
   return category === 'open_desk' || category === 'cabin_desk' || category === 'virtual_office';
 }
 
+function isPerPersonPricingCategory(category = ''): boolean {
+  return category === 'open_desk' || category === 'cabin_desk';
+}
+
 function getCapacityOptions(category = '', inventoryMode = 'area'): number[] {
   if (!isDeskCategory(category)) return [];
   if (category === 'virtual_office') return [1];
@@ -719,7 +723,7 @@ function ResourceManagementPageInner() {
         { Field: 'location', Requirement: 'Required', Notes: 'Location label shown in dropdowns and cards.' },
         { Field: 'capacity', Requirement: 'Required', Notes: 'Seats or capacity, based on the category.' },
         { Field: 'inventoryMode', Requirement: 'Optional', Notes: 'Use area or single for open desk only. Cabin desk must be area.' },
-        { Field: 'floor', Requirement: 'Optional', Notes: 'Floor label, for example 501.' },
+        { Field: 'floor', Requirement: 'Optional', Notes: 'Floor label as configured for this company.' },
         { Field: 'wing', Requirement: 'Optional', Notes: 'Any short wing label, or leave blank.' },
         { Field: 'description', Requirement: 'Optional', Notes: 'Amenities or notes.' },
         { Field: 'status', Requirement: 'Optional', Notes: 'Use one of the allowed statuses.' },
@@ -747,8 +751,8 @@ function ResourceManagementPageInner() {
         { Field: 'resourceCategory', Format: 'Text', Example: 'open_desk', Notes: 'Match an allowed category value.' },
         { Field: 'inventoryMode', Format: 'Text', Example: 'area', Notes: 'Optional for desk categories.' },
         { Field: 'location', Format: 'Text', Example: 'North Tower', Notes: 'Required display location.' },
-        { Field: 'floor', Format: 'Text', Example: '501', Notes: 'Keep as text.' },
-        { Field: 'wing', Format: 'Text', Example: 'A', Notes: 'Any short wing label, or blank.' },
+        { Field: 'floor', Format: 'Text', Example: 'Floor label', Notes: 'Keep as text.' },
+        { Field: 'wing', Format: 'Text', Example: 'Short wing label', Notes: 'Any short wing label, or blank.' },
         { Field: 'capacity', Format: 'Number', Example: 6, Notes: 'Seat count or capacity.' },
         { Field: 'description', Format: 'Text', Example: 'Near window, dual monitor setup.', Notes: 'Optional.' },
         { Field: 'status', Format: 'Text', Example: 'Active', Notes: 'Use one of the allowed statuses.' },
@@ -1091,15 +1095,17 @@ function ResourceManagementPageInner() {
                       </div>
 
                       <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-3">
-                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Pricing</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                          {isPerPersonPricingCategory(resource.resourceCategory) ? 'Pricing Per Person' : 'Pricing'}
+                        </p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">
                           {resource.pricePerHour && resource.pricePerHour > 0
-                            ? `${wsMoney(resource.pricePerHour)} / hr`
+                            ? `${wsMoney(resource.pricePerHour)} / hr${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
                             : resource.pricing || 'Pricing pending'}
                         </p>
                         <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                           {resource.pricePerDay && resource.pricePerDay > 0
-                            ? `${wsMoney(resource.pricePerDay)} / day`
+                            ? `${wsMoney(resource.pricePerDay)} / day${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
                             : 'Daily rate not set'}
                         </p>
                       </div>
@@ -1601,15 +1607,17 @@ function ResourceManagementPageInner() {
                   <p className="font-bold text-slate-900">{viewingResource.assignedTenantCompanyName || 'Unassigned'}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Sales Pricing</p>
+                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                    {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Sales Pricing Per Person' : 'Sales Pricing'}
+                  </p>
                   <p className="font-black text-green-600">
                     {viewingResource.pricePerHour && viewingResource.pricePerHour > 0
-                      ? `${wsMoney(viewingResource.pricePerHour)} / hr`
+                      ? `${wsMoney(viewingResource.pricePerHour)} / hr${isPerPersonPricingCategory(viewingResource.resourceCategory) ? ' / person' : ''}`
                       : viewingResource.pricing || 'Pricing pending'}
                   </p>
                   <p className="mt-1 font-black text-green-600">
                     {viewingResource.pricePerDay && viewingResource.pricePerDay > 0
-                      ? `${wsMoney(viewingResource.pricePerDay)} / day`
+                      ? `${wsMoney(viewingResource.pricePerDay)} / day${isPerPersonPricingCategory(viewingResource.resourceCategory) ? ' / person' : ''}`
                       : 'Daily rate not set'}
                   </p>
                 </div>

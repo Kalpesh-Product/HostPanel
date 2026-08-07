@@ -775,7 +775,7 @@ const NomadListing = () => {
               control={control}
               rules={{
                 min: { value: 0, message: "Total reviews cannot be negative" },
-                max: { value: 100000, message: "Total reviews cannot exceed 100,000" },
+                max: { value: 500000, message: "Total reviews cannot exceed 500,000" },
                 validate: (value) =>
                   value === "" ||
                   Number.isInteger(Number(value)) ||
@@ -787,7 +787,7 @@ const NomadListing = () => {
                   size="small"
                   label="Total Reviews"
                   type="number"
-                  inputProps={{ min: 0, max: 100000, step: 1 }}
+                  inputProps={{ min: 0, max: 500000, step: 1 }}
                   error={!!errors.totalReviews}
                   helperText={errors?.totalReviews?.message}
                   fullWidth
@@ -1146,6 +1146,13 @@ const NomadListing = () => {
               className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
             >
               Reset
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/company-settings/nomad-listings")}
+              className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
+            >
+              Cancel
             </button>
           </div>
         </form>

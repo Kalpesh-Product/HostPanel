@@ -1411,7 +1411,7 @@ export default function TenantCompaniesPage() {
         .map((resource) => String(resource.wing || '').trim().toUpperCase())
         .filter(Boolean),
     ));
-    return wings.length > 0 ? wings.sort() : ['A', 'B'];
+    return wings.sort();
   }, [customPackageDeskResources, customPackageFloor]);
   const customPackageScopedResources = useMemo(() => {
     if (!hasCustomPackageScopeSelection) {
@@ -2207,8 +2207,8 @@ export default function TenantCompaniesPage() {
       { Field: 'HO Country', Requirement: 'Optional', Notes: 'Head office country.' },
       { Field: 'HO State', Requirement: 'Optional', Notes: 'Head office state.' },
       { Field: 'HO City', Requirement: 'Optional', Notes: 'Head office city.' },
-      { Field: 'Building Name', Requirement: 'Optional', Notes: 'Use Sunteck Kanaka for this template. Editable later in the manager screen.' },
-      { Field: 'Unit No', Requirement: 'Optional', Notes: ' for example 701 A or 601 B.' },
+      { Field: 'Building Name', Requirement: 'Optional', Notes: 'Use your building name. Editable later in the manager screen.' },
+      { Field: 'Unit No', Requirement: 'Optional', Notes: 'Unit number as floor + wing for your building.' },
       { Field: 'Local POC Name', Requirement: 'Optional', Notes: 'Local point of contact name.' },
       { Field: 'Local POC Email', Requirement: 'Optional', Notes: 'Local point of contact email.' },
       { Field: 'Local POC Phone', Requirement: 'Optional', Notes: 'Local point of contact phone.' },
@@ -2229,8 +2229,8 @@ export default function TenantCompaniesPage() {
       { Field: 'HO Country', Format: 'Text', Example: 'India', Notes: 'Optional.' },
       { Field: 'HO State', Format: 'Text', Example: 'Maharashtra', Notes: 'Optional.' },
       { Field: 'HO City', Format: 'Text', Example: 'Mumbai', Notes: 'Optional.' },
-      { Field: 'Building Name', Format: 'Text', Example: 'Sunteck Kanaka', Notes: 'Use this building name for the template.' },
-      { Field: 'Unit No', Format: 'Text', Example: '701 A' },
+      { Field: 'Building Name', Format: 'Text', Example: 'Your Building Name', Notes: 'Use this building name for the template.' },
+      { Field: 'Unit No', Format: 'Text', Example: 'Floor + Wing' },
       { Field: 'Local POC Name', Format: 'Text', Example: '[sample person name]', Notes: 'Optional.' },
       { Field: 'Local POC Email', Format: 'Text', Example: '[sample email]', Notes: 'Optional.' },
       { Field: 'Local POC Phone', Format: 'Text', Example: '[sample phone]', Notes: 'Optional.' },
@@ -2243,7 +2243,7 @@ export default function TenantCompaniesPage() {
     ], { header: ['Field', 'Format', 'Example', 'Notes'] });
 
     const workflowGuideSheet = XLSX.utils.json_to_sheet([
-      { Label: 'Draft tenant company onboarding', Notes: 'Building name is Sunteck Kanaka. Use unit numbers like 701 A, 601 B, or 501 A; A/B is understood.' },
+      { Label: 'Draft tenant company onboarding', Notes: 'Use your building name. Unit numbers are the floor + wing of the unit, as configured for your company.' },
     ], { header: ['Label', 'Notes'] });
 
     XLSX.utils.book_append_sheet(workbook, tenantCompaniesSheet, 'Tenant Companies');
@@ -3212,7 +3212,7 @@ export default function TenantCompaniesPage() {
                     <p className="text-[9px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Template rules</p>
                     <div className="mt-2 grid gap-2 text-[12px] text-slate-700 md:grid-cols-2">
                       <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Use one row per tenant company.</p>
-                      <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Use unit numbers like 701 A, 601 B, or 501 A.</p>
+                      <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Use unit numbers as floor + wing for your building.</p>
                       <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Do not include building name, package, rates, seats, or contract dates.</p>
                       <p className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">Those values are added later when the manager edits the record.</p>
                     </div>

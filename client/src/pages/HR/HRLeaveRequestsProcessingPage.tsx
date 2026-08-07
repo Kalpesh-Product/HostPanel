@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import {
   Search, Check, X, Eye, CheckCircle2, XCircle,
   CalendarClock, Calendar, UserCheck, Clock, ShieldAlert,
-  AlertCircle, FileText, FileSpreadsheet, FileDown, Building, Users,
+  FileText, FileSpreadsheet, FileDown, Building, Users,
   Loader2, Plus, Tags, WalletCards, ChevronDown, Pencil, Trash2, MapPin, Upload,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1297,11 +1297,11 @@ export default function HRLeaveRequestsProcessingPage() {
                 <table className="w-full min-w-[1140px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
+                      <th className="px-5 py-4 text-left">Employee ID</th>
                       <th className="px-5 py-4 text-left">Employee</th>
                       <th className="px-5 py-4 text-left">Role</th>
                       <th className="px-5 py-4 text-left">Department</th>
                       <th className="px-5 py-4 text-left">Type</th>
-                      <th className="px-5 py-4 text-left">Reason</th>
                       <th className="px-5 py-4 text-left">Dates</th>
                       <th className="px-5 py-4 text-center">Status</th>
                       <th className="px-5 py-4 text-center">Action</th>
@@ -1312,6 +1312,7 @@ export default function HRLeaveRequestsProcessingPage() {
                       <tr><td colSpan={8} className="text-center py-20 text-slate-400 font-pmedium">No leave requests match your filters.</td></tr>
                     ) : filteredRequests.map((req) => (
                       <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700 whitespace-nowrap">{req.employeeId || "-"}</td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2 font-pmedium text-slate-900">
                             <UserCheck size={14} className="text-slate-400" />
@@ -1322,11 +1323,7 @@ export default function HRLeaveRequestsProcessingPage() {
                         <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{formatRoleLabel(req.role)}</td>
                         <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{req.departmentDisplay}</td>
                         <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{req.leaveType || "Leave"}</td>
-                        <td className="px-5 py-4 max-w-[220px] truncate text-[11px] text-slate-500" title={req.reason}>"{req.reason}"</td>
-                        <td className="px-5 py-4">
-                          <p className="text-[12px] font-pmedium text-slate-700">{req.from} - {req.to}</p>
-                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">{req.days} day(s)</p>
-                        </td>
+                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{req.from} - {req.to}</td>
                         <td className="px-5 py-4 text-center">{getStatusBadge(req.status)}</td>
                         <td className="px-5 py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -1766,93 +1763,137 @@ export default function HRLeaveRequestsProcessingPage() {
       {/* ── MODAL: View & Approve/Reject Request ── */}
       <AnimatePresence>
         {viewingRequest && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="flex shrink-0 items-start justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
-                <div>
-                  <h2 className="text-lg font-pmedium text-slate-900">Review Leave Request</h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{viewingRequest.name}</p>
-                </div>
-                <button onClick={() => setViewingRequest(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600">
-                  <X size={18} />
-                </button>
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/20 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] border border-slate-200/60 bg-white shadow-2xl sm:max-h-[85vh] sm:rounded-[24px]"
+            >
+              <div className="flex w-full justify-center py-2 sm:hidden">
+                <div className="h-1 w-10 rounded-full bg-slate-200" />
               </div>
-              <div className="p-6 overflow-y-auto flex-1 bg-white space-y-6">
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Employee</p>
-                    <div className="flex items-center gap-2">
-                      <UserCheck size={14} className="text-slate-400" />
-                      <p className="text-[13px] font-bold text-slate-900">{viewingRequest.name}</p>
-                    </div>
-                    {viewingRequest.email ? <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{viewingRequest.email}</p> : null}
-                    <p className="mt-0.5 text-[11px] text-slate-500">{viewingRequest.departmentDisplay} &bull; {formatRoleLabel(viewingRequest.role)}</p>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><FileText size={17} /></div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-pmedium text-slate-900">Review Leave Request</h2>
+                    <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Request #{viewingRequest.id || viewingRequest.recordId || "-"} &bull; {viewingRequest.status}</p>
                   </div>
+                </div>
+                <button type="button" onClick={() => setViewingRequest(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+              </div>
+              <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 [&::-webkit-scrollbar]:hidden">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Leave Type</p>
-                    <span className={statusPillClass(viewingRequest.type)}>{viewingRequest.type}</span>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Mode</p>
-                    <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.leaveMode === "half_day" ? "Half Day" : "Full Day"}</p>
-                  </div>
-                  {viewingRequest.leaveMode === "half_day" && (
-                    <div>
-                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Session</p>
-                      <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.halfDaySession || "Not specified"}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Balance Before</p>
-                    <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.requesterBalance} day(s)</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee ID</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{viewingRequest.employeeId || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Medical Cert</p>
-                    <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.medicalCertAttached ? "Attached" : "Not attached"}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Duration</p>
-                    <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.from} to {viewingRequest.to}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Total Days</p>
-                    <p className="text-lg font-black text-[#2563EB]">{viewingRequest.days} Days</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">Reason</p>
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 text-[12px] text-slate-700 italic">
-                      "{viewingRequest.reason}"
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1">
-                      {viewingRequest.statusCode === "approved" ? "Approved By" : viewingRequest.statusCode === "rejected" ? "Rejected By" : "Approval Status"}
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee Name</p>
+                    <p className="mt-1 flex items-center gap-2 text-[12px] font-pmedium text-[#0F172A]">
+                      <UserCheck size={14} className="shrink-0 text-slate-400" />
+                      {viewingRequest.name || "-"}
                     </p>
-                    <p className="text-[13px] font-semibold text-slate-800">{viewingRequest.actionedBy ? formatActionedBy(viewingRequest) : "Awaiting approval"}</p>
+                    {viewingRequest.email ? <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{viewingRequest.email}</p> : null}
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{formatRoleLabel(viewingRequest.role)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Department</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{viewingRequest.departmentDisplay}</p>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between border-t border-slate-200/70 pt-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Status</p>
+                    {getStatusBadge(viewingRequest.status)}
                   </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-3">Leave Balances</p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {((((viewingRequest as Record<string, unknown>).leaveTypeBalances as Array<Record<string, unknown>>) || [])).map((type) => (
-                      <div key={String(type.name)} className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-center">
-                        <p className="text-[10px] font-pmedium uppercase tracking-wider text-blue-700">{String(type.name)}</p>
-                        <p className="mt-1 text-sm font-bold text-slate-800">{Number(type.remaining) < 0 ? "Unlimited" : String(type.remaining ?? 0)} left</p>
-                      </div>
-                    ))}
+                <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.statusCode === "rejected" ? "Rejected By" : "Approved By"}</p>
+                  <p className="text-[13px] font-pmedium text-[#0F172A]">{viewingRequest.actionedBy ? formatActionedBy(viewingRequest) : "-"}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Type</p>
+                    <p className="text-[13px] font-pmedium text-[#0F172A]">{viewingRequest.leaveType || "Leave"}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-right">
+                    <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Duration</p>
+                    <p className="text-[14px] font-pmedium text-[#0F172A]">{viewingRequest.days ?? 0} {viewingRequest.days === 1 ? "Day" : "Days"}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">From</p>
+                    <p className="flex items-center gap-2 text-[12px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-[#2563EB]" /> {viewingRequest.from || "-"}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">To</p>
+                    <p className="flex items-center gap-2 text-[12px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-[#2563EB]" /> {viewingRequest.to || viewingRequest.from || "-"}</p>
                   </div>
                 </div>
+                {viewingRequest.leaveMode === "half_day" && (
+                  <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Leave Mode</p>
+                    <p className="text-[13px] font-semibold text-[#0F172A]">Half Day{viewingRequest.halfDaySession ? ` | ${viewingRequest.halfDaySession}` : ""}</p>
+                  </div>
+                )}
+                <div className="p-4 rounded-2xl border bg-blue-50/50 border-blue-200/60 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest mb-1 text-blue-500">Balance Before Request</p>
+                    <p className="text-[14px] font-bold text-blue-700">{viewingRequest.requesterBalance} day(s)</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-blue-600 text-[10px] font-pmedium uppercase bg-white px-2.5 py-1.5 rounded-lg border border-blue-100 shadow-sm">
+                    {viewingRequest.medicalCertAttached ? <FileText size={14} strokeWidth={2.5} /> : null} {viewingRequest.medicalCertAttached ? "Certificate Attached" : "No Certificate"}
+                  </div>
+                </div>
+                {((((viewingRequest as Record<string, unknown>).leaveTypeBalances as Array<Record<string, unknown>>) || []).length > 0) && (
+                  <div>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Leave Balances</p>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {((((viewingRequest as Record<string, unknown>).leaveTypeBalances as Array<Record<string, unknown>>) || [])).map((type) => (
+                        <div key={String(type.name)} className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-center">
+                          <p className="text-[9px] font-pmedium uppercase tracking-wider text-blue-700">{String(type.name)}</p>
+                          <p className="mt-1 text-[13px] font-bold text-slate-800">{Number(type.remaining) < 0 ? "Unlimited" : String(type.remaining ?? 0)} left</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Request Statement</p>
+                  <p className="text-[13px] font-semibold text-slate-700 leading-relaxed">"{viewingRequest.reason}"</p>
+                </div>
+                {viewingRequest.statusCode === "rejected" && viewingRequest.rejectionReason && (
+                  <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500"></div>
+                    <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><XCircle size={14} /> Grounds for Rejection</p>
+                    <p className="text-[13px] font-semibold text-red-900 leading-relaxed">{viewingRequest.rejectionReason}</p>
+                  </div>
+                )}
               </div>
-              {viewingRequest.statusCode === "pending" && viewingRequest.canAction && (
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-                  <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="flex-1 py-3 bg-white border border-red-200 text-red-600 rounded-2xl font-pmedium hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
-                    <XCircle size={16} /> REJECT
+              <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
+                {viewingRequest.statusCode === "pending" && viewingRequest.canAction ? (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-red-200/80 text-red-600 rounded-xl font-pmedium hover:bg-red-50 shadow-sm transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">
+                      REJECT
+                    </button>
+                    <button
+                      onClick={() => handleApproveRequest(viewingRequest)}
+                      disabled={isSavingDecision}
+                      className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                    >
+                      {isSavingDecision ? "SAVING..." : "AUTHORIZE LEAVE"}
+                      <CheckCircle2 size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setViewingRequest(null)} className="w-full py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">
+                    CLOSE PANEL
                   </button>
-                  <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isSavingDecision} className="flex-1 py-3 bg-[#2563EB] text-white rounded-2xl font-pmedium shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
-                    {isSavingDecision ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} APPROVE
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </motion.div>
           </div>
         )}
@@ -1861,42 +1902,47 @@ export default function HRLeaveRequestsProcessingPage() {
       {/* ── MODAL: Reject Reason ── */}
       <AnimatePresence>
         {rejectingRequest && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/45 backdrop-blur-[2px] px-4">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden">
-              <div className="p-6 bg-red-600 border-b border-red-700 flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 text-white rounded-2xl"><XCircle size={24} /></div>
-                  <div>
-                    <h2 className="text-lg font-pmedium text-slate-900">Reject Leave Request</h2>
-                    <p className="text-[10px] text-red-200 uppercase tracking-wider mt-1">{rejectingRequest.name}</p>
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/20 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] border border-slate-200/60 bg-white shadow-2xl sm:rounded-[24px]"
+            >
+              <div className="flex w-full justify-center py-2 sm:hidden">
+                <div className="h-1 w-10 rounded-full bg-slate-200" />
+              </div>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><XCircle size={17} /></div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-pmedium text-slate-900">Reject Leave Request</h2>
+                    <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{rejectingRequest.name}</p>
                   </div>
                 </div>
-                <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all">
-                  <X size={18} />
-                </button>
+                <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
               </div>
-              <div className="p-6 space-y-4 bg-white">
-                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex gap-3 items-start">
-                  <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
-                  <p className="text-xs text-red-700 font-medium">Providing a reason is mandatory to notify the employee.</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Reason for Rejection *</label>
+              <div className="p-4 sm:p-6 space-y-4 bg-white">
+                <div className="p-4 sm:p-5 bg-red-50/80 border border-red-200/80 rounded-2xl">
+                  <label className="text-[10px] font-pmedium text-red-600 uppercase tracking-widest mb-2 block">Mandatory Rejection Note</label>
                   <textarea
-                    className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:border-red-400 outline-none resize-none transition-all text-[12px]"
-                    rows={4} placeholder="Explain why the leave cannot be approved..."
+                    rows={4} required placeholder="Explain why this request is denied..."
+                    className="w-full p-3 sm:p-4 text-[13px] sm:text-[14px] rounded-xl border border-red-200 outline-none focus:ring-2 focus:ring-red-200 bg-white font-pmedium text-red-900 placeholder:text-red-300 shadow-sm"
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
                   />
                 </div>
               </div>
-              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-                <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
-                  CANCEL
-                </button>
-                <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="flex-1 py-3 bg-red-600 text-white rounded-2xl font-pmedium shadow-sm disabled:bg-slate-300 hover:bg-red-700 transition-all text-[12px] disabled:cursor-not-allowed">
-                  {isSavingDecision ? <Loader2 size={16} className="animate-spin mx-auto" /> : "CONFIRM REJECTION"}
-                </button>
+              <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">
+                    CANCEL
+                  </button>
+                  <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-red-600 text-white rounded-xl font-pmedium shadow-lg shadow-red-500/20 hover:bg-red-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2">
+                    {isSavingDecision ? <Loader2 size={16} className="animate-spin" /> : "CONFIRM REJECTION"}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

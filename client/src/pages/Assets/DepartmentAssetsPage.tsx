@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { getStoredUser } from '@/lib/auth-session';
 import { getWorkspaceMembers } from '@/services/auth';
 import { createAsset, getAssets, updateAsset } from '@/services/assets';
+import { getResources } from '@/services/resources';
 import * as XLSX from 'xlsx';
 import {
   AlertCircle,
@@ -101,8 +102,6 @@ interface OrgDepartment {
   managerName?: string;
 }
 
-const FLOOR_OPTIONS = ['501', '601', '701'];
-const WING_OPTIONS = ['Wing A', 'Wing B'];
 const CATEGORY_OPTIONS = ['Hardware', 'Infrastructure', 'Software', 'Furniture', 'Other'];
 const STATUS_OPTIONS = ['Active', 'Maintenance', 'Decommissioned'];
 const BULK_TEMPLATE_HEADERS = ['name', 'category', 'quantity', 'ownershipType', 'rentDurationMonths', 'serialNumber', 'brandModel', 'purchaseDate', 'floor', 'wing', 'location', 'value', 'notes', 'status'];
@@ -384,6 +383,8 @@ export function DepartmentAssetsPage() {
   const [assignmentData, setAssignmentData] = useState<AssignmentData>({ assetId: '', assignmentType: 'department', department: '', employee: '', quantity: '1' });
   const [memberOptions, setMemberOptions] = useState<EmployeeOption[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [resourceFloors, setResourceFloors] = useState<string[]>([]);
+  const [resourceWings, setResourceWings] = useState<string[]>([]);
   const [assetForm, setAssetForm] = useState<AssetForm>({
     name: '', category: 'Hardware', status: 'Active', serialNumber: '', brandModel: '', purchaseDate: '', quantity: '1',
     ownershipType: 'Owned', rentDurationMonths: '', location: '', floor: '', wing: '', value: '', notes: '',
@@ -436,6 +437,25 @@ export function DepartmentAssetsPage() {
     loadAssets();
     return () => { mounted = false; };
   }, [deptLabel]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadFloorsAndWings() {
+      try {
+        const response = await getResources();
+        const resources = response?.data?.data?.resources || response?.data?.resources || [];
+        if (!mounted) return;
+        const floors = Array.from(new Set(resources.map((r: any) => String(r.floor || '').trim()).filter(Boolean))) as string[];
+        const wings = Array.from(new Set(resources.map((r: any) => String(r.wing || '').trim().toUpperCase()).filter(Boolean))) as string[];
+        setResourceFloors(floors);
+        setResourceWings(wings.sort());
+      } catch {
+        // non-critical: floor/wing stay empty if resources can't be loaded
+      }
+    }
+    loadFloorsAndWings();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     if (!isLoadingMembers && !isLoadingAssets) {
@@ -578,8 +598,8 @@ export function DepartmentAssetsPage() {
     const ws = XLSX.utils.json_to_sheet([Object.fromEntries(BULK_TEMPLATE_HEADERS.map((h) => [h, '']))]);
     XLSX.utils.book_append_sheet(workbook, ws, 'Assets');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(CATEGORY_OPTIONS.map((c) => ({ 'Allowed Category': c }))), 'Allowed Categories');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(FLOOR_OPTIONS.map((f) => ({ 'Allowed Floor': f }))), 'Allowed Floors');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(WING_OPTIONS.map((w) => ({ 'Allowed Wing': w }))), 'Allowed Wings');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(resourceFloors.map((f) => ({ 'Allowed Floor': f }))), 'Allowed Floors');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(resourceWings.map((w) => ({ 'Allowed Wing': w }))), 'Allowed Wings');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(STATUS_OPTIONS.map((s) => ({ 'Allowed Status': s }))), 'Allowed Status');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(BULK_TEMPLATE_HEADERS.map((h) => ({ Field: h, Requirement: h === 'name' ? 'Required' : 'Optional', Notes: '' }))), 'Field Guide');
     XLSX.writeFile(workbook, `department-assets-template-${deptLabel.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'template'}.xlsx`);
@@ -1038,7 +1058,7 @@ export function DepartmentAssetsPage() {
                   <div className="relative">
                     <select className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer" value={assetForm.floor} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm({ ...assetForm, floor: e.target.value })}>
                       <option value="">Select floor</option>
-                      {FLOOR_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+                      {resourceFloors.map((f) => <option key={f} value={f}>{f}</option>)}
                     </select>
                     <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                   </div>
@@ -1048,7 +1068,7 @@ export function DepartmentAssetsPage() {
                   <div className="relative">
                     <select className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-gray-900 focus:border-[#2563EB] outline-none appearance-none cursor-pointer" value={assetForm.wing} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm({ ...assetForm, wing: e.target.value })}>
                       <option value="">Select wing</option>
-                      {WING_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
+                      {resourceWings.map((w) => <option key={w} value={w}>{w}</option>)}
                     </select>
                     <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                   </div>

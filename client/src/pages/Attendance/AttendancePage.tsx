@@ -410,6 +410,7 @@ export function AttendancePage() {
   const [dayRecords, setDayRecords] = useState<AttendanceRecord[]>([]);
 
   const [viewingCorrection, setViewingCorrection] = useState<any>(null);
+  const [correctionDetailTab, setCorrectionDetailTab] = useState<'all' | 'checkin' | 'checkout' | 'breaks'>('all');
   const [showCorrectionForm, setShowCorrectionForm] = useState(false);
   const [correctionForm, setCorrectionForm] = useState<CorrectionForm>(INITIAL_CORRECTION_FORM);
   const [isSubmittingCorrection, setIsSubmittingCorrection] = useState(false);
@@ -1465,7 +1466,7 @@ export function AttendancePage() {
                           <td className="px-5 py-4">{getStatusBadge(record.correction?.status)}</td>
                           <td className="px-5 py-4 text-center">
                             <button
-                              onClick={() => setViewingCorrection(record)}
+                              onClick={() => { setCorrectionDetailTab('all'); setViewingCorrection(record); }}
                               className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block"
                               title="View Correction"
                             >
@@ -1966,62 +1967,116 @@ export function AttendancePage() {
                 </h2>
                 <button onClick={() => setViewingCorrection(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                  <div className="flex justify-between items-center mb-3">
-                    <p className="text-[15px] font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
-                    {getStatusBadge(viewingCorrection.correction?.status)}
-                  </div>
-                  <p className="text-[10px] font-pmedium text-slate-500">Attendance date: {formatDateDMY(viewingCorrection.date)} &middot; {viewingCorrection.department || '--'}</p>
-                  <p className="mt-1 text-[10px] font-pmedium text-slate-400">Submitted on {formatDateDMY(viewingCorrection.correction?.requestedAt)}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check In</p>
-                    <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckIn)}</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check In</p>
-                    <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckIn)}</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check Out</p>
-                    <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckOut)}</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-3 border border-slate-100">
-                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check Out</p>
-                    <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
-                  </div>
-                </div>
-                {(viewingCorrection.correction?.breaks || []).length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Break Adjustments</p>
-                    {viewingCorrection.correction.breaks.map((breakAdjustment: CorrectionBreakAdjustment) => (
-                      <div key={breakAdjustment.breakIndex} className="grid grid-cols-2 gap-3">
-                        <div className="bg-white rounded-xl p-3 border border-slate-100">
-                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Break {breakAdjustment.breakIndex + 1}</p>
-                          <p className="text-sm font-pbold text-slate-900">{formatTime12b(breakAdjustment.originalStart)} – {formatTime12b(breakAdjustment.originalEnd)}</p>
-                        </div>
-                        <div className="bg-white rounded-xl p-3 border border-slate-100">
-                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Break {breakAdjustment.breakIndex + 1}</p>
-                          <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(breakAdjustment.requestedStart)} – {formatTime12b(breakAdjustment.requestedEnd)}</p>
-                        </div>
+
+              <div className="px-6 pt-4 flex items-center gap-1 border-b border-slate-100 bg-white">
+                {([
+                  { key: 'all', label: 'All', icon: Eye },
+                  { key: 'checkin', label: 'Clock In', icon: LogIn },
+                  { key: 'checkout', label: 'Clock Out', icon: LogOut },
+                  { key: 'breaks', label: 'Breaks', icon: Coffee },
+                ] as const).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setCorrectionDetailTab(tab.key)}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider border-b-2 -mb-px transition-colors ${
+                      correctionDetailTab === tab.key
+                        ? 'border-[#2563EB] text-[#2563EB]'
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <tab.icon size={13} />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {correctionDetailTab === 'all' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="text-[15px] font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
+                        {getStatusBadge(viewingCorrection.correction?.status)}
                       </div>
-                    ))}
+                      <p className="text-[10px] font-pmedium text-slate-500">Attendance date: {formatDateDMY(viewingCorrection.date)} &middot; {viewingCorrection.department || '--'}</p>
+                      <p className="mt-1 text-[10px] font-pmedium text-slate-400">Submitted on {formatDateDMY(viewingCorrection.correction?.requestedAt)}</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                      <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Reason</p>
+                      <p className="text-xs font-pbold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
+                    </div>
+                    {viewingCorrection.correction?.rejectionReason && (
+                      <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
+                        <p className="text-[9px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Rejection Reason</p>
+                        <p className="text-xs font-pbold text-rose-800">{viewingCorrection.correction.rejectionReason}</p>
+                      </div>
+                    )}
+                    {viewingCorrection.correction?.actionedBy && (
+                      <p className="text-[10px] font-pmedium text-slate-500 text-right">Actioned by: <span className="font-pbold">{viewingCorrection.correction.actionedBy}</span></p>
+                    )}
                   </div>
                 )}
-                <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                  <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Reason</p>
-                  <p className="text-xs font-pbold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
-                </div>
-                {viewingCorrection.correction?.rejectionReason && (
-                  <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
-                    <p className="text-[9px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Rejection Reason</p>
-                    <p className="text-xs font-pbold text-rose-800">{viewingCorrection.correction.rejectionReason}</p>
+
+                {correctionDetailTab === 'checkin' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white rounded-xl p-3 border border-slate-100">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check In</p>
+                      <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckIn)}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-slate-100">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check In</p>
+                      <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckIn)}</p>
+                    </div>
                   </div>
                 )}
-                {viewingCorrection.correction?.actionedBy && (
-                  <p className="text-[10px] font-pmedium text-slate-500 text-right">Actioned by: <span className="font-pbold">{viewingCorrection.correction.actionedBy}</span></p>
+
+                {correctionDetailTab === 'checkout' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white rounded-xl p-3 border border-slate-100">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check Out</p>
+                      <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckOut)}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-slate-100">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check Out</p>
+                      <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {correctionDetailTab === 'breaks' && (
+                  (viewingCorrection.breaks || []).length === 0 ? (
+                    <p className="text-center text-xs font-pmedium text-slate-400 py-10">No breaks recorded for this day.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      {(viewingCorrection.breaks as BreakEntry[]).map((brk, index) => {
+                        const adjustment = (viewingCorrection.correction?.breaks || []).find(
+                          (b: CorrectionBreakAdjustment) => b.breakIndex === index,
+                        );
+                        return (
+                          <div key={index} className="bg-white rounded-xl p-3 border border-slate-100">
+                            <div className="flex justify-between items-center">
+                              <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Break {index + 1}</p>
+                              {!brk.endAt && !brk.endTime && (
+                                <span className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest">Ongoing</span>
+                              )}
+                            </div>
+                            <p className="text-sm font-pbold text-slate-900">
+                              {formatTime12b(brk.startAt || brk.startTime)} – {formatTime12b(brk.endAt || brk.endTime)}
+                            </p>
+                            {adjustment && (
+                              <div className="mt-2 pt-2 border-t border-slate-100">
+                                <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested</p>
+                                <p className="text-sm font-pbold text-[#2563EB]">
+                                  {formatTime12b(adjustment.requestedStart)} – {formatTime12b(adjustment.requestedEnd)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
                 )}
               </div>
             </motion.div>

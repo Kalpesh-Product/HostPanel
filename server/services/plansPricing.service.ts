@@ -3,15 +3,6 @@ import { PlansPricing } from "../models/PlansPricing.js";
 
 const TENANT_PACKAGE_MIN_DURATION_MONTHS = 3;
 
-const tenantLocationCatalog = [
-    { floor: "501", wing: "A", locationCode: "501A", label: "501 A" },
-    { floor: "501", wing: "B", locationCode: "501B", label: "501 B" },
-    { floor: "601", wing: "A", locationCode: "601A", label: "601 A" },
-    { floor: "601", wing: "B", locationCode: "601B", label: "601 B" },
-    { floor: "701", wing: "A", locationCode: "701A", label: "701 A" },
-    { floor: "701", wing: "B", locationCode: "701B", label: "701 B" },
-];
-
 // ---- Validation ----
 
 function validateCreateInput(input: any) {
@@ -110,10 +101,6 @@ function parseLocationMappingEntry(entry: any): any {
     if (typeof entry === "string") {
         const label = normalizeLocationLabel(entry);
         const compact = normalizeLocationCode(entry);
-        const catalogMatch = tenantLocationCatalog.find(
-            (loc) => loc.locationCode === compact || loc.label === label,
-        );
-        if (catalogMatch) return { ...catalogMatch, seatType: "mixed", seatsAllocated: 0 };
         if (!label) return null;
         return {
             floor: label.replace(/\s+[AB]$/, "").trim(),
@@ -128,16 +115,6 @@ function parseLocationMappingEntry(entry: any): any {
     if (typeof entry === "object") {
         const label = normalizeLocationLabel(entry.label || entry.locationCode || "");
         const locationCode = normalizeLocationCode(entry.locationCode || label);
-        const catalogMatch = tenantLocationCatalog.find(
-            (loc) => loc.locationCode === locationCode || loc.label === label,
-        );
-        if (catalogMatch) {
-            return {
-                ...catalogMatch,
-                seatType: entry.seatType || "mixed",
-                seatsAllocated: Math.max(0, Number(entry.seatsAllocated || 0)),
-            };
-        }
         if (!label && !locationCode) return null;
         return {
             floor: normalizeText(entry.floor || label.replace(/\s+[AB]$/, "")),
@@ -155,8 +132,7 @@ function parseLocationMappingEntry(entry: any): any {
 function normalizeTenantPackageLocationMappings(value: any) {
     const entries = Array.isArray(value) ? value : [];
     const normalized = entries.map((e: any) => parseLocationMappingEntry(e)).filter(Boolean);
-    if (normalized.length > 0) return normalized;
-    return tenantLocationCatalog.map((loc) => ({ ...loc, seatType: "mixed", seatsAllocated: 0 }));
+    return normalized;
 }
 
 function deriveSeatTotals(payload: any) {
