@@ -11,6 +11,7 @@ import {
   submitExtraBudgetForDepartmentInternal,
   uploadInvoiceForDepartmentInternal,
   sendReminderForDepartmentInternal,
+  resetRejectedAnnualBudgetForDepartmentInternal,
   listFinanceSnapshotForManagerInternal,
   getTenantBillingSnapshotForCurrentUser,
   markTenantSecurityDepositPaidForCurrentUser,
@@ -26,6 +27,8 @@ import {
   generatePayslipForCurrentUser,
   sendPayslipToEmployeeForCurrentUser,
 } from "../services/payrollService.js";
+import { uploadFileToS3 } from "../config/s3config.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 
 function getWorkspaceId(req: Request) {
   return (req as any)?.workspaceMembership?.workspace ? (req as any).workspaceMembership.workspace : null;
@@ -40,10 +43,17 @@ function getUserId(req: Request) {
 export async function getDepartmentFinance(req: Request, res: Response, next: NextFunction) {
   try {
     const workspaceId = getWorkspaceId(req);
-    const department = String(req.query.department || "").trim();
+    let department = String(req.query.department || "").trim();
     const fiscalYear = String(req.query.fiscalYear || "").trim();
 
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!department) {
+      const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: getUserId(req) })
+        .populate("departments", "name")
+        .lean()
+        .exec();
+      department = String(membership?.departments?.[0]?.name || "").trim();
+    }
     if (!department) return res.status(400).json({ message: "department is required" });
     if (!fiscalYear) return res.status(400).json({ message: "fiscalYear is required" });
 
@@ -324,10 +334,20 @@ export async function uploadInvoice(req: Request, res: Response, next: NextFunct
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
+    const payload: any = { ...(req.body || {}) };
+    if ((req as any).file) {
+      const file = (req as any).file;
+      const safeName = String(file.originalname || "invoice").replace(/[^a-zA-Z0-9._-]/g, "-");
+      const uploaded = await uploadFileToS3(`finance/invoices/${workspaceId}/${Date.now()}-${safeName}`, file);
+      payload.invoiceFile = uploaded.url;
+      payload.invoiceUrl = uploaded.url;
+      payload.invoicePublicId = uploaded.id;
+    }
+
     const result = await uploadInvoiceForDepartmentInternal({
       workspaceId,
       userId,
-      input: req.body || {},
+      input: payload,
     });
 
     return res.status(201).json({
@@ -335,6 +355,22 @@ export async function uploadInvoice(req: Request, res: Response, next: NextFunct
       message: "Invoice uploaded successfully.",
       data: result,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetRejectedAnnualBudget(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    const department = String(req.body?.department || "").trim();
+    const fiscalYear = String(req.body?.fiscalYear || "").trim();
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!department) return res.status(400).json({ message: "department is required" });
+    if (!fiscalYear) return res.status(400).json({ message: "fiscalYear is required" });
+
+    const result = await resetRejectedAnnualBudgetForDepartmentInternal({ workspaceId, department, fiscalYear });
+    return res.status(200).json({ success: true, message: "Rejected annual budget reset successfully.", data: result });
   } catch (error) {
     next(error);
   }
