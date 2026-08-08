@@ -596,11 +596,11 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/hr/employee-management",
+    pattern: "/hr/company-management",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
       { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
-      { label: "Employee Management" },
+      { label: "Company Management" },
     ],
   },
   {

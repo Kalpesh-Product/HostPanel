@@ -12,6 +12,8 @@ interface LiveRecord {
   breaks?: LiveBreak[];
   totalSeconds?: number;
   breakSeconds?: number;
+  status?: string;
+  totalHours?: number;
 }
 
 export interface LiveTimes {
@@ -49,8 +51,12 @@ export const useLiveTimes = (record?: LiveRecord): LiveTimes => {
   let totalSeconds = 0;
   if (checkInDate && end) {
     totalSeconds = Math.max(0, Math.floor((end.getTime() - checkInDate.getTime()) / 1000));
-  } else {
-    totalSeconds = Math.max(0, Number(record?.totalSeconds) || 0);
+  } else if (record?.totalSeconds) {
+    totalSeconds = Math.max(0, Number(record.totalSeconds) || 0);
+  } else if ((record?.status === 'on_leave' || record?.status === 'holiday') && record?.totalHours) {
+    // Paid leave/holiday day with no clock-in/out — credit the full working
+    // hours the server already allocated for this day.
+    totalSeconds = Math.max(0, Number(record.totalHours) * 3600);
   }
 
   let breakSeconds = 0;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Eye, X, Clock, CheckCircle2, XCircle, AlertCircle,
@@ -117,6 +117,8 @@ interface AttendanceSettingsConfig {
   workingHoursStart: string;
   workingHoursEnd: string;
   breakDurationMinutes: number | null;
+  lateMarkAfter: string | null;
+  halfDayMarkAfter: string | null;
 }
 
 /* ───────────────────────────── Constants ───────────────────────────── */
@@ -503,11 +505,28 @@ export default function HRAttendanceReviewPage() {
   const [activeTab, setActiveTab] = useState("attendance-master");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilterMode, setDateFilterMode] = useState<"today" | "month" | "custom">("today");
-  const [customFrom, setCustomFrom] = useState(getLocalDateString);
-  const [customTo, setCustomTo] = useState(getLocalDateString);
+  const [dateFilterMode, setDateFilterMode] = useState<Record<string, "today" | "month" | "custom">>({
+    "attendance-master": "today",
+    "correction-requests": "today",
+  });
+  const currentDateFilterMode = dateFilterMode[activeTab] || "today";
+  const [customRangeByTab, setCustomRangeByTab] = useState<Record<string, { from: string; to: string }>>({
+    "attendance-master": { from: getLocalDateString(), to: getLocalDateString() },
+    "correction-requests": { from: getLocalDateString(), to: getLocalDateString() },
+  });
+  const currentCustomFrom = customRangeByTab[activeTab]?.from || getLocalDateString();
+  const currentCustomTo = customRangeByTab[activeTab]?.to || getLocalDateString();
+  const [showCustomRangePopup, setShowCustomRangePopup] = useState(false);
+  const setDateFilterModeForTab = (key: "today" | "month" | "custom") => {
+    setDateFilterMode((prev) => ({ ...prev, [activeTab]: key }));
+    setShowCustomRangePopup(key === "custom");
+  };
+  const setCustomFromForTab = (value: string) =>
+    setCustomRangeByTab((prev) => ({ ...prev, [activeTab]: { ...(prev[activeTab] || {}), from: value } }));
+  const setCustomToForTab = (value: string) =>
+    setCustomRangeByTab((prev) => ({ ...prev, [activeTab]: { ...(prev[activeTab] || {}), to: value } }));
   const [loading, setLoading] = useState(true);
-  const hasLoadedOnceRef = useRef(false);
+  const [fullPageLoading, setFullPageLoading] = useState(true);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [corrections, setCorrections] = useState<CorrectionRecord[]>([]);
   const [stats, setStats] = useState<AttendanceStats>({
@@ -536,23 +555,25 @@ export default function HRAttendanceReviewPage() {
     workingHoursStart: "",
     workingHoursEnd: "",
     breakDurationMinutes: null,
+    lateMarkAfter: null,
+    halfDayMarkAfter: null,
   });
 
   const { rangeFrom, rangeTo } = useMemo(() => {
     const today = getLocalDateString();
-    if (dateFilterMode === "month") {
+    if (currentDateFilterMode === "month") {
       const now = new Date();
       const first = new Date(now.getFullYear(), now.getMonth(), 1);
       const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       return { rangeFrom: getLocalDateString(first), rangeTo: getLocalDateString(last) };
     }
-    if (dateFilterMode === "custom") {
-      const from = customFrom || today;
-      const to = customTo || from;
+    if (currentDateFilterMode === "custom") {
+      const from = currentCustomFrom || today;
+      const to = currentCustomTo || from;
       return from <= to ? { rangeFrom: from, rangeTo: to } : { rangeFrom: to, rangeTo: from };
     }
     return { rangeFrom: today, rangeTo: today };
-  }, [dateFilterMode, customFrom, customTo]);
+  }, [currentDateFilterMode, currentCustomFrom, currentCustomTo]);
 
   const isAttendanceFullyConfigured = useMemo(() => {
     const geofenceReady = geofenceConfig.enabled && geofenceConfig.latitude != null && geofenceConfig.longitude != null;
@@ -614,6 +635,8 @@ export default function HRAttendanceReviewPage() {
             workingHoursStart: nextSettings.workingHoursStart || "",
             workingHoursEnd: nextSettings.workingHoursEnd || "",
             breakDurationMinutes: nextSettings.breakDurationMinutes != null ? Number(nextSettings.breakDurationMinutes) : null,
+            lateMarkAfter: nextSettings.lateMarkAfter || null,
+            halfDayMarkAfter: nextSettings.halfDayMarkAfter || null,
           });
         }
         setStats({
@@ -637,7 +660,7 @@ export default function HRAttendanceReviewPage() {
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
-          hasLoadedOnceRef.current = true;
+          setFullPageLoading(false);
         }
       });
     return () => { cancelled = true; };
@@ -869,6 +892,28 @@ export default function HRAttendanceReviewPage() {
       toast.error("Fill in weekly working hours, working hours start/end, and break duration.");
       return;
     }
+    if (
+      attendanceSettings.lateMarkAfter
+      && (attendanceSettings.lateMarkAfter <= attendanceSettings.workingHoursStart || attendanceSettings.lateMarkAfter >= attendanceSettings.workingHoursEnd)
+    ) {
+      toast.error("Late mark-after time must be after clock-in and before clock-out.");
+      return;
+    }
+    if (
+      attendanceSettings.halfDayMarkAfter
+      && (attendanceSettings.halfDayMarkAfter <= attendanceSettings.workingHoursStart || attendanceSettings.halfDayMarkAfter >= attendanceSettings.workingHoursEnd)
+    ) {
+      toast.error("Half-day mark-after time must be after clock-in and before clock-out.");
+      return;
+    }
+    if (
+      attendanceSettings.lateMarkAfter
+      && attendanceSettings.halfDayMarkAfter
+      && attendanceSettings.halfDayMarkAfter < attendanceSettings.lateMarkAfter
+    ) {
+      toast.error("Half-day mark-after time must be at or after the late mark-after time.");
+      return;
+    }
     setGeofenceSaving(true);
     try {
       const geofenceResponse = await updateAttendanceGeofence({
@@ -895,6 +940,8 @@ export default function HRAttendanceReviewPage() {
         workingHoursStart: attendanceSettings.workingHoursStart,
         workingHoursEnd: attendanceSettings.workingHoursEnd,
         breakDurationMinutes: attendanceSettings.breakDurationMinutes,
+        lateMarkAfter: attendanceSettings.lateMarkAfter,
+        halfDayMarkAfter: attendanceSettings.halfDayMarkAfter,
       });
       const nextSettings = settingsResponse?.data?.settings || settingsResponse?.settings || null;
       if (nextSettings) {
@@ -903,6 +950,8 @@ export default function HRAttendanceReviewPage() {
           workingHoursStart: nextSettings.workingHoursStart || "",
           workingHoursEnd: nextSettings.workingHoursEnd || "",
           breakDurationMinutes: nextSettings.breakDurationMinutes != null ? Number(nextSettings.breakDurationMinutes) : null,
+          lateMarkAfter: nextSettings.lateMarkAfter || null,
+          halfDayMarkAfter: nextSettings.halfDayMarkAfter || null,
         });
       }
 
@@ -965,7 +1014,19 @@ export default function HRAttendanceReviewPage() {
     ];
   }, [activeTab, stats]);
 
-  if (loading && !hasLoadedOnceRef.current) return <HRAttendanceReviewSkeleton />;
+  if (fullPageLoading) return <HRAttendanceReviewSkeleton />;
+
+  /* Table skeleton rows while data is loading/updating */
+  const renderTableSkeletonRows = (columnCount: number) =>
+    Array.from({ length: 6 }).map((_, r) => (
+      <tr key={r}>
+        {Array.from({ length: columnCount }).map((__, c) => (
+          <td key={c} className="px-5 py-4">
+            <div className="h-3 rounded-full bg-slate-100 animate-pulse" style={{ width: `${55 + ((c * 31) % 40)}%` }} />
+          </td>
+        ))}
+      </tr>
+    ));
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -988,7 +1049,7 @@ export default function HRAttendanceReviewPage() {
             {MAIN_TABS.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
+                onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); setShowCustomRangePopup(false); }}
                 className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
@@ -1023,103 +1084,130 @@ export default function HRAttendanceReviewPage() {
           {/* ── Data Panel ── */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
-            {/* Data panel header row — status sub-tabs first, then a gap,
-                then the date-range sub-tabs, then search, then the button. */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-wrap items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-1.5">
-                {(activeTab === "attendance-master" ? ATTENDANCE_FILTER_PILLS : CORRECTION_FILTER_PILLS).map((pill) => (
-                  <button
-                    key={pill.key}
-                    onClick={() => setStatusFilter(pill.key)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
-                      statusFilter === pill.key
-                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                    }`}
-                  >
-                    {pill.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1.5 xl:ml-4">
-                {DATE_FILTER_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => setDateFilterMode(opt.key)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
-                      dateFilterMode === opt.key
-                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              {dateFilterMode === "custom" && (
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input
-                      type="date"
-                      value={customFrom}
-                      onChange={(e) => setCustomFrom(e.target.value)}
-                      className="pl-9 pr-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
-                    />
-                  </div>
-                  <span className="text-[11px] font-pmedium text-slate-400">to</span>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input
-                      type="date"
-                      value={customTo}
-                      onChange={(e) => setCustomTo(e.target.value)}
-                      className="pl-9 pr-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
-                    />
-                  </div>
+            {/* Data panel header — everything on one line: status pills on the
+                left, then the Today / This Month / Custom Range tabs, the search
+                bar and the Attendance Settings button last; the custom range
+                opens as a popup so it never pushes the layout. */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(activeTab === "attendance-master" ? ATTENDANCE_FILTER_PILLS : CORRECTION_FILTER_PILLS).map((pill) => (
+                    <button
+                      key={pill.key}
+                      onClick={() => setStatusFilter(pill.key)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                        statusFilter === pill.key
+                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                      }`}
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
                 </div>
-              )}
 
-              <div className="relative flex-1 min-w-[180px] xl:max-w-xs">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <input
-                  type="text"
-                  placeholder={activeTab === "attendance-master" ? "Search employees..." : "Search requests..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
-                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <div className="flex items-center gap-1.5">
+                      {DATE_FILTER_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setDateFilterModeForTab(opt.key)}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                            currentDateFilterMode === opt.key
+                              ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                              : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                      {currentDateFilterMode === "custom" && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomRangePopup((open) => !open)}
+                          className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg transition-all ${
+                            showCustomRangePopup
+                              ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                              : "border border-slate-200/60 bg-white text-slate-500 hover:bg-blue-50 hover:text-[#2563EB]"
+                          }`}
+                          aria-label="Open custom date range"
+                          title="Custom date range"
+                        >
+                          <Calendar size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {currentDateFilterMode === "custom" && showCustomRangePopup && (
+                      <div className="absolute right-0 top-full z-30 mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="relative flex-1">
+                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                            <input
+                              type="date"
+                              value={currentCustomFrom}
+                              onChange={(e) => setCustomFromForTab(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-2 text-[11px] font-pmedium text-[#0F172A] outline-none focus:border-[#2563EB]"
+                            />
+                          </div>
+                          <span className="text-[11px] font-pmedium text-slate-400">to</span>
+                          <div className="relative flex-1">
+                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                            <input
+                              type="date"
+                              value={currentCustomTo}
+                              onChange={(e) => setCustomToForTab(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-2 text-[11px] font-pmedium text-[#0F172A] outline-none focus:border-[#2563EB]"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomRangePopup(false)}
+                          className="mt-3 w-full rounded-lg bg-[#2563EB] py-2 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700"
+                        >
+                          Apply Range
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      placeholder={activeTab === "attendance-master" ? "Search employees..." : "Search requests..."}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  {activeTab === "attendance-master" && !isAttendanceFullyConfigured && (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">
+                      <AlertTriangle size={12} />
+                      Not configured
+                    </span>
+                  )}
+
+                  {activeTab === "attendance-master" && (
+                    <button
+                      type="button"
+                      onClick={() => setShowGeofenceModal(true)}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-[#2563EB] px-5 py-2.5 text-xs font-pmedium uppercase text-white shadow-sm transition-colors hover:bg-blue-700"
+                    >
+                      <Settings size={13} />
+                      Attendance Settings
+                    </button>
+                  )}
+                </div>
               </div>
-
-              {!isAttendanceFullyConfigured && (
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">
-                  <AlertTriangle size={12} />
-                  Not configured
-                </span>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setShowGeofenceModal(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#2563EB] px-5 py-2.5 text-xs font-pmedium uppercase text-white shadow-sm transition-colors hover:bg-blue-700"
-              >
-                <Settings size={13} />
-                Attendance Settings
-              </button>
-
-              {loading && hasLoadedOnceRef.current && (
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                  <Loader2 size={12} className="animate-spin" />
-                  Updating
-                </span>
-              )}
             </div>
 
             {/* Table */}
-            <div className={`overflow-x-auto transition-opacity duration-200 ${loading && hasLoadedOnceRef.current ? "opacity-50" : "opacity-100"}`}>
+            <div className="overflow-x-auto">
               {activeTab === "attendance-master" ? (
                 <table className="w-full">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
@@ -1137,7 +1225,9 @@ export default function HRAttendanceReviewPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {filteredAttendance.length === 0 ? (
+                    {loading ? (
+                      renderTableSkeletonRows(10)
+                    ) : filteredAttendance.length === 0 ? (
                       <tr>
                         <td colSpan={10} className="text-center py-20 text-slate-400 font-pmedium">
                           No attendance records found.
@@ -1201,7 +1291,9 @@ export default function HRAttendanceReviewPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {filteredCorrections.length === 0 ? (
+                    {loading ? (
+                      renderTableSkeletonRows(9)
+                    ) : filteredCorrections.length === 0 ? (
                       <tr>
                         <td colSpan={9} className="text-center py-20 text-slate-400 font-pmedium">
                           No correction requests found.
@@ -1365,7 +1457,37 @@ export default function HRAttendanceReviewPage() {
                     </div>
                   </div>
                   <p className="mt-3 text-[11px] font-pmedium text-slate-500">
-                    Employees checking in after start time + a 30-minute grace period are marked late.
+                    Employees checking in after start time + a 30-minute grace period are marked late by default — set a custom cutoff below.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <AlertTriangle size={12} /> Late & Half-Day Cutoffs (optional)
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Mark late after</label>
+                      <input
+                        type="time"
+                        value={attendanceSettings.lateMarkAfter ?? ""}
+                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, lateMarkAfter: e.target.value || null }))}
+                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Mark half-day after</label>
+                      <input
+                        type="time"
+                        value={attendanceSettings.halfDayMarkAfter ?? ""}
+                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, halfDayMarkAfter: e.target.value || null }))}
+                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] font-pmedium text-slate-500">
+                    Both must fall between the start and end times above. Leave blank to keep the default (30-minute late grace, 1:20 PM half-day cutoff).
+                    An employee clocking in at or after the half-day cutoff is marked half-day regardless of hours worked; a day is also marked half-day automatically whenever total worked hours come out to half or less of the expected daily hours — this part is always calculated from actual clock-in/clock-out, not set manually.
                   </p>
                 </div>
 

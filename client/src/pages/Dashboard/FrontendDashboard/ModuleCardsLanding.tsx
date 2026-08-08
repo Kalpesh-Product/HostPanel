@@ -199,7 +199,7 @@ export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "finance-management": "/extra-common-modules/finance-management",
   reports: "/extra-common-modules/reports",
   // Department module routes, mirroring the sidebar's ROUTE_BY_ID.
-  "employee-management": "/hr/employee-management",
+  "employee-management": "/hr/company-management",
   "hr-documents": "/hr/documents",
   "attendance-review": "/hr/attendance-review",
   "leave-request-processing": "/hr/leave-request-processing",

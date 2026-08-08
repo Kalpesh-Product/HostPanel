@@ -1296,7 +1296,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
 
   const handleRedirectToEmployeeManagement = (candidate: CandidateRaw) => {
     void updateCandidateStatus(candidate.id || "", "Converted to Employee").finally(() => {
-      navigate("/dashboard/owner/employee-management", {
+      navigate("/dashboard/owner/company-management", {
         state: {
           openAddModal: true,
           prefillData: {

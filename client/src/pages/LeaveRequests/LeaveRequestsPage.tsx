@@ -2,12 +2,12 @@ import { useState, useMemo, useEffect, useCallback, type FormEvent } from 'react
 import {
   Search, Eye, X, Calendar, AlertCircle, CheckCircle2,
   Clock, XCircle, Filter, Building2, FileText, ShieldAlert,
-  Send, CalendarDays, UploadCloud, Users, ThumbsUp, ThumbsDown, Plus, ChevronDown
+  Send, CalendarDays, UploadCloud, Users, ThumbsUp, ThumbsDown, Plus, ChevronDown, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import PageFrame from '@/components/Pages/PageFrame';
-import { getLeaveRequests, updateLeaveRequest, createLeaveRequest, uploadLeaveCertificate, getHolidays } from '@/services/leave-requests';
+import { getLeaveRequests, updateLeaveRequest, createLeaveRequest, uploadLeaveCertificate, attachLeaveCertificate, getHolidays } from '@/services/leave-requests';
 import {
   canAccessAdminDashboard,
   canAccessFinanceDashboard,
@@ -50,6 +50,7 @@ interface LeaveRequest {
   reason?: string;
   medicalCertName?: string;
   medicalCertUrl?: string;
+  medicalCertMimeType?: string;
   isMe?: boolean;
   isApprovalRecipient?: boolean;
   canAction?: boolean;
@@ -291,6 +292,8 @@ export function LeaveRequestsPage() {
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [formData, setFormData] = useState<LeaveForm>(INITIAL_LEAVE_FORM);
   const [medicalCertFile, setMedicalCertFile] = useState<File | null>(null);
+  const [certUploadFile, setCertUploadFile] = useState<File | null>(null);
+  const [isCertUploading, setIsCertUploading] = useState(false);
   const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalances>({});
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeConfig[]>([]);
@@ -328,6 +331,9 @@ export function LeaveRequestsPage() {
     leaveMode: normalizeLeaveMode(entry.leaveMode),
     halfDaySession: entry.halfDaySession || '',
     medicalCertAttached: Boolean(entry.medicalCertAttached),
+    medicalCertName: entry.medicalCertName || '',
+    medicalCertUrl: entry.medicalCertUrl || '',
+    medicalCertMimeType: entry.medicalCertMimeType || '',
     requesterBalance: Number(entry.requesterBalance || 0),
   });
 
@@ -466,8 +472,39 @@ export function LeaveRequestsPage() {
   const remainingBalance = Number(selectedBalance.remaining || 0);
   const isBalanceExceeded = selectedLeaveType?.requiresBalance !== false && requestedDays > remainingBalance;
   const medicalCertificateThreshold = selectedLeaveType?.medicalCertificateAfterDays ??
-    (/sick/i.test(`${selectedLeaveType?.code || ''} ${selectedLeaveType?.name || ''}`) ? 2 : null);
+    (/sick/i.test(`${selectedLeaveType?.code || ''} ${selectedLeaveType?.name || ''}`) ? 1 : null);
   const requiresMedicalCert = medicalCertificateThreshold != null && requestedDays > Number(medicalCertificateThreshold);
+  const viewingRequestThreshold = (() => {
+    if (!viewingRequest) return null;
+    const typeConfig = leaveTypes.find((t) => t.name === viewingRequest.leaveType || t.code === viewingRequest.leaveType);
+    if (typeConfig?.medicalCertificateAfterDays != null) return Number(typeConfig.medicalCertificateAfterDays);
+    return /sick/i.test(`${typeConfig?.code || ''} ${typeConfig?.name || ''} ${viewingRequest.leaveType || ''}`) ? 1 : null;
+  })();
+  const viewingRequiresCert = Boolean(
+    viewingRequest &&
+      ['pending', 'approved'].includes(viewingRequest.status) &&
+      !viewingRequest.medicalCertAttached &&
+      viewingRequestThreshold != null &&
+      Number(viewingRequest.days || 0) > Number(viewingRequestThreshold),
+  );
+  const isViewingSickLeave = Boolean(
+    viewingRequest && /sick/i.test(`${viewingRequest.leaveType || ""}`),
+  );
+  const isPendingMedicalCertRequired = (item: LeaveRequest): boolean => {
+    if (!item) return false;
+    if (String(item.status || '').toLowerCase() !== 'pending') return false;
+    if (item.medicalCertAttached) return false;
+    const typeConfig = leaveTypes.find((t) => t.name === item.leaveType || t.code === item.leaveType);
+    const threshold = typeConfig?.medicalCertificateAfterDays ??
+      (/sick/i.test(`${typeConfig?.code || ''} ${typeConfig?.name || ''} ${item.leaveType || ''}`) ? 1 : null);
+    return threshold != null && Number(item.days || 0) > Number(threshold);
+  };
+  const renderPendingCertBadge = (item: LeaveRequest) =>
+    isPendingMedicalCertRequired(item) ? (
+      <span className="inline-flex items-center gap-1 rounded-md bg-amber-400/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+        <FileText size={10} strokeWidth={2.5} /> Medical Cert Pending
+      </span>
+    ) : null;
   const selectedDepartmentKey = normalizeRole(
     currentUser?.workspaceMembership?.department ||
       currentUser?.department ||
@@ -540,7 +577,6 @@ export function LeaveRequestsPage() {
     if (formData.leaveMode === 'partial_day' && (formData.partialDayHours < 0.5 || formData.partialDayHours > dailyWorkingHours)) return `Select partial leave between 30 minutes and ${dailyWorkingHours} hours.`;
     if (requestedDays <= 0) return 'The selected date or range contains no working days. Sundays and company holidays are excluded.';
     if (formData.reason.trim().length < 3) return 'Enter a reason of at least 3 characters.';
-    if (requiresMedicalCert && !medicalCertFile) return `Upload a medical certificate for sick leave longer than ${medicalCertificateThreshold} days.`;
     if (isBalanceExceeded) return 'The requested duration exceeds your available leave balance.';
     if (hasApprovedLeaveConflict) return 'You already have approved leave during the selected dates.';
     return '';
@@ -703,7 +739,7 @@ export function LeaveRequestsPage() {
         const fd = new FormData();
         fd.append('file', medicalCertFile);
         const uploadResponse = await uploadLeaveCertificate(fd);
-        uploadedCert = uploadResponse?.data?.certificate || null;
+        uploadedCert = uploadResponse?.certificate || null;
       }
       const payload = {
         leaveTypeId: formData.type,
@@ -733,6 +769,29 @@ export function LeaveRequestsPage() {
       setErrorMessage(error.message || 'Failed to submit leave request.');
     } finally {
       setIsSubmittingLeave(false);
+    }
+  };
+
+  const handleUploadCertificateAfterApproval = async () => {
+    if (!viewingRequest?.recordId || !certUploadFile) return;
+    setIsCertUploading(true);
+    setErrorMessage('');
+    try {
+      const fd = new FormData();
+      fd.append('file', certUploadFile);
+      const response = await attachLeaveCertificate(viewingRequest.recordId, fd);
+      const updatedPayload = response?.data?.leaveRequest || response?.leaveRequest;
+      const updated = updatedPayload ? normalizeLeaveRequest(updatedPayload) : null;
+      if (updated) {
+        setAllEntries((prev) => prev.map((r) => (r.recordId === updated.recordId ? updated : r)));
+        setViewingRequest(updated);
+        toast.success('Medical certificate uploaded for confirmation.');
+      }
+      setCertUploadFile(null);
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Failed to upload medical certificate.');
+    } finally {
+      setIsCertUploading(false);
     }
   };
 
@@ -993,7 +1052,12 @@ export function LeaveRequestsPage() {
                             <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-[#0F172A] whitespace-nowrap">{item.endDate || item.startDate || '-'}</td>
                             <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{item.days ?? 0} {item.days === 1 ? 'Day' : 'Days'}</td>
                             <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{formatLeaveModeLabel(item, dailyWorkingHours)}</td>
-                            <td className="px-4 py-4 align-middle text-center">{getStatusBadge(item.status)}</td>
+                            <td className="px-4 py-4 align-middle text-center">
+                              <div className="flex flex-col items-center gap-1">
+                                {getStatusBadge(item.status)}
+                                {renderPendingCertBadge(item)}
+                              </div>
+                            </td>
                             <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{item.actionedBy ? formatActionedBy(item) : '-'}</td>
                             <td className="px-4 py-4 align-middle text-right">
                               <button
@@ -1023,7 +1087,12 @@ export function LeaveRequestsPage() {
                             <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-[#0F172A] whitespace-nowrap">{item.startDate || '-'}</td>
                             <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-[#0F172A] whitespace-nowrap">{item.endDate || item.startDate || '-'}</td>
                             <td className="px-4 py-4 align-middle text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{item.days ?? 0} {item.days === 1 ? 'Day' : 'Days'}</td>
-                            <td className="px-4 py-4 align-middle text-center">{getStatusBadge(item.status)}</td>
+                            <td className="px-4 py-4 align-middle text-center">
+                              <div className="flex flex-col items-center gap-1">
+                                {getStatusBadge(item.status)}
+                                {renderPendingCertBadge(item)}
+                              </div>
+                            </td>
                             <td className="px-4 py-4 align-middle text-right">
                               <button
                                 type="button"
@@ -1065,7 +1134,10 @@ export function LeaveRequestsPage() {
                             </div>
                           </div>
                         )}
-                        {getStatusBadge(item.status)}
+                        <div className="flex flex-col items-end gap-1">
+                          {getStatusBadge(item.status)}
+                          {renderPendingCertBadge(item)}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
                         {!isMyLeavesTab && (
@@ -1165,6 +1237,12 @@ export function LeaveRequestsPage() {
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Status</p>
                           {getStatusBadge(viewingRequest.status)}
                         </div>
+                        {viewingRequiresCert && (
+                          <div className="col-span-2 -mt-2 flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
+                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600 flex items-center gap-1.5"><FileText size={13} /> Medical Certificate</p>
+                            <span className="text-[10px] font-pmedium uppercase tracking-wider text-amber-700 bg-white border border-amber-200 px-2 py-1 rounded-lg">Pending</span>
+                          </div>
+                        )}
                       </div>
                       <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.status === 'rejected' ? 'Rejected By' : 'Approved By'}</p>
@@ -1211,28 +1289,64 @@ export function LeaveRequestsPage() {
                           )}
                         </div>
                       )}
-                      {viewingRequest.medicalCertAttached && (
-                        <div className={`p-4 rounded-2xl border flex items-center justify-between ${viewingRequest.medicalCertAttached ? 'bg-emerald-50/50 border-emerald-100' : 'bg-orange-50/50 border-orange-200'}`}>
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${viewingRequest.medicalCertAttached ? 'bg-emerald-500 shadow-md shadow-emerald-500/20' : 'bg-orange-500 shadow-md shadow-orange-500/20'}`}>
+                      {isViewingSickLeave && viewingRequest.medicalCertAttached ? (
+                        <div className="p-4 rounded-2xl border bg-emerald-50/50 border-emerald-100 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white bg-emerald-500 shadow-md shadow-emerald-500/20">
                               <FileText size={18} />
                             </div>
-                            <div>
-                              <p className={`text-[13px] font-bold ${viewingRequest.medicalCertAttached ? 'text-emerald-900' : 'text-orange-900'}`}>
-                                {viewingRequest.medicalCertAttached ? (viewingRequest.medicalCertName || 'Medical_Certificate') : 'Missing Certificate'}
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Medical Certificate</p>
+                              <p className="text-[13px] font-bold text-emerald-900 truncate">
+                                {viewingRequest.medicalCertName || 'Medical_Certificate'}
                               </p>
-                              <p className={`text-[10px] font-pmedium uppercase tracking-widest mt-1 ${viewingRequest.medicalCertAttached ? 'text-emerald-600' : 'text-orange-600'}`}>
-                                {viewingRequest.medicalCertAttached ? 'Document Verified' : 'Required (>2 Days)'}
+                              <p className="text-[9px] font-pmedium uppercase tracking-widest mt-1 text-emerald-600">
+                                Document Verified
                               </p>
                             </div>
                           </div>
-                          {viewingRequest.medicalCertAttached && viewingRequest.medicalCertUrl ? (
-                            <a href={viewingRequest.medicalCertUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                              Open
+                          {viewingRequest.medicalCertUrl ? (
+                            <a href={viewingRequest.medicalCertUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-emerald-700 text-[10px] font-pmedium uppercase tracking-wider hover:bg-emerald-50 active:scale-95 transition">
+                              <Eye size={13} /> View
                             </a>
                           ) : null}
                         </div>
-                      )}
+                      ) : viewingRequiresCert ? (
+                        <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/50">
+                          <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1 flex items-center gap-1.5"><FileText size={13} /> Medical Certificate Required {viewingRequest.status === 'approved' ? '(Approved)' : ''}</p>
+                          <p className="text-[11px] font-semibold text-amber-800 mb-3">
+                            {viewingRequest.status === 'approved'
+                              ? `Upload the medical certificate to confirm your ${viewingRequest.leaveType} leave.`
+                              : `A medical certificate is required for this ${viewingRequest.leaveType} leave. You can upload it now.`}
+                          </p>
+                          <div className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-colors cursor-pointer ${certUploadFile ? 'border-emerald-300 bg-emerald-50/50' : 'border-amber-300 bg-white hover:bg-amber-50/50 hover:border-[#2563EB]'}`}>
+                            <input type="file" id="med-cert-after-approval" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => setCertUploadFile(e.target.files?.[0] || null)} />
+                            <label htmlFor="med-cert-after-approval" className="flex flex-col items-center cursor-pointer">
+                              {certUploadFile ? (
+                                <>
+                                  <CheckCircle2 size={22} className="text-emerald-500 mb-1" />
+                                  <p className="text-xs font-bold text-emerald-700">{certUploadFile.name}</p>
+                                  <p className="text-[9px] font-bold text-emerald-600 mt-0.5 uppercase">Click to change</p>
+                                </>
+                              ) : (
+                                <>
+                                  <UploadCloud size={22} className="text-amber-500 mb-1" />
+                                  <p className="text-xs font-bold text-[#2563EB]">Upload medical certificate</p>
+                                  <p className="text-[9px] font-medium text-slate-500 mt-0.5">PDF, JPG or PNG</p>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                          <button
+                            onClick={handleUploadCertificateAfterApproval}
+                            disabled={!certUploadFile || isCertUploading}
+                            className="mt-3 w-full flex items-center justify-center gap-1.5 bg-[#2563EB] text-white py-2.5 rounded-xl font-pmedium uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-[11px]"
+                          >
+                            {isCertUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                            {isCertUploading ? 'UPLOADING...' : 'UPLOAD CERTIFICATE'}
+                          </button>
+                        </div>
+                      ) : null}
                       <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Request Statement</p>
                         <p className="text-[13px] font-semibold text-slate-700 leading-relaxed">{viewingRequest.reason}</p>
@@ -1452,8 +1566,14 @@ export function LeaveRequestsPage() {
                         <textarea required rows={2} placeholder="Reason for leave..." className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none placeholder:text-slate-400" value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })} />
                       </div>
                       {requiresMedicalCert && (
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-pmedium text-red-500 uppercase tracking-widest flex items-center gap-1"><AlertCircle size={11} /> Medical Certificate Required ({selectedLeaveType?.name}, longer than {medicalCertificateThreshold} days)</label>
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-[11px] font-bold">
+                            <AlertCircle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+                            <div>
+                              <p className="uppercase tracking-widest text-[9px] font-black text-amber-600">Medical certificate required</p>
+                              <p className="mt-0.5 font-semibold">A medical certificate must be provided for {selectedLeaveType?.name || 'sick'} leave longer than {medicalCertificateThreshold} {Number(medicalCertificateThreshold) === 1 ? 'day' : 'days'}. You can upload it after submitting, even once approved.</p>
+                            </div>
+                          </div>
                           <div className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-colors cursor-pointer ${medicalCertFile ? 'border-emerald-300 bg-emerald-50/50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100/50 hover:border-[#2563EB]'}`}>
                             <input type="file" id="med-cert-sa" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => setMedicalCertFile(e.target.files?.[0] || null)} />
                             <label htmlFor="med-cert-sa" className="flex flex-col items-center cursor-pointer">

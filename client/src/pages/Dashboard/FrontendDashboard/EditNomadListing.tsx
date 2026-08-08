@@ -161,8 +161,9 @@ const EditNomadListing = () => {
   const axiosPriv = useAxiosPrivate();
   const formRef = useRef(null);
   const inclusionsSelectRef = useRef(null);
-  const servicesSelectRef = useRef(null);
-  const unitsSelectRef = useRef(null);
+  // Removed: services/units selectors no longer needed
+  // const servicesSelectRef = useRef(null);
+  // const unitsSelectRef = useRef(null);
   const location = useLocation();
   const navState = location?.state || {};
 
@@ -183,24 +184,25 @@ const EditNomadListing = () => {
   const profileLogoUrl =
     (typeof auth?.user?.logo === "object" ? auth?.user?.logo?.url : auth?.user?.logo) || "";
 
-  const { data: serviceOptions = [] } = useQuery({
-    queryKey: ["nomad-field-options", "services"],
-    queryFn: async () => {
-      const res = await axios.get("https://wono.co/api/company/field-options", {
-        params: { field: "services" },
-      });
-      return Array.isArray(res.data) ? res.data : [];
-    },
-  });
-  const { data: unitOptions = [] } = useQuery({
-    queryKey: ["nomad-field-options", "units"],
-    queryFn: async () => {
-      const res = await axios.get("https://wono.co/api/company/field-options", {
-        params: { field: "units" },
-      });
-      return Array.isArray(res.data) ? res.data : [];
-    },
-  });
+  // Removed: Services/Units field options no longer needed
+  // const { data: serviceOptions = [] } = useQuery({
+  //   queryKey: ["nomad-field-options", "services"],
+  //   queryFn: async () => {
+  //     const res = await axios.get("https://wono.co/api/company/field-options", {
+  //       params: { field: "services" },
+  //     });
+  //     return Array.isArray(res.data) ? res.data : [];
+  //   },
+  // });
+  // const { data: unitOptions = [] } = useQuery({
+  //   queryKey: ["nomad-field-options", "units"],
+  //   queryFn: async () => {
+  //     const res = await axios.get("https://wono.co/api/company/field-options", {
+  //       params: { field: "units" },
+  //     });
+  //     return Array.isArray(res.data) ? res.data : [];
+  //   },
+  // });
 
   const {
     control,
@@ -219,15 +221,15 @@ const EditNomadListing = () => {
       website: "",
       ratings: "",
       totalReviews: "",
-      totalSeats: "",
+      // totalSeats: "",
       latitude: "",
       longitude: "",
       country: "",
       state: "",
       city: "",
       inclusions: [],
-      services: [],
-      units: [],
+      // services: [],
+      // units: [],
       about: "",
       address: "",
       images: [],
@@ -238,24 +240,23 @@ const EditNomadListing = () => {
     },
   });
 
-  // "Add new" boxes beside the Services/Units dropdowns — typing a value
-  // here and clicking Add both selects it and adds it to the dropdown.
-  const [newServiceText, setNewServiceText] = useState("");
-  const [newUnitText, setNewUnitText] = useState("");
-  const handleAddService = () => {
-    const trimmed = newServiceText.trim();
-    if (!trimmed) return;
-    const current = getValues("services") || [];
-    if (!current.includes(trimmed)) setValue("services", [...current, trimmed]);
-    setNewServiceText("");
-  };
-  const handleAddUnit = () => {
-    const trimmed = newUnitText.trim();
-    if (!trimmed) return;
-    const current = getValues("units") || [];
-    if (!current.includes(trimmed)) setValue("units", [...current, trimmed]);
-    setNewUnitText("");
-  };
+  // Removed: "Add new" boxes beside the Services/Units dropdowns no longer needed
+  // const [newServiceText, setNewServiceText] = useState("");
+  // const [newUnitText, setNewUnitText] = useState("");
+  // const handleAddService = () => {
+  //   const trimmed = newServiceText.trim();
+  //   if (!trimmed) return;
+  //   const current = getValues("services") || [];
+  //   if (!current.includes(trimmed)) setValue("services", [...current, trimmed]);
+  //   setNewServiceText("");
+  // };
+  // const handleAddUnit = () => {
+  //   const trimmed = newUnitText.trim();
+  //   if (!trimmed) return;
+  //   const current = getValues("units") || [];
+  //   if (!current.includes(trimmed)) setValue("units", [...current, trimmed]);
+  //   setNewUnitText("");
+  // };
 
   // ✅ Field Array for reviews
   const {
@@ -309,15 +310,15 @@ const EditNomadListing = () => {
       companyType: src.companyType || "",
       ratings: src.ratings ?? "",
       totalReviews: src.totalReviews ?? "",
-      totalSeats: src.totalSeats ?? "",
+      // totalSeats: src.totalSeats ?? "",
       latitude: src.latitude != null ? String(src.latitude) : "",
       longitude: src.longitude != null ? String(src.longitude) : "",
       country: src.country || "",
       state: src.state || "",
       city: src.city || "",
       inclusions: splitCommaList(src.inclusions),
-      services: splitCommaList(src.services),
-      units: splitCommaList(src.units),
+      // services: splitCommaList(src.services),
+      // units: splitCommaList(src.units),
       about: src.about || "",
       address: src.address || "",
       images: [],
@@ -382,7 +383,7 @@ const EditNomadListing = () => {
         [values.city, values.state, values.country].filter(Boolean).join(", "),
     );
 
-    // normalize inclusions/services/units
+    // normalize inclusions (services/units removed)
     const toCommaString = (value) =>
       (Array.isArray(value)
         ? value
@@ -391,8 +392,8 @@ const EditNomadListing = () => {
           : []
       ).join(", ");
     fd.set("inclusions", toCommaString(values.inclusions));
-    fd.set("services", toCommaString(values.services));
-    fd.set("units", toCommaString(values.units));
+    // fd.set("services", toCommaString(values.services));
+    // fd.set("units", toCommaString(values.units));
 
     // normalize reviews
     const mappedReviews = (values.reviews || []).map((r) => ({
@@ -437,15 +438,15 @@ const EditNomadListing = () => {
       website: "",
       ratings: "",
       totalReviews: "",
-      totalSeats: "",
+      // totalSeats: "",
       latitude: "",
       longitude: "",
       country: "",
       state: "",
       city: "",
       inclusions: [],
-      services: [],
-      units: [],
+      // services: [],
+      // units: [],
       about: "",
       address: "",
       images: [],
@@ -591,9 +592,10 @@ const EditNomadListing = () => {
               }}
             />
           </div>
+          {/* ===== Services / Units / Total Seats (removed — not needed) =====
           <div className="mb-4 md:mb-0">
-            {/* Services — pick from what other hosts have already used, or
-                type a new one below and click Add. */}
+            Services — pick from what other hosts have already used, or
+            type a new one below and click Add.
             <Controller
               name="services"
               control={control}
@@ -651,7 +653,7 @@ const EditNomadListing = () => {
             )}
           </div>
           <div className="mb-4 md:mb-0">
-            {/* Units — same dropdown + add-new pattern as Services. */}
+            Units — same dropdown + add-new pattern as Services.
             <Controller
               name="units"
               control={control}
@@ -709,7 +711,7 @@ const EditNomadListing = () => {
             )}
           </div>
           <div className="mb-4 md:mb-0">
-            {/* Total Seats */}
+            Total Seats
             <Controller
               name="totalSeats"
               control={control}
@@ -731,25 +733,20 @@ const EditNomadListing = () => {
               )}
             />
           </div>
+          */}
 
           <div className="mb-4 md:mb-0">
-            {/* Ratings */}
+            {/* Address */}
             <Controller
-              name="ratings"
+              name="address"
               control={control}
-              rules={{
-                min: { value: 1, message: "Rating must be between 1 and 5" },
-                max: { value: 5, message: "Rating must be between 1 and 5" },
-              }}
               render={({ field }) => (
                 <TextField
                   {...field}
                   size="small"
-                  label="Ratings"
-                  type="number"
-                  inputProps={{ min: 1, max: 5, step: 0.1 }}
-                  error={!!errors.ratings}
-                  helperText={errors?.ratings?.message}
+                  label="Address"
+                  multiline
+                  minRows={3}
                   fullWidth
                   disabled={isViewMode}
                 />
@@ -776,17 +773,23 @@ const EditNomadListing = () => {
             />
           </div>
           <div className="mb-4 md:mb-0">
-            {/* Address */}
+            {/* Ratings */}
             <Controller
-              name="address"
+              name="ratings"
               control={control}
+              rules={{
+                min: { value: 1, message: "Rating must be between 1 and 5" },
+                max: { value: 5, message: "Rating must be between 1 and 5" },
+              }}
               render={({ field }) => (
                 <TextField
                   {...field}
                   size="small"
-                  label="Address"
-                  multiline
-                  minRows={3}
+                  label="Ratings"
+                  type="number"
+                  inputProps={{ min: 1, max: 5, step: 0.1 }}
+                  error={!!errors.ratings}
+                  helperText={errors?.ratings?.message}
                   fullWidth
                   disabled={isViewMode}
                 />

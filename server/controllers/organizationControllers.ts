@@ -340,6 +340,7 @@ const ROLE_BANDS_WITH_MANAGER_ACCESS = new Set(["owner", "super_admin", "admin",
 const MANAGER_DEFAULT_ORG_GRANT_IDS = [
   ORGANIZATION_PERMISSION_KEYS.tabs.users,
   ORGANIZATION_PERMISSION_KEYS.actions.inviteMember,
+  "team-management",
 ];
 
 // Computes the default module-id set a member should be granted purely from
@@ -1051,6 +1052,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           employeeId: employeeIdByMemberId.get(String(member._id)) || "",
           joinedAt: member.createdAt || null,
           role: toRoleLabel(member.role),
+          roleBand: getRoleBand(member.role),
           status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
           accountDeleted: Boolean(member.user?.isDeleted),
           departmentNames: Array.isArray(member.departments)
@@ -2407,7 +2409,7 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       _id: memberLookupId,
       workspace: workspace._id,
       isActive: true,
-    }).populate("departments");
+    }).populate("departments").populate("role");
     if (!member) return res.status(404).json({ message: "Member not found." });
     if (toId(member.user) === toId(req.user)) {
       return res.status(400).json({ message: "Your own module access is self-protected and cannot be changed here." });
@@ -2566,7 +2568,21 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       );
       member.grantedModules = Array.from(new Set([...outsideManagerScope, ...withinManagerScope]));
     } else {
-      member.grantedModules = sanitizedNextGrantedModules;
+      // An unrestricted (owner/super_admin) edit replaces grantedModules
+      // wholesale with whatever this dialog's checkboxes represent. But
+      // MANAGER_DEFAULT_ORG_GRANT_IDS (org_tab_users, org_users_invite_member,
+      // team-management) are implicit permissions a manager always needs —
+      // they're never rendered as their own toggle here, so a save would
+      // otherwise silently drop them the moment anyone edits this manager's
+      // access, breaking hasOrganizationAccess() and this Team Management
+      // module for them. Re-merge that floor back in, same as every other
+      // manager-grant call site (assignOrganizationDepartmentManager,
+      // updateOrganizationMemberRole, invite).
+      const targetRoleBand = getRoleBand(member.role);
+      member.grantedModules =
+        targetRoleBand === "manager"
+          ? mergeGrantedModules(sanitizedNextGrantedModules, MANAGER_DEFAULT_ORG_GRANT_IDS)
+          : sanitizedNextGrantedModules;
       member.addOnGrantedModules = sanitizedNextAddOnModules;
     }
 

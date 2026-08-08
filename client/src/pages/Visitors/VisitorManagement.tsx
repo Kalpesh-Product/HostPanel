@@ -4666,7 +4666,7 @@ export default function VisitorsManagementPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Phone *</label>
-                          <input type="tel" placeholder="+91..." className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-pmedium text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                          <input type="tel" placeholder="Enter phone number" className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-pmedium text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Email *</label>
@@ -5414,7 +5414,7 @@ export default function VisitorsManagementPage() {
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
-                                <input type="tel" value={form.phone} onBlur={() => setWalkInTouched((prev) => ({ ...prev, phone: true }))} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.phone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="+91..." />
+                                <input type="tel" value={form.phone} onBlur={() => setWalkInTouched((prev) => ({ ...prev, phone: true }))} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.phone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} placeholder="Enter phone number" />
                                 {visibleWalkInErrors.phone ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.phone}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">

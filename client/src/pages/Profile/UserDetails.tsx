@@ -407,7 +407,7 @@ export default function UserDetails() {
           return;
         }
 
-        const response = await axios.get("/api/hr/employee-management/overview");
+        const response = await axios.get("/api/hr/company-management/overview");
         const overview = response?.data?.data || response?.data || response || {};
         const employees = Array.isArray(overview.employees) ? overview.employees : [];
 

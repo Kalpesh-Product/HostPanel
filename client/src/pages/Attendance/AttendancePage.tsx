@@ -74,6 +74,7 @@ interface AttendanceRecord {
   earlyMinutes?: number;
   breaks?: BreakEntry[];
   correction?: CorrectionEntry;
+  activeHoliday?: { name?: string; type?: 'public' | 'company'; description?: string } | null;
 }
 
 interface BreakEntry {
@@ -132,9 +133,12 @@ interface CorrectionBreakForm {
   include: boolean;
 }
 
+type CorrectionTab = 'all' | 'checkin' | 'checkout' | 'break';
+
 interface CorrectionForm {
   recordId: string;
   reason: string;
+  correctionTab: CorrectionTab;
   includeCheckIn: boolean;
   includeCheckOut: boolean;
   includeBreaks: boolean;
@@ -305,9 +309,10 @@ const getManagedDepartments = (currentUser: any): string[] => {
 const INITIAL_CORRECTION_FORM: CorrectionForm = {
   recordId: '',
   reason: '',
+  correctionTab: 'all',
   includeCheckIn: true,
   includeCheckOut: true,
-  includeBreaks: true,
+  includeBreaks: false,
   originalCheckIn: '',
   originalCheckOut: '',
   requestedCheckIn: '',
@@ -410,7 +415,6 @@ export function AttendancePage() {
   const [dayRecords, setDayRecords] = useState<AttendanceRecord[]>([]);
 
   const [viewingCorrection, setViewingCorrection] = useState<any>(null);
-  const [correctionDetailTab, setCorrectionDetailTab] = useState<'all' | 'checkin' | 'checkout' | 'breaks'>('all');
   const [showCorrectionForm, setShowCorrectionForm] = useState(false);
   const [correctionForm, setCorrectionForm] = useState<CorrectionForm>(INITIAL_CORRECTION_FORM);
   const [isSubmittingCorrection, setIsSubmittingCorrection] = useState(false);
@@ -511,6 +515,9 @@ export function AttendancePage() {
     assignedDepartmentNames.some((d) => normalizeRole(d) === 'hr' || normalizeRole(d).includes('human-resources'));
   const canManageAttendance = isAdminProfile || isSuperAdminProfile || isOwnerProfile || isDeptManager || isHrProfile;
   const isClockDisabledByConfig = isConfigLoaded && !isAttendanceConfigured;
+  const isOnLeaveToday = todayRecord?.status === 'on_leave';
+  const isHolidayToday = todayRecord?.status === 'holiday';
+  const holidayLabel = todayRecord?.activeHoliday?.type === 'public' ? 'Public Holiday' : 'Company Holiday';
 
   /* ── Effects ── */
   useEffect(() => {
@@ -613,6 +620,14 @@ export function AttendancePage() {
   const handleClockAction = async (mode: 'in' | 'out') => {
     if (isClockDisabledByConfig) {
       setClockErrorMessage('Attendance is not configured for this workspace yet. Ask HR to set working hours and the geofence.');
+      return;
+    }
+    if (mode === 'in' && isOnLeaveToday) {
+      setClockErrorMessage("You're on approved leave today, so clock-in is disabled.");
+      return;
+    }
+    if (mode === 'in' && isHolidayToday) {
+      setClockErrorMessage(`Today is a ${holidayLabel.toLowerCase()}${todayRecord?.activeHoliday?.name ? ` (${todayRecord.activeHoliday.name})` : ''}, so clock-in is disabled.`);
       return;
     }
     setClockMode(mode);
@@ -781,13 +796,17 @@ export function AttendancePage() {
     setCorrectionForm({
       recordId: record.recordId || record.id || '',
       reason: '',
+      correctionTab: 'all',
       includeCheckIn: true,
       includeCheckOut: true,
-      includeBreaks: true,
+      includeBreaks: false,
       originalCheckIn: checkInValue,
       originalCheckOut: checkOutValue,
-      requestedCheckIn: checkInValue,
-      requestedCheckOut: checkOutValue,
+      // Requested times start blank — the employee has to actually type what
+      // they want, rather than the field looking pre-filled with the current
+      // (unchanged) punch time.
+      requestedCheckIn: '',
+      requestedCheckOut: '',
       breaks: (record.breaks || []).map((entry, index) => {
         const start = entry.startAt ? getWorkspaceTime(entry.startAt, workspacePreferences.timezone) : '';
         const end = entry.endAt ? getWorkspaceTime(entry.endAt, workspacePreferences.timezone) : '';
@@ -795,9 +814,9 @@ export function AttendancePage() {
           breakIndex: index,
           originalStart: start,
           originalEnd: end,
-          requestedStart: start,
-          requestedEnd: end,
-          include: true,
+          requestedStart: '',
+          requestedEnd: '',
+          include: false,
         };
       }),
     });
@@ -823,18 +842,24 @@ export function AttendancePage() {
         && correctionForm.requestedCheckOut !== correctionForm.originalCheckOut
         ? correctionForm.requestedCheckOut
         : undefined;
+      const requestedBreaks = correctionForm.includeBreaks
+        ? correctionForm.breaks
+          .filter((b) => b.include && (
+            (b.requestedStart && b.requestedStart !== b.originalStart)
+            || (b.requestedEnd && b.requestedEnd !== b.originalEnd)
+          ))
+          .map((b) => ({ breakIndex: b.breakIndex, requestedStart: b.requestedStart, requestedEnd: b.requestedEnd }))
+        : [];
+      if (!requestedCheckIn && !requestedCheckOut && requestedBreaks.length === 0) {
+        setErrorMessage('Enter at least one requested time that differs from the original before submitting.');
+        setIsSubmittingCorrection(false);
+        return;
+      }
       await requestAttendanceCorrection(correctionForm.recordId, {
         reason: correctionForm.reason,
         requestedCheckIn,
         requestedCheckOut,
-        breaks: correctionForm.includeBreaks
-          ? correctionForm.breaks
-            .filter((b) => b.include && (
-              (b.requestedStart && b.requestedStart !== b.originalStart)
-              || (b.requestedEnd && b.requestedEnd !== b.originalEnd)
-            ))
-            .map((b) => ({ breakIndex: b.breakIndex, requestedStart: b.requestedStart, requestedEnd: b.requestedEnd }))
-          : [],
+        breaks: requestedBreaks,
       });
       setShowCorrectionForm(false);
       setCorrectionForm(INITIAL_CORRECTION_FORM);
@@ -892,7 +917,12 @@ export function AttendancePage() {
       seen.add(key);
       merged.push(record);
     }
-    return merged;
+    // Most recently submitted request first.
+    return merged.sort((a, b) => {
+      const bTime = b.correction?.requestedAt ? new Date(b.correction.requestedAt).getTime() : 0;
+      const aTime = a.correction?.requestedAt ? new Date(a.correction.requestedAt).getTime() : 0;
+      return bTime - aTime;
+    });
   }, [myRecords, allRecords]);
 
   /* ── Stats for tabs ── */
@@ -959,7 +989,11 @@ export function AttendancePage() {
       ? 'On Break'
       : isTodayCompleted
         ? 'Clocked Out'
-        : 'Not Clocked In';
+        : isOnLeaveToday
+          ? 'On Leave'
+          : isHolidayToday
+            ? holidayLabel
+            : 'Not Clocked In';
 
   const activeBreakEntry = useMemo(
     () => (Array.isArray(todayRecord?.breaks) ? todayRecord.breaks.find((b) => !b.endAt) : undefined),
@@ -1051,6 +1085,20 @@ export function AttendancePage() {
             </div>
           ) : null}
 
+          {!isClockDisabledByConfig && isOnLeaveToday && !isTodayInProgress && !isTodayCompleted ? (
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-[12px] font-pmedium text-sky-700 flex items-center gap-2">
+              <AlertTriangle size={14} />
+              You're on approved leave today, so clock-in is disabled. It'll be recorded as a paid leave day automatically.
+            </div>
+          ) : null}
+
+          {!isClockDisabledByConfig && isHolidayToday && !isTodayInProgress && !isTodayCompleted ? (
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-[12px] font-pmedium text-violet-700 flex items-center gap-2">
+              <AlertTriangle size={14} />
+              {holidayLabel}{todayRecord?.activeHoliday?.name ? `: ${todayRecord.activeHoliday.name}` : ''} — clock-in is disabled today.
+            </div>
+          ) : null}
+
           {/* MAIN TABS */}
           {mainTabs.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
@@ -1118,10 +1166,10 @@ export function AttendancePage() {
                 {clockStatus === 'checked_out' && (
                   <button
                     onClick={() => handleClockAction('in')}
-                    disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig}
+                    disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig || isOnLeaveToday || isHolidayToday}
                     className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                   >
-                  {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
+                  {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : isOnLeaveToday ? <><LogIn size={14} /> On Leave</> : isHolidayToday ? <><LogIn size={14} /> Holiday</> : <><LogIn size={14} /> Clock In</>}
                   </button>
                 )}
                 {clockStatus === 'checked_in' && (
@@ -1466,7 +1514,7 @@ export function AttendancePage() {
                           <td className="px-5 py-4">{getStatusBadge(record.correction?.status)}</td>
                           <td className="px-5 py-4 text-center">
                             <button
-                              onClick={() => { setCorrectionDetailTab('all'); setViewingCorrection(record); }}
+                              onClick={() => setViewingCorrection(record)}
                               className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block"
                               title="View Correction"
                             >
@@ -1593,65 +1641,75 @@ export function AttendancePage() {
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden"
+              className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <h2 className="text-lg font-pmedium text-primary flex items-center gap-2">
                   <Edit3 size={18} className="text-amber-500" />
                   Request Attendance Correction
                 </h2>
                 <button onClick={() => setShowCorrectionForm(false)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
               </div>
-              <form onSubmit={handleSubmitCorrection}>
-                <div className="p-6 space-y-4">
+              <form onSubmit={handleSubmitCorrection} className="flex flex-col overflow-hidden flex-1">
+                <div className="p-6 space-y-4 overflow-y-auto flex-1">
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Correct</p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCorrectionForm((prev) => ({ ...prev, includeCheckIn: !prev.includeCheckIn }))}
-                        className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.includeCheckIn ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                      >
-                        Clock In
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCorrectionForm((prev) => ({ ...prev, includeCheckOut: !prev.includeCheckOut }))}
-                        className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.includeCheckOut ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                      >
-                        Clock Out
-                      </button>
-                      {correctionForm.breaks.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {([
+                        { key: 'all' as CorrectionTab, label: 'All' },
+                        { key: 'checkin' as CorrectionTab, label: 'Clock In' },
+                        { key: 'checkout' as CorrectionTab, label: 'Clock Out' },
+                        ...(correctionForm.breaks.length > 0 ? [{ key: 'break' as CorrectionTab, label: 'Break' }] : []),
+                      ]).map((tab) => (
                         <button
+                          key={tab.key}
                           type="button"
-                          onClick={() => setCorrectionForm((prev) => ({ ...prev, includeBreaks: !prev.includeBreaks }))}
-                          className={`px-4 py-2 rounded-lg text-[11px] font-pmedium uppercase tracking-wider transition-all ${correctionForm.includeBreaks ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                          onClick={() => setCorrectionForm((prev) => ({
+                            ...prev,
+                            correctionTab: tab.key,
+                            includeCheckIn: tab.key === 'all' || tab.key === 'checkin',
+                            includeCheckOut: tab.key === 'all' || tab.key === 'checkout',
+                            includeBreaks: tab.key === 'break',
+                          }))}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${correctionForm.correctionTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
                         >
-                          Missing Break
+                          {tab.label}
                         </button>
-                      )}
+                      ))}
                     </div>
                   </div>
                   {correctionForm.includeCheckIn && (
-                    <div>
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Check In Time</label>
-                      <input
-                        type="time"
-                        value={correctionForm.requestedCheckIn}
-                        onChange={(e) => setCorrectionForm((prev) => ({ ...prev, requestedCheckIn: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
-                      />
+                    <div className="space-y-2">
+                      <div className="rounded-lg bg-slate-50 border border-slate-200/60 px-4 py-2">
+                        <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Clock In Time</p>
+                        <p className="text-[12px] font-pmedium text-slate-700">{correctionForm.originalCheckIn ? formatTime12h(correctionForm.originalCheckIn) : '--'}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Clock In Time</label>
+                        <input
+                          type="time"
+                          value={correctionForm.requestedCheckIn}
+                          onChange={(e) => setCorrectionForm((prev) => ({ ...prev, requestedCheckIn: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
+                        />
+                      </div>
                     </div>
                   )}
                   {correctionForm.includeCheckOut && (
-                    <div>
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Check Out Time</label>
-                      <input
-                        type="time"
-                        value={correctionForm.requestedCheckOut}
-                        onChange={(e) => setCorrectionForm((prev) => ({ ...prev, requestedCheckOut: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
-                      />
+                    <div className="space-y-2">
+                      <div className="rounded-lg bg-slate-50 border border-slate-200/60 px-4 py-2">
+                        <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Clock Out Time</p>
+                        <p className="text-[12px] font-pmedium text-slate-700">{correctionForm.originalCheckOut ? formatTime12h(correctionForm.originalCheckOut) : '--'}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Clock Out Time</label>
+                        <input
+                          type="time"
+                          value={correctionForm.requestedCheckOut}
+                          onChange={(e) => setCorrectionForm((prev) => ({ ...prev, requestedCheckOut: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
+                        />
+                      </div>
                     </div>
                   )}
                   {correctionForm.includeBreaks && correctionForm.breaks.length > 0 && (
@@ -1718,7 +1776,7 @@ export function AttendancePage() {
                     />
                   </div>
                 </div>
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
+                <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end shrink-0">
                   <button type="button" onClick={() => setShowCorrectionForm(false)} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-pmedium text-xs uppercase hover:bg-slate-300 transition-colors">Cancel</button>
                   <button
                     type="submit"
@@ -1957,10 +2015,10 @@ export function AttendancePage() {
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden"
+              className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <h2 className="text-lg font-pbold text-slate-900 flex items-center gap-2">
                   <Edit3 size={18} className="text-amber-500" />
                   Correction Details
@@ -1968,115 +2026,68 @@ export function AttendancePage() {
                 <button onClick={() => setViewingCorrection(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
               </div>
 
-              <div className="px-6 pt-4 flex items-center gap-1 border-b border-slate-100 bg-white">
-                {([
-                  { key: 'all', label: 'All', icon: Eye },
-                  { key: 'checkin', label: 'Clock In', icon: LogIn },
-                  { key: 'checkout', label: 'Clock Out', icon: LogOut },
-                  { key: 'breaks', label: 'Breaks', icon: Coffee },
-                ] as const).map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setCorrectionDetailTab(tab.key)}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider border-b-2 -mb-px transition-colors ${
-                      correctionDetailTab === tab.key
-                        ? 'border-[#2563EB] text-[#2563EB]'
-                        : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    <tab.icon size={13} />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                  <div className="flex justify-between items-center mb-3">
+                    <p className="text-[15px] font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
+                    {getStatusBadge(viewingCorrection.correction?.status)}
+                  </div>
+                  <p className="text-[12px] font-pmedium text-slate-800">{viewingCorrection.department || '--'}</p>
+                  <p className="text-[10px] font-pmedium text-slate-500">Attendance date: {formatDateDMY(viewingCorrection.date)}</p>
+                  <p className="mt-1 text-[10px] font-pmedium text-slate-500">Submitted on {formatDateDMY(viewingCorrection.correction?.requestedAt)}</p>
+                </div>
 
-              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                {correctionDetailTab === 'all' && (
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                      <div className="flex justify-between items-center mb-3">
-                        <p className="text-[15px] font-pbold text-slate-700">{viewingCorrection.employeeName || profile.name}</p>
-                        {getStatusBadge(viewingCorrection.correction?.status)}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check In</p>
+                    <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckIn)}</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check In</p>
+                    <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckIn)}</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check Out</p>
+                    <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckOut)}</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check Out</p>
+                    <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
+                  </div>
+                </div>
+
+                {(viewingCorrection.correction?.breaks || []).length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Break Adjustments</p>
+                    {(viewingCorrection.correction.breaks as CorrectionBreakAdjustment[]).map((breakAdjustment) => (
+                      <div key={breakAdjustment.breakIndex} className="grid grid-cols-2 gap-3">
+                        <div className="bg-white rounded-xl p-3 border border-slate-100">
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Break {breakAdjustment.breakIndex + 1}</p>
+                          <p className="text-sm font-pbold text-slate-900">{formatTime12b(breakAdjustment.originalStart)} – {formatTime12b(breakAdjustment.originalEnd)}</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-3 border border-slate-100">
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Break {breakAdjustment.breakIndex + 1}</p>
+                          <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(breakAdjustment.requestedStart)} – {formatTime12b(breakAdjustment.requestedEnd)}</p>
+                        </div>
                       </div>
-                      <p className="text-[10px] font-pmedium text-slate-500">Attendance date: {formatDateDMY(viewingCorrection.date)} &middot; {viewingCorrection.department || '--'}</p>
-                      <p className="mt-1 text-[10px] font-pmedium text-slate-400">Submitted on {formatDateDMY(viewingCorrection.correction?.requestedAt)}</p>
-                    </div>
-                    <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                      <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Reason</p>
-                      <p className="text-xs font-pbold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
-                    </div>
-                    {viewingCorrection.correction?.rejectionReason && (
-                      <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
-                        <p className="text-[9px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Rejection Reason</p>
-                        <p className="text-xs font-pbold text-rose-800">{viewingCorrection.correction.rejectionReason}</p>
-                      </div>
-                    )}
-                    {viewingCorrection.correction?.actionedBy && (
-                      <p className="text-[10px] font-pmedium text-slate-500 text-right">Actioned by: <span className="font-pbold">{viewingCorrection.correction.actionedBy}</span></p>
-                    )}
+                    ))}
                   </div>
                 )}
 
-                {correctionDetailTab === 'checkin' && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white rounded-xl p-3 border border-slate-100">
-                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check In</p>
-                      <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckIn)}</p>
-                    </div>
-                    <div className="bg-white rounded-xl p-3 border border-slate-100">
-                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check In</p>
-                      <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckIn)}</p>
-                    </div>
+                <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                  <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Reason</p>
+                  <p className="text-xs font-pbold text-amber-800">{viewingCorrection.correction?.reason || 'No reason provided.'}</p>
+                </div>
+
+                {viewingCorrection.correction?.rejectionReason && (
+                  <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
+                    <p className="text-[9px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Rejection Reason</p>
+                    <p className="text-xs font-pbold text-rose-800">{viewingCorrection.correction.rejectionReason}</p>
                   </div>
                 )}
 
-                {correctionDetailTab === 'checkout' && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white rounded-xl p-3 border border-slate-100">
-                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original Check Out</p>
-                      <p className="text-sm font-pbold text-slate-900">{formatTime12b(viewingCorrection.correction?.originalCheckOut)}</p>
-                    </div>
-                    <div className="bg-white rounded-xl p-3 border border-slate-100">
-                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested Check Out</p>
-                      <p className="text-sm font-pbold text-[#2563EB]">{formatTime12b(viewingCorrection.correction?.requestedCheckOut)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {correctionDetailTab === 'breaks' && (
-                  (viewingCorrection.breaks || []).length === 0 ? (
-                    <p className="text-center text-xs font-pmedium text-slate-400 py-10">No breaks recorded for this day.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                      {(viewingCorrection.breaks as BreakEntry[]).map((brk, index) => {
-                        const adjustment = (viewingCorrection.correction?.breaks || []).find(
-                          (b: CorrectionBreakAdjustment) => b.breakIndex === index,
-                        );
-                        return (
-                          <div key={index} className="bg-white rounded-xl p-3 border border-slate-100">
-                            <div className="flex justify-between items-center">
-                              <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Break {index + 1}</p>
-                              {!brk.endAt && !brk.endTime && (
-                                <span className="text-[9px] font-pmedium text-amber-600 uppercase tracking-widest">Ongoing</span>
-                              )}
-                            </div>
-                            <p className="text-sm font-pbold text-slate-900">
-                              {formatTime12b(brk.startAt || brk.startTime)} – {formatTime12b(brk.endAt || brk.endTime)}
-                            </p>
-                            {adjustment && (
-                              <div className="mt-2 pt-2 border-t border-slate-100">
-                                <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Requested</p>
-                                <p className="text-sm font-pbold text-[#2563EB]">
-                                  {formatTime12b(adjustment.requestedStart)} – {formatTime12b(adjustment.requestedEnd)}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
+                {viewingCorrection.correction?.actionedBy && (
+                  <p className="text-[10px] font-pmedium text-slate-500 text-right">Actioned by: <span className="font-pbold">{viewingCorrection.correction.actionedBy}</span></p>
                 )}
               </div>
             </motion.div>

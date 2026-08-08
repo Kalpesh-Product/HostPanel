@@ -7,7 +7,7 @@ export const updateEmployeeAccess = (
 ) => axiosPrivate.patch(`/api/organization/members/${employeeId}/access`, payload);
 
 export const getEmployeeManagementOverview = async () => {
-  return axiosPrivate.get("/api/hr/employee-management/overview");
+  return axiosPrivate.get("/api/hr/company-management/overview");
 };
 
 export const createEmployeeRecord = async (payload: Record<string, any>) => {

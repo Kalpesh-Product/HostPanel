@@ -12,6 +12,7 @@ import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
 import MuiModal from "../../components/MuiModal";
+import LogoAdjustModal from "../../components/LogoAdjustModal";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
 import AccountDeletionDangerZone from "./AccountDeletionDangerZone";
 
@@ -30,6 +31,8 @@ const CompanyProfile = () => {
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
   const [isLogoPreviewOpen, setIsLogoPreviewOpen] = useState(false);
+  const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
+  const [isLogoAdjustOpen, setIsLogoAdjustOpen] = useState(false);
 
   // Company Profile is scoped to the ACTIVE unit (the one selected in the
   // workspace switcher), not the main unit. Scoping the query key by the
@@ -273,8 +276,22 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
       event.target.value = "";
       return;
     }
-    setFile(selectedFile);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
+    setCropSourceUrl(URL.createObjectURL(selectedFile));
+    setIsLogoAdjustOpen(true);
+    event.target.value = "";
+  };
+
+  const handleLogoAdjustClose = () => {
+    setIsLogoAdjustOpen(false);
+    if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+    setCropSourceUrl(null);
+  };
+
+  const handleLogoAdjustSave = (croppedBlob: Blob) => {
+    const croppedFile = new File([croppedBlob], "logo.jpg", { type: "image/jpeg" });
+    setFile(croppedFile);
+    setPreviewUrl(URL.createObjectURL(croppedBlob));
+    handleLogoAdjustClose();
   };
 
   const handleUpload = async () => {
@@ -495,6 +512,13 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                   </label>
                 </div>
               </MuiModal>
+
+              <LogoAdjustModal
+                open={isLogoAdjustOpen}
+                imageSrc={cropSourceUrl}
+                onClose={handleLogoAdjustClose}
+                onSave={handleLogoAdjustSave}
+              />
             </div>
 
             <div className="min-w-0 flex-1">

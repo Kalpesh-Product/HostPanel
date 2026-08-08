@@ -7,6 +7,10 @@ import PersistLogin from "../layouts/PersistLogin";
 
 // Import main pages
 import { ReportsPage } from "../pages/Reports";
+import TeamManagementPage from "../pages/TeamManagement/TeamManagementPage";
+import TeamManagementTab from "../pages/TeamManagement/TeamManagementTab";
+import DepartmentSopTab from "../pages/TeamManagement/DepartmentSopTab";
+import DepartmentPolicyTab from "../pages/TeamManagement/DepartmentPolicyTab";
 import { CalendarPage } from "../pages/Calendar/CalendarPage";
 import Access from "../pages/Access/Access";
 import AccessProfile from "../pages/Access/AccessProfile";
@@ -599,6 +603,16 @@ export const routes = createBrowserRouter([
                 element: <FinanceRoute />,
               },
               {
+                path: "extra-common-modules/team-management",
+                element: <TeamManagementPage />,
+                children: [
+                  { index: true, element: <Navigate to="roster" replace /> },
+                  { path: "roster", element: <TeamManagementTab /> },
+                  { path: "sops", element: <DepartmentSopTab /> },
+                  { path: "policies", element: <DepartmentPolicyTab /> },
+                ],
+              },
+              {
                 path: "extra-common-modules/reports",
                 element: <ReportsPage />,
               },
@@ -1114,7 +1128,7 @@ export const routes = createBrowserRouter([
                     element: <Outlet />,
                     children: [
                       {
-                        path: "employee-management",
+                        path: "company-management",
                         element: <HREmployeeManagementPage />,
                       },
                       {

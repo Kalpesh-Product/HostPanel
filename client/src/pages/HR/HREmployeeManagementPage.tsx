@@ -10,6 +10,8 @@ import {
   ChevronRight, AlertTriangle, XCircle, Camera, Save, Ban,
   Settings,
 } from "lucide-react";
+import MonthWiseBirthdaysTab from "./MonthWiseBirthdaysTab";
+import CompanyDocumentTab from "./CompanyDocumentTab";
 import { toast } from "sonner";
 import PageFrame from "@/components/Pages/PageFrame";
 import { HREmployeeManagementSkeleton } from "@/components/ui/Skeleton";
@@ -638,6 +640,18 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [editFormSubmitting, setEditFormSubmitting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  /* ───────────────────── Company Management Tabs ───────────────────── */
+  const [activeCompanyTab, setActiveCompanyTab] = useState<"employees" | "sop" | "policies" | "birthdays">("employees");
+  const companyTabList = useMemo(
+    () => [
+      { key: "employees" as const, label: "Company Management" },
+      { key: "sop" as const, label: "Company SOP" },
+      { key: "policies" as const, label: "Company Policies" },
+      { key: "birthdays" as const, label: "Month-wise Birthdays" },
+    ],
+    [],
+  );
+
   /* ───────────────────── Inline Add Employee Form State ───────────────────── */
   const [addForm, setAddForm] = useState<EmployeeFormState>(() => createEmployeeFormState());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
@@ -984,7 +998,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         value: `ID: ${emp.employeeId || emp.employeeNumber} | Email: ${emp.email} | Dept: ${emp.department} | Role: ${emp.role} | Status: ${emp.status}`,
       }));
       const response = await createReport({
-        title: "Employee Management Report",
+        title: "Company Management Report",
         department: "HR",
         category: "HR",
         dataWindow: "All",
@@ -1010,7 +1024,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         value: `ID: ${emp.employeeId || emp.employeeNumber} | Email: ${emp.email} | Dept: ${emp.department} | Role: ${emp.role} | Status: ${emp.status}`,
       }));
       const response = await createReport({
-        title: "Employee Management Report",
+        title: "Company Management Report",
         department: "HR",
         category: "HR",
         dataWindow: "All",
@@ -1712,10 +1726,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Employee Management
+                Company Management
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Manage employees, invitations, department roles and access permissions.
+                Manage employees, company SOPs, policies and month-wise birthday lists.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -1744,6 +1758,26 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             </div>
           </div>
 
+          {/* ═══ COMPANY MANAGEMENT TABS ═══ */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            {companyTabList.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveCompanyTab(tab.key)}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+                  activeCompanyTab === tab.key
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ═══ EMPLOYEES TAB CONTENT ═══ */}
+          {activeCompanyTab === "employees" && (
+            <>
           {/* ═══ ERROR BANNER ═══ */}
           {errorMessage && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-bold text-rose-700 flex items-center gap-2">
@@ -2556,6 +2590,30 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 </div>
               )}
             </>
+          )}
+            </>
+          )}
+
+          {/* ═══ COMPANY SOP TAB ═══ */}
+          {activeCompanyTab === "sop" && <CompanyDocumentTab kind="sop" />}
+
+          {/* ═══ COMPANY POLICIES TAB ═══ */}
+          {activeCompanyTab === "policies" && <CompanyDocumentTab kind="policy" />}
+
+          {/* ═══ MONTH-WISE BIRTHDAYS TAB ═══ */}
+          {activeCompanyTab === "birthdays" && (
+            <MonthWiseBirthdaysTab
+              employees={employees.map((emp) => ({
+                id: emp.id,
+                employeeId: emp.employeeId || emp.employeeNumber || emp.id,
+                name: emp.name,
+                email: emp.email,
+                department: emp.department,
+                role: emp.role,
+                dateOfBirth: emp.dateOfBirth,
+                statusKey: emp.statusKey,
+              }))}
+            />
           )}
 
         </div>

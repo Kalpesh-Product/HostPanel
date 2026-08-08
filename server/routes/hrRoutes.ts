@@ -15,7 +15,7 @@ import upload from "../config/multerConfig.js";
 
 const router = Router();
 
-router.get("/employee-management/overview", getEmployeeManagementOverview);
+router.get("/company-management/overview", getEmployeeManagementOverview);
 router.patch("/my-profile", updateMyEmployeeProfile);
 router.patch("/my-profile/avatar", upload.single("avatar"), updateMyProfilePicture);
 router.get("/documents/vault", getEmployeeDocumentsVault);

@@ -305,6 +305,8 @@ const mapEmployeeProfileToResponse = async (profileDoc: any) => {
     ? String(populatedRole?.name || "")
     : String(populatedRole || "");
   const displayRole = normalizeRoleForDisplay(rawRoleName || profile?.role || "employee");
+  const isLeader = isWorkspaceLeaderRole(rawRoleName || profile?.role || "");
+  const resolvedDepartmentNames = isLeader ? ["All Departments"] : departmentNames;
 
   return {
     _id: String(profile._id || ""),
@@ -327,9 +329,9 @@ const mapEmployeeProfileToResponse = async (profileDoc: any) => {
     emergencyContactPhone: String(profile.emergencyContactPhone || ""),
     jobTitle: String(profile.jobTitle || displayRole || "employee"),
     jobCode: String(profile.jobCode || ""),
-    departments: departmentNames,
+    departments: resolvedDepartmentNames,
     departmentNames,
-    department: departmentNames[0] || "",
+    department: resolvedDepartmentNames[0] || "",
     workLocation: String(profile.workLocation || ""),
     workMode: String(profile.workMode || "hybrid"),
     managerName: String(profile.managerName || ""),

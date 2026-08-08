@@ -336,7 +336,7 @@ export function OrganizationPage() {
       { id: 'attendance', name: 'Attendance & Leaves', features: ['View Team Logs', 'Approve Leaves'] },
     ],
     hr_core: [
-      { id: 'emp_mgmt', name: 'Employee Management', features: ['Add/Remove Staff', 'Access Control Panel'] },
+      { id: 'emp_mgmt', name: 'Company Management', features: ['Add/Remove Staff', 'Access Control Panel'] },
     ]
   };
 

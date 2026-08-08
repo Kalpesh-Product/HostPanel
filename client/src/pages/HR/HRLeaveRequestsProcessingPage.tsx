@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
-  Search, Check, X, Eye, CheckCircle2, XCircle,
+  Search, Check, X, Eye, CheckCircle2, XCircle, Ban,
   CalendarClock, Calendar, UserCheck, Clock, ShieldAlert,
   FileText, FileSpreadsheet, FileDown, Building, Users,
   Loader2, Plus, Tags, WalletCards, ChevronDown, Pencil, Trash2, MapPin, Upload,
@@ -30,7 +30,8 @@ interface LeaveRequestRaw {
   startDate?: string; endDate?: string; days?: number;
   reason?: string; rejectionReason?: string; actionedBy?: string; actionedByDesignation?: string; actionedByDepartment?: string; actionedAt?: string;
   requesterBalance?: number; leaveMode?: string; halfDaySession?: string;
-  medicalCertAttached?: boolean; canAction?: boolean; isApprovalRecipient?: boolean; createdAt?: string; updatedAt?: string;
+  medicalCertAttached?: boolean; medicalCertName?: string; medicalCertUrl?: string; medicalCertMimeType?: string;
+  canAction?: boolean; isApprovalRecipient?: boolean; createdAt?: string; updatedAt?: string;
 }
 
 interface NormalizedLeave {
@@ -44,7 +45,8 @@ interface NormalizedLeave {
   days: number; status: string; statusCode: string;
   reason: string; rejectionReason: string; actionedBy: string; actionedByDesignation: string; actionedByDepartment: string; actionedAt: string;
   requesterBalance: number; leaveMode: string; halfDaySession: string;
-  medicalCertAttached: boolean; canAction: boolean; isApprovalRecipient: boolean; createdAt: string; updatedAt: string;
+  medicalCertAttached: boolean; medicalCertName: string; medicalCertUrl: string; medicalCertMimeType: string;
+  canAction: boolean; isApprovalRecipient: boolean; createdAt: string; updatedAt: string;
 }
 
 interface LeaveBalances {
@@ -257,6 +259,9 @@ function normalizeLeaveRequest(entry: Record<string, unknown>): NormalizedLeave 
     leaveMode: String(entry?.leaveMode === "half_day" ? "half_day" : "full_day"),
     halfDaySession: String(entry?.halfDaySession || ""),
     medicalCertAttached: Boolean(entry?.medicalCertAttached),
+    medicalCertName: String(entry?.medicalCertName || ""),
+    medicalCertUrl: String(entry?.medicalCertUrl || ""),
+    medicalCertMimeType: String(entry?.medicalCertMimeType || ""),
     canAction: Boolean(entry?.canAction),
     isApprovalRecipient: Boolean(entry?.isApprovalRecipient),
     createdAt: String(entry?.createdAt || ""),
@@ -269,6 +274,15 @@ function getStatusBadge(status: unknown) {
   if (n === "approved") return <span className={statusPillClass("approved")}>Approved</span>;
   if (n === "rejected") return <span className={statusPillClass("rejected")}>Rejected</span>;
   return <span className={statusPillClass("pending")}>Pending</span>;
+}
+
+function requiresMedicalCertificate(leave: Pick<NormalizedLeave, "leaveType" | "type" | "days">): boolean {
+  const isSick = isSickLeave(leave);
+  return isSick && Number(leave.days || 0) > 1;
+}
+
+function isSickLeave(leave: { leaveType?: string; type?: string }): boolean {
+  return /sick/i.test(`${leave.leaveType || ""} ${leave.type || ""}`);
 }
 
 function getRosterStatusBadge(status: string) {
@@ -674,6 +688,67 @@ export default function HRLeaveRequestsProcessingPage() {
   const approvedRequestsCount = useMemo(() => leaveRequests.filter((r) => r.statusCode === "approved").length, [leaveRequests]);
   const rejectedRequestsCount = useMemo(() => leaveRequests.filter((r) => r.statusCode === "rejected").length, [leaveRequests]);
 
+  const currentDeptCount = useMemo(() => new Set(currentLeaves.map((r) => r.departmentDisplay)).size, [currentLeaves]);
+  const currentLeaveTypeCount = useMemo(() => new Set(currentLeaves.map((r) => r.leaveType)).size, [currentLeaves]);
+  const rosterWithQuotaCount = useMemo(() => employeeRoster.filter((e) => e.quotaConfigured).length, [employeeRoster]);
+  const rosterWithoutQuotaCount = useMemo(() => Math.max(0, employeeRoster.length - rosterWithQuotaCount), [employeeRoster, rosterWithQuotaCount]);
+  const quotaTotals = useMemo(() => {
+    let allowed = 0;
+    let used = 0;
+    for (const row of filteredQuotas) {
+      allowed += Object.values(row.total || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+      used += Object.values(row.used || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+    }
+    return { allowed, used, remaining: Math.max(0, allowed - used) };
+  }, [filteredQuotas]);
+  const publicHolidaysCount = useMemo(() => holidayEntries.filter((entry) => entry.type === "public").length, [holidayEntries]);
+  const companyHolidaysCount = useMemo(() => holidayEntries.filter((entry) => entry.type === "company").length, [holidayEntries]);
+  const upcomingEventsCount = useMemo(() => {
+    const todayKey = toDateKey(new Date());
+    return eventEntries.filter((entry) => entry.date >= todayKey).length;
+  }, [eventEntries]);
+
+  const tabStatCards = useMemo(() => {
+    const onLeavePercent = employeeRoster.length > 0 ? Math.round((currentLeaves.length / employeeRoster.length) * 100) : 0;
+    switch (activeTab) {
+      case "current":
+        return [
+          { label: "On Leave Today", value: currentLeaves.length, icon: <CalendarClock size={16} />, iconClass: "bg-blue-50 text-blue-600", labelClass: "text-blue-600", borderClass: "border-l-4 border-l-blue-500" },
+          { label: "On Leave %", value: `${onLeavePercent}%`, icon: <Users size={16} />, iconClass: "bg-amber-50 text-amber-600", labelClass: "text-amber-600", borderClass: "border-l-4 border-l-amber-500" },
+          { label: "Departments Affected", value: currentDeptCount, icon: <Building size={16} />, iconClass: "bg-slate-100 text-slate-600", labelClass: "text-slate-500", borderClass: "" },
+          { label: "Leave Types Today", value: currentLeaveTypeCount, icon: <Calendar size={16} />, iconClass: "bg-violet-50 text-violet-600", labelClass: "text-violet-600", borderClass: "border-l-4 border-l-violet-500" },
+        ];
+      case "master":
+        return [
+          { label: "Total Employees", value: employeeRoster.length, icon: <Users size={16} />, iconClass: "bg-emerald-50 text-emerald-600", labelClass: "text-emerald-600", borderClass: "border-l-4 border-l-emerald-500" },
+          { label: "With Leave Quota", value: rosterWithQuotaCount, icon: <Tags size={16} />, iconClass: "bg-blue-50 text-blue-600", labelClass: "text-blue-600", borderClass: "border-l-4 border-l-blue-500" },
+          { label: "Without Quota", value: rosterWithoutQuotaCount, icon: <WalletCards size={16} />, iconClass: "bg-amber-50 text-amber-600", labelClass: "text-amber-600", borderClass: "border-l-4 border-l-amber-500" },
+          { label: "On Leave Today", value: currentLeaves.length, icon: <CalendarClock size={16} />, iconClass: "bg-slate-100 text-slate-600", labelClass: "text-slate-500", borderClass: "" },
+        ];
+      case "quotas":
+        return [
+          { label: "Employees", value: filteredQuotas.length, icon: <Users size={16} />, iconClass: "bg-blue-50 text-blue-600", labelClass: "text-blue-600", borderClass: "border-l-4 border-l-blue-500" },
+          { label: "Total Allowed Days", value: quotaTotals.allowed, icon: <Calendar size={16} />, iconClass: "bg-amber-50 text-amber-600", labelClass: "text-amber-600", borderClass: "border-l-4 border-l-amber-500" },
+          { label: "Total Used Days", value: quotaTotals.used, icon: <WalletCards size={16} />, iconClass: "bg-violet-50 text-violet-600", labelClass: "text-violet-600", borderClass: "border-l-4 border-l-violet-500" },
+          { label: "Total Remaining Days", value: quotaTotals.remaining, icon: <Tags size={16} />, iconClass: "bg-emerald-50 text-emerald-600", labelClass: "text-emerald-600", borderClass: "border-l-4 border-l-emerald-500" },
+        ];
+      case "holidays":
+        return [
+          { label: "Total Holidays", value: holidayEntries.length, icon: <Calendar size={16} />, iconClass: "bg-blue-50 text-blue-600", labelClass: "text-blue-600", borderClass: "border-l-4 border-l-blue-500" },
+          { label: "Public Holidays", value: publicHolidaysCount, icon: <CalendarClock size={16} />, iconClass: "bg-amber-50 text-amber-600", labelClass: "text-amber-600", borderClass: "border-l-4 border-l-amber-500" },
+          { label: "Company Holidays", value: companyHolidaysCount, icon: <Building size={16} />, iconClass: "bg-emerald-50 text-emerald-600", labelClass: "text-emerald-600", borderClass: "border-l-4 border-l-emerald-500" },
+          { label: "Upcoming Events", value: upcomingEventsCount, icon: <Calendar size={16} />, iconClass: "bg-violet-50 text-violet-600", labelClass: "text-violet-600", borderClass: "border-l-4 border-l-violet-500" },
+        ];
+      default:
+        return [
+          { label: "Total Requests", value: leaveRequests.length, icon: <FileText size={16} />, iconClass: "bg-blue-50 text-blue-600", labelClass: "text-blue-600", borderClass: "border-l-4 border-l-blue-500" },
+          { label: "Pending Requests", value: pendingRequestsCount, icon: <Clock size={16} />, iconClass: "bg-amber-50 text-amber-600", labelClass: "text-amber-600", borderClass: "border-l-4 border-l-amber-500" },
+          { label: "Approved", value: approvedRequestsCount, icon: <CheckCircle2 size={16} />, iconClass: "bg-emerald-50 text-emerald-600", labelClass: "text-emerald-600", borderClass: "border-l-4 border-l-emerald-500" },
+          { label: "Rejected", value: rejectedRequestsCount, icon: <XCircle size={16} />, iconClass: "bg-red-50 text-red-600", labelClass: "text-red-600", borderClass: "border-l-4 border-l-red-500" },
+        ];
+    }
+  }, [activeTab, currentLeaves.length, currentDeptCount, currentLeaveTypeCount, employeeRoster.length, rosterWithQuotaCount, rosterWithoutQuotaCount, filteredQuotas, quotaTotals.allowed, quotaTotals.used, quotaTotals.remaining, holidayEntries.length, publicHolidaysCount, companyHolidaysCount, upcomingEventsCount, pendingRequestsCount, approvedRequestsCount, rejectedRequestsCount, leaveRequests.length]);
+
   const activeReportRows = useMemo(() => {
     if (activeTab === "current") return filteredCurrent;
     if (activeTab === "master") return filteredMaster;
@@ -1069,36 +1144,17 @@ export default function HRLeaveRequestsProcessingPage() {
             ))}
           </div>
 
-          {/* ── Stat Cards (DESIGN.md §5) ── */}
+          {/* ── Stat Cards (tab-specific) ── */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 shrink-0">
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Pending Requests</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{pendingRequestsCount}</p>
+            {tabStatCards.map((card) => (
+              <div key={card.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass || ""}`}>
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.labelClass || "text-slate-400"}`}>{card.label}</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
+                </div>
+                <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>{card.icon}</div>
               </div>
-              <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Clock size={16} /></div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">On Leave Today</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{currentLeaves.length}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><CalendarClock size={16} /></div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Total Employees</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{employeeRoster.length}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Users size={16} /></div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Approved</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{approvedRequestsCount}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><CheckCircle2 size={16} /></div>
-            </div>
+            ))}
           </div>
 
           {/* ── Department Snapshot (special section) ── */}
@@ -1259,31 +1315,55 @@ export default function HRLeaveRequestsProcessingPage() {
             {/* ── SECTION B: Currently On Leave ── */}
             {activeTab === "current" && (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[1080px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
+                      <th className="px-5 py-4 text-left">Employee ID</th>
                       <th className="px-5 py-4 text-left">Employee</th>
+                      <th className="px-5 py-4 text-left">Role</th>
                       <th className="px-5 py-4 text-left">Department</th>
+                      <th className="px-5 py-4 text-left">Type</th>
                       <th className="px-5 py-4 text-left">From</th>
                       <th className="px-5 py-4 text-left">To</th>
+                      <th className="px-5 py-4 text-center">Days</th>
+                      <th className="px-5 py-4 text-center">Status</th>
+                      <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredCurrent.length === 0 ? (
-                      <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-pmedium">No employees are currently on leave.</td></tr>
+                      <tr><td colSpan={10} className="text-center py-20 text-slate-400 font-pmedium">No employees are currently on leave.</td></tr>
                     ) : filteredCurrent.map((r) => (
                       <tr key={r.recordId} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700 whitespace-nowrap">{r.employeeId || "-"}</td>
                         <td className="px-5 py-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-pmedium text-[11px]">
-                              {getEmployeeInitials(r.name)}
-                            </div>
-                            <p className="text-[12px] font-pmedium text-slate-800">{r.name}</p>
+                          <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                            <UserCheck size={14} className="text-slate-400" />
+                            <span className="truncate text-[12px] text-slate-800">{r.name}</span>
+                          </div>
+                          {r.email ? <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{r.email}</p> : null}
+                        </td>
+                        <td className="px-5 py-4 text-[11px] font-pmedium capitalize text-slate-600 whitespace-nowrap">{formatRoleLabel(r.role)}</td>
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{r.departmentDisplay}</td>
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{r.leaveType || "Leave"}</td>
+                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{r.from}</td>
+                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{r.to}</td>
+                        <td className="px-5 py-4 text-center text-[12px] font-pmedium text-slate-800">{r.days ?? 0}</td>
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            {getStatusBadge("approved")}
+                            {requiresMedicalCertificate(r) && !r.medicalCertAttached && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-400/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                                <FileText size={10} strokeWidth={2.5} /> Medical Cert Pending
+                              </span>
+                            )}
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-[11px] text-slate-600">{r.departmentDisplay}</td>
-                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">{r.from}</td>
-                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">{r.to}</td>
+                        <td className="px-5 py-4 text-center">
+                          <button onClick={() => setViewingRequest(r)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all" aria-label={`View ${r.name} leave request`} title="View leave request">
+                            <Eye size={15} strokeWidth={2.5} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1324,7 +1404,16 @@ export default function HRLeaveRequestsProcessingPage() {
                         <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{req.departmentDisplay}</td>
                         <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{req.leaveType || "Leave"}</td>
                         <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{req.from} - {req.to}</td>
-                        <td className="px-5 py-4 text-center">{getStatusBadge(req.status)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            {getStatusBadge(req.status)}
+                            {(req.statusCode === "pending" || normalizeStatus(req.status) === "pending") && requiresMedicalCertificate(req) && !req.medicalCertAttached && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-400/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                                <FileText size={10} strokeWidth={2.5} /> Medical Cert Pending
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-5 py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button onClick={() => setViewingRequest(req)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
@@ -1689,7 +1778,16 @@ export default function HRLeaveRequestsProcessingPage() {
                           </td>
                           <td className="px-4 py-3 text-[11px] text-slate-700">{String(record.from || "")} - {String(record.to || "")}</td>
                           <td className="px-4 py-3 text-center text-[12px] font-pmedium text-slate-900">{String(record.days || "0")}</td>
-                          <td className="px-4 py-3 text-center">{getStatusBadge(record.status)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              {getStatusBadge(record.status)}
+                              {normalizeStatus(record.status) === "pending" && /sick/i.test(String(record.type || "")) && Number(record.days || 0) > 1 && !record.medicalCertAttached && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-400/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                                  <FileText size={10} strokeWidth={2.5} /> Medical Cert Pending
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-center">
                             <button onClick={() => setViewingLeaveDetail({ ...record, employeeName: viewingEmployee.name })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
                               <Eye size={14} strokeWidth={2.5} />
@@ -1810,6 +1908,12 @@ export default function HRLeaveRequestsProcessingPage() {
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Status</p>
                     {getStatusBadge(viewingRequest.status)}
                   </div>
+                  {requiresMedicalCertificate(viewingRequest) && !viewingRequest.medicalCertAttached && ["pending", "approved"].includes(viewingRequest.statusCode) && (
+                    <div className="col-span-2 -mt-2 flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600 flex items-center gap-1.5"><FileText size={13} /> Medical Certificate</p>
+                      <span className="text-[10px] font-pmedium uppercase tracking-wider text-amber-700 bg-white border border-amber-200 px-2 py-1 rounded-lg">Pending</span>
+                    </div>
+                  )}
                 </div>
                 <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.statusCode === "rejected" ? "Rejected By" : "Approved By"}</p>
@@ -1844,10 +1948,32 @@ export default function HRLeaveRequestsProcessingPage() {
                     <p className="text-[10px] font-pmedium uppercase tracking-widest mb-1 text-blue-500">Balance Before Request</p>
                     <p className="text-[14px] font-bold text-blue-700">{viewingRequest.requesterBalance} day(s)</p>
                   </div>
-                  <div className="flex items-center gap-1.5 text-blue-600 text-[10px] font-pmedium uppercase bg-white px-2.5 py-1.5 rounded-lg border border-blue-100 shadow-sm">
-                    {viewingRequest.medicalCertAttached ? <FileText size={14} strokeWidth={2.5} /> : null} {viewingRequest.medicalCertAttached ? "Certificate Attached" : "No Certificate"}
-                  </div>
+                  {isSickLeave(viewingRequest) && (
+                    <div className="flex items-center gap-1.5 text-blue-600 text-[10px] font-pmedium uppercase bg-white px-2.5 py-1.5 rounded-lg border border-blue-100 shadow-sm">
+                      {viewingRequest.medicalCertAttached ? (
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600"><FileText size={14} strokeWidth={2.5} /> Certificate Attached</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-slate-500"><FileText size={14} strokeWidth={2.5} /> No Certificate</span>
+                      )}
+                    </div>
+                  )}
                 </div>
+                {isSickLeave(viewingRequest) && viewingRequest.medicalCertAttached && (
+                  <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 shrink-0 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-sm"><FileText size={18} /></div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Medical Certificate</p>
+                        <p className="text-[12px] font-pmedium text-emerald-900 truncate">{viewingRequest.medicalCertName || "Medical Certificate"}</p>
+                      </div>
+                    </div>
+                    {viewingRequest.medicalCertUrl ? (
+                      <a href={viewingRequest.medicalCertUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-emerald-700 text-[10px] font-pmedium uppercase tracking-wider hover:bg-emerald-100/50 active:scale-95 transition">
+                        <Eye size={13} /> View
+                      </a>
+                    ) : null}
+                  </div>
+                )}
                 {((((viewingRequest as Record<string, unknown>).leaveTypeBalances as Array<Record<string, unknown>>) || []).length > 0) && (
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Leave Balances</p>
@@ -1876,20 +2002,21 @@ export default function HRLeaveRequestsProcessingPage() {
               <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
                 {viewingRequest.statusCode === "pending" && viewingRequest.canAction ? (
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-red-200/80 text-red-600 rounded-xl font-pmedium hover:bg-red-50 shadow-sm transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">
-                      REJECT
+                    <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
+                      {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                      Reject
                     </button>
                     <button
                       onClick={() => handleApproveRequest(viewingRequest)}
                       disabled={isSavingDecision}
-                      className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                      className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50"
                     >
+                      {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                       {isSavingDecision ? "SAVING..." : "AUTHORIZE LEAVE"}
-                      <CheckCircle2 size={16} />
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => setViewingRequest(null)} className="w-full py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">
+                  <button onClick={() => setViewingRequest(null)} className="w-full py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
                     CLOSE PANEL
                   </button>
                 )}
@@ -1936,11 +2063,12 @@ export default function HRLeaveRequestsProcessingPage() {
               </div>
               <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                  <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">
+                  <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="w-full sm:flex-1 py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
                     CANCEL
                   </button>
-                  <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-red-600 text-white rounded-xl font-pmedium shadow-lg shadow-red-500/20 hover:bg-red-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2">
-                    {isSavingDecision ? <Loader2 size={16} className="animate-spin" /> : "CONFIRM REJECTION"}
+                  <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="w-full sm:flex-[2] flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
+                    {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                    CONFIRM REJECTION
                   </button>
                 </div>
               </div>

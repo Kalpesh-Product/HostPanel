@@ -24,6 +24,13 @@ export const uploadLeaveCertificate = async (formData: FormData) => {
   return unwrap(response);
 };
 
+export const attachLeaveCertificate = async (leaveRequestId: string, formData: FormData) => {
+  const response = await axiosPrivate.post(`/api/leave-requests/${leaveRequestId}/certificate`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return unwrap(response);
+};
+
 export const getLeaveTypes = async (params?: Record<string, any>) => {
   const response = await axiosPrivate.get("/api/leave-requests/leave-types", { params });
   return unwrap(response);

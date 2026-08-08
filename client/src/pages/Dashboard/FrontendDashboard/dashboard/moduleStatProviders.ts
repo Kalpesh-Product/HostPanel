@@ -221,7 +221,7 @@ export const useModuleStats = (moduleIds: Set<string>) => {
 
     if (employeeMgmtQuery.data) {
       const summary: any = employeeMgmtQuery.data;
-      list.push({ moduleId: "employee-management", icon: Users, label: "Employees", value: summary.totalEmployees ?? 0, sub: `${summary.activeEmployees ?? 0} active`, color: "#1E3D73", route: "/hr/employee-management" });
+      list.push({ moduleId: "employee-management", icon: Users, label: "Employees", value: summary.totalEmployees ?? 0, sub: `${summary.activeEmployees ?? 0} active`, color: "#1E3D73", route: "/hr/company-management" });
     }
 
     if (recruitmentQuery.data) {

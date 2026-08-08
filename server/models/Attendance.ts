@@ -71,6 +71,8 @@ export interface IAttendance extends Document {
     // settings mid-day.
     workStartMinutes?: number | null;
     halfDayThresholdSeconds?: number | null;
+    lateThresholdMinutes?: number | null;
+    halfDayCutoffMinutes?: number | null;
     punchSelfies: IAttendancePunchSelfie[];
     isActiveBreak: boolean;
     activeBreakStartedAt?: Date | null;
@@ -235,6 +237,8 @@ const attendanceSchema = new Schema<IAttendance>(
         autoCheckoutAt: { type: Date, default: null },
         workStartMinutes: { type: Number, default: null },
         halfDayThresholdSeconds: { type: Number, default: null },
+        lateThresholdMinutes: { type: Number, default: null },
+        halfDayCutoffMinutes: { type: Number, default: null },
         punchSelfies: { type: [attendancePunchSelfieSchema], default: [] },
         isActiveBreak: { type: Boolean, default: false },
         activeBreakStartedAt: { type: Date, default: null },

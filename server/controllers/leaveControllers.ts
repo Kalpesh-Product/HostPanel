@@ -13,6 +13,7 @@ import {
   updateLeaveRequestForUser,
   updateLeaveTypeForWorkspace,
   uploadLeaveCertificateForUser,
+  attachLeaveCertificateForUser,
 } from "../services/core/leave.service.js";
 
 interface AuthenticatedRequest extends Request {
@@ -61,6 +62,20 @@ export async function uploadLeaveCertificate(req: AuthenticatedRequest, res: Res
   try {
     const result = await uploadLeaveCertificateForUser(req.user as string, (req as any).file);
     res.status(201).json({ success: true, message: "Certificate uploaded successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function attachLeaveCertificate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const result = await attachLeaveCertificateForUser(
+      req.user as string,
+      String(req.params.leaveRequestId),
+      (req as any).file,
+      getWorkspaceId(req),
+    );
+    res.status(200).json({ success: true, message: "Medical certificate attached to leave request.", data: result });
   } catch (error) {
     next(error);
   }

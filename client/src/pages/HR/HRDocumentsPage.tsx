@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Building, Calendar, CheckCircle2, Download, Eye, FileText,
-  FolderClosed, Mail, Search, ShieldCheck, Users, X, XCircle,
+  Calendar, CheckCircle2, Clock, Download, Eye, FileText,
+  FolderClosed, Search, UserCheck, X, XCircle,
 } from "lucide-react";
 import { getEmployeeDocumentsVault } from "@/services/hr";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -27,6 +27,8 @@ interface SummaryData {
   inactiveEmployees: number; totalDocuments: number;
 }
 
+const INACTIVE_STATUSES = new Set(["inactive", "terminated", "disabled"]);
+
 /* ───────────────────── Helper Functions ───────────────────── */
 
 function getStatusBadge(status: string = "") {
@@ -39,6 +41,8 @@ function getStatusBadge(status: string = "") {
       return <span className={`${base} bg-rose-50 text-rose-600 border-rose-200`}><XCircle size={12} /> Inactive</span>;
     case "terminated":
       return <span className={`${base} bg-rose-50 text-rose-600 border-rose-200`}><XCircle size={12} /> Terminated</span>;
+    case "probation":
+      return <span className={`${base} bg-amber-50 text-amber-700 border-amber-200`}><Clock size={12} /> Probation</span>;
     default:
       return <span className={`${base} bg-slate-100 text-slate-600 border-slate-200`}>{status || "Unknown"}</span>;
   }
@@ -47,11 +51,27 @@ function getStatusBadge(status: string = "") {
 function formatDocumentType(type: string = "", name: string = ""): string {
   const t = type.toLowerCase();
   const f = name.toLowerCase();
+  if (t.includes("medical") || f.includes("medical certificate")) return "Medical Certificate";
   if (t.includes("pdf") || f.endsWith(".pdf")) return "PDF";
   if (t.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(f)) return "Image";
   if (t.includes("word") || /\.(docx?|odt)$/i.test(f)) return "Word";
   if (t.includes("spreadsheet") || /\.(xlsx?|csv)$/i.test(f)) return "Spreadsheet";
   return "Document";
+}
+
+function isMedicalCertificate(doc: Pick<VaultDocument, "type" | "typeLabel" | "name">): boolean {
+  return doc.typeLabel === "Medical Certificate" || String(doc.type).toLowerCase().includes("medical")
+    || String(doc.name).toLowerCase().includes("medical certificate");
+}
+
+function formatRoleLabel(role: string = ""): string {
+  const normalized = String(role || "").trim().replace(/[_-]+/g, " ");
+  if (!normalized) return "Employee";
+  const words = normalized.split(/\s+/);
+  const UPPER = new Set(["hr", "ceo", "coo", "cto", "cfo", "cmo", "cpo", "cio", "cso", "vp", "svp", "avp", "it", "io", "ai", "ui", "ux", "api", "dev", "qa"]);
+  return words
+    .map((word) => (UPPER.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .join(" ");
 }
 
 function formatDocumentDate(value: string | null | undefined): string {
@@ -61,7 +81,14 @@ function formatDocumentDate(value: string | null | undefined): string {
 }
 
 function getEmployeeInitials(name: string = ""): string {
-  return (name || "?").charAt(0).toUpperCase();
+  const initials = String(name || "")
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return initials || "?";
 }
 
 function openDocumentUrl(url: string) {
@@ -87,7 +114,7 @@ function normalizeDocument(document: Record<string, unknown> = {}, fallbackEmplo
     typeLabel: formatDocumentType(String(document.type || ""), String(document.name || "")),
     uploadDate: document?.uploadDate as string || (uploadedAt && !Number.isNaN(uploadedAt.getTime()) ? formatDocumentDate(uploadedAt.toISOString()) : "Uploaded"),
     uploadedAt,
-    source: String(document.source || "Onboarding"),
+    source: String(document.source || (String(document.type || "").toLowerCase().includes("medical") ? "Medical Leave" : "Onboarding")),
     url: String(document.url || ""),
     publicId: String(document.publicId || ""),
   };
@@ -105,7 +132,7 @@ function normalizeEmployee(employee: Record<string, unknown> = {}): VaultEmploye
     email: String(employee.email || employee.workEmail || ""),
     department: String(employee.department || "Pending"),
     departments: (Array.isArray(employee.departments) ? employee.departments : []).map(String).filter(Boolean),
-    role: String(employee.role || employee.rawRole || "Employee"),
+    role: formatRoleLabel(String(employee.workspaceRole || employee.role || employee.rawRole || "Employee")),
     status: String(employee.status || (employee.statusKey ? String(employee.statusKey).replace(/_/g, " ") : "Invite Sent")),
     statusKey: String(employee.statusKey || employee.status || "").toLowerCase(),
     documents,
@@ -125,7 +152,7 @@ function groupDocumentsIntoEmployees(documents: Record<string, unknown>[] = []):
       name: employeeName || "Employee",
       fullName: employeeName || "Employee",
       email: String(doc.employeeEmail || ""),
-      role: String(doc.employeeRole || "Employee"),
+      role: formatRoleLabel(String(doc.employeeRole || doc.employeeWorkspaceRole || "Employee")),
       department: String(doc.employeeDepartment || "Pending"),
       departments: doc.employeeDepartment ? [String(doc.employeeDepartment)] : [],
       status: String(doc.employeeStatus || "Invite Sent"),
@@ -161,7 +188,6 @@ export default function HRDocumentsPage(): React.ReactElement {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
   const [viewingDocsFor, setViewingDocsFor] = useState<VaultEmployee | null>(null);
-  const [previewFile, setPreviewFile] = useState<(VaultDocument & { employeeName?: string }) | null>(null);
   const [documentRecords, setDocumentRecords] = useState<VaultEmployee[]>([]);
   const [departmentOptions, setDepartmentOptions] = useState<string[]>(["All Departments"]);
   const [summary, setSummary] = useState<SummaryData>({
@@ -188,10 +214,11 @@ export default function HRDocumentsPage(): React.ReactElement {
 
         setDocumentRecords(employees);
         setDepartmentOptions(departments);
+        const inactiveCount = employees.filter((e) => INACTIVE_STATUSES.has(e.statusKey)).length;
         setSummary({
           totalEmployees: employees.length,
-          activeEmployees: employees.filter((e) => e.statusKey === "active").length,
-          inactiveEmployees: employees.filter((e) => ["inactive", "terminated"].includes(e.statusKey)).length,
+          activeEmployees: employees.length - inactiveCount,
+          inactiveEmployees: inactiveCount,
           totalDocuments: employees.reduce((sum, e) => sum + e.documentCount, 0),
         });
         setErrorMessage("");
@@ -211,8 +238,7 @@ export default function HRDocumentsPage(): React.ReactElement {
     const query = searchQuery.trim().toLowerCase();
     return documentRecords.filter((record) => {
       const statusKey = record.statusKey.toLowerCase();
-      const inactive = new Set(["inactive", "terminated"]);
-      const matchesTab = activeTab === "active" ? !inactive.has(statusKey) : inactive.has(statusKey);
+      const matchesTab = activeTab === "active" ? !INACTIVE_STATUSES.has(statusKey) : INACTIVE_STATUSES.has(statusKey);
       const matchesDept = departmentFilter === "All Departments"
         || record.department.toLowerCase().includes(departmentFilter.toLowerCase())
         || record.departments.some((d) => d.toLowerCase() === departmentFilter.toLowerCase());
@@ -225,11 +251,14 @@ export default function HRDocumentsPage(): React.ReactElement {
     });
   }, [documentRecords, activeTab, departmentFilter, searchQuery]);
 
-  const cardValues = useMemo(() => ({
-    totalDocuments: documentRecords.reduce((sum, e) => sum + e.documentCount, 0),
-    activeEmployees: documentRecords.filter((e) => e.statusKey === "active").length,
-    inactiveEmployees: documentRecords.filter((e) => ["inactive", "terminated"].includes(e.statusKey)).length,
-  }), [documentRecords]);
+  const cardValues = useMemo(() => {
+    const inactiveCount = documentRecords.filter((e) => INACTIVE_STATUSES.has(e.statusKey)).length;
+    return {
+      totalDocuments: documentRecords.reduce((sum, e) => sum + e.documentCount, 0),
+      activeEmployees: documentRecords.length - inactiveCount,
+      inactiveEmployees: inactiveCount,
+    };
+  }, [documentRecords]);
 
   const statCards = [
     { label: "Total Vault Files", value: cardValues.totalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "" },
@@ -347,7 +376,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search employee or document..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
                 <select
@@ -370,18 +399,19 @@ export default function HRDocumentsPage(): React.ReactElement {
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4 text-left">Emp ID</th>
-                    <th className="px-5 py-4 text-left">Employee Info</th>
+                    <th className="px-5 py-4 text-left">Employee</th>
+                    <th className="px-5 py-4 text-left">Role</th>
                     <th className="px-5 py-4 text-left">Department</th>
-                    <th className="px-5 py-4 text-left">Uploaded Documents</th>
+                    <th className="px-5 py-4 text-left">Documents</th>
                     <th className="px-5 py-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
                   {isLoading ? (
-                    Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={5} />)
+                    Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={6} />)
                   ) : displayedRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">
+                      <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">
                         <FileText size={32} className="mx-auto text-slate-300 mb-3" />
                         No records found in this section.
                       </td>
@@ -389,44 +419,37 @@ export default function HRDocumentsPage(): React.ReactElement {
                   ) : (
                     displayedRecords.map((record) => (
                       <tr key={record.id || record.name} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700 whitespace-nowrap">{record.employeeNumber || record.id || "--"}</td>
                         <td className="px-5 py-4">
-                          <span className="font-bold text-slate-800 text-[12px]">{record.employeeNumber || record.id}</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 border bg-[#2563EB] text-white border-blue-800">
-                              {getEmployeeInitials(record.name)}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-slate-800 text-[12px]">{record.name}</p>
-                              {record.email && (
-                                <p className="text-[9px] font-medium text-slate-400 flex items-center gap-1 mt-0.5">
-                                  <Mail size={9} /> {record.email}
-                                </p>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                            <UserCheck size={14} className="text-slate-400 shrink-0" />
+                            <span className="truncate text-[12px] text-slate-800">{record.name}</span>
                           </div>
+                          {record.email ? <p className="mt-0.5 pl-6 text-[10px] font-pmedium text-slate-400">{record.email}</p> : null}
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="font-semibold text-slate-700 text-[11px]">{record.department}</span>
-                        </td>
+                        <td className="px-5 py-4 text-[11px] font-pmedium capitalize text-slate-600 whitespace-nowrap">{record.role}</td>
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{record.department}</td>
                         <td className="px-5 py-4">
                           <div className="flex flex-wrap gap-1.5">
                             {record.documents.slice(0, 3).map((doc) => (
                               <button
                                 key={doc.id}
                                 type="button"
-                                onClick={() => setPreviewFile({ ...doc, employeeName: record.name })}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-pmedium text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-[#2563EB] transition-all"
+                                onClick={() => openDocumentUrl(doc.url)}
+                                title={`Open ${doc.name} in new tab`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg text-[9px] font-pmedium transition-all active:scale-95"
                               >
-                                <FileText size={10} className="text-[#2563EB]" />
+                                <FileText size={10} className="text-slate-400" />
                                 <span className="truncate max-w-[100px]">{doc.name}</span>
                               </button>
                             ))}
                             {record.documents.length > 3 && (
-                              <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-[#2563EB] rounded-lg text-[9px] font-bold">
+                              <span className="inline-flex items-center px-2 py-1 bg-slate-50 text-slate-500 rounded-lg text-[9px] font-pmedium">
                                 +{record.documents.length - 3} More
                               </span>
+                            )}
+                            {record.documents.length === 0 && (
+                              <span className="text-[10px] font-pmedium text-slate-400 italic">No documents on file</span>
                             )}
                           </div>
                         </td>
@@ -434,9 +457,11 @@ export default function HRDocumentsPage(): React.ReactElement {
                           <button
                             type="button"
                             onClick={() => setViewingDocsFor(record)}
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg text-[10px] font-pmedium uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 mx-auto"
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all active:scale-95"
+                            title="Open folder"
+                            aria-label={`Open ${record.name}'s document folder`}
                           >
-                            <FolderClosed size={12} /> Open Folder
+                            <FolderClosed size={15} strokeWidth={2.5} />
                           </button>
                         </td>
                       </tr>
@@ -455,17 +480,17 @@ export default function HRDocumentsPage(): React.ReactElement {
            MODAL: Employee Document Folder
            ═══════════════════════════════════════════════════════ */}
       {viewingDocsFor && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4" onClick={() => { setViewingDocsFor(null); setPreviewFile(null); }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4" onClick={() => setViewingDocsFor(null)}>
           <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="px-6 md:px-8 py-6 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-lg font-bold shadow-sm">
-                  {getEmployeeInitials(viewingDocsFor.name)}
-                </div>
+            <div className="px-6 md:px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 text-sm font-pmedium text-[#2563EB] shrink-0">
+                    {getEmployeeInitials(viewingDocsFor.name)}
+                  </div>
                 <div>
-                  <h2 className="text-xl font-pmedium text-white">{viewingDocsFor.name}&apos;s Documents</h2>
-                  <div className="flex items-center gap-3 mt-1 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                  <h2 className="text-xl font-pmedium text-slate-900">{viewingDocsFor.name}&apos;s Documents</h2>
+                  <div className="flex items-center gap-3 mt-1 text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                     <span>{viewingDocsFor.employeeNumber || viewingDocsFor.id}</span>
                     <span>&bull;</span>
                     <span>{viewingDocsFor.department}</span>
@@ -476,8 +501,8 @@ export default function HRDocumentsPage(): React.ReactElement {
               </div>
               <button
                 type="button"
-                onClick={() => { setViewingDocsFor(null); setPreviewFile(null); }}
-                className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"
+                onClick={() => setViewingDocsFor(null)}
+                className="w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm flex items-center justify-center transition-colors hover:bg-slate-100 hover:text-slate-700"
               >
                 <X size={18} />
               </button>
@@ -497,13 +522,13 @@ export default function HRDocumentsPage(): React.ReactElement {
                   {viewingDocsFor.documents.map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all group">
                       <div className="flex items-start gap-3 min-w-0">
-                        <div className="p-2 bg-white rounded-lg shadow-sm text-[#2563EB] shrink-0">
+                        <div className={`p-2 bg-white rounded-lg shadow-sm shrink-0 ${isMedicalCertificate(doc) ? "text-emerald-600" : "text-[#2563EB]"}`}>
                           <FileText size={18} />
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-800 text-[12px] truncate max-w-[160px]">{doc.name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[8px] font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase">{doc.typeLabel}</span>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${isMedicalCertificate(doc) ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{doc.typeLabel}</span>
                             <span className="text-[9px] font-medium text-slate-400 flex items-center gap-1">
                               <Calendar size={9} /> {doc.uploadDate}
                             </span>
@@ -514,16 +539,16 @@ export default function HRDocumentsPage(): React.ReactElement {
                       <div className="flex gap-1.5 shrink-0">
                         <button
                           type="button"
-                          onClick={() => setPreviewFile({ ...doc, employeeName: viewingDocsFor.name })}
-                          className="p-1.5 bg-white border border-slate-200 text-slate-600 hover:text-[#2563EB] hover:border-blue-300 rounded-lg transition-all"
-                          title="Preview"
+                          onClick={() => openDocumentUrl(doc.url)}
+                          className="p-1.5 bg-white border border-slate-200 text-slate-600 hover:text-[#2563EB] hover:border-blue-300 rounded-lg transition-all active:scale-95"
+                          title="Open in new tab"
                         >
                           <Eye size={13} strokeWidth={2.5} />
                         </button>
                         <button
                           type="button"
                           onClick={() => downloadDocument(doc.url, doc.name)}
-                          className="p-1.5 bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:border-emerald-300 rounded-lg transition-all"
+                          className="p-1.5 bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:border-emerald-300 rounded-lg transition-all active:scale-95"
                           title="Download"
                         >
                           <Download size={13} strokeWidth={2.5} />
@@ -544,78 +569,13 @@ export default function HRDocumentsPage(): React.ReactElement {
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 shrink-0">
               <button
                 type="button"
-                onClick={() => { setViewingDocsFor(null); setPreviewFile(null); }}
+                onClick={() => setViewingDocsFor(null)}
                 className="w-full py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all"
               >
                 Close
               </button>
             </div>
           </div>
-
-          {/* ─── Nested Modal: Document Preview ─── */}
-          {previewFile && (
-            <div className="absolute inset-0 bg-[#0F172A]/90 backdrop-blur-sm z-[110] flex flex-col p-4 md:p-8" onClick={(e) => e.stopPropagation()}>
-              {/* Preview header */}
-              <div className="flex justify-between items-center w-full max-w-5xl mx-auto mb-4 text-white">
-                <div className="flex items-center gap-3 min-w-0">
-                  <FileText size={24} className="text-blue-400 shrink-0" />
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-sm truncate">{previewFile.name}</h3>
-                    <p className="text-[10px] text-slate-400">Viewing secure copy for {previewFile.employeeName || viewingDocsFor?.name}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => downloadDocument(previewFile.url, previewFile.name)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-pmedium transition-all"
-                  >
-                    <Download size={14} /> Download
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewFile(null)}
-                    className="w-9 h-9 bg-white/10 hover:bg-red-500 rounded-full flex items-center justify-center transition-all"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Preview content */}
-              <div className="flex-1 w-full max-w-5xl mx-auto bg-slate-100 rounded-xl overflow-hidden flex flex-col items-center justify-center relative shadow-2xl border border-white/10">
-                {previewFile.url ? (
-                  previewFile.typeLabel === "Image" ? (
-                    <img src={previewFile.url} alt={previewFile.name} className="w-full h-full object-contain bg-black/5" />
-                  ) : previewFile.typeLabel === "PDF" ? (
-                    <iframe title={previewFile.name} src={previewFile.url} className="w-full h-full min-h-[70vh] border-0 bg-white" />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
-                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-5 rotate-[-30deg]">
-                        <span className="text-6xl font-bold uppercase tracking-[2em] text-slate-700">CONFIDENTIAL</span>
-                      </div>
-                      <FileText size={64} className="text-slate-400 mb-4" />
-                      <p className="font-semibold text-slate-600 text-[13px]">Secure Document Viewer</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Previewing: {previewFile.name}</p>
-                      <button
-                        type="button"
-                        onClick={() => openDocumentUrl(previewFile.url)}
-                        className="mt-5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-pmedium hover:bg-blue-700 transition-colors"
-                      >
-                        Open in new tab
-                      </button>
-                    </div>
-                  )
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
-                    <FileText size={64} className="text-slate-400 mb-4" />
-                    <p className="font-semibold text-slate-600 text-[13px]">Secure Document Viewer</p>
-                    <p className="text-[11px] text-slate-500 mt-1">Previewing: {previewFile.name}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  attachLeaveCertificate,
   createHoliday,
   createLeaveRequest,
   createLeaveType,
@@ -21,6 +22,7 @@ const router = Router();
 router.get("/", listLeaveRequests);
 router.post("/", createLeaveRequest);
 router.post("/certificate", upload.single("file"), uploadLeaveCertificate);
+router.post("/:leaveRequestId/certificate", upload.single("file"), attachLeaveCertificate);
 
 router.get("/leave-types", listLeaveTypes);
 router.post("/leave-types", createLeaveType);

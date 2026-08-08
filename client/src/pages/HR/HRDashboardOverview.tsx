@@ -654,7 +654,7 @@ export function HRDashboardOverview() {
         <DashboardAttendanceCard />
 
         <WidgetSection layout={4} title="Overview" border normalCase>
-          <StatCard icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} color="#1E3D73" route="/hr/employee-management" />
+          <StatCard icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} color="#1E3D73" route="/hr/company-management" />
           <StatCard icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} color="#f59e0b" route="/hr/leave-request-processing" />
           <StatCard icon={Clock} label="Correction Requests" value={pendingCorrections} sub="Awaiting HR review" color="#ef4444" route="/hr/attendance-review" />
           <StatCard icon={Briefcase} label="Open Positions" value={openPositions} sub={`${selectedCandidates} shortlisted · ${onboardedCount} onboarded`} color="#7c3aed" route="/hr/recruitment" />
@@ -702,7 +702,7 @@ export function HRDashboardOverview() {
 
         {/* Quick links */}
         <WidgetSection layout={4} title="Quick Links" border normalCase>
-          <QuickLink icon={Users} label="Employee Management" description="Directory & records" route="/hr/employee-management" color="#2563EB" />
+          <QuickLink icon={Users} label="Company Management" description="Directory & records" route="/hr/company-management" color="#2563EB" />
           <QuickLink icon={UserCheck} label="Attendance Review" description="Review team punches" route="/hr/attendance-review" color="#f59e0b" />
           <QuickLink icon={CalendarDays} label="Leave Requests" description="Approve or reject leaves" route="/hr/leave-request-processing" color="#22c55e" />
           <QuickLink icon={UserPlus} label="Recruitment" description="Candidates & job openings" route="/hr/recruitment" color="#8b5cf6" />

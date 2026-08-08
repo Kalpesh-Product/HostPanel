@@ -331,6 +331,12 @@ const formatAttendanceSettings = (workspace) => {
     workingHoursStart: source.workingHoursStart || null,
     workingHoursEnd: source.workingHoursEnd || null,
     breakDurationMinutes: Number.isFinite(Number(source.breakDurationMinutes)) ? Number(source.breakDurationMinutes) : null,
+    // Optional — when unset, checkInAttendance/computeAttendanceThresholds
+    // fall back to the historical hardcoded defaults (30 min grace, 1:20 PM
+    // half-day cutoff) so existing workspaces keep behaving the same until
+    // HR opts into configuring these explicitly.
+    lateMarkAfter: source.lateMarkAfter || null,
+    halfDayMarkAfter: source.halfDayMarkAfter || null,
     updatedAt: source.updatedAt || null,
     updatedBy: source.updatedBy || null,
   };
@@ -345,6 +351,8 @@ const sanitizeAttendanceSettingsInput = (input = {}) => {
   const breakDurationMinutes = input.breakDurationMinutes === "" || input.breakDurationMinutes == null
     ? NaN
     : Number(input.breakDurationMinutes);
+  const lateMarkAfter = String(input.lateMarkAfter || "").trim();
+  const halfDayMarkAfter = String(input.halfDayMarkAfter || "").trim();
 
   if (!Number.isFinite(weeklyWorkingHours) || weeklyWorkingHours < 1 || weeklyWorkingHours > 168) {
     throw Object.assign(new Error("Weekly working hours must be between 1 and 168."), { statusCode: 400 });
@@ -363,7 +371,42 @@ const sanitizeAttendanceSettingsInput = (input = {}) => {
     throw Object.assign(new Error("Break duration must be between 0 and 480 minutes."), { statusCode: 400 });
   }
 
-  return { weeklyWorkingHours, workingHoursStart, workingHoursEnd, breakDurationMinutes };
+  // Both are optional (HR can leave either blank to keep the default
+  // behavior), but if provided they must be valid times that fall inside the
+  // work day — after clock-in (start) and before clock-out (end).
+  let lateMarkAfterMinutes = null;
+  if (lateMarkAfter) {
+    lateMarkAfterMinutes = parseHHMM(lateMarkAfter);
+    if (lateMarkAfterMinutes == null) {
+      throw Object.assign(new Error("Late mark-after time must be a valid time in HH:mm format."), { statusCode: 400 });
+    }
+    if (lateMarkAfterMinutes <= startMinutes || lateMarkAfterMinutes >= endMinutes) {
+      throw Object.assign(new Error("Late mark-after time must be after clock-in and before clock-out."), { statusCode: 400 });
+    }
+  }
+
+  let halfDayMarkAfterMinutes = null;
+  if (halfDayMarkAfter) {
+    halfDayMarkAfterMinutes = parseHHMM(halfDayMarkAfter);
+    if (halfDayMarkAfterMinutes == null) {
+      throw Object.assign(new Error("Half-day mark-after time must be a valid time in HH:mm format."), { statusCode: 400 });
+    }
+    if (halfDayMarkAfterMinutes <= startMinutes || halfDayMarkAfterMinutes >= endMinutes) {
+      throw Object.assign(new Error("Half-day mark-after time must be after clock-in and before clock-out."), { statusCode: 400 });
+    }
+    if (lateMarkAfterMinutes != null && halfDayMarkAfterMinutes < lateMarkAfterMinutes) {
+      throw Object.assign(new Error("Half-day mark-after time must be at or after the late mark-after time."), { statusCode: 400 });
+    }
+  }
+
+  return {
+    weeklyWorkingHours,
+    workingHoursStart,
+    workingHoursEnd,
+    breakDurationMinutes,
+    lateMarkAfter: lateMarkAfter || null,
+    halfDayMarkAfter: halfDayMarkAfter || null,
+  };
 };
 
 const isAttendanceConfigured = (workspace) => {
@@ -393,7 +436,59 @@ const computeAttendanceThresholds = (workspace) => {
     halfDayThresholdSeconds = Math.round((expectedDailyMinutes * 60) / 2);
   }
 
-  return { workStartMinutes, halfDayThresholdSeconds };
+  const lateThresholdMinutes = parseHHMM(settings.lateMarkAfter)
+    ?? (workStartMinutes != null ? workStartMinutes + DEFAULT_LATE_MINUTES : null);
+  const halfDayCutoffMinutes = parseHHMM(settings.halfDayMarkAfter) ?? HALF_DAY_CHECKIN_CUTOFF_MINUTES;
+
+  return { workStartMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes };
+};
+
+// Single source of truth for the present/late/half-day decision, used at
+// check-in, check-out, auto-checkout, and correction-approval time so the
+// four call sites can't drift out of sync with each other.
+const deriveAttendanceStatus = ({
+  workedSeconds = null,
+  checkInMinutes,
+  halfDayThresholdSeconds,
+  lateThresholdMinutes,
+  halfDayCutoffMinutes,
+}) => {
+  const effectiveHalfDayThresholdSeconds = Number.isFinite(halfDayThresholdSeconds)
+    ? halfDayThresholdSeconds
+    : HALF_DAY_MINUTES * 60;
+  const effectiveLateThresholdMinutes = Number.isFinite(lateThresholdMinutes)
+    ? lateThresholdMinutes
+    : DEFAULT_WORK_HOUR_START * 60 + DEFAULT_LATE_MINUTES;
+  const effectiveHalfDayCutoffMinutes = Number.isFinite(halfDayCutoffMinutes)
+    ? halfDayCutoffMinutes
+    : HALF_DAY_CHECKIN_CUTOFF_MINUTES;
+
+  const isHalfDayByWorkedSeconds = Number.isFinite(workedSeconds) && workedSeconds <= effectiveHalfDayThresholdSeconds;
+  const isHalfDayByCheckIn = checkInMinutes >= effectiveHalfDayCutoffMinutes;
+  if (isHalfDayByWorkedSeconds || isHalfDayByCheckIn) return "half_day";
+  if (checkInMinutes > effectiveLateThresholdMinutes) return "present_late";
+  return "present";
+};
+
+// The number of hours credited for a full-day paid leave or holiday — driven
+// by the same working-hours-start/end settings as everywhere else (half-day
+// threshold, "Today's Calculations"), not weeklyWorkingHours/5, which can
+// land on an odd fractional value (e.g. 48/5 = 9.6h = "9h 36m") that doesn't
+// match what the company actually configured as a work day.
+//
+// Unlike a normal worked day, this is NOT reduced by breakDurationMinutes:
+// nobody was in the office to take a break, so there's no real break time to
+// subtract. Total Time and Working Hours are the same figure here — the full
+// configured window (e.g. 9:30-6:30 = 9h) — for both fields.
+const computeDailyWorkingSeconds = (workspace) => {
+  const settings = formatAttendanceSettings(workspace);
+  const startMinutes = parseHHMM(settings.workingHoursStart);
+  const endMinutes = parseHHMM(settings.workingHoursEnd);
+  if (startMinutes != null && endMinutes != null && endMinutes > startMinutes) {
+    return (endMinutes - startMinutes) * 60;
+  }
+  const weeklyHours = Number(settings.weeklyWorkingHours);
+  return Math.round((Number.isFinite(weeklyHours) && weeklyHours > 0 ? weeklyHours / 5 : 8) * 3600);
 };
 
 const decodeGeofenceValue = (value = "") => {
@@ -696,10 +791,14 @@ const formatRecordForFrontend = async (record, membership = null) => {
   const timezone = normalizeTimeZone(plain?.timezone);
   const departments = await getDepartmentNamesForMembership(membership || plain?.__membership || {});
   const attendanceDate = plain?.attendanceDate || plain?.dateKey || null;
-  const correctedCheckIn = plain?.correctionRequest?.requestedCheckInAt || null;
-  const correctedCheckOut = plain?.correctionRequest?.requestedCheckOutAt || null;
-  const effectiveCheckIn = correctedCheckIn || plain?.checkInAt || null;
-  const effectiveCheckOut = correctedCheckOut || plain?.checkOutAt || null;
+  // A correction request never pre-empts the actual punch times shown to the
+  // user — reviewAttendanceCorrection() writes requestedCheckInAt/OutAt onto
+  // checkInAt/checkOutAt directly once HR approves, so by the time approval
+  // has happened plain.checkInAt/checkOutAt already reflect it. Substituting
+  // the requested time here unconditionally would make a still-pending
+  // request look like it had already taken effect.
+  const effectiveCheckIn = plain?.checkInAt || null;
+  const effectiveCheckOut = plain?.checkOutAt || null;
 
   // Live calculations: while a record is in progress (checked in but not yet
   // checked out) total time and break time are computed against "now" so the
@@ -1015,7 +1114,7 @@ const getTodayRecord = async (workspace, user) => {
       ? String(member.departments[0]?.name || "")
       : "";
     const roleName = getRoleName(member?.role || "");
-    const { workStartMinutes, halfDayThresholdSeconds } = computeAttendanceThresholds(workspace);
+    const { workStartMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes } = computeAttendanceThresholds(workspace);
     const employeeName = String(user?.name || user?.email || "Employee").trim();
     record = await Attendance.create({
       workspaceId,
@@ -1033,6 +1132,8 @@ const getTodayRecord = async (workspace, user) => {
       checkOutAt: null,
       workStartMinutes,
       halfDayThresholdSeconds,
+      lateThresholdMinutes,
+      halfDayCutoffMinutes,
       punchSelfies: [],
       isActiveBreak: false,
       activeBreakStartedAt: null,
@@ -1057,21 +1158,15 @@ const recalculateAfterCorrection = (record) => {
   const breakSeconds = Math.max(0, Number(record.breakSeconds) || 0);
   record.workedSeconds = Math.max(0, grossSeconds - breakSeconds);
 
-  const halfDayThresholdSeconds = Number.isFinite(record.halfDayThresholdSeconds)
-    ? record.halfDayThresholdSeconds
-    : HALF_DAY_MINUTES * 60;
-  const workStartMinutes = Number.isFinite(record.workStartMinutes)
-    ? record.workStartMinutes
-    : DEFAULT_WORK_HOUR_START * 60;
-  const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
-
   const localCheckIn = getZonedDateTimeParts(checkInAt, normalizeTimeZone(record.timezone));
   const checkInMinutes = localCheckIn.hour * 60 + localCheckIn.minute;
-  record.status = (record.workedSeconds <= halfDayThresholdSeconds || checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES)
-    ? "half_day"
-    : checkInMinutes > lateThresholdMinutes
-      ? "present_late"
-      : "present";
+  record.status = deriveAttendanceStatus({
+    workedSeconds: record.workedSeconds,
+    checkInMinutes,
+    halfDayThresholdSeconds: record.halfDayThresholdSeconds,
+    lateThresholdMinutes: record.lateThresholdMinutes,
+    halfDayCutoffMinutes: record.halfDayCutoffMinutes,
+  });
 };
 
 const canManageTeamAttendance = async (membership) => {
@@ -1095,8 +1190,9 @@ const assertNotOnHoliday = async (workspace) => {
     .lean()
     .exec();
   if (!holiday) return;
+  const holidayLabel = holiday.type === "public" ? "Public Holiday" : "Company Holiday";
   throw Object.assign(
-    new Error(`${holiday.name} is a company holiday, so clock-in is disabled today.`),
+    new Error(`${holidayLabel}: ${holiday.name}. Clock-in is disabled today.`),
     { statusCode: 409 },
   );
 };
@@ -1185,19 +1281,25 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   record.workedSeconds = 0;
   record.breakLogs = [];
   record.timezone = timezone;
-  if (!Number.isFinite(record.workStartMinutes) || !Number.isFinite(record.halfDayThresholdSeconds)) {
+  if (
+    !Number.isFinite(record.workStartMinutes)
+    || !Number.isFinite(record.halfDayThresholdSeconds)
+    || !Number.isFinite(record.lateThresholdMinutes)
+    || !Number.isFinite(record.halfDayCutoffMinutes)
+  ) {
     const thresholds = computeAttendanceThresholds(workspace);
     record.workStartMinutes = thresholds.workStartMinutes;
     record.halfDayThresholdSeconds = thresholds.halfDayThresholdSeconds;
+    record.lateThresholdMinutes = thresholds.lateThresholdMinutes;
+    record.halfDayCutoffMinutes = thresholds.halfDayCutoffMinutes;
   }
-  const workStartMinutes = Number.isFinite(record.workStartMinutes) ? record.workStartMinutes : DEFAULT_WORK_HOUR_START * 60;
-  const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
   const checkInMinutes = localNow.hour * 60 + localNow.minute;
-  record.status = checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES
-    ? "half_day"
-    : checkInMinutes > lateThresholdMinutes
-      ? "present_late"
-      : "present";
+  record.status = deriveAttendanceStatus({
+    checkInMinutes,
+    halfDayThresholdSeconds: record.halfDayThresholdSeconds,
+    lateThresholdMinutes: record.lateThresholdMinutes,
+    halfDayCutoffMinutes: record.halfDayCutoffMinutes,
+  });
   await record.save();
 
   return {
@@ -1331,21 +1433,16 @@ export async function checkOutAttendance(userId, input = {}, selfieFile = null) 
   const workedSeconds = computeWorkedSeconds(record, now);
   record.workedSeconds = workedSeconds;
 
-  const halfDayThresholdSeconds = Number.isFinite(record.halfDayThresholdSeconds)
-    ? record.halfDayThresholdSeconds
-    : HALF_DAY_MINUTES * 60;
-  const workStartMinutes = Number.isFinite(record.workStartMinutes)
-    ? record.workStartMinutes
-    : DEFAULT_WORK_HOUR_START * 60;
-  const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
   const checkInLocalParts = getZonedDateTimeParts(record.checkInAt, normalizeTimeZone(record.timezone));
   const checkInMinutes = checkInLocalParts.hour * 60 + checkInLocalParts.minute;
 
-  record.status = (workedSeconds <= halfDayThresholdSeconds || checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES)
-    ? "half_day"
-    : checkInMinutes > lateThresholdMinutes
-      ? "present_late"
-      : "present";
+  record.status = deriveAttendanceStatus({
+    workedSeconds,
+    checkInMinutes,
+    halfDayThresholdSeconds: record.halfDayThresholdSeconds,
+    lateThresholdMinutes: record.lateThresholdMinutes,
+    halfDayCutoffMinutes: record.halfDayCutoffMinutes,
+  });
 
   await record.save();
 
@@ -1400,21 +1497,16 @@ export async function runAttendanceAutoCheckoutSweep() {
     const workedSeconds = computeWorkedSeconds(record, autoCheckoutMoment);
     record.workedSeconds = workedSeconds;
 
-    const halfDayThresholdSeconds = Number.isFinite(record.halfDayThresholdSeconds)
-      ? record.halfDayThresholdSeconds
-      : HALF_DAY_MINUTES * 60;
-    const workStartMinutes = Number.isFinite(record.workStartMinutes)
-      ? record.workStartMinutes
-      : DEFAULT_WORK_HOUR_START * 60;
-    const lateThresholdMinutes = workStartMinutes + DEFAULT_LATE_MINUTES;
     const checkInLocalParts = getZonedDateTimeParts(record.checkInAt, timezone);
     const checkInMinutes = checkInLocalParts.hour * 60 + checkInLocalParts.minute;
 
-    record.status = (workedSeconds <= halfDayThresholdSeconds || checkInMinutes >= HALF_DAY_CHECKIN_CUTOFF_MINUTES)
-      ? "half_day"
-      : checkInMinutes > lateThresholdMinutes
-        ? "present_late"
-        : "present";
+    record.status = deriveAttendanceStatus({
+      workedSeconds,
+      checkInMinutes,
+      halfDayThresholdSeconds: record.halfDayThresholdSeconds,
+      lateThresholdMinutes: record.lateThresholdMinutes,
+      halfDayCutoffMinutes: record.halfDayCutoffMinutes,
+    });
 
     try {
       await record.save();
@@ -1620,11 +1712,7 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     .lean()
     .exec();
   const holidayByDateKey = new Map(holidays.map((holiday) => [holiday.dateKey, holiday]));
-  const dailyWorkingSeconds = Math.round(
-    ((Number(workspace?.attendanceSettings?.weeklyWorkingHours) > 0
-      ? Number(workspace.attendanceSettings.weeklyWorkingHours) / 5
-      : 8) * 3600),
-  );
+  const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace);
   const leaveByDateKey = new Map();
   for (const leave of approvedLeaves) {
     const startKey = (leave.startDate ? new Date(leave.startDate) : new Date()).toISOString().slice(0, 10);
@@ -1947,11 +2035,7 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     .lean()
     .exec();
   const holidayByDateKey = new Map(holidays.map((holiday) => [holiday.dateKey, holiday]));
-  const dailyWorkingSeconds = Math.round(
-    ((Number(workspace?.attendanceSettings?.weeklyWorkingHours) > 0
-      ? Number(workspace.attendanceSettings.weeklyWorkingHours) / 5
-      : 8) * 3600),
-  );
+  const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace);
 
   const rows = [];
   for (const member of uniqueVisibleMembers) {

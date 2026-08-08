@@ -28,6 +28,7 @@ interface DayRecord {
   totalTime?: string;
   breakTime?: string;
   workingHours?: string;
+  totalHours?: number;
 }
 
 interface Props {
@@ -100,7 +101,11 @@ export default function AttendanceDayTimeline({ record, compact, hideSummary }: 
         <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-400">Timeline</p>
         {!hasAnyActivity ? (
           <div className="py-8 text-center text-slate-400 font-pmedium text-xs">
-            No activity recorded for this day.
+            {record?.status === 'on_leave'
+              ? 'On approved leave — no clock-in required. Paid working hours credited for the day.'
+              : record?.status === 'holiday'
+                ? 'Company/public holiday — no clock-in required. Paid working hours credited for the day.'
+                : 'No activity recorded for this day.'}
           </div>
         ) : (
           <div className="mt-3">

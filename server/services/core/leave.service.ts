@@ -756,12 +756,6 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     throw httpError("Please provide a reason for the leave (at least 3 characters).", 400);
   }
 
-  const medicalCertificateThreshold = leaveTypeRecord.medicalCertificateAfterDays ??
-    (/sick/i.test(`${leaveTypeRecord.code || ""} ${leaveTypeRecord.name || ""}`) ? 2 : null);
-  if (medicalCertificateThreshold != null && days > Number(medicalCertificateThreshold) && !input?.medicalCertAttached) {
-    throw httpError(`Medical certificate is required for ${leaveType} leave longer than ${medicalCertificateThreshold} days.`, 400);
-  }
-
   const quotaYear = await resolveQuotaYearForDate(workspace._id, actor.userId, startDate);
   const balanceData = await getLeaveBalancesForUser(userId, workspaceId, quotaYear);
   const selectedBalance = balanceData.balances[String(leaveTypeRecord._id)];
@@ -857,6 +851,19 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
   });
 
   await notifyApprovers(workspace._id, actor.userId, leaveRequest, approverUserIds);
+
+  if (String(input?.medicalCertUrl || "")) {
+    await storeMedicalCertificateInEmployeeVault(
+      workspace._id,
+      actor.userId,
+      {
+        name: String(input?.medicalCertName || "Medical Certificate"),
+        url: String(input?.medicalCertUrl || ""),
+        publicId: String(input?.medicalCertPublicId || ""),
+      },
+      undefined,
+    );
+  }
 
   const departmentNameById = await loadWorkspaceDepartmentMap(workspace._id);
   return { leaveRequest: formatLeaveRequest(leaveRequest, departmentNameById, actor.userId) };
@@ -1576,6 +1583,36 @@ const formatHoliday = (holiday: any) => ({
   createdAt: holiday.createdAt,
 });
 
+const storeMedicalCertificateInEmployeeVault = async (
+  workspaceId: any,
+  requesterUserId: any,
+  certificate: { name: string; url: string; publicId: string; type?: string },
+  previousPublicId?: string,
+) => {
+  try {
+    const profile = await EmployeeProfile.findOne({
+      workspaceId,
+      $or: [{ linkedUserId: requesterUserId }, { linkedWorkspaceMemberId: requesterUserId }],
+    }).exec();
+    if (!profile) return;
+    const existing = Array.isArray(profile.documents) ? profile.documents : [];
+    const next = existing.filter(
+      (doc: any) => !previousPublicId || String(doc.publicId || "") !== String(previousPublicId),
+    );
+    next.push({
+      name: `Medical Certificate (${certificate.name || "attached file"})`,
+      type: certificate.type || "medical-certificate",
+      url: certificate.url,
+      publicId: certificate.publicId,
+      uploadedAt: new Date(),
+    });
+    profile.documents = next as any;
+    await profile.save();
+  } catch (error: any) {
+    console.error("Failed to store medical certificate in employee document vault:", error?.message || error);
+  }
+};
+
 export async function uploadLeaveCertificateForUser(userId: string, file: any) {
   await resolveLeaveWorkspaceContext(userId);
   if (!file?.buffer) throw httpError("No certificate file was uploaded.", 400);
@@ -1597,4 +1634,72 @@ export async function uploadLeaveCertificateForUser(userId: string, file: any) {
       size: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "",
     },
   };
+}
+
+export async function attachLeaveCertificateForUser(
+  userId: string,
+  leaveRequestId: string,
+  file: any,
+  workspaceId?: string,
+) {
+  const context = await resolveLeaveWorkspaceContext(userId, workspaceId);
+  const { workspace, actor } = context;
+
+  if (!leaveRequestId || !mongoose.isValidObjectId(leaveRequestId)) {
+    throw httpError("Invalid leave request id.", 400);
+  }
+
+  const leaveRequest = await LeaveRequest.findOne({ _id: leaveRequestId, workspaceId: workspace._id }).lean().exec();
+  if (!leaveRequest) throw httpError("Leave request not found.", 404);
+
+  const isRequester = Boolean(leaveRequest.requesterUserId && String(leaveRequest.requesterUserId) === actor.userId);
+  if (!isRequester && !canViewAllLeaveRequests(actor)) {
+    throw httpError("You are not allowed to attach a certificate to this leave request.", 403);
+  }
+
+  if (leaveRequest.status === "rejected") {
+    throw httpError("This leave request was rejected, so a certificate cannot be attached.", 409);
+  }
+
+  if (!file?.buffer) throw httpError("No certificate file was uploaded.", 400);
+
+  const route = `leave-certificates/${Date.now()}-${String(file.originalname || "certificate").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  let uploaded: any;
+  try {
+    uploaded = await uploadFileToS3(route, file);
+  } catch (error: any) {
+    throw httpError(error?.message || "Failed to upload certificate.", 502);
+  }
+
+  const updated = await LeaveRequest.findByIdAndUpdate(
+    leaveRequestId,
+    {
+      $set: {
+        medicalCertAttached: true,
+        medicalCertName: file.originalname || "",
+        medicalCertUrl: uploaded?.url || "",
+        medicalCertPublicId: uploaded?.id || route,
+        medicalCertMimeType: file.mimetype || "",
+      },
+    },
+    { new: true, runValidators: true },
+  )
+    .lean()
+    .exec();
+
+  if (!updated) throw httpError("Leave request not found.", 404);
+
+  await storeMedicalCertificateInEmployeeVault(
+    workspace._id,
+    leaveRequest.requesterUserId,
+    {
+      name: file.originalname || "Medical Certificate",
+      url: uploaded?.url || "",
+      publicId: uploaded?.id || route,
+    },
+    leaveRequest.medicalCertPublicId,
+  );
+
+  const departmentNameById = await loadWorkspaceDepartmentMap(workspace._id);
+  return { leaveRequest: formatLeaveRequest(updated, departmentNameById, actor.userId) };
 }

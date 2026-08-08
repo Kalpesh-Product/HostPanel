@@ -84,6 +84,7 @@ import {
   Blocks,
   School,
   Shapes,
+  UsersRound,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -227,7 +228,7 @@ const departmentModules: NavNode[] = [
     icon: Users,
     defaultOpen: false,
     children: [
-      { id: "employee-management", label: "Employee Management", icon: UserSquare, route: "/hr/employee-management", disabled: false },
+      { id: "employee-management", label: "Company Management", icon: UserSquare, route: "/hr/company-management", disabled: false },
       { id: "hr-documents", label: "Documents", icon: FileText, route: "/hr/documents", disabled: false },
       { id: "recruitment", label: "Recruitment", icon: UserPlus, route: "/hr/recruitment", disabled: false },
       { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, route: "/hr/leave-request-processing", disabled: false },
@@ -361,6 +362,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   inventory: "/extra-common-modules/inventory",
   "department-inventory": "/extra-common-modules/department-inventory",
   "finance-management": "/extra-common-modules/finance-management",
+  "team-management": "/extra-common-modules/team-management",
   "finance-budget": "/finance/expenses-budget",
   "billing-payments": "/finance/billing-payments",
   accounting: "/finance/accounting",
@@ -376,7 +378,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "tenant-tickets": "/dashboard/tenant/tickets",
   "tenant-profile": "/profile/company-profile",
   profile: "/profile/company-profile",
-  "employee-management": "/hr/employee-management",
+  "employee-management": "/hr/company-management",
   "hr-documents": "/hr/documents",
   "attendance-review": "/hr/attendance-review",
   "leave-request-processing": "/hr/leave-request-processing",
@@ -402,6 +404,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   inventory: Warehouse,
   "department-inventory": Box,
   "finance-management": Landmark,
+  "team-management": UsersRound,
   reports: FileChartColumn,
   "website-builder": Globe,
   "wono-nomad": ShieldCheck,
