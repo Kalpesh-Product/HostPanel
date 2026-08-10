@@ -32,13 +32,16 @@ export const applyFinanceApprovalDecision = async (
  * Mark a monthly expense as paid (or update its payment status).
  */
 export const updateMonthlyExpenseStatus = async (payload: {
+  planId?: string;
   fiscalYear: string;
   monthKey: string;
   expenseId: string;
+  expenseKey?: string;
   status: string;
+  paymentStatus?: string;
 }) => {
   const response = await axiosPrivate.patch(
-    '/api/finance/monthly-expense/status',
+    '/api/finance/department/month-expense/status',
     payload,
   );
   return unwrap(response);
@@ -69,12 +72,12 @@ export const sendReminder = async (payload: Record<string, any>) => {
 };
 
 export const submitBudgetRequest = async (payload: Record<string, any>) => {
-  const response = await axiosPrivate.post('/api/finance/department/submit-budget', payload);
+  const response = await axiosPrivate.post('/api/finance/department/budget-request', payload);
   return unwrap(response);
 };
 
 export const submitVendor = async (payload: Record<string, any>) => {
-  const response = await axiosPrivate.post('/api/finance/department/submit-vendor', payload);
+  const response = await axiosPrivate.post('/api/finance/department/vendor', payload);
   return unwrap(response);
 };
 
@@ -84,7 +87,7 @@ export const submitExtraBudget = async (payload: Record<string, any>) => {
 };
 
 export const uploadInvoice = async (formData: FormData) => {
-  const response = await axiosPrivate.post('/api/finance/department/upload-invoice', formData, {
+  const response = await axiosPrivate.post('/api/finance/department/invoice', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return unwrap(response);

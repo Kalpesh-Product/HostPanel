@@ -159,7 +159,16 @@ const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase(
 export function DepartmentFinancePageV2() {
   const currentUser = getStoredUser();
   const userRole = normalizeUserRole(currentUser?.workspaceMembership?.role || currentUser?.role || '');
-  const departmentLabel = extractDepartmentLabel(currentUser?.department || currentUser?.workspaceMembership?.department || '');
+  const storedDepartment =
+    currentUser?.department ||
+    currentUser?.workspaceMembership?.department ||
+    currentUser?.workspaceMembership?.departments?.[0]?.name ||
+    currentUser?.workspaceMembership?.departments?.[0]?.label ||
+    currentUser?.workspaceMembership?.departments?.[0] ||
+    '';
+  const departmentLabel = extractDepartmentLabel(
+    typeof storedDepartment === 'string' ? storedDepartment : storedDepartment?.name || storedDepartment?.label || '',
+  );
   const fiscalYearOptions = getFiscalYearOptions();
   const location = useLocation();
   const navigate = useNavigate();
@@ -459,6 +468,7 @@ export function DepartmentFinancePageV2() {
     setIsSubmittingVendor(true);
     try {
       await submitVendor({
+        planId: financeData?.plan?._id,
         fiscalYear: selectedFY,
         department: departmentLabel,
         ...vendorForm,
@@ -480,6 +490,10 @@ export function DepartmentFinancePageV2() {
   };
 
   const handleSubmitExtraBudgetRequest = async () => {
+    if (!financeData?.plan?._id) {
+      toast.error('Submit the annual budget before requesting an extra budget.');
+      return;
+    }
     if (!extraBudgetForm.monthKey) {
       toast.error('Please select a month.');
       return;
@@ -542,10 +556,13 @@ export function DepartmentFinancePageV2() {
   const handleMarkPaid = async (month: MonthlyPlan, expense: ExpenseData) => {
     try {
       await updateMonthlyExpenseStatus({
+        planId: financeData?.plan?._id,
         fiscalYear: selectedFY,
         monthKey: month.monthKey,
         expenseId: expense.id,
+        expenseKey: expense.id,
         status: 'Paid',
+        paymentStatus: 'Paid',
       });
       toast.success('Expense marked as paid.');
       setViewingExpense(null);
@@ -558,7 +575,7 @@ export function DepartmentFinancePageV2() {
   const handleSendReminder = async () => {
     setIsSendingReminder(true);
     try {
-      await sendReminder({ fiscalYear: selectedFY, department: departmentLabel });
+      await sendReminder({ planId: financeData?.plan?._id, fiscalYear: selectedFY, department: departmentLabel });
       toast.success('Reminder sent to finance team.');
     } catch (error: any) {
       toast.error(error?.message || 'Failed to send reminder.');
@@ -594,6 +611,9 @@ export function DepartmentFinancePageV2() {
       formData.append('monthKey', month.monthKey);
       formData.append('expenseId', expense.id);
       formData.append('department', departmentLabel);
+      formData.append('planId', String(financeData?.plan?._id || ''));
+      formData.append('expenseKey', expense.id);
+      formData.append('invoiceNumber', expense.invoiceNumber || file.name);
       await uploadInvoice(formData);
       toast.success('Invoice uploaded successfully.');
       setViewingExpense(null);

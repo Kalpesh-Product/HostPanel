@@ -1,5 +1,6 @@
 // @ts-nocheck
 import express from "express";
+import upload from "../config/multerConfig.js";
 import {
   getDepartmentFinance,
   submitBudgetRequest,
@@ -11,6 +12,7 @@ import {
   submitExtraBudget,
   uploadInvoice,
   sendReminder,
+  resetRejectedAnnualBudget,
   listFinanceSnapshot,
   getTenantBillingSnapshot,
   markTenantSecurityDepositPaid,
@@ -35,8 +37,9 @@ router.post("/department/reminder", upsertReminder);
 router.post("/department/import-snapshot", importFinanceSnapshot);
 router.post("/department/vendor", submitVendor);
 router.post("/department/extra-budget-request", submitExtraBudget);
-router.post("/department/invoice", uploadInvoice);
+router.post("/department/invoice", upload.single("file"), uploadInvoice);
 router.post("/department/send-reminder", sendReminder);
+router.post("/department/reset-rejected", resetRejectedAnnualBudget);
 
 router.get("/snapshot", listFinanceSnapshot);
 

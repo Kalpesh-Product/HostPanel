@@ -176,15 +176,82 @@ export async function getDepartmentFinanceForManagerInternal(input: {
     };
   }
 
+  const [expenses, vendors, annualRequest, extraRequests] = await Promise.all([
+    FinanceExpense.find({ workspaceId, planId: plan._id }).sort({ createdAt: 1 }).lean(),
+    FinanceVendor.find({ workspaceId }).sort({ createdAt: -1 }).lean(),
+    AnnualFinanceRequest.findOne({ workspaceId, department }).sort({ createdAt: -1 }).lean(),
+    ExtraFinanceRequest.find({ workspaceId, department }).sort({ createdAt: -1 }).lean(),
+  ]);
+
+  const expensesByMonth = new Map<string, any[]>();
+  for (const expense of expenses) {
+    const key = normalizeMonthKey(expense.monthKey);
+    if (!expensesByMonth.has(key)) expensesByMonth.set(key, []);
+    expensesByMonth.get(key)!.push({
+      ...expense,
+      id: expense.expenseKey,
+      actualSpent: safeNumber(expense.actualAmount, 0),
+      variance: safeNumber(expense.projectedAmount, 0) - safeNumber(expense.actualAmount, 0),
+      status: safeString(expense.paymentStatus, "Planned"),
+    });
+  }
+
+  const monthlyPlan = (Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : []).map((month: any) => ({
+    ...(typeof month?.toObject === "function" ? month.toObject() : month),
+    projectedAmount: safeNumber(month.projectedBudget, 0),
+    expenses: expensesByMonth.get(normalizeMonthKey(month.monthKey || month.month)) || [],
+  }));
+
   return {
     department: plan.department,
     fiscalYear: plan.fiscalYear,
     plan,
-    monthlyPlan: plan.monthlyPlan,
+    annualBudgetRequested: safeNumber(plan.annualBudgetRequested, 0),
+    approvedAnnualBudget: safeNumber(plan.approvedAnnualBudget, 0),
+    previousSpend: safeNumber(plan.previousSpend, 0),
+    totalSpentYTD: monthlyPlan.reduce((sum: number, month: any) => sum + safeNumber(month.actualSpent, 0), 0),
+    remainingBalance: Math.max(0, safeNumber(plan.approvedAnnualBudget, 0) - monthlyPlan.reduce((sum: number, month: any) => sum + safeNumber(month.actualSpent, 0), 0)),
+    monthlyPlan,
+    vendors: vendors.map((vendor: any) => ({ ...vendor, id: vendor.vendorKey, importKey: vendor.vendorKey })),
+    annualRequest: annualRequest ? {
+      ...annualRequest,
+      id: annualRequest.requestKey,
+      createdAt: annualRequest.submittedAtLabel || annualRequest.createdAt,
+    } : null,
+    extraRequests: extraRequests.map((request: any) => ({
+      ...request,
+      id: request.requestKey,
+      createdAt: request.submittedAtLabel || request.createdAt,
+    })),
     reminders: plan.reminders,
+    recentActivity: plan.reminders,
     approvalFlow: plan.approvalFlow,
     status: plan.status,
+    notes: plan.notes,
   };
+}
+
+export async function resetRejectedAnnualBudgetForDepartmentInternal(input: {
+  workspaceId: mongoose.Types.ObjectId;
+  department: string;
+  fiscalYear: string;
+}) {
+  const plan = await DepartmentFinancePlan.findOne({
+    workspaceId: input.workspaceId,
+    department: input.department,
+    fiscalYear: input.fiscalYear,
+  }).exec();
+  if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
+  if (safeString(plan.status).toLowerCase() !== "rejected") {
+    throw Object.assign(new Error("Only a rejected annual budget can be reset."), { statusCode: 409 });
+  }
+
+  await Promise.all([
+    FinanceExpense.deleteMany({ workspaceId: input.workspaceId, planId: plan._id }),
+    AnnualFinanceRequest.deleteMany({ workspaceId: input.workspaceId, department: input.department }),
+    DepartmentFinancePlan.deleteOne({ _id: plan._id, workspaceId: input.workspaceId }),
+  ]);
+  return { reset: true };
 }
 
 export async function submitBudgetRequestForDepartmentInternal(input: {
@@ -205,6 +272,12 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
     dueDate?: string;
     title?: string;
     details?: string;
+    expenses?: Array<{
+      title?: string;
+      projectedAmount?: number;
+      dueDate?: string;
+      description?: string;
+    }>;
   }>;
 }) {
   const {
@@ -264,6 +337,25 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
     })),
     reminders: [],
   });
+
+  const expenseDocuments = monthlyPlan.flatMap((month, monthIndex) =>
+    (Array.isArray(month.expenses) ? month.expenses : []).map((expense, expenseIndex) => ({
+      workspaceId,
+      planId: plan._id,
+      expenseKey: `EXP-${plan.planKey}-${normalizeMonthKey(month.monthKey || month.month)}-${Date.now()}-${monthIndex}-${expenseIndex}`,
+      title: safeString(expense.title, "Untitled expense"),
+      description: safeString(expense.description, ""),
+      monthKey: safeString(month.monthKey || month.month),
+      month: safeString(month.month),
+      dueDate: safeString(expense.dueDate, ""),
+      projectedAmount: safeNumber(expense.projectedAmount, 0),
+      actualAmount: 0,
+      savings: safeNumber(expense.projectedAmount, 0),
+      paymentStatus: "Planned",
+      sourceRowNumber: 0,
+    })),
+  );
+  if (expenseDocuments.length > 0) await FinanceExpense.insertMany(expenseDocuments);
 
   // Also create an AnnualFinanceRequest so the approval/decision endpoint can find it
   const submittedAtLabel = new Date().toLocaleDateString("en-IN", {
@@ -607,7 +699,33 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     }
   }
 
-  const monthlyEntries = Array.isArray(payload?.monthlyPlan) ? payload.monthlyPlan : Array.isArray(payload?.months) ? payload.months : [];
+  let monthlyEntries = Array.isArray(payload?.monthlyPlan) ? payload.monthlyPlan : Array.isArray(payload?.months) ? payload.months : [];
+  if (monthlyEntries.length === 0 && Array.isArray(payload?.records)) {
+    const grouped = new Map<string, any>();
+    for (const row of payload.records) {
+      const month = safeString(row?.month ?? row?.Month ?? row?.MONTH, "");
+      const monthKey = safeString(row?.monthKey ?? row?.["Month Key"] ?? month, "");
+      if (!monthKey) continue;
+      if (!grouped.has(normalizeMonthKey(monthKey))) {
+        grouped.set(normalizeMonthKey(monthKey), {
+          month: month || monthKey,
+          monthKey,
+          title: safeString(row?.budgetTitle ?? row?.["Budget Title"] ?? row?.title ?? row?.Title, month || monthKey),
+          expenses: [],
+        });
+      }
+      grouped.get(normalizeMonthKey(monthKey)).expenses.push({
+        title: safeString(row?.expenseTitle ?? row?.["Expense Title"] ?? row?.title ?? row?.Title, "Imported expense"),
+        description: safeString(row?.description ?? row?.Description ?? row?.details ?? row?.Details, ""),
+        projectedAmount: safeNumber(row?.projectedAmount ?? row?.["Projected Amount"] ?? row?.amount ?? row?.Amount, 0),
+        actualAmount: safeNumber(row?.actualAmount ?? row?.["Actual Amount"] ?? row?.actualSpent ?? row?.["Actual Spent"], 0),
+        dueDate: safeString(row?.dueDate ?? row?.["Due Date"], ""),
+        paymentStatus: safeString(row?.paymentStatus ?? row?.["Payment Status"], "Planned"),
+        invoiceNumber: safeString(row?.invoiceNumber ?? row?.["Invoice Number"], ""),
+      });
+    }
+    monthlyEntries = Array.from(grouped.values());
+  }
   const vendors = Array.isArray(payload?.vendors) ? payload.vendors : [];
 
   const planObjectId = (plan as any)._id as mongoose.Types.ObjectId;
@@ -719,13 +837,12 @@ export async function submitVendorForDepartmentInternal(input: {
 }) {
   const { workspaceId, input: payload } = input;
 
-  const planId = payload?.planId;
+  let planId = payload?.planId;
   const monthKey = safeString(payload?.monthKey || "", "");
   const vendorId = safeString(payload?.vendorId || payload?.vendorKey || "", "");
   const name = safeString(payload?.name || payload?.vendorName || "", "");
 
   if (!planId) throw Object.assign(new Error("planId is required."), { statusCode: 400 });
-  if (!monthKey) throw Object.assign(new Error("monthKey is required."), { statusCode: 400 });
   if (!name) throw Object.assign(new Error("vendor name is required."), { statusCode: 400 });
 
   const plan = await DepartmentFinancePlan.findById(planId).exec();
@@ -760,7 +877,7 @@ export async function submitVendorForDepartmentInternal(input: {
   ).exec();
 
   const expenseId = safeString(payload?.expenseId || "", "");
-  if (expenseId) {
+  if (expenseId && monthKey) {
     await FinanceExpense.updateOne(
       { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) },
       {
@@ -784,7 +901,7 @@ export async function submitVendorForDepartmentInternal(input: {
         },
       }
     );
-  } else {
+  } else if (monthKey) {
     // best-effort: apply vendor to all planned invoices for the month in this plan if vendorName is empty
     await FinanceExpense.updateMany(
       { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
@@ -811,12 +928,13 @@ export async function submitVendorForDepartmentInternal(input: {
     );
   }
 
-  const reminderId = buildPlanReminderId(plan, monthKey);
+  const reminderMonthKey = monthKey || "general";
+  const reminderId = buildPlanReminderId(plan, reminderMonthKey);
   const reminder = {
     id: reminderId,
     importKey: "",
-    monthKey,
-    message: `Vendor ${name} saved for ${plan.department} (${monthKey}).`,
+    monthKey: reminderMonthKey,
+    message: `Vendor ${name} saved for ${plan.department}${monthKey ? ` (${monthKey})` : ""}.`,
     status: "Sent",
     sentAtLabel: new Date().toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" }),
   };
@@ -842,12 +960,21 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
   const expenseTag = "Add-on";
 
   const dueDate = safeString(payload?.dueDate, "");
-  if (!planId) throw Object.assign(new Error("planId is required."), { statusCode: 400 });
   if (!monthKey) throw Object.assign(new Error("monthKey is required."), { statusCode: 400 });
   if (!Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error("amount must be > 0."), { statusCode: 400 });
 
-  const plan = await DepartmentFinancePlan.findById(planId).exec();
-  if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
+  let plan = planId ? await DepartmentFinancePlan.findById(planId).exec() : null;
+  if (!plan && payload?.department && payload?.fiscalYear) {
+    plan = await DepartmentFinancePlan.findOne({
+      workspaceId,
+      department: safeString(payload.department),
+      fiscalYear: safeString(payload.fiscalYear),
+    }).exec();
+    planId = plan?._id;
+  }
+  if (!plan) {
+    throw Object.assign(new Error("Submit the annual budget before requesting an extra budget."), { statusCode: 409 });
+  }
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
 
   const expenseKey = `EXP-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1022,7 +1149,6 @@ export async function sendReminderForDepartmentInternal(input: {
   const message = safeString(payload?.message, "");
 
   if (!planId) throw Object.assign(new Error("planId is required."), { statusCode: 400 });
-  if (!monthKey) throw Object.assign(new Error("monthKey is required."), { statusCode: 400 });
 
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
@@ -1033,12 +1159,13 @@ export async function sendReminderForDepartmentInternal(input: {
     const exp = await FinanceExpense.findOne({ workspaceId, planId, expenseKey }).exec();
     resolvedMessage = safeString(payload?.message, `${exp?.title || "Expense"} reminder shared with finance.`);
   }
-  if (!resolvedMessage) resolvedMessage = `${plan.department} finance reminder (${monthKey}).`;
+  const reminderMonthKey = monthKey || "general";
+  if (!resolvedMessage) resolvedMessage = `${plan.department} finance reminder.`;
 
   const reminder = {
-    id: buildPlanReminderId(plan, monthKey),
+    id: buildPlanReminderId(plan, reminderMonthKey),
     importKey: "",
-    monthKey,
+    monthKey: reminderMonthKey,
     message: resolvedMessage,
     status: getAllowedReminderStatus(payload?.status || "Sent"),
     sentAtLabel: new Date().toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" }),
