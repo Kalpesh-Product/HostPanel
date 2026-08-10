@@ -31,6 +31,11 @@ export const saveOrganizationDepartment = (
   });
 };
 
+export const deleteOrganizationDepartment = (
+  axiosPrivate: AxiosInstance,
+  departmentId: string,
+) => axiosPrivate.delete(`/api/organization/departments/${departmentId}`);
+
 export const assignOrganizationDepartmentManager = (
   axiosPrivate: AxiosInstance,
   departmentId: string,

@@ -1437,6 +1437,53 @@ export const saveOrganizationDepartment = async (req, res, next) => {
   }
 };
 
+export const deleteOrganizationDepartment = async (req, res, next) => {
+  try {
+    const { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role")
+      .populate("role")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (!canManageDepartmentsByRole(actorMembership.role)) {
+      return res.status(403).json({ message: "Only founder can manage departments." });
+    }
+
+    const departmentId = String(req.params.departmentId || "").trim();
+    if (!departmentId) {
+      return res.status(400).json({ message: "Department id is required." });
+    }
+
+    const department = await Department.findOne({ _id: departmentId, workspaceId: workspace._id });
+    if (!department) {
+      return res.status(404).json({ message: "Department not found." });
+    }
+    if (!isCustomDepartmentName(department.name)) {
+      return res.status(403).json({ message: "Only the custom department can be deleted." });
+    }
+
+    await WorkspaceMember.updateMany(
+      { workspace: workspace._id, departments: department._id },
+      { $pull: { departments: department._id } },
+    );
+    await Department.deleteOne({ _id: department._id });
+
+    return res.status(200).json({ message: "Department deleted successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const assignOrganizationDepartmentManager = async (req, res, next) => {
   try {
     const { workspace } = await getCurrentWorkspace(req.user);
@@ -2426,11 +2473,10 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       });
     }
 
-    // Managers may only manage employee-level access, only for members who
-    // share at least one department with them, and only for that shared
-    // department's modules (the same full set the manager themselves holds).
-    // Everything outside that scope is left untouched below. Owner/super_admin
-    // remain unrestricted (managerControllableIds stays null).
+    // Managers may only manage employee-level access for members who share a
+    // department with them. Their delegable set is the Common + Extra Common
+    // baseline plus the shared department's Core Modules, capped by what the
+    // manager themselves currently holds. Owner/super_admin remain unrestricted.
     let managerControllableIds = null;
     if (isManagerActor) {
       const targetRoleBand = getRoleBand(member.role);
@@ -2445,7 +2491,7 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
         user: req.user,
         isActive: true,
       })
-        .select("departments")
+        .select("departments grantedModules")
         .lean();
       const actorDepartmentIds = new Set(
         (Array.isArray(actorMembership?.departments) ? actorMembership.departments : []).map((d) =>
@@ -2463,18 +2509,26 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
         });
       }
 
-      // A manager can delegate any module their shared department has —
-      // exactly what the manager themselves holds via computeDepartmentDefaultModuleIds,
-      // never more (they can't grant modules from a department they don't manage).
       const sharedDepartments = await Department.find({ _id: { $in: sharedDepartmentIds } })
         .select("moduleIds")
         .lean();
-      const controllable = new Set<string>();
+      const managerDelegableIds = new Set<string>(BASELINE_MODULE_IDS);
       for (const dept of sharedDepartments) {
         const moduleIds = Array.isArray(dept?.moduleIds) ? dept.moduleIds : [];
-        for (const id of moduleIds) controllable.add(id);
+        for (const id of moduleIds) managerDelegableIds.add(id);
       }
-      managerControllableIds = controllable;
+
+      // Never let a manager hand out more access than they currently have.
+      // Manager-only organization capabilities (including Team Management)
+      // are not part of the baseline or department Core set.
+      const actorGrantedModules = new Set(
+        (Array.isArray(actorMembership?.grantedModules) ? actorMembership.grantedModules : [])
+          .map((id) => String(id || "").trim())
+          .filter(Boolean),
+      );
+      managerControllableIds = new Set(
+        Array.from(managerDelegableIds).filter((id) => actorGrantedModules.has(id)),
+      );
     }
 
     const normalizeKey = (value = "") =>
@@ -2554,11 +2608,9 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
     });
 
     if (managerControllableIds) {
-      // Scoped manager edit: only replace modules within the manager's
-      // controllable set (their shared department's employee-eligible
-      // modules). Everything else already on the member — other department
-      // grants, the common/extra-common baseline, add-ons, etc. — is
-      // preserved untouched.
+      // Scoped manager edit: replace only the manager-held Common, Extra
+      // Common, and shared-department Core Modules. Everything outside that
+      // set (other departments, add-ons, special permissions) is preserved.
       const existingGrantedModules = Array.isArray(member.grantedModules) ? member.grantedModules : [];
       const outsideManagerScope = existingGrantedModules.filter(
         (id) => !managerControllableIds.has(String(id || "").trim()),

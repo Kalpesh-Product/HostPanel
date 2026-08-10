@@ -5,6 +5,7 @@ import {
   assignOrganizationActingManager,
   assignOrganizationDepartmentManager,
   cancelOrganizationInvite,
+  deleteOrganizationDepartment,
   getOrganizationOverview,
   inviteOrganizationMember,
   linkOrganizationMember,
@@ -24,6 +25,7 @@ router.get("/overview", getOrganizationOverview);
 router.get("/departments", getDepartments);
 router.post("/departments", saveOrganizationDepartment);
 router.put("/departments/:departmentId", saveOrganizationDepartment);
+router.delete("/departments/:departmentId", deleteOrganizationDepartment);
 router.patch("/departments/:departmentId/manager", assignOrganizationDepartmentManager);
 router.post("/departments/:departmentId/acting-manager", assignOrganizationActingManager);
 router.delete(

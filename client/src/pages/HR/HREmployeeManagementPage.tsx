@@ -644,7 +644,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [activeCompanyTab, setActiveCompanyTab] = useState<"employees" | "sop" | "policies" | "birthdays">("employees");
   const companyTabList = useMemo(
     () => [
-      { key: "employees" as const, label: "Company Management" },
+      { key: "employees" as const, label: "Employee Management" },
       { key: "sop" as const, label: "Company SOP" },
       { key: "policies" as const, label: "Company Policies" },
       { key: "birthdays" as const, label: "Month-wise Birthdays" },

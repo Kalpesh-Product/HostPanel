@@ -30,7 +30,7 @@ const MuiModal = ({ open, onClose, title, children, variant = "default", subtitl
         >
           <motion.div
             initial={isWorkspace ? { opacity: 0, y: 32, scale: 0.98 } : { y: 30 }}
-            animate={{ y: 0 }}
+            animate={isWorkspace ? { opacity: 1, y: 0, scale: 1 } : { y: 0 }}
             exit={isWorkspace ? { opacity: 0, y: 32, scale: 0.98 } : { y: -30 }}
             className={isWorkspace
               ? "bg-white/95 backdrop-blur-xl w-full sm:max-w-2xl h-[92vh] sm:h-auto sm:max-h-[92vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col outline-none"

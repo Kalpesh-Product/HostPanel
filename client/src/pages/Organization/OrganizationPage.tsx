@@ -15,6 +15,7 @@ import {
   assignOrganizationActingManager,
   assignOrganizationDepartmentManager,
   cancelOrganizationInvite,
+  deleteOrganizationDepartment,
   getOrganizationOverview,
   inviteOrganizationMember,
   removeOrganizationActingManager,
@@ -302,6 +303,8 @@ export function OrganizationPage() {
   const isAddingEmployeeRef = useRef(false);
   const [isCreatingDepartment, setIsCreatingDepartment] = useState(false);
   const [createdDepartmentNotice, setCreatedDepartmentNotice] = useState<CreatedDepartmentNotice | null>(null);
+  const [deletingDepartment, setDeletingDepartment] = useState<DepartmentOption | null>(null);
+  const [isDeletingDepartment, setIsDeletingDepartment] = useState(false);
   const [accessTogglePendingMemberId, setAccessTogglePendingMemberId] = useState('');
   const [cancelInvitePendingMemberId, setCancelInvitePendingMemberId] = useState('');
 
@@ -1395,6 +1398,29 @@ export function OrganizationPage() {
     }
   };
 
+  const handleConfirmDeleteDepartment = async () => {
+    if (!deletingDepartment || isDeletingDepartment) return;
+    const departmentId = String(deletingDepartment.id || deletingDepartment._id || '').trim();
+    if (!departmentId) return;
+
+    setIsDeletingDepartment(true);
+    try {
+      await deleteOrganizationDepartment(axiosPrivate, departmentId);
+      toast.success('Custom department deleted.');
+      setDeletingDepartment(null);
+      if (String(selectedDepartment?.id || selectedDepartment?._id || '') === departmentId) {
+        setSelectedDepartment(null);
+        setView('list');
+      }
+      await loadOrganization();
+    } catch (error) {
+      console.error('Failed to delete custom department', error);
+      toast.error((error as any)?.response?.data?.message || 'Failed to delete custom department.');
+    } finally {
+      setIsDeletingDepartment(false);
+    }
+  };
+
   const getInitials = (name) => {
     if (!name) return '?';
     const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -1984,6 +2010,11 @@ export function OrganizationPage() {
                 {isCustomDepartmentOption(selectedDepartment) && canManageCustomDepartment ? (
                   <button type="button" onClick={() => openDepartmentModal(selectedDepartment)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-[11px] font-pmedium text-blue-700 transition-colors hover:bg-blue-100 md:flex-none">
                     <Wrench size={14} /> Edit Department
+                  </button>
+                ) : null}
+                {isCustomDepartmentOption(selectedDepartment) && canManageCustomDepartment ? (
+                  <button type="button" onClick={() => setDeletingDepartment(selectedDepartment)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-[11px] font-pmedium text-rose-700 transition-colors hover:bg-rose-100 md:flex-none">
+                    <Trash2 size={14} /> Delete Department
                   </button>
                 ) : null}
                 {canInviteUsersByAccess && !selectedDepartment.managerName ? (
@@ -2990,6 +3021,48 @@ export function OrganizationPage() {
           </div>
         </div>
       )}
+
+      {deletingDepartment ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 rounded-2xl bg-rose-50 p-2 text-rose-600">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[14px] font-pmedium text-slate-950">
+                  Delete {normalizeDepartmentLabel(deletingDepartment.name) || 'this department'}?
+                </p>
+                <p className="mt-1 text-[12px] font-pmedium text-slate-500">
+                  This permanently removes the custom department, its module access, and its manager/employee
+                  assignments. Members keep their accounts but lose this department. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isDeletingDepartment) setDeletingDepartment(null);
+                }}
+                disabled={isDeletingDepartment}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteDepartment}
+                disabled={isDeletingDepartment}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeletingDepartment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {isDeletingDepartment ? 'Deleting...' : 'Delete Department'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       </div>
     </>

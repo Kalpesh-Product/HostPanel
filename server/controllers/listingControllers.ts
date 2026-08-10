@@ -12,6 +12,25 @@ const activeListingSubmissions = new Set<string>();
 const normalizeListingType = (value: unknown) =>
   String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
+// Nomads review records key the rating off `starCount`. Add/Edit forms have
+// historically sent the rating under different keys (`rating` vs `starCount`),
+// so normalize every incoming review to carry starCount/rating/rate together
+// — otherwise a 5-star review is stored with starCount 1 and renders as 1 star.
+const normalizeListingReviews = (reviews: unknown) =>
+  (Array.isArray(reviews) ? reviews : []).map((review: any) => {
+    const rating = Number(
+      review?.starCount ?? review?.rating ?? review?.rate ?? 0,
+    );
+    return {
+      ...review,
+      name: String(review?.name || "").trim(),
+      review: String(review?.review || "").trim(),
+      starCount: rating,
+      rating,
+      rate: rating,
+    };
+  });
+
 // Placeholder listing website when the host doesn't provide one — a
 // generated "companyname.wono.co" subdomain rather than the host's own
 // (often unreliable/unset) registered website.
@@ -109,6 +128,8 @@ export const createCompanyListing = async (req, res) => {
     if (typeof reviews === "string") {
       parsedReviews = JSON.parse(reviews);
     }
+
+    parsedReviews = normalizeListingReviews(parsedReviews);
 
     // Each listing has its own location — a host can run several locations
     // of the same product type in different cities — so prefer whatever the
@@ -404,8 +425,9 @@ export const editCompanyListing = async (req, res) => {
       return res.status(404).json({ message: "Missing required fields" });
     }
 
-    const parsedReviews =
-      typeof reviews === "string" ? JSON.parse(reviews) : reviews;
+    const parsedReviews = normalizeListingReviews(
+      typeof reviews === "string" ? JSON.parse(reviews) : reviews,
+    );
 
     // FIX: Search by both businessId and companyId
     const company = await HostCompany.findOne({

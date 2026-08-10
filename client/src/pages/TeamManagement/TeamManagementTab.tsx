@@ -5,26 +5,34 @@ import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import { TeamManagementContentSkeleton } from "@/components/ui/Skeleton";
 import { getOrganizationOverview } from "@/services/organization";
-import ManageSidebarAccessDialog, { type ManageSidebarAccessMember } from "./ManageSidebarAccessDialog";
+import ManageSidebarAccessDialog, {
+  type ManageSidebarAccessMember,
+  type ManageSidebarAccessModuleGroup,
+} from "./ManageSidebarAccessDialog";
 
 const flattenModuleMeta = (sections: any[] = []) => {
   const labelById: Record<string, string> = {};
   const unlockedIds = new Set<string>();
+  const moduleIdsBySection: Record<string, string[]> = {};
   for (const section of sections) {
+    const sectionModuleIds: string[] = [];
     for (const item of section?.items || []) {
       if (Array.isArray(item?.tabs) && item.tabs.length) {
         for (const tab of item.tabs) {
           if (!tab?.id) continue;
           labelById[tab.id] = tab.label || tab.id;
+          sectionModuleIds.push(tab.id);
           if (tab?.unlockedInWorkspace === true) unlockedIds.add(tab.id);
         }
       } else if (item?.id) {
         labelById[item.id] = item.label || item.id;
+        sectionModuleIds.push(item.id);
         if (item?.unlockedInWorkspace === true) unlockedIds.add(item.id);
       }
     }
+    if (section?.sectionId) moduleIdsBySection[section.sectionId] = sectionModuleIds;
   }
-  return { labelById, unlockedIds };
+  return { labelById, unlockedIds, moduleIdsBySection };
 };
 
 const STATUS_PILLS = [
@@ -49,7 +57,7 @@ const formatDepartmentLabel = (departmentNames?: string[]): string =>
 
 const TeamManagementTab = () => {
   const axiosPrivate = useAxiosPrivate();
-  const { moduleMap, enabledModuleIds } = useDashboardAccess();
+  const { moduleMap, enabledModuleIds, grantedModuleIds } = useDashboardAccess();
   const queryClient = useQueryClient();
   const [selectedMember, setSelectedMember] = useState<ManageSidebarAccessMember | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -64,7 +72,11 @@ const TeamManagementTab = () => {
     staleTime: 60 * 1000,
   });
 
-  const { labelById: moduleLabelById, unlockedIds: unlockedModuleIds } = useMemo(
+  const {
+    labelById: moduleLabelById,
+    unlockedIds: unlockedModuleIds,
+    moduleIdsBySection,
+  } = useMemo(
     () => flattenModuleMeta(moduleMap?.sections),
     [moduleMap],
   );
@@ -75,16 +87,40 @@ const TeamManagementTab = () => {
   // lookup/name-matching needed.
   const department = Array.isArray(data?.departments) ? data.departments[0] : null;
 
-  // Only ever surface department modules that are actually enabled at the
-  // workspace level right now (via Master Panel) — a module Master Panel has
-  // disabled is hidden from this dialog entirely, exactly like AccessGrant.tsx's
-  // founder-facing "Sidebar Access" dialog does today.
+  // A manager may delegate only modules they can currently access: the
+  // workspace-enabled Common and Extra Common baseline, plus the Core
+  // Modules selected for their own department. Team Management is a
+  // manager-only capability and is intentionally not delegable to employees.
+  const moduleGroups = useMemo<ManageSidebarAccessModuleGroup[]>(() => {
+    const isManagerAccessible = (id: string) =>
+      grantedModuleIds.has(id) && (unlockedModuleIds.has(id) || enabledModuleIds.has(id));
+    const filterAccessible = (ids: string[] = []) =>
+      Array.from(new Set(ids)).filter(isManagerAccessible);
+
+    return [
+      {
+        id: "common-modules",
+        label: "Common Modules",
+        moduleIds: filterAccessible(moduleIdsBySection["common-modules"]),
+      },
+      {
+        id: "extra-common-modules",
+        label: "Extra Common Modules",
+        moduleIds: filterAccessible(
+          (moduleIdsBySection["extra-common-modules"] || []).filter((id) => id !== "team-management"),
+        ),
+      },
+      {
+        id: "core-modules",
+        label: "Core Modules",
+        moduleIds: filterAccessible(Array.isArray(department?.moduleIds) ? department.moduleIds : []),
+      },
+    ];
+  }, [department, enabledModuleIds, grantedModuleIds, moduleIdsBySection, unlockedModuleIds]);
+
   const availableModuleIds = useMemo(
-    () =>
-      (department?.moduleIds || []).filter(
-        (id: string) => unlockedModuleIds.has(id) || enabledModuleIds.has(id),
-      ),
-    [department, unlockedModuleIds, enabledModuleIds],
+    () => moduleGroups.flatMap((group) => group.moduleIds),
+    [moduleGroups],
   );
 
   // `department.employees` is the server-computed, department-scoped roster
@@ -284,6 +320,7 @@ const TeamManagementTab = () => {
         onClose={() => setSelectedMember(null)}
         member={selectedMember}
         moduleIds={availableModuleIds}
+        moduleGroups={moduleGroups}
         moduleLabelById={moduleLabelById}
         onSaved={() => {
           queryClient.invalidateQueries({ queryKey: ["team-management-overview"] });

@@ -347,8 +347,15 @@ const NomadListing = () => {
     // fd.set("services", toCommaString(values.services));
     // fd.set("units", toCommaString(values.units));
 
-    // ✅ reviews JSON
-    fd.set("reviews", JSON.stringify(values.reviews || []));
+    // ✅ reviews JSON — Nomads keys the rating off `starCount`, so map the
+    // form's `rating` field into `starCount` (same as the edit form).
+    const mappedReviews = (values.reviews || []).map((r) => ({
+      name: r.name,
+      review: r.review,
+      starCount: Number(r.rating ?? 0),
+      rating: Number(r.rating ?? 0),
+    }));
+    fd.set("reviews", JSON.stringify(mappedReviews));
     for (const key of Array.from(fd.keys())) {
       if (/^reviews\.\d+\./.test(key)) fd.delete(key);
     }
@@ -911,50 +918,6 @@ const NomadListing = () => {
             />
           </div>
           <div className="mb-4 md:mb-0">
-            {/* Images */}
-            <Controller
-              name="images"
-              control={control}
-              render={({ field }) => (
-                <UploadMultipleFilesInput
-                  {...field}
-                  label="Product Images"
-                  maxFiles={10}
-                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
-                  id="images"
-                />
-              )}
-            />
-          </div>
-          <div className="mb-4 md:mb-0">
-            {/* Logo — optional; falls back to your company profile logo */}
-            <Controller
-              name="logo"
-              control={control}
-              render={({ field }) => (
-                <UploadMultipleFilesInput
-                  {...field}
-                  label="Company Logo (optional)"
-                  maxFiles={1}
-                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
-                  id="logo"
-                />
-              )}
-            />
-            {!watch("logo")?.length && profileLogoUrl && (
-              <div className="mt-2 flex items-center gap-3">
-                <img
-                  src={profileLogoUrl}
-                  alt="Company logo"
-                  className="h-24 w-24 rounded-lg object-contain border p-1"
-                />
-                <p className="text-[11px] font-pmedium text-slate-500">
-                  Using your company profile logo. Upload one above to override it for this listing.
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="mb-4 md:mb-0">
             {/* Google Map URL */}
             <Controller
               name="googleMap"
@@ -1033,6 +996,50 @@ const NomadListing = () => {
                 />
               )}
             />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Images */}
+            <Controller
+              name="images"
+              control={control}
+              render={({ field }) => (
+                <UploadMultipleFilesInput
+                  {...field}
+                  label="Product Images"
+                  maxFiles={10}
+                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                  id="images"
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Logo — optional; falls back to your company profile logo */}
+            <Controller
+              name="logo"
+              control={control}
+              render={({ field }) => (
+                <UploadMultipleFilesInput
+                  {...field}
+                  label="Company Logo (optional)"
+                  maxFiles={1}
+                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                  id="logo"
+                />
+              )}
+            />
+            {!watch("logo")?.length && profileLogoUrl && (
+              <div className="mt-2 flex items-center gap-3">
+                <img
+                  src={profileLogoUrl}
+                  alt="Company logo"
+                  className="h-24 w-24 rounded-lg object-contain border p-1"
+                />
+                <p className="text-[11px] font-pmedium text-slate-500">
+                  Using your company profile logo. Upload one above to override it for this listing.
+                </p>
+              </div>
+            )}
           </div>
           {/* Reviews */}
           <div className="col-span-2">

@@ -286,10 +286,11 @@ const EditNomadListing = () => {
     const reviews =
       Array.isArray(src.reviews) && src.reviews.length
         ? src.reviews.map((r) => ({
+            ...(r._id ? { _id: r._id } : {}),
             name: r.name || "",
             review: r.description || r.review || r.testimony || "",
 
-            rating: Number(r.rating ?? 5),
+            rating: Number(r.starCount ?? r.rating ?? r.rate ?? 5),
           }))
         : [defaultReview];
 
@@ -397,6 +398,7 @@ const EditNomadListing = () => {
 
     // normalize reviews
     const mappedReviews = (values.reviews || []).map((r) => ({
+      ...(r._id ? { _id: r._id } : {}),
       name: r.name,
       review: r.review,
       starCount: Number(r.rating ?? 0),
@@ -938,74 +940,6 @@ const EditNomadListing = () => {
             />
           </div>
 
-          {/* Images */}
-          <div className="col-span-2">
-            {fetchedListing?.images?.length > 0 && (
-              <div className="flex gap-3 flex-wrap mb-3">
-                {fetchedListing.images.map((img) => (
-                  <div
-                    key={img._id}
-                    className="relative w-24 h-24 border rounded overflow-hidden"
-                  >
-                    <img
-                      src={img.url}
-                      alt={`Image ${img.index}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            {!isViewMode && (
-              <Controller
-                name="images"
-                control={control}
-                render={({ field }) => (
-                  <UploadMultipleFilesInput
-                    {...field}
-                    label="Upload New Images"
-                    maxFiles={10}
-                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
-                    id="images"
-                  />
-                )}
-              />
-            )}
-          </div>
-
-          <div className="mb-4 md:mb-0">
-            {/* Logo — optional; falls back to the company profile logo */}
-            {(existingLogoUrl || profileLogoUrl) && !watch("logo")?.length && (
-              <div className="mb-2 flex items-center gap-3">
-                <img
-                  src={existingLogoUrl || profileLogoUrl}
-                  alt="Listing logo"
-                  className="h-24 w-24 rounded-lg object-contain border p-1"
-                />
-                <p className="text-[11px] font-pmedium text-slate-500">
-                  {existingLogoUrl
-                    ? "This listing's current logo."
-                    : "Using your company profile logo."}
-                </p>
-              </div>
-            )}
-            {!isViewMode && (
-              <Controller
-                name="logo"
-                control={control}
-                render={({ field }) => (
-                  <UploadMultipleFilesInput
-                    {...field}
-                    label="Replace Company Logo (optional)"
-                    maxFiles={1}
-                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
-                    id="logo"
-                  />
-                )}
-              />
-            )}
-          </div>
-
           <div className="mb-4 md:mb-0">
             {/* Google Map URL */}
             <Controller
@@ -1088,6 +1022,74 @@ const EditNomadListing = () => {
                 />
               )}
             />
+          </div>
+
+          {/* Images */}
+          <div className="mb-4 md:mb-0">
+            {fetchedListing?.images?.length > 0 && (
+              <div className="flex gap-3 flex-wrap mb-3">
+                {fetchedListing.images.map((img) => (
+                  <div
+                    key={img._id}
+                    className="relative w-24 h-24 border rounded overflow-hidden"
+                  >
+                    <img
+                      src={img.url}
+                      alt={`Image ${img.index}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {!isViewMode && (
+              <Controller
+                name="images"
+                control={control}
+                render={({ field }) => (
+                  <UploadMultipleFilesInput
+                    {...field}
+                    label="Upload New Images"
+                    maxFiles={10}
+                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                    id="images"
+                  />
+                )}
+              />
+            )}
+          </div>
+
+          <div className="mb-4 md:mb-0">
+            {/* Logo — optional; falls back to the company profile logo */}
+            {(existingLogoUrl || profileLogoUrl) && !watch("logo")?.length && (
+              <div className="mb-2 flex items-center gap-3">
+                <img
+                  src={existingLogoUrl || profileLogoUrl}
+                  alt="Listing logo"
+                  className="h-24 w-24 rounded-lg object-contain border p-1"
+                />
+                <p className="text-[11px] font-pmedium text-slate-500">
+                  {existingLogoUrl
+                    ? "This listing's current logo."
+                    : "Using your company profile logo."}
+                </p>
+              </div>
+            )}
+            {!isViewMode && (
+              <Controller
+                name="logo"
+                control={control}
+                render={({ field }) => (
+                  <UploadMultipleFilesInput
+                    {...field}
+                    label="Replace Company Logo (optional)"
+                    maxFiles={1}
+                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                    id="logo"
+                  />
+                )}
+              />
+            )}
           </div>
 
           {/* Reviews */}
