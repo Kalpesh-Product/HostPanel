@@ -89,7 +89,7 @@ interface BulkImportSummary {
 }
 
 interface EmployeeSummaryCard {
-  label: string; value: number; icon: React.ComponentType<{ size?: number }>; toneClass: string; accentClass: string;
+  label: string; value: number; icon: React.ComponentType<{ size?: number }>; toneClass: string; accentClass: string; labelClass: string;
 }
 
 interface RequiredField { field: string; notes: string; }
@@ -1528,10 +1528,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const pendingCount = visibleEmployees.filter((e) => ["pending", "invite_sent", "registered"].includes(e.statusKey)).length;
     const inactiveCount = visibleEmployees.filter((e) => ["inactive", "terminated"].includes(e.statusKey)).length;
     return [
-      { label: "Total Employees", value: visibleEmployees.length, icon: Users, toneClass: "bg-slate-50 text-slate-600", accentClass: "" },
-      { label: "Active", value: activeCount, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500" },
-      { label: "Pending", value: pendingCount, icon: Clock, toneClass: "bg-amber-50 text-amber-600", accentClass: "border-l-4 border-l-amber-500" },
-      { label: "Inactive", value: inactiveCount, icon: Power, toneClass: "bg-rose-50 text-rose-600", accentClass: "border-l-4 border-l-rose-500" },
+      { label: "Total Employees", value: visibleEmployees.length, icon: Users, toneClass: "bg-slate-50 text-slate-600", accentClass: "", labelClass: "text-slate-400" },
+      { label: "Active", value: activeCount, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600" },
+      { label: "Pending", value: pendingCount, icon: Clock, toneClass: "bg-amber-50 text-amber-600", accentClass: "border-l-4 border-l-amber-500", labelClass: "text-amber-600" },
+      { label: "Inactive", value: inactiveCount, icon: Power, toneClass: "bg-rose-50 text-rose-600", accentClass: "border-l-4 border-l-rose-500", labelClass: "text-rose-600" },
     ];
   }, [visibleEmployees]);
 
@@ -1795,7 +1795,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accentClass}`}
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.labelClass}`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>
@@ -2363,9 +2363,9 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-5 py-4 text-left">Employee ID</th>
-                        <th className="px-5 py-4 text-left">Employee Name</th>
-                        <th className="px-5 py-4 text-left">Email</th>
-                        <th className="px-5 py-4 text-left">Department &amp; Role</th>
+                        <th className="px-5 py-4 text-left">Employee</th>
+                        <th className="px-5 py-4 text-left">Role</th>
+                        <th className="px-5 py-4 text-left">Department</th>
                         <th className="px-5 py-4 text-center">Status</th>
                         <th className="px-5 py-4 text-right">Actions</th>
                         <th className="px-5 py-4 text-left">Access</th>
@@ -2391,32 +2391,22 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                                 <span className="font-bold text-slate-800 text-[12px]">{emp.employeeId || emp.employeeNumber || emp.id}</span>
                               </td>
                               <td className="px-5 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 border ${
-                                    ["pending", "invite_sent"].includes(emp.statusKey)
-                                      ? "bg-orange-50 text-orange-600 border-orange-200"
-                                      : "bg-[#2563EB] text-white border-blue-800"
-                                  }`}>
-                                    {(emp.name || "?").charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="font-semibold text-slate-800 text-[12px]">{emp.name}</span>
+                                <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                                  <UserCheck size={14} className="text-slate-400" />
+                                  <span className="text-[12px] text-slate-800">{emp.name}</span>
                                 </div>
+                                {emp.email ? <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{emp.email}</p> : null}
                               </td>
                               <td className="px-5 py-4">
-                                <span className="text-[11px] font-medium text-slate-500">{emp.email}</span>
+                                <span className={`inline-flex w-fit px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-wider ${
+                                  emp.role === "Founder" || emp.role === "Super Admin" || emp.role === "Admin"
+                                    ? "bg-purple-100 text-purple-700"
+                                    : emp.role === "Manager"
+                                      ? "bg-blue-100 text-blue-600"
+                                      : "bg-slate-100 text-slate-500"
+                                }`}>{emp.role}</span>
                               </td>
-                              <td className="px-5 py-4">
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="font-semibold text-slate-700 text-[11px]">{emp.department}</span>
-                                  <span className={`inline-block w-fit px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                                    emp.role === "Founder" || emp.role === "Super Admin" || emp.role === "Admin"
-                                      ? "bg-purple-100 text-purple-700"
-                                      : emp.role === "Manager"
-                                        ? "bg-blue-100 text-blue-600"
-                                        : "bg-slate-100 text-slate-500"
-                                  }`}>{emp.role}</span>
-                                </div>
-                              </td>
+                              <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{emp.department}</td>
                               <td className="px-5 py-4 text-center">{getStatusBadge(emp.statusKey || emp.status)}</td>
                               <td className="px-5 py-4 text-right">
                                 <div className="flex items-center justify-end gap-1">

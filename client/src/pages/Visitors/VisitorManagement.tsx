@@ -2081,6 +2081,30 @@ export default function VisitorsManagementPage() {
     [normalizedMeetingRoomCatalog],
   );
 
+  const walkInBookableCountByType = useMemo(() => {
+    const counts = {};
+    normalizedMeetingRoomCatalog.forEach((room) => {
+      const assignedToTenant = Boolean(room.assignedTenantCompanyId || room.assignedTenantCompanyName);
+      const assignedToDepartment = Boolean(room.assignedDepartmentId || room.assignedDepartmentName);
+      const assignmentBlocked = Boolean(room.walkInBlockedByAssignment || assignedToTenant || assignedToDepartment);
+      const pricingBlocked = room.activationReady === false || Number(room.credits || 0) <= 0 || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0));
+      const statusBlocked = room.status && room.status !== 'Active';
+      if (assignmentBlocked || pricingBlocked || statusBlocked) {
+        return;
+      }
+      const type = room.type || 'Meeting Room';
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return counts;
+  }, [normalizedMeetingRoomCatalog]);
+
+  const walkInSpaceTypeMissingResources = useMemo(() => {
+    if (!form.spaceType) {
+      return false;
+    }
+    return !(walkInBookableCountByType[form.spaceType] > 0);
+  }, [form.spaceType, walkInBookableCountByType]);
+
   const availableFloors = useMemo(() => {
     const floors = Array.from(new Set(normalizedMeetingRoomCatalog.map((room) => room.floor).filter(Boolean)));
     return floors.length > 0 ? floors : ['', '', ''];
@@ -5448,6 +5472,27 @@ export default function VisitorsManagementPage() {
                             )}
                           </div>
 
+                           {walkInSpaceTypeMissingResources && (
+                            <div className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex items-start gap-2.5">
+                                <span className="mt-0.5 shrink-0 rounded-lg bg-amber-100 p-1.5 text-amber-600"><Building size={16} /></span>
+                                <div>
+                                  <p className="text-[12px] font-semibold text-amber-900">No {form.spaceType} resources added yet</p>
+                                  <p className="mt-0.5 text-[11px] font-pmedium leading-relaxed text-amber-700">
+                                    You selected <span className="font-semibold">{form.spaceType}</span>, but there are no bookable {form.spaceType} resources. Click <span className="font-semibold">Add Resources</span> to add one and continue with this walk-in booking.
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={goToResourcePricing}
+                                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]"
+                              >
+                                <Tag size={14} /> Add Resources <ArrowRight size={14} />
+                              </button>
+                            </div>
+                          )}
+
                           <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                             <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
                               <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><LayoutGrid size={16} /></span>
@@ -5477,7 +5522,7 @@ export default function VisitorsManagementPage() {
                                 <select
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.floor ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.floor}
-                                  disabled={!form.spaceType}
+                                  disabled={!form.spaceType || walkInSpaceTypeMissingResources}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, floor: true }))}
                                   onChange={(e) => {
                                     const nextFloor = e.target.value;
@@ -5496,7 +5541,7 @@ export default function VisitorsManagementPage() {
                                 <select
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.wing ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.wing}
-                                  disabled={!form.spaceType || !form.floor}
+                                  disabled={!form.spaceType || !form.floor || walkInSpaceTypeMissingResources}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, wing: true }))}
                                   onChange={(e) => {
                                     const nextWing = e.target.value;
@@ -5515,7 +5560,7 @@ export default function VisitorsManagementPage() {
                                 <select
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.resourceName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.resourceName}
-                                  disabled={!form.spaceType || !form.floor}
+                                  disabled={!form.spaceType || !form.floor || walkInSpaceTypeMissingResources}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, resourceName: true }))}
                                   onChange={(e) => setForm({ ...form, resourceName: e.target.value, seatNumber: '' })}
                                 >
@@ -5537,7 +5582,7 @@ export default function VisitorsManagementPage() {
                                   inputMode="numeric"
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.attendees ? 'border-red-300 bg-red-50' : 'border-slate-200/60'} ${isDeskAreaSeatBooking ? 'opacity-70' : ''}`}
                                   value={isDeskAreaSeatBooking ? 1 : form.attendees}
-                                  disabled={isDeskAreaSeatBooking}
+                                  disabled={isDeskAreaSeatBooking || walkInSpaceTypeMissingResources}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, attendees: true }))}
                                   onChange={(e) => {
                                     if (isDeskAreaSeatBooking) {
@@ -5559,6 +5604,8 @@ export default function VisitorsManagementPage() {
                                 </p>
                               </div>
                             </div>
+
+                         
                           </div>
 
                           {isDeskAreaSeatBooking && (

@@ -311,9 +311,7 @@ export default function WorkspaceSettingsPage() {
       const businessName = String(
         workspace?.businessName || companyNameFromAuth || "",
       ).trim();
-      const brandName = String(
-        workspace?.brandName || workspace?.workspaceName || businessName || "",
-      ).trim();
+
       closePasswordGate();
       navigate("/create-workspace", {
         state: {
@@ -322,7 +320,7 @@ export default function WorkspaceSettingsPage() {
           workspaceDetails: {
             workspaceName: "",
             businessName,
-            brandName,
+            brandName: "",
             country: "",
             state: "",
             city: "",

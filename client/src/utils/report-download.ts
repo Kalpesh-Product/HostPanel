@@ -3,7 +3,7 @@
  */
 export async function downloadReportFile(
   downloadUrl: string | undefined,
-  options: { openInNewTab?: boolean } = {}
+  options: { openInNewTab?: boolean; fileName?: string } = {}
 ): Promise<void> {
   if (!downloadUrl) return;
 
@@ -13,12 +13,16 @@ export async function downloadReportFile(
   }
 
   try {
+    // A plain <a download> is ignored by the browser for cross-origin URLs
+    // (e.g. S3) — it just opens the file instead of downloading it. Fetching
+    // the bytes into a blob: URL first forces a real download since blob:
+    // URLs are always same-origin to the page.
     const response = await fetch(downloadUrl);
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = objectUrl;
-    anchor.download = downloadUrl.split("/").pop() || "report";
+    anchor.download = options.fileName || downloadUrl.split("/").pop() || "report";
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);

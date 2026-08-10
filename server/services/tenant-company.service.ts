@@ -119,6 +119,21 @@ function validateRequiredTenantEmployeeInput(input = {}) {
   }
 }
 
+function validateRequiredTenantCompanyOnboardingInput(input = {}) {
+  if (input.draftMode === true) return;
+  const pkg = input.packageDetails || {}, customer = input.customerDetails || {}, company = input.companyDetails || {}, poc = input.pocDetails || {}, agreement = input.agreementDetails || {};
+  const required = [[input.companyName, "Company name"], [input.businessType, "Business type"], [input.contactName, "Contact person"], [input.email, "Email"], [input.phone, "Phone number"], [customer.sector, "Company sector"], [customer.hoCountry, "Head-office country"], [customer.hoState, "Head-office state"], [customer.hoCity, "Head-office city"], [company.buildingName, "Building name"], [company.unitNo, "Unit number"], [poc.localPocName, "Local POC name"], [poc.localPocEmail, "Local POC email"], [poc.localPocPhone, "Local POC phone"], [input.pricingPackageId, "Package selection"], [pkg.packageName, "Package name"], [input.contractStart || agreement.startDate, "Agreement start date"], [input.endDate || agreement.endDate, "Agreement end date"]];
+  const missing = required.filter(([value]) => !normalizeText(value)).map(([, label]) => label);
+  if (missing.length) { const err = new Error(`${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} required.`); err.statusCode = 400; throw err; }
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/, phonePattern = /^\+?[\d\s()-]{7,15}$/;
+  if (!emailPattern.test(normalizeText(input.email).toLowerCase()) || !emailPattern.test(normalizeText(poc.localPocEmail).toLowerCase())) { const err = new Error("Enter valid company and local POC email addresses."); err.statusCode = 400; throw err; }
+  if (!phonePattern.test(normalizeText(input.phone)) || !phonePattern.test(normalizeText(poc.localPocPhone))) { const err = new Error("Enter valid company and local POC phone numbers."); err.statusCode = 400; throw err; }
+  const totalSeats = Number(pkg.totalSeats || 0), openDesks = Number(pkg.openDesks || 0), cabinDesks = Number(pkg.cabinDesks || 0), duration = Number(input.contractDurationMonths || agreement.lockInPeriod || 0);
+  const mappings = Array.isArray(pkg.locationMappings) ? pkg.locationMappings : [], startDate = new Date(input.contractStart || agreement.startDate), endDate = new Date(input.endDate || agreement.endDate);
+  let message = "";
+  if (totalSeats <= 0) message = "Select at least one tenant company seat."; else if (!mappings.length) message = "Select at least one tenant company location or desk block."; else if (openDesks > 0 && Number(pkg.ratePerOpenDesk || 0) <= 0) message = "Open desk rate must be greater than zero."; else if (cabinDesks > 0 && Number(pkg.ratePerCabinDesk || 0) <= 0) message = "Cabin desk rate must be greater than zero."; else if (Number(pkg.creditsPerSeat || 0) <= 0) message = "Credits per seat must be greater than zero."; else if (Number(pkg.monthlyTotalCredits || input.creditsAllocated || 0) <= 0) message = "Monthly credits must be greater than zero."; else if (duration < 3) message = "Contract duration must be at least 3 months."; else if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) message = "Agreement end date must be after the start date.";
+  if (message) { const err = new Error(message); err.statusCode = 400; throw err; }
+}
 function findEmployeeIndex(employees = [], employeeId = "") {
   const lookup = normalizeText(employeeId).toLowerCase();
   if (!lookup) return -1;
@@ -716,6 +731,8 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
     err.statusCode = 403;
     throw err;
   }
+
+  validateRequiredTenantCompanyOnboardingInput(input);
 
   const tenantNumber = await getNextTenantNumber(access.workspaceId);
   const tenantCode = buildTenantCode(tenantNumber);

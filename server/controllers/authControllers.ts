@@ -19,8 +19,31 @@ import { syncAccountWorkspacePlans } from "../utils/accountPlan.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 import logAuthEvent from "../utils/authActivityLog.js";
 import { renderNotificationEmail } from "../utils/emailTemplates.js";
+import {
+  hostPanelEmailExists,
+  normalizeAccountEmail,
+} from "../services/accountEmailAvailability.js";
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).+$/;
+
+export const checkAccountEmail = async (req, res, next) => {
+  try {
+    const normalizedEmail = normalizeAccountEmail(req.query?.email);
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const exists = await hostPanelEmailExists(normalizedEmail);
+    return res.status(200).json({
+      exists,
+      message: exists
+        ? "This email is already registered. Please use a different email."
+        : "Email is available",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 const validateStrongPassword = (password: string) => {
   if (!password || password.length < 8) return "Must be at least 8 characters long.";
@@ -1416,11 +1439,8 @@ export const startRegisterDirect = async (req, res, next) => {
     const strengthMessage = validateStrongPassword(password);
     if (strengthMessage) return res.status(400).json({ message: strengthMessage });
 
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const existing = await HostUser.findOne({ email: normalizedEmail })
-      .lean()
-      .exec();
-    if (existing) {
+    const normalizedEmail = normalizeAccountEmail(email);
+    if (await hostPanelEmailExists(normalizedEmail)) {
       return res
         .status(409)
         .json({
@@ -1558,10 +1578,7 @@ export const verifyRegisterOtpDirect = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid OTP." });
     }
 
-    const existing = await HostUser.findOne({ email: normalizedEmail })
-      .lean()
-      .exec();
-    if (existing) {
+    if (await hostPanelEmailExists(normalizedEmail)) {
       return res
         .status(409)
         .json({ message: "Account already exists. Please sign in." });

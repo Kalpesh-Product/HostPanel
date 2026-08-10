@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Country } from "country-state-city";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 import type { CountryCode } from "libphonenumber-js";
+import { useQuery } from "@tanstack/react-query";
 import {
   BadgeAlert,
   BadgeCheck,
@@ -12,7 +13,10 @@ import {
   CalendarDays,
   Camera,
   ChevronDown,
+  Download,
+  Eye,
   FileKey,
+  FileText,
   Handshake,
   Hash,
   House,
@@ -28,11 +32,20 @@ import {
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getStoredTenantRole } from "../../lib/tenant-session";
 import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
+import { getDepartmentDocuments, getAllDepartmentDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
+import humanDate from "../../utils/humanDateForamt";
 import MuiModal from "../../components/MuiModal";
 import AvatarCropModal from "../../components/AvatarCropModal";
+import { SectionShell, DetailCard } from "../../components/Pages/ProfileSection";
+
+const openDocument = (fileUrl: string) => {
+  if (!fileUrl) return;
+  window.open(fileUrl, "_blank", "noopener,noreferrer");
+};
 
 const MAX_AVATAR_SIZE_MB = 2;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
@@ -215,18 +228,6 @@ function formatTitleCase(value: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase()) || "-";
 }
 
-function DetailCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ComponentType<{ size?: number; className?: string }> }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
-      <div className="flex items-center gap-2 mb-1.5">
-        <Icon size={13} className="text-blue-600 shrink-0" />
-        <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">{label}</p>
-      </div>
-      <p className="text-[13px] font-semibold text-slate-900 break-words">{String(value || "-")}</p>
-    </div>
-  );
-}
-
 const fieldInputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-900 outline-none transition-all focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
 const fieldDisabledClass =
@@ -242,23 +243,158 @@ function FormField({ label, hint, className = "", children }: { label: string; h
   );
 }
 
-function SectionShell({ eyebrow, title, icon: Icon, action, children }: { eyebrow?: string; title: string; icon: React.ComponentType<{ size?: number }>; action?: React.ReactNode; children: React.ReactNode }) {
+function DocumentRow({
+  doc,
+  badge,
+  onDownload,
+}: {
+  doc: any;
+  badge?: string;
+  onDownload?: (doc: any) => void;
+}) {
   return (
-    <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-            <Icon size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">{eyebrow}</p>
-            <h2 className="text-lg font-pmedium text-slate-900">{title}</h2>
-          </div>
+    <div
+      key={doc._id}
+      className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
+          <FileText size={16} />
         </div>
-        {action}
+        <div className="min-w-0">
+          <p className="text-[13px] font-pmedium text-slate-900 truncate">{doc.name || "Untitled"}</p>
+          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
+            {badge ? `${badge} · ` : ""}Updated {humanDate(doc.updatedAt)}
+            {Array.isArray(doc.assignedDepartmentNames) && doc.assignedDepartmentNames.length > 0
+              ? ` · Shared with ${doc.assignedDepartmentNames.join(", ")}`
+              : ""}
+          </p>
+        </div>
       </div>
-      <div className="pt-5">{children}</div>
-    </section>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => openDocument(doc.fileUrl)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB]"
+        >
+          <Eye size={12} /> View
+        </button>
+        <button
+          type="button"
+          disabled={!onDownload}
+          onClick={() => onDownload?.(doc)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] disabled:opacity-50"
+        >
+          <Download size={12} /> Download
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Read-only list of active SOPs/Policies uploaded from Team Management,
+// surfaced here the same way Company Profile surfaces company-wide
+// SOPs/Policies — but department-scoped, with two very different audiences:
+//
+// - Founder / super_admin / the HR department manager: EVERY department's
+//   docs (owned + assigned), grouped department-wise — they oversee all of it.
+// - Everyone else (a department manager or their employees): only their own
+//   department's docs (owned by it, or assigned/shared to it from
+//   elsewhere) — the server already applies employee-level visibility
+//   filtering for plain employees.
+//
+// Renders nothing once we know there's nothing to show (no departments for a
+// regular member, or the actor isn't founder/super_admin/HR-manager).
+function DepartmentDocumentsSection({ kind, title }: { kind: DepartmentDocumentType; title: string }) {
+  const axios = useAxiosPrivate();
+  const { departments, departmentNames, roleBand, isLoading: isDeptLoading } = useDashboardAccess();
+  const isOwnerOrSuperAdmin = roleBand === "owner" || roleBand === "super_admin";
+  const isHrManager = roleBand === "manager" && departmentNames.some((name) => String(name || "").trim().toUpperCase() === "HR");
+  const seesAllDepartments = isOwnerOrSuperAdmin || isHrManager;
+
+  const departmentIds = departments.map((d) => d.id).filter(Boolean);
+
+  const { data, isLoading } = useQuery({
+    queryKey: seesAllDepartments
+      ? ["myProfileAllDepartmentDocuments", kind]
+      : ["myProfileDepartmentDocuments", kind, departmentIds.join(",")],
+    queryFn: async () => {
+      if (seesAllDepartments) {
+        const res = await getAllDepartmentDocuments(axios, kind);
+        return res?.data?.data?.documents || [];
+      }
+      const results = await Promise.all(
+        departments.map((dept) =>
+          getDepartmentDocuments(axios, dept.id, kind)
+            .then((res: any) => res?.data?.data?.documents || [])
+            .catch(() => []),
+        ),
+      );
+      return results.flat();
+    },
+    enabled: seesAllDepartments || departmentIds.length > 0,
+    staleTime: 60 * 1000,
+  });
+
+  const documents = (Array.isArray(data) ? data : []).filter((item: any) => item.isActive !== false);
+
+  const handleDownload = async (doc: any) => {
+    try {
+      await downloadDepartmentDocumentFile(axios, doc._id, `${doc.name || "Document"}.pdf`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to download document.");
+    }
+  };
+
+  const groupedByDepartment = useMemo(() => {
+    if (!seesAllDepartments) return null;
+    const groups = new Map<string, any[]>();
+    documents.forEach((doc: any) => {
+      const key = doc.departmentName || "Other";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(doc);
+    });
+    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [documents, seesAllDepartments]);
+
+  if (!isDeptLoading && !seesAllDepartments && departmentIds.length === 0) return null;
+
+  return (
+    <SectionShell eyebrow={seesAllDepartments ? "Every Department" : "Department"} title={title} icon={FileText}>
+      {isLoading || isDeptLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-2xl border border-slate-100 bg-slate-50/80 animate-pulse" />
+          ))}
+        </div>
+      ) : documents.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-8 text-center">
+          <FileText className="mx-auto text-slate-300" size={22} />
+          <p className="mt-2 text-[12px] font-pmedium text-slate-400">No {title.toLowerCase()} uploaded yet.</p>
+        </div>
+      ) : seesAllDepartments && groupedByDepartment ? (
+        <div className="flex flex-col gap-5">
+          {groupedByDepartment.map(([departmentName, docs]) => (
+            <div key={departmentName}>
+              <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 mb-2">{departmentName}</p>
+              <div className="flex flex-col gap-2.5">
+                {docs.map((doc: any) => (
+                  <DocumentRow key={doc._id} doc={doc} onDownload={handleDownload} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {documents.map((doc: any) => {
+            const isOwned = departmentIds.includes(String(doc.departmentId));
+            const badge = isOwned ? undefined : `Assigned · ${doc.departmentName || "Other"}`;
+            return <DocumentRow key={doc._id} doc={doc} badge={badge} onDownload={handleDownload} />;
+          })}
+        </div>
+      )}
+    </SectionShell>
   );
 }
 
@@ -822,6 +958,9 @@ export default function UserDetails() {
           </SectionShell>
         </>
       )}
+
+      <DepartmentDocumentsSection kind="policy" title="Department Policies" />
+      <DepartmentDocumentsSection kind="sop" title="Department SOPs" />
     </div>
   </div>
 

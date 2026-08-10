@@ -25,12 +25,14 @@ import {
   verifyTenantRegisterOtpAndComplete,
   getTenantProfile,
   consumeStaffViewToken,
+  checkAccountEmail,
 } from "../controllers/authControllers.js";
 import refreshTokenController from "../controllers/refreshTokenController.js";
 import verifyJwt from "../middlewares/verifyJwt.js";
 const router = Router();
 
 router.post("/login", login);
+router.get("/check-email", checkAccountEmail);
 router.get("/refresh", refreshTokenController);
 router.get("/logout", logout);
 router.patch("/forgot-password", forgotPassword);

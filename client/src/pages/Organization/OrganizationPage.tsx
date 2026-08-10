@@ -2068,24 +2068,16 @@ export function OrganizationPage() {
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-5 py-4">Member Info</th>
                     <th className="px-5 py-4">Employee ID</th>
+                    <th className="px-5 py-4">Employee</th>
                     <th className="px-5 py-4">Role</th>
-                    <th className="px-5 py-4">Contact Details</th>
+                    <th className="px-5 py-4">Department</th>
                     <th className="px-5 py-4">Join Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
                   {selectedDepartmentMembers.map((emp) => (
                     <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-pmedium text-[10px] shadow-sm bg-gradient-to-br from-[#2563EB] to-blue-700">
-                            {getInitials(emp.name)}
-                          </div>
-                          <div className="font-pmedium text-[11px] text-slate-900">{emp.name}</div>
-                        </div>
-                      </td>
                       <td className="px-5 py-4">
                         {emp.employeeId ? (
                           <span className={statusPillClass(emp.employeeId)}>
@@ -2095,10 +2087,15 @@ export function OrganizationPage() {
                           <span className="text-[12px] font-pmedium text-slate-300">-</span>
                         )}
                       </td>
-                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-[12px] text-slate-600"><Mail size={14} className="text-slate-400"/> {emp.email}</div>
+                        <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                          <UserCheck size={14} className="text-slate-400" />
+                          <span className="text-[11px] text-slate-900">{emp.name}</span>
+                        </div>
+                        {emp.email ? <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{emp.email}</p> : null}
                       </td>
+                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
+                      <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{normalizeDepartmentLabel(selectedDepartment.name)}</td>
                       <td className="px-5 py-4 text-[12px] font-pmedium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
                     </tr>
                   ))}

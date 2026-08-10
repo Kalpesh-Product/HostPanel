@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle, Mail, Phone, Clock,
   CreditCard, X, ArrowRight, Save, RefreshCw, Briefcase,
   FileText, FileDown, FileSpreadsheet, UserPlus, Download, UploadCloud,
-  Users, History, MapPin, Building2, Loader2
+  Users, History, MapPin, Building2, Loader2, Tag
 } from 'lucide-react';
 import {
   addTenantCompanyEmployee,
@@ -630,6 +630,60 @@ function calculateTenantBillingSummary(form = {}) {
   };
 }
 
+function validateTenantCompanyOnboarding(form = {}, hasAgreementDocument = false) {
+  const errors = {};
+  const packageDetails = form.packageDetails || {}, customerDetails = form.customerDetails || {}, companyDetails = form.companyDetails || {}, pocDetails = form.pocDetails || {}, agreementDetails = form.agreementDetails || {};
+  const mappings = Array.isArray(packageDetails.locationMappings) ? packageDetails.locationMappings : [];
+  const totalSeats = Number(packageDetails.totalSeats || 0), openDesks = Number(packageDetails.openDesks || 0), cabinDesks = Number(packageDetails.cabinDesks || 0);
+  const email = String(form.email || '').trim(), phone = String(form.phone || '').trim();
+  if (!String(form.companyName || '').trim()) errors.companyName = 'Company name is required.';
+  if (!String(form.businessType || '').trim()) errors.businessType = 'Business type is required.';
+  if (!String(form.contactName || '').trim()) errors.contactName = 'Contact person is required.';
+  if (!email) errors.email = 'Email is required.'; else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Enter a valid email address.';
+  if (!phone) errors.phone = 'Phone number is required.'; else if (!/^\+?[\d\s()-]{7,15}$/.test(phone)) errors.phone = 'Enter a valid phone number.';
+  if (!String(customerDetails.sector || '').trim()) errors.sector = 'Company sector is required.';
+  if (!String(customerDetails.hoCountry || '').trim()) errors.hoCountry = 'Head-office country is required.';
+  if (!String(customerDetails.hoState || '').trim()) errors.hoState = 'Head-office state is required.';
+  if (!String(customerDetails.hoCity || '').trim()) errors.hoCity = 'Head-office city is required.';
+  if (!String(companyDetails.buildingName || '').trim()) errors.buildingName = 'Building name is required.';
+  if (!String(companyDetails.unitNo || '').trim()) errors.unitNo = 'Unit number is required.';
+  if (!String(pocDetails.localPocName || '').trim()) errors.localPocName = 'Local POC name is required.';
+  const localPocEmail = String(pocDetails.localPocEmail || '').trim(), localPocPhone = String(pocDetails.localPocPhone || '').trim();
+  if (!localPocEmail) errors.localPocEmail = 'Local POC email is required.'; else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localPocEmail)) errors.localPocEmail = 'Enter a valid local POC email.';
+  if (!localPocPhone) errors.localPocPhone = 'Local POC phone is required.'; else if (!/^\+?[\d\s()-]{7,15}$/.test(localPocPhone)) errors.localPocPhone = 'Enter a valid local POC phone.';
+  if (!form.pricingPackageId) errors.pricingPackageId = 'Select a package.';
+  if (form.pricingPackageId === '__custom__' && !String(packageDetails.selectionFloor || '').trim()) errors.selectionFloor = 'Select a floor for the space assignment.';
+  if (!String(packageDetails.packageName || '').trim()) errors.packageName = 'Package name is required.';
+  if (!Number.isFinite(totalSeats) || totalSeats <= 0) errors.totalSeats = 'Select at least one seat.';
+  if (mappings.length === 0) errors.locationMappings = 'Select at least one location or desk block.';
+  if (openDesks > 0 && Number(packageDetails.ratePerOpenDesk || 0) <= 0) errors.ratePerOpenDesk = 'Enter the open desk rate.';
+  if (cabinDesks > 0 && Number(packageDetails.ratePerCabinDesk || 0) <= 0) errors.ratePerCabinDesk = 'Enter the cabin desk rate.';
+  if (Number(packageDetails.creditsPerSeat || 0) <= 0) errors.creditsPerSeat = 'Credits per seat must be greater than zero.';
+  if (Number(packageDetails.monthlyTotalCredits || form.creditsAllocated || 0) <= 0) errors.monthlyTotalCredits = 'Monthly credits must be greater than zero.';
+  if (Number(agreementDetails.lockInPeriod || 0) < 3) errors.contractDuration = 'Contract duration must be at least 3 months.';
+  const startDate = String(agreementDetails.startDate || form.startDate || '').trim(), endDate = String(agreementDetails.endDate || form.endDate || '').trim();
+  if (!startDate) errors.startDate = 'Agreement start date is required.';
+  if (!endDate) errors.endDate = 'Agreement end date is required.';
+  if (startDate && endDate && new Date(endDate) < new Date(startDate)) errors.endDate = 'Agreement end date must be after the start date.';
+  if (!hasAgreementDocument) errors.agreementDocument = 'Upload at least one agreement document.';
+  return errors;
+}
+
+function getTenantValidationSection(field) {
+  if (['companyName', 'businessType', 'contactName', 'email', 'phone'].includes(field)) return 'profile';
+  if (['pricingPackageId', 'packageName', 'totalSeats', 'locationMappings', 'ratePerOpenDesk', 'ratePerCabinDesk', 'creditsPerSeat', 'monthlyTotalCredits', 'selectionFloor'].includes(field)) return 'space';
+  if (field === 'contractDuration') return 'billing';
+  if (['sector', 'hoCountry', 'hoState', 'hoCity'].includes(field)) return 'customer';
+  if (['buildingName', 'unitNo'].includes(field)) return 'company';
+  if (['startDate', 'endDate'].includes(field)) return 'agreement';
+  if (['localPocName', 'localPocEmail', 'localPocPhone'].includes(field)) return 'poc';
+  return 'document';
+}
+
+function TenantFieldError({ message = '' }) {
+  if (!message) return null;
+  return <p className="text-[10px] font-pmedium text-rose-600">{message}</p>;
+}
 function formatDateTimeLabel(value) {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
@@ -717,6 +771,7 @@ export default function TenantCompaniesPage() {
   const [activeTab, setActiveTab] = useState('companies');
   const [requestStatusFilter, setRequestStatusFilter] = useState('All Requests');
   const [activeModal, setActiveModal] = useState(null);
+  const [showResourcePrerequisite, setShowResourcePrerequisite] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [availablePackages, setAvailablePackages] = useState([]);
   const [resources, setResources] = useState([]);
@@ -1230,10 +1285,12 @@ export default function TenantCompaniesPage() {
   const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [hasAttemptedCompanySubmit, setHasAttemptedCompanySubmit] = useState(false);
 
   useEffect(() => {
     setFieldErrors({});
     setFormError('');
+    setHasAttemptedCompanySubmit(false);
   }, [activeModal]);
   const bulkUploadInputRef = useRef(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
@@ -1398,6 +1455,10 @@ export default function TenantCompaniesPage() {
       && Number(resource.pricePerDay) > 0
       && Number(resource.credits) > 0
     ),
+    [resources],
+  );
+  const hasActiveTenantDeskResources = useMemo(
+    () => resources.some((resource) => isTenantDeskResource(resource) && resource.isActive),
     [resources],
   );
   const customPackageFloorOptions = useMemo(() => {
@@ -1663,6 +1724,14 @@ export default function TenantCompaniesPage() {
   const canSaveTenantCompany = activeModal === 'add' || activeModal === 'renew' || hasExistingAgreementDocuments || agreementFiles.length > 0;
   const contractDurationMonthsValue = Number(companyForm.agreementDetails?.lockInPeriod);
   const isContractDurationInvalid = !Number.isFinite(contractDurationMonthsValue) || contractDurationMonthsValue < 3;
+  const onboardingValidationErrors = useMemo(
+    () => validateTenantCompanyOnboarding(companyForm, hasExistingAgreementDocuments || agreementFiles.length > 0),
+    [agreementFiles.length, companyForm, hasExistingAgreementDocuments],
+  );
+
+  const visibleCompanyErrors = activeModal === 'add' && hasAttemptedCompanySubmit
+    ? onboardingValidationErrors
+    : fieldErrors;
 
   const displayedTenants = useMemo(() => {
     return tenants.filter(t => {
@@ -2040,7 +2109,19 @@ export default function TenantCompaniesPage() {
     if (isSaving) return;
     setFormError('');
 
-    if (activeModal !== 'renew') {
+    if (activeModal === 'add') {
+      setHasAttemptedCompanySubmit(true);
+      setFieldErrors(onboardingValidationErrors);
+      const firstField = Object.keys(onboardingValidationErrors)[0];
+      if (firstField) {
+        window.requestAnimationFrame(() => {
+          const section = document.querySelector('[data-tenant-validation="' + getTenantValidationSection(firstField) + '"]');
+          section?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          section?.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
+        });
+        return;
+      }
+    } else if (activeModal !== 'renew') {
       const trimmedName = String(companyForm.companyName || '').trim();
       const trimmedContact = String(companyForm.contactName || '').trim();
       const trimmedEmail = String(companyForm.email || '').trim();
@@ -2070,7 +2151,7 @@ export default function TenantCompaniesPage() {
       return;
     }
 
-    if (activeModal !== 'renew' && activeModal !== 'add' && !hasExistingAgreementDocuments && agreementFiles.length === 0) {
+    if (activeModal !== 'renew' && !hasExistingAgreementDocuments && agreementFiles.length === 0) {
       const agreementError = 'At least one agreement document is required.';
       setFormError(agreementError);
       toast.error(agreementError);
@@ -2151,8 +2232,9 @@ export default function TenantCompaniesPage() {
       setAgreementFiles([]);
       setFormError('');
     } catch (error) {
-      toast.error(error.message || 'Unable to save tenant company.');
-      setFormError(error.message || 'Unable to save tenant company.');
+      const errorMessage = error?.response?.data?.message || error.message || 'Unable to save tenant company.';
+      toast.error(errorMessage);
+      setFormError(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -2594,6 +2676,11 @@ export default function TenantCompaniesPage() {
   };
 
   const openAddCompanyModal = () => {
+    if (!hasActiveTenantDeskResources) {
+      setShowResourcePrerequisite(true);
+      return;
+    }
+
     setSelectedTenant(null);
     setEmployeeModalOpen(false);
     setAgreementFiles([]);
@@ -2623,6 +2710,20 @@ export default function TenantCompaniesPage() {
       },
     });
     setActiveModal('add');
+  };
+
+  const goToAddTenantResource = () => {
+    setShowResourcePrerequisite(false);
+    navigate('/sales-crm/resource-pricing', {
+      state: {
+        from: '/sales-crm/tenant-companies',
+        intent: 'add-tenant-inventory',
+        openResourceModal: true,
+        preset: 'tenant_inventory',
+        resourceCategory: 'open_desk',
+        inventoryMode: 'area',
+      },
+    });
   };
 
   const prepareCompanyFormForTenant = (tenant) => {
@@ -2858,7 +2959,24 @@ export default function TenantCompaniesPage() {
           </div>
           <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleBulkFileSelected} className="hidden" />
 
-          <div className="mb-8 mt-8 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          {!hasActiveTenantDeskResources && (
+            <div className="mb-3 mt-8 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white text-amber-700 shadow-sm">
+                  <AlertTriangle size={16} />
+                </div>
+                <div>
+                  <p className="text-[12px] font-pmedium text-amber-950">Add an open desk or cabin desk before onboarding a tenant company.</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Sales Department &rarr; Resource &amp; Pricing</p>
+                </div>
+              </div>
+              <button type="button" onClick={goToAddTenantResource} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-amber-800 shadow-sm ring-1 ring-amber-200 transition-all hover:bg-amber-100">
+                <Tag size={13} /> Add Resources <ArrowRight size={13} />
+              </button>
+            </div>
+          )}
+
+          <div className={`${hasActiveTenantDeskResources ? 'mt-8' : ''} mb-8 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm`}>
             <button
               type="button"
               onClick={() => setActiveTab('companies')}
@@ -2874,7 +2992,6 @@ export default function TenantCompaniesPage() {
               Extra credits requests
             </button>
           </div>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 shrink-0">
             {summaryCards.map((card) => {
               const Icon = card.icon;
@@ -3285,6 +3402,20 @@ export default function TenantCompaniesPage() {
             </div>
           )}
 
+          {showResourcePrerequisite && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm" onClick={() => setShowResourcePrerequisite(false)}>
+              <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/70 bg-white p-6 text-center shadow-2xl sm:p-8" onClick={(event) => event.stopPropagation()}>
+                <button type="button" onClick={() => setShowResourcePrerequisite(false)} className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"><X size={16} /></button>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-[#2563EB] shadow-sm"><Building2 size={24} /></div>
+                <p className="mt-5 text-base font-pmedium text-slate-950">No tenant desk resources are available yet</p>
+                <p className="mx-auto mt-2 max-w-sm text-[12px] font-pmedium leading-relaxed text-slate-500">Add an active Open Desk or Cabin Desk before onboarding a tenant company. Other resource categories do not satisfy this requirement.</p>
+                <button type="button" onClick={goToAddTenantResource} className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]">
+                  <Tag size={14} /> Add Resources <ArrowRight size={14} />
+                </button>
+                <button type="button" onClick={() => setShowResourcePrerequisite(false)} className="mt-3 block w-full text-[10px] font-pmedium uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-700">Close</button>
+              </div>
+            </div>
+          )}
           {(activeModal === 'add' || activeModal === 'edit' || activeModal === 'renew') && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
               <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/70">
@@ -3303,38 +3434,39 @@ export default function TenantCompaniesPage() {
                 <form onSubmit={handleSaveCompany} noValidate className="p-3 sm:p-4 overflow-y-auto flex flex-1 flex-col gap-4 bg-slate-50/30">
 
                   {activeModal !== 'renew' && (
-                    <div className="order-5 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <div data-tenant-validation="profile" className="order-5 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
                       <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">5. Profile &amp; Contact</span></h4>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company Name <span className="text-red-400">*</span></label>
-                        <input type="text" placeholder="Enter company name" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.companyName ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.companyName} onChange={e => { setCompanyForm({ ...companyForm, companyName: e.target.value }); if (fieldErrors.companyName) setFieldErrors((prev) => ({ ...prev, companyName: '' })); }} />
-                        {fieldErrors.companyName && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.companyName}</p>}
+                        <input type="text" placeholder="Enter company name" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${visibleCompanyErrors.companyName ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.companyName} onChange={e => { setCompanyForm({ ...companyForm, companyName: e.target.value }); if (visibleCompanyErrors.companyName) setFieldErrors((prev) => ({ ...prev, companyName: '' })); }} />
+                        {visibleCompanyErrors.companyName && <p className="text-[10px] font-pmedium text-rose-600">{visibleCompanyErrors.companyName}</p>}
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Business Type</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Business Type <span className="text-red-400">*</span></label>
                         <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.businessType} onChange={e => setCompanyForm({ ...companyForm, businessType: e.target.value })} />
+                        <TenantFieldError message={visibleCompanyErrors.businessType} />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
                           <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Contact Person <span className="text-red-400">*</span></label>
-                          <input type="text" placeholder="Full name" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.contactName ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.contactName} onChange={e => { setCompanyForm({ ...companyForm, contactName: e.target.value }); if (fieldErrors.contactName) setFieldErrors((prev) => ({ ...prev, contactName: '' })); }} />
-                          {fieldErrors.contactName && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.contactName}</p>}
+                          <input type="text" placeholder="Full name" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${visibleCompanyErrors.contactName ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.contactName} onChange={e => { setCompanyForm({ ...companyForm, contactName: e.target.value }); if (visibleCompanyErrors.contactName) setFieldErrors((prev) => ({ ...prev, contactName: '' })); }} />
+                          {visibleCompanyErrors.contactName && <p className="text-[10px] font-pmedium text-rose-600">{visibleCompanyErrors.contactName}</p>}
                         </div>
                         <div className="space-y-1">
                           <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email <span className="text-red-400">*</span></label>
-                          <input type="email" placeholder="name@company.com" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.email ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.email} onChange={e => { setCompanyForm({ ...companyForm, email: e.target.value }); if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' })); }} />
-                          {fieldErrors.email && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.email}</p>}
+                          <input type="email" placeholder="name@company.com" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${visibleCompanyErrors.email ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.email} onChange={e => { setCompanyForm({ ...companyForm, email: e.target.value }); if (visibleCompanyErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' })); }} />
+                          {visibleCompanyErrors.email && <p className="text-[10px] font-pmedium text-rose-600">{visibleCompanyErrors.email}</p>}
                         </div>
                         <div className="space-y-1">
                           <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone <span className="text-red-400">*</span></label>
-                          <input type="tel" placeholder="+91 00000 00000" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${fieldErrors.phone ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.phone} onChange={e => { setCompanyForm({ ...companyForm, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: '' })); }} />
-                          {fieldErrors.phone && <p className="text-[10px] font-pmedium text-rose-600">{fieldErrors.phone}</p>}
+                          <input type="tel" placeholder="+91 00000 00000" className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all ${visibleCompanyErrors.phone ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`} value={companyForm.phone} onChange={e => { setCompanyForm({ ...companyForm, phone: e.target.value }); if (visibleCompanyErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: '' })); }} />
+                          {visibleCompanyErrors.phone && <p className="text-[10px] font-pmedium text-rose-600">{visibleCompanyErrors.phone}</p>}
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="order-3 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                  <div data-tenant-validation="billing" className="order-3 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
                     <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">3. Billing Details</span></h4>
                     <p className="text-[10px] font-pmedium text-slate-400">
                       Calculated from desk allocation and contract duration. Security deposit is fixed at 25% of the total contract amount.
@@ -3346,7 +3478,7 @@ export default function TenantCompaniesPage() {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Contract Duration</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Contract Duration <span className="text-red-400">*</span></label>
                         <input
                           type="number"
                           min="0"
@@ -3369,11 +3501,7 @@ export default function TenantCompaniesPage() {
                             }));
                           }}
                         />
-                        {isContractDurationInvalid && (
-                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">
-                            Contract duration must be at least 3 months.
-                          </p>
-                        )}
+                        <TenantFieldError message={visibleCompanyErrors.contractDuration} />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Rent</label>
@@ -3416,7 +3544,7 @@ export default function TenantCompaniesPage() {
                     </div>
                     {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                          <div className="space-y-1">
-                           <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor</label>
+                           <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor <span className="text-red-400">*</span></label>
                            <select
                              className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-pmedium text-indigo-900 outline-none"
                              value={customPackageFloor}
@@ -3547,7 +3675,7 @@ export default function TenantCompaniesPage() {
                   </div>
 
                   {activeModal !== 'renew' && (
-                    <div className="order-6 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <div data-tenant-validation="customer" className="order-6 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
                       <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><MapPin size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">6. Customer Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1 md:col-span-2">
@@ -3563,7 +3691,7 @@ export default function TenantCompaniesPage() {
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'hoPocPhone', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Sector</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Sector <span className="text-red-400">*</span></label>
                           {!showCustomSector ? (
                             <div className="space-y-2">
                               <select
@@ -3604,12 +3732,13 @@ export default function TenantCompaniesPage() {
                               </button>
                             </div>
                           )}
+                          <TenantFieldError message={visibleCompanyErrors.sector} />
                           {!showCustomSector && companyForm.customerDetails.sector === '' && (
                             <p className="text-[9px] font-pmedium text-amber-600">Select or add a sector</p>
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO Country</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO Country <span className="text-red-400">*</span></label>
                           <select
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoCountry}
@@ -3619,9 +3748,10 @@ export default function TenantCompaniesPage() {
                             <option value="">{loadingCountries ? 'Loading countries...' : 'Select country'}</option>
                             {countries.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
+                          <TenantFieldError message={visibleCompanyErrors.hoCountry} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO State</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO State <span className="text-red-400">*</span></label>
                           <select
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoState}
@@ -3631,9 +3761,10 @@ export default function TenantCompaniesPage() {
                             <option value="">{loadingStates ? 'Loading states...' : companyForm.customerDetails.hoCountry ? 'Select state' : 'Select country first'}</option>
                             {states.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
+                          <TenantFieldError message={visibleCompanyErrors.hoState} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO City</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO City <span className="text-red-400">*</span></label>
                           <select
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             value={companyForm.customerDetails.hoCity}
@@ -3643,29 +3774,32 @@ export default function TenantCompaniesPage() {
                             <option value="">{loadingCities ? 'Loading cities...' : companyForm.customerDetails.hoState ? 'Select city' : 'Select state first'}</option>
                             {cities.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
+                          <TenantFieldError message={visibleCompanyErrors.hoCity} />
                         </div>
                       </div>
                     </div>
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-4 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <div data-tenant-validation="company" className="order-4 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
                       <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">4. Company Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Building Name</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Building Name <span className="text-red-400">*</span></label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.buildingName} onChange={(e) => updateCompanySection('companyDetails', 'buildingName', e.target.value)} />
+                          <TenantFieldError message={visibleCompanyErrors.buildingName} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit No</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit No <span className="text-red-400">*</span></label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.unitNo} onChange={(e) => updateCompanySection('companyDetails', 'unitNo', e.target.value)} />
+                          <TenantFieldError message={visibleCompanyErrors.unitNo} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Cabin Desks</label>
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.cabinDesks} onChange={(e) => updateCompanySection('companyDetails', 'cabinDesks', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk {Number(companyForm.companyDetails.cabinDesks || 0) > 0 && <span className="text-red-400">*</span>}</label>
                           <input
                             type="number"
                             min="0"
@@ -3683,7 +3817,7 @@ export default function TenantCompaniesPage() {
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.openDesks} onChange={(e) => updateCompanySection('companyDetails', 'openDesks', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Open Desk</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Open Desk {Number(companyForm.companyDetails.openDesks || 0) > 0 && <span className="text-red-400">*</span>}</label>
                           <input
                             type="number"
                             min="0"
@@ -3709,7 +3843,7 @@ export default function TenantCompaniesPage() {
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-7 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <div data-tenant-validation="agreement" className="order-7 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
                       <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">7. Agreement Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
@@ -3725,7 +3859,7 @@ export default function TenantCompaniesPage() {
                           <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.totalMeetingCredits} onChange={(e) => updateCompanySection('agreementDetails', 'totalMeetingCredits', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
                           <input type="date" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.agreementDetails.startDate} onChange={(e) => setCompanyForm((prev) => ({
                             ...prev,
                             startDate: e.target.value,
@@ -3734,10 +3868,12 @@ export default function TenantCompaniesPage() {
                               startDate: e.target.value,
                             },
                           }))} />
+                          <TenantFieldError message={visibleCompanyErrors.startDate} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date <span className="text-red-400">*</span></label>
                           <input type="date" className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-pmedium text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.endDate} readOnly />
+                          <TenantFieldError message={visibleCompanyErrors.endDate} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Lock-in Period</label>
@@ -3749,20 +3885,23 @@ export default function TenantCompaniesPage() {
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div className="order-8 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <div data-tenant-validation="poc" className="order-8 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
                       <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Phone size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">8. POC Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Name</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Name <span className="text-red-400">*</span></label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocName} onChange={(e) => updateCompanySection('pocDetails', 'localPocName', e.target.value)} />
+                          <TenantFieldError message={visibleCompanyErrors.localPocName} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Email</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Email <span className="text-red-400">*</span></label>
                           <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'localPocEmail', e.target.value)} />
+                          <TenantFieldError message={visibleCompanyErrors.localPocEmail} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Phone</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Phone <span className="text-red-400">*</span></label>
                           <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.localPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'localPocPhone', e.target.value)} />
+                          <TenantFieldError message={visibleCompanyErrors.localPocPhone} />
                         </div>
                       </div>
                     </div>
@@ -3776,7 +3915,7 @@ export default function TenantCompaniesPage() {
                       )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1 md:col-span-2">
-                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Package Name</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Package Name <span className="text-red-400">*</span></label>
                           <input
                             type="text"
                             disabled={isTenantPackageLocked}
@@ -3784,12 +3923,13 @@ export default function TenantCompaniesPage() {
                             value={companyForm.packageDetails.packageName}
                             onChange={(e) => updateCompanySection('packageDetails', 'packageName', e.target.value)}
                           />
+                          <TenantFieldError message={visibleCompanyErrors.packageName} />
                           {!companyForm.pricingPackageId && (
                             <p className="text-[10px] font-pmedium text-indigo-400">Name the custom package before you save the selected areas and desks.</p>
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Total Seats</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Total Seats <span className="text-red-400">*</span></label>
                           <input
                             type="number"
                             min="0"
@@ -3797,6 +3937,7 @@ export default function TenantCompaniesPage() {
                             className="w-full rounded-xl border-2 border-indigo-100 bg-indigo-50 px-4 py-3.5 font-pmedium text-indigo-900 outline-none disabled:cursor-not-allowed disabled:bg-indigo-100/60"
                             value={companyForm.packageDetails.totalSeats}
                           />
+                          <TenantFieldError message={visibleCompanyErrors.totalSeats} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Open Desks</label>
@@ -3820,7 +3961,7 @@ export default function TenantCompaniesPage() {
                         </div>
                         {Number(companyForm.packageDetails.openDesks || 0) > 0 && (
                           <div className="space-y-1">
-                            <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Rate Per Open Desk</label>
+                            <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Rate Per Open Desk <span className="text-red-400">*</span></label>
                             <input
                               type="number"
                               min="0"
@@ -3839,11 +3980,12 @@ export default function TenantCompaniesPage() {
                                 },
                               }))}
                             />
+                            <TenantFieldError message={visibleCompanyErrors.ratePerOpenDesk} />
                           </div>
                         )}
                         {Number(companyForm.packageDetails.cabinDesks || 0) > 0 && (
                           <div className="space-y-1">
-                            <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
+                            <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Rate Per Cabin Desk <span className="text-red-400">*</span></label>
                             <input
                               type="number"
                               min="0"
@@ -3862,10 +4004,11 @@ export default function TenantCompaniesPage() {
                                 },
                               }))}
                             />
+                            <TenantFieldError message={visibleCompanyErrors.ratePerCabinDesk} />
                           </div>
                         )}
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Credits Per Seat</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Credits Per Seat <span className="text-red-400">*</span></label>
                           <input
                             type="number"
                             min="0"
@@ -3874,20 +4017,22 @@ export default function TenantCompaniesPage() {
                             value={companyForm.packageDetails.creditsPerSeat}
                             onChange={(e) => setCompanyForm((prev) => syncCustomPackageCreditFields(prev, e.target.value))}
                           />
+                          <TenantFieldError message={visibleCompanyErrors.creditsPerSeat} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Monthly Total Credits</label>
+                          <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Monthly Total Credits <span className="text-red-400">*</span></label>
                           <input
                             type="number"
                             min="0"
                             readOnly
-                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-black text-sky-900 outline-none focus:border-sky-600"
+                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-pmedium text-sky-900 outline-none focus:border-sky-600"
                             value={companyForm.packageDetails.monthlyTotalCredits}
                           />
+                          <TenantFieldError message={visibleCompanyErrors.monthlyTotalCredits} />
                         </div>
                         <div className="md:col-span-2 rounded-2xl border border-indigo-100 bg-white p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Selected Location Mapping</p>
+                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Selected Location Mapping <span className="text-red-400">*</span></p>
                             <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-indigo-700">
                               {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length} selected
                             </span>
@@ -3915,7 +4060,7 @@ export default function TenantCompaniesPage() {
                       <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">9. Credit Configuration</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Credits Per Seat</label>
+                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Credits Per Seat <span className="text-red-400">*</span></label>
                           <input
                             type="number"
                             min="0"
@@ -3925,12 +4070,12 @@ export default function TenantCompaniesPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Monthly Total Credits</label>
+                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Monthly Total Credits <span className="text-red-400">*</span></label>
                           <input
                             type="number"
                             min="0"
                             readOnly
-                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-black text-sky-900 outline-none focus:border-sky-600"
+                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-pmedium text-sky-900 outline-none focus:border-sky-600"
                             value={companyForm.packageDetails.monthlyTotalCredits}
                           />
                         </div>
@@ -3964,11 +4109,11 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  <div className="order-1 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <div data-tenant-validation="space" className="order-1 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                     <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">1. Package Selection &amp; Allocation</span></h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-5 bg-indigo-50 border border-indigo-100 rounded-2xl">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest"> Select Package</label>
+                        <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest">Select Package <span className="text-red-400">*</span></label>
                         <select
                           className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-pmedium text-indigo-900 focus:border-indigo-600 outline-none cursor-pointer shadow-sm disabled:bg-indigo-50 disabled:text-indigo-500"
                           value={isCustomPackageSelected ? '__custom__' : (companyForm.pricingPackageId || '')}
@@ -3979,10 +4124,11 @@ export default function TenantCompaniesPage() {
                           <option value="__custom__">Custom package</option>
                           {tenantPackageSelectionOptions.map((pkg) => <option key={pkg.recordId || pkg.id} value={pkg.recordId || pkg.id}>{pkg.name} - {pkg.creditsIncluded} CR{pkg.assignedTenantCompanyId ? ' - Locked' : ''}</option>)}
                         </select>
+                        <TenantFieldError message={visibleCompanyErrors.pricingPackageId} />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest flex items-center gap-1">Credits Allocated (Auto)</label>
-                        <input required type="number" min="0" disabled={Boolean(selectedTenantPackage)} className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-black text-indigo-700 outline-none disabled:bg-indigo-100/50 disabled:cursor-not-allowed" value={companyForm.creditsAllocated} onChange={e => setCompanyForm({ ...companyForm, creditsAllocated: parseInt(e.target.value) || 0, planType: 'Custom', pricingPackageId: '__custom__' })} />
+                        <input required type="number" min="0" disabled={Boolean(selectedTenantPackage)} className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-pmedium text-indigo-700 outline-none disabled:bg-indigo-100/50 disabled:cursor-not-allowed" value={companyForm.creditsAllocated} onChange={e => setCompanyForm({ ...companyForm, creditsAllocated: parseInt(e.target.value) || 0, planType: 'Custom', pricingPackageId: '__custom__' })} />
                         <p className="text-[9px] font-pmedium text-indigo-400 mt-1">Credits used for meeting room bookings.</p>
                       </div>
                       {isCustomPackageSelected && (
@@ -3998,7 +4144,7 @@ export default function TenantCompaniesPage() {
                           </div>
                           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                             <div className="space-y-1">
-                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor</label>
+                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Floor <span className="text-red-400">*</span></label>
                               <select
                                 className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-pmedium text-indigo-900 outline-none"
                                 value={customPackageFloor}
@@ -4014,6 +4160,7 @@ export default function TenantCompaniesPage() {
                                 <option value="">Select floor</option>
                                 {customPackageFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
                               </select>
+                              <TenantFieldError message={visibleCompanyErrors.selectionFloor} />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Wing (Optional)</label>
@@ -4070,7 +4217,7 @@ export default function TenantCompaniesPage() {
                                         <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-emerald-200'}`}>
                                           <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
                                           <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                            <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
                                             <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                             {seatLabels.length > 0 && (
                                               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -4107,7 +4254,7 @@ export default function TenantCompaniesPage() {
                                         <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
                                           <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
                                           <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                            <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
                                             <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                             {seatLabels.length > 0 && (
                                               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -4143,7 +4290,7 @@ export default function TenantCompaniesPage() {
                                         <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-sky-300 bg-sky-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-sky-200'}`}>
                                           <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
                                           <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                            <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
                                             <p className="text-[10px] font-pmedium text-slate-400">{resource.floor || '--'} / {resource.wing || '--'} - Single open desk</p>
                                           </div>
                                         </label>
@@ -4171,7 +4318,7 @@ export default function TenantCompaniesPage() {
                         </div>
                       )}
                       <div className="md:col-span-2 rounded-xl border border-indigo-100 bg-white p-4">
-                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Selected Location Mapping</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500">Selected Location Mapping <span className="text-red-400">*</span></p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length > 0 ? (
                             locationLabelsFromValue(companyForm.packageDetails.locationMappings).map((label, index) => (
@@ -4183,12 +4330,13 @@ export default function TenantCompaniesPage() {
                             <span className="text-[10px] font-pmedium text-indigo-400">No location selected yet.</span>
                           )}
                         </div>
+                        <TenantFieldError message={visibleCompanyErrors.locationMappings} />
                       </div>
                     </div>
                   </div>
 
                   {activeModal !== 'renew' && (
-                    <div className="order-10 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <div data-tenant-validation="document" className="order-10 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                       <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">10. Upload Document</span></h4>
                       <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5">
                         <div className="space-y-3">
@@ -4199,9 +4347,10 @@ export default function TenantCompaniesPage() {
                               multiple
                               accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg"
                               onChange={handleAgreementFilesChange}
-                              className="block w-full text-sm font-pmedium text-slate-700 border-none outline-none focus:ring-0 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-xs file:font-black file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
+                              className="block w-full text-sm font-pmedium text-slate-700 border-none outline-none focus:ring-0 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-xs file:font-pmedium file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
                             />
                           </div>
+                          <TenantFieldError message={visibleCompanyErrors.agreementDocument} />
                           <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600">
                             {hasExistingAgreementDocuments
                               ? `${tenantAgreementDocuments.length} existing document${tenantAgreementDocuments.length === 1 ? '' : 's'} attached`

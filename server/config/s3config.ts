@@ -3,6 +3,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { config } from "dotenv";
 
@@ -53,5 +54,28 @@ export async function deleteFileFromS3ByUrl(fileUrl) {
   await s3Client.send(command);
 
   return { success: true, message: "File deleted successfully" };
+}
+
+// Pulls an object's raw bytes + content type back out of S3 so the API can
+// stream it to the browser with a Content-Disposition: attachment header.
+// This gives the frontend a same-origin (API) download that never touches
+// the S3 bucket's CORS config, so the blob-fetch in report-download.ts no
+// longer fails and silently falls back to opening the file in a new tab.
+export async function getFileFromS3ByUrl(fileUrl) {
+  const urlObj = new URL(fileUrl);
+  const key = decodeURIComponent(urlObj.pathname.slice(1));
+
+  const command = new GetObjectCommand({
+    Bucket: process.env.PROJECT_S3_BUCKET_NAME,
+    Key: key,
+  });
+
+  const response = await s3Client.send(command);
+  const bytes = await response.Body.transformToByteArray();
+
+  return {
+    data: Buffer.from(bytes),
+    contentType: response.ContentType || "application/octet-stream",
+  };
 }
 

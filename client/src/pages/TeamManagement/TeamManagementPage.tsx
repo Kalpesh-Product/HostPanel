@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { UsersRound } from "lucide-react";
 import PageFrame from "@/components/Pages/PageFrame";
+import { TeamManagementSkeleton } from "@/components/ui/Skeleton";
 import useManagedDepartment from "@/hooks/useManagedDepartment";
 
 const TABS = [
@@ -20,7 +21,7 @@ const TeamManagementPage = () => {
     return (
       <div className="p-2 lg:p-2.5 min-h-full">
         <PageFrame>
-          <div className="py-16 text-center text-[12px] font-pmedium text-slate-400">Loading...</div>
+          <TeamManagementSkeleton />
         </PageFrame>
       </div>
     );

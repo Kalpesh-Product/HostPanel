@@ -677,3 +677,87 @@ export function VisitorManagementSkeleton() {
     </div>
   );
 }
+
+export function TeamManagementContentSkeleton() {
+  return (
+    <div className="animate-pulse flex flex-col gap-4" role="status" aria-label="Loading team management content" aria-busy="true">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex h-[86px] items-center justify-between rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm"
+          >
+            <div className="space-y-2">
+              <div className="h-3 w-24 rounded-md bg-gray-200" />
+              <div className="h-5 w-10 rounded-md bg-gray-200" />
+            </div>
+            <div className="h-9 w-9 rounded-2xl bg-gray-100" />
+          </div>
+        ))}
+      </div>
+
+      <div className="min-h-[400px] overflow-hidden rounded-2xl border border-slate-100 bg-white/80 shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-8 w-20 rounded-lg bg-gray-200" />
+            ))}
+          </div>
+          <div className="h-10 min-w-[180px] flex-1 rounded-lg bg-gray-200 xl:w-72" />
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="min-w-[860px]">
+            <div className="grid grid-cols-6 gap-5 border-b border-slate-100 bg-slate-50/50 px-5 py-4">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-3 rounded-md bg-gray-200" />
+              ))}
+            </div>
+            {Array.from({ length: 6 }).map((_, rowIndex) => (
+              <div
+                key={rowIndex}
+                className="grid grid-cols-6 items-center gap-5 border-b border-slate-100/60 px-5 py-4"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="h-6 w-6 rounded-lg bg-gray-200" />
+                  <div className="h-4 w-32 rounded-md bg-gray-100" />
+                </div>
+                <div className="h-4 rounded-md bg-gray-100" />
+                <div className="h-4 rounded-md bg-gray-100" />
+                <div className="h-5 w-16 rounded-full bg-gray-200" />
+                <div className="mx-auto h-7 w-7 rounded-lg bg-gray-200" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TeamManagementSkeleton() {
+  return (
+    <div
+      className="animate-pulse p-2 text-[#0F172A] lg:p-2.5"
+      role="status"
+      aria-label="Loading team management"
+      aria-busy="true"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="mb-1 space-y-2">
+          <div className="h-7 w-56 rounded-md bg-gray-200" />
+          <div className="h-4 w-full max-w-2xl rounded-md bg-gray-100" />
+        </div>
+
+        <div className="mb-1 flex gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="h-8 flex-1 rounded-xl bg-gray-200" />
+          ))}
+        </div>
+
+        <TeamManagementContentSkeleton />
+      </div>
+      <span className="sr-only">Loading team management</span>
+    </div>
+  );
+}

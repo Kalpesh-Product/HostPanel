@@ -2,23 +2,111 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, CheckCircle2, Loader2, Pencil, Save, X } from "lucide-react";
+import { Building2, Camera, CheckCircle2, Download, Eye, FileText, Loader2, MapPin, Pencil, Save, ShieldCheck, X } from "lucide-react";
 import { Country } from "country-state-city";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import useWorkspacePreferences from "../../hooks/useWorkspacePreferences";
 import { updateWorkspaceSettings } from "../../services/unit-settings";
+import { getCompanyDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
+import humanDate from "../../utils/humanDateForamt";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
 import MuiModal from "../../components/MuiModal";
 import LogoAdjustModal from "../../components/LogoAdjustModal";
+import { SectionShell, DetailCard } from "../../components/Pages/ProfileSection";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
 import AccountDeletionDangerZone from "./AccountDeletionDangerZone";
 
 const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 const MAX_LOGO_SIZE_MB = 1;
 const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
+
+const openDocument = (fileUrl: string) => {
+  if (!fileUrl) return;
+  window.open(fileUrl, "_blank", "noopener,noreferrer");
+};
+
+// Read-only list of active company-wide SOPs/Policies (uploaded from HR's
+// Company Management page) — view opens the PDF in a new tab, download
+// pulls a local copy.
+const CompanyDocumentsSection = ({ kind, title }: { kind: DepartmentDocumentType; title: string }) => {
+  const axios = useAxiosPrivate();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["companyProfileDocuments", kind],
+    queryFn: async () => {
+      const response = await getCompanyDocuments(axios, kind);
+      return response?.data?.data?.documents || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const documents = (Array.isArray(data) ? data : []).filter((item: any) => item.isActive !== false);
+
+  const handleDownload = async (doc: any) => {
+    try {
+      await downloadDepartmentDocumentFile(axios, doc._id, `${doc.name || "Document"}.pdf`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to download document.");
+    }
+  };
+
+  return (
+    <SectionShell eyebrow="Company" title={title} icon={FileText}>
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-2xl border border-slate-100 bg-slate-50/80 animate-pulse" />
+          ))}
+        </div>
+      ) : documents.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-8 text-center">
+          <FileText className="mx-auto text-slate-300" size={22} />
+          <p className="mt-2 text-[12px] font-pmedium text-slate-400">No {title.toLowerCase()} uploaded yet.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {documents.map((doc: any) => (
+            <div
+              key={doc._id}
+              className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
+                  <FileText size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-pmedium text-slate-900 truncate">{doc.name || "Untitled"}</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
+                    Updated {humanDate(doc.updatedAt)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => openDocument(doc.fileUrl)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB]"
+                >
+                  <Eye size={12} /> View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(doc)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB]"
+                >
+                  <Download size={12} /> Download
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionShell>
+  );
+};
 
 const CompanyProfile = () => {
   const axios = useAxiosPrivate();
@@ -459,8 +547,11 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
       <div className="space-y-5 text-slate-900">
       <section className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
         <div className="p-6 sm:p-8 lg:p-10">
-          <div className="flex flex-wrap items-start gap-6">
-            <div className="relative">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="relative shrink-0">
+              {/* h-16/w-56 = 3.5:1, the same LOGO_DISPLAY_ASPECT (168/48) the crop
+                  tool below enforces and the sidebar header (Header.tsx) renders at
+                  — a wide, letterboxed rectangle rather than a square/circle frame. */}
               <button
                 type="button"
                 onClick={() =>
@@ -468,22 +559,25 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                     ? setIsLogoPreviewOpen(true)
                     : document.getElementById("companyLogoUpload")?.click()
                 }
-                className="flex h-24 w-24 items-center justify-center rounded-[1.75rem] border-2 border-dashed border-slate-200 bg-slate-50 overflow-hidden transition hover:border-blue-300 hover:bg-blue-50"
+                className="flex h-16 w-56 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:bg-blue-50/30"
                 title={currentLogoUrl ? "Preview company logo" : "Upload company logo"}
               >
                 {currentLogoUrl ? (
-                  <img
-                    src={currentLogoUrl}
-                    alt="Company logo"
-                    className="w-full h-full object-contain p-2"
-                  />
+                  <img src={currentLogoUrl} alt="Company logo" className="h-full w-full object-contain p-3" />
                 ) : (
-                  <div className="text-center">
-                    <Building2 size={28} className="mx-auto text-slate-400" />
-                    <span className="text-[9px] font-semibold text-slate-500 mt-1 block">Upload Logo</span>
+                  <div className="flex flex-col items-center gap-1 text-slate-400">
+                    <Building2 size={22} />
+                    <span className="text-[9px] font-semibold uppercase tracking-wide">Upload Logo</span>
                   </div>
                 )}
               </button>
+              <label
+                htmlFor="companyLogoUpload"
+                title="Change company logo"
+                className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white shadow-md transition hover:bg-slate-700"
+              >
+                <Camera size={13} />
+              </label>
               <input
                 id="companyLogoUpload"
                 type="file"
@@ -522,7 +616,6 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
             </div>
 
             <div className="min-w-0 flex-1">
-              
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                 {workspace?.businessName || auth?.user?.companyName || "Company"}
               </h1>
@@ -530,99 +623,82 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                 Company information, branding, and workspace details are managed here.
               </p>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {file ? (
-                  <>
-                    <label
-                      htmlFor="companyLogoUpload"
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-pmedium text-blue-700 transition hover:bg-blue-100"
-                    >
-                      Change Image
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleUpload}
-                      disabled={uploading}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-pmedium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                    >
-                      {uploading ? "Uploading..." : "Save Image"}
-                    </button>
-                  </>
-                ) : (
+              {file && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <label
                     htmlFor="companyLogoUpload"
-                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-blue-200 hover:text-blue-600"
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-pmedium text-blue-700 transition hover:bg-blue-100"
                   >
-                    Change Logo
+                    Change Image
                   </label>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div>
-            {/* <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">Company Information</p> */}
-            <h2 className="mt-1 text-xl font-pmedium text-slate-900">Unit & Company Information</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              Company information synced from your workspace setup. Unit name, location, timezone and currency are specific to this unit.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {canEditUnitInfo ? (
-              <button
-                type="button"
-                onClick={handleOpenEditModal}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-[12px] font-pmedium text-slate-700 transition hover:border-blue-200 hover:text-blue-600"
-              >
-                <Pencil size={14} />
-                Edit Unit
-              </button>
-            ) : null}
-            {upgradePlanOptions.length > 0 ? (
-              <PrimaryButton
-                title="Upgrade Plan?"
-                handleSubmit={() => setIsUpgradeModalOpen(true)}
-              />
-            ) : null}
-          </div>
-        </div>
-
-        <div className="pt-5">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {companyFields.map((fieldConfig) => {
-              const value = workspace?.[fieldConfig.name]
-                ? Array.isArray(workspace[fieldConfig.name])
-                  ? (workspace[fieldConfig.name] as string[]).join(", ")
-                  : String(workspace[fieldConfig.name] || "")
-                : "-";
-
-              return (
-                <div key={fieldConfig.name} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">{fieldConfig.label}</p>
-                  <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{value}</p>
+                  <button
+                    type="button"
+                    onClick={handleUpload}
+                    disabled={uploading}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-pmedium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {uploading ? "Uploading..." : "Save Image"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setFile(null); setPreviewUrl(null); }}
+                    disabled={uploading}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              );
-            })}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
-              <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">Timezone</p>
-              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{displayTimezone || "-"}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
-              <p className="text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">Currency</p>
-              <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{displayCurrency || "-"}</p>
+              )}
+
+              {workspace?.selectedPlan ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700">
+                    <ShieldCheck size={14} /> {String(workspace.selectedPlan).charAt(0).toUpperCase() + String(workspace.selectedPlan).slice(1)} Plan
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
-          {requestedUpgradePlan ? (
-            <p className="text-center mt-4 text-[13px] font-medium text-[#2d67f0]">
-              Request sent for {requestedUpgradePlan.toUpperCase()} plan.
-            </p>
-          ) : null}
         </div>
       </section>
+
+      <SectionShell
+        eyebrow="Company"
+        title="Unit & Company Information"
+        icon={Building2}
+        action={
+          upgradePlanOptions.length > 0 ? (
+            <PrimaryButton title="Upgrade Plan?" handleSubmit={() => setIsUpgradeModalOpen(true)} />
+          ) : null
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {companyFields.map((fieldConfig) => {
+            const value = workspace?.[fieldConfig.name]
+              ? Array.isArray(workspace[fieldConfig.name])
+                ? (workspace[fieldConfig.name] as string[]).join(", ")
+                : String(workspace[fieldConfig.name] || "")
+              : "-";
+            const icon = ["country", "state", "city"].includes(fieldConfig.name)
+              ? MapPin
+              : fieldConfig.name === "selectedPlan"
+                ? ShieldCheck
+                : Building2;
+
+            return <DetailCard key={fieldConfig.name} label={fieldConfig.label} value={value} icon={icon} />;
+          })}
+          <DetailCard label="Timezone" value={displayTimezone || "-"} icon={Building2} />
+          <DetailCard label="Currency" value={displayCurrency || "-"} icon={Building2} />
+        </div>
+        {requestedUpgradePlan ? (
+          <p className="text-center mt-4 text-[13px] font-medium text-[#2d67f0]">
+            Request sent for {requestedUpgradePlan.toUpperCase()} plan.
+          </p>
+        ) : null}
+      </SectionShell>
+
+      <CompanyDocumentsSection kind="policy" title="Company Policies" />
+      <CompanyDocumentsSection kind="sop" title="Company SOPs" />
 
       <AccountDeletionDangerZone />
 

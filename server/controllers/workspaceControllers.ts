@@ -878,6 +878,26 @@ export const setWorkspaceActiveStatus = async (req, res, next) => {
     target.isActive = desiredActive;
     await target.save();
 
+    // A disabled unit revokes every member's access in that unit (membership
+    // isActive is what auth resolves). When the unit is re-enabled, only the
+    // founder's access comes back — every other member stays off until the
+    // founder enables them individually from the unit's Access page.
+    if (!desiredActive) {
+      await WorkspaceMember.updateMany(
+        { workspace: target._id },
+        { $set: { isActive: false, status: "disabled" } },
+      );
+    } else {
+      await WorkspaceMember.updateMany(
+        { workspace: target._id, user: { $ne: workspace.owner } },
+        { $set: { isActive: false, status: "disabled" } },
+      );
+      await WorkspaceMember.updateOne(
+        { workspace: target._id, user: workspace.owner },
+        { $set: { isActive: true, status: "joined" } },
+      );
+    }
+
     if (!desiredActive && String(user.primaryWorkspace || "") === String(target._id)) {
       await reassignPrimaryToMain(user, mainWorkspaceId);
     }

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Shield, UserCheck, Users, UserX } from "lucide-react";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
+import { TeamManagementContentSkeleton } from "@/components/ui/Skeleton";
 import { getOrganizationOverview } from "@/services/organization";
 import ManageSidebarAccessDialog, { type ManageSidebarAccessMember } from "./ManageSidebarAccessDialog";
 
@@ -31,6 +32,20 @@ const STATUS_PILLS = [
   { key: "active", label: "Active" },
   { key: "inactive", label: "Inactive" },
 ];
+
+const formatRoleLabel = (role?: string): string => {
+  const raw = String(role || "").trim();
+  if (!raw) return "Employee";
+  return raw
+    .replace(/[_\s]+/g, "-")
+    .split("-")
+    .filter(Boolean)
+    .map((word) => (word.toLowerCase() === "hr" || word.toLowerCase() === "it" ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .join(" ");
+};
+
+const formatDepartmentLabel = (departmentNames?: string[]): string =>
+  Array.isArray(departmentNames) && departmentNames.length > 0 ? departmentNames.join(" / ") : "-";
 
 const TeamManagementTab = () => {
   const axiosPrivate = useAxiosPrivate();
@@ -120,7 +135,7 @@ const TeamManagementTab = () => {
   }, [employees, statusFilter, searchQuery]);
 
   if (isLoading) {
-    return <div className="py-10 text-center text-[12px] font-pmedium text-slate-400">Loading team...</div>;
+    return <TeamManagementContentSkeleton />;
   }
 
   if (!department) {
@@ -186,11 +201,13 @@ const TeamManagementTab = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left">
+          <table className="w-full min-w-[860px] text-left">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4">Employee ID</th>
                 <th className="px-5 py-4">Employee</th>
+                <th className="px-5 py-4">Role</th>
+                <th className="px-5 py-4">Department</th>
                 <th className="px-5 py-4 text-center">Status</th>
                 <th className="px-5 py-4 text-center">Action</th>
               </tr>
@@ -198,7 +215,7 @@ const TeamManagementTab = () => {
             <tbody className="divide-y divide-slate-100/60">
               {visible.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-16 text-slate-400 font-pmedium">
+                  <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium">
                     No employees found.
                   </td>
                 </tr>
@@ -218,6 +235,12 @@ const TeamManagementTab = () => {
                         {member.email ? (
                           <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{member.email}</p>
                         ) : null}
+                      </td>
+                      <td className="px-5 py-4 text-[11px] font-pmedium capitalize text-slate-600">
+                        {formatRoleLabel(member.role)}
+                      </td>
+                      <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">
+                        {formatDepartmentLabel(member.departmentNames)}
                       </td>
                       <td className="px-5 py-4 text-center">
                         <span

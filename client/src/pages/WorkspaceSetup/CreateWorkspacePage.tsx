@@ -193,6 +193,7 @@ const CreateWorkspacePage: React.FC = () => {
       : [],
   );
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const businessTypeDropdownRef = useRef<HTMLDivElement | null>(null);
   const timezoneTouchedRef = useRef(false);
   const [workspaceNameStatus, setWorkspaceNameStatus] = useState<
@@ -235,9 +236,6 @@ const CreateWorkspacePage: React.FC = () => {
     activeInviteOnboarding?.businessName ||
       (isAdditionalWorkspaceMode && businessName.trim()),
   );
-  const isBrandNameLocked = Boolean(
-    isAdditionalWorkspaceMode && brandName.trim(),
-  );
 
   const [isCountriesLoading, setIsCountriesLoading] = useState(false);
   const [isStatesLoading, setIsStatesLoading] = useState(false);
@@ -262,20 +260,29 @@ const CreateWorkspacePage: React.FC = () => {
       ? businessTypes.join(", ")
       : "Select your Business Types";
 
-  const isWorkspaceFormComplete = [
-    workspaceName.trim(),
-    businessName.trim(),
-    brandName.trim(),
-    country.trim(),
-    stateName.trim(),
-    city.trim(),
-    timezone.trim(),
-    currency.trim(),
-    address.trim(),
-  ].every(Boolean) &&
-    businessTypes.length > 0 &&
-    workspaceNameStatus !== "taken" &&
-    workspaceNameStatus !== "checking";
+  const requiredFieldValues = {
+    workspaceName: workspaceName.trim(),
+    businessName: businessName.trim(),
+    brandName: brandName.trim(),
+    address: address.trim(),
+    country: country.trim(),
+    stateName: stateName.trim(),
+    city: city.trim(),
+    businessTypes: businessTypes.length ? businessTypes.join(",") : "",
+    timezone: timezone.trim(),
+    currency: currency.trim(),
+  };
+
+  const isFieldMissing = (field: keyof typeof requiredFieldValues) =>
+    showValidationErrors && !requiredFieldValues[field];
+
+  const requiredMark = <span className="text-rose-600" aria-hidden="true"> *</span>;
+
+  const focusField = (field: keyof typeof requiredFieldValues) => {
+    const target = document.getElementById(`workspace-${field}`);
+    target?.focus();
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   useEffect(() => {
     let active = true;
@@ -533,10 +540,23 @@ const CreateWorkspacePage: React.FC = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!isWorkspaceFormComplete) {
-                if (workspaceNameStatus === "taken") {
-                  toast.error("Unit name already taken.");
-                }
+              setShowValidationErrors(true);
+              const firstMissingField = (Object.keys(requiredFieldValues) as Array<
+                keyof typeof requiredFieldValues
+              >).find((field) => !requiredFieldValues[field]);
+              if (firstMissingField) {
+                focusField(firstMissingField);
+                toast.error("Please complete the highlighted required field.");
+                return;
+              }
+              if (workspaceNameStatus === "checking") {
+                focusField("workspaceName");
+                toast.error("Please wait while we check the unit name.");
+                return;
+              }
+              if (workspaceNameStatus === "taken") {
+                focusField("workspaceName");
+                toast.error("Unit name already taken.");
                 return;
               }
               navigate("/create-workspace/finalize", {
@@ -566,15 +586,19 @@ const CreateWorkspacePage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
               <div className="flex flex-col">
                 <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                  Unit Name
+                  Unit Name{requiredMark}
                 </label>
                 <input
+                  id="workspace-workspaceName"
                   type="text"
                   placeholder="Enter Unique unit name"
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  aria-required="true"
+                  aria-invalid={isFieldMissing("workspaceName") || workspaceNameStatus === "taken"}
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("workspaceName") || workspaceNameStatus === "taken" ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 />
+                {isFieldMissing("workspaceName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Unit name is required.</p> : null}
                 {workspaceNameStatus !== "idle" ? (
                   <p
                     className={`mt-1 text-[11px] font-semibold ${
@@ -588,30 +612,37 @@ const CreateWorkspacePage: React.FC = () => {
 
               <div className="flex flex-col">
                 <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                  Company Name
+                  Company Name{requiredMark}
                 </label>
                 <input
+                  id="workspace-businessName"
                   type="text"
                   placeholder="Enter company name"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   disabled={isCompanyNameLocked}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  aria-required="true"
+                  aria-invalid={isFieldMissing("businessName")}
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("businessName") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 />
+                {isFieldMissing("businessName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Company name is required.</p> : null}
               </div>
 
               <div className="flex flex-col">
                 <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                  Brand Name
+                  Brand Name{requiredMark}
                 </label>
                 <input
+                  id="workspace-brandName"
                   type="text"
                   placeholder="Enter brand name"
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
-                  disabled={isBrandNameLocked}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  aria-required="true"
+                  aria-invalid={isFieldMissing("brandName")}
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("brandName") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 />
+                {isFieldMissing("brandName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Brand name is required.</p> : null}
               </div>
             </div>
             <p className="text-[13px] text-[#63738d] mt-3">
@@ -622,20 +653,24 @@ const CreateWorkspacePage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col md:col-span-2">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                Address
+                Address{requiredMark}
               </label>
               <input
+                id="workspace-address"
                 type="text"
                 placeholder="Enter your address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                aria-required="true"
+                aria-invalid={isFieldMissing("address")}
+                className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("address") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
               />
+              {isFieldMissing("address") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Address is required.</p> : null}
             </div>
 
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                Country
+                Country{requiredMark}
               </label>
                 <Autocomplete
                     options={countries}
@@ -697,8 +732,12 @@ const CreateWorkspacePage: React.FC = () => {
                 renderInput={(params) => (
                   <TextField
                     {...params}
+                    id="workspace-country"
                     placeholder={isCountriesLoading ? "Loading countries..." : "Select country"}
                     variant="outlined"
+                    error={isFieldMissing("country")}
+                    helperText={isFieldMissing("country") ? "Country is required." : undefined}
+                    inputProps={{ ...params.inputProps, "aria-required": true }}
                     sx={{
                       "& .MuiOutlinedInput-root": {
                         minHeight: "32px",
@@ -763,14 +802,17 @@ const CreateWorkspacePage: React.FC = () => {
 
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                State
+                State{requiredMark}
               </label>
               <div className="relative">
                 <select
+                  id="workspace-stateName"
                   value={stateName}
                   onChange={(e) => setStateName(e.target.value)}
                   disabled={!country || isStatesLoading || hasLockedInviteState}
-                  className={`${workspaceSelectClassName} text-black`}
+                  aria-required="true"
+                  aria-invalid={isFieldMissing("stateName")}
+                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("stateName") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                   style={{
                     WebkitTextFillColor: "#000000",
                   }}
@@ -790,22 +832,26 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
+              {isFieldMissing("stateName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">State is required.</p> : null}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                City
+                City{requiredMark}
               </label>
               <div className="relative">
                 <select
+                  id="workspace-city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   disabled={
                     !country || !stateName || isCitiesLoading || hasLockedInviteCity
                   }
-                  className={`${workspaceSelectClassName} text-black`}
+                  aria-required="true"
+                  aria-invalid={isFieldMissing("city")}
+                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("city") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                   style={{
                     WebkitTextFillColor: "#000000",
                   }}
@@ -825,21 +871,25 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
+              {isFieldMissing("city") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">City is required.</p> : null}
             </div>
 
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                Type of Vertical
+                Type of Vertical{requiredMark}
               </label>
               <div ref={businessTypeDropdownRef} className="relative">
                 <button
+                  id="workspace-businessTypes"
                   type="button"
+                  aria-required="true"
+                  aria-invalid={isFieldMissing("businessTypes")}
                   onClick={() => {
                     if (hasLockedInviteBusinessTypes) return;
                     setIsBusinessTypeOpen((prev) => !prev);
                   }}
                   disabled={hasLockedInviteBusinessTypes}
-                  className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] text-black text-left flex items-center justify-between focus:outline-none focus:ring-2 ${isFieldMissing("businessTypes") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 >
                   <span className="text-black">
                     {businessTypeLabel}
@@ -868,23 +918,27 @@ const CreateWorkspacePage: React.FC = () => {
                   </div>
                 )}
               </div>
+              {isFieldMissing("businessTypes") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Select at least one business vertical.</p> : null}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                Timezone
+                Timezone{requiredMark}
               </label>
               <div className="relative">
                   <select
+                    id="workspace-timezone"
                     value={timezone}
                     onChange={(event) => {
                       timezoneTouchedRef.current = true;
                       setTimezone(event.target.value);
                     }}
                     disabled={!country}
-                  className={`${workspaceSelectClassName} text-black`}
+                    aria-required="true"
+                    aria-invalid={isFieldMissing("timezone")}
+                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("timezone") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                 >
                   <option value="">Select timezone</option>
                   {timezoneOptions.map((item) => (
@@ -896,6 +950,7 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
+              {isFieldMissing("timezone") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Timezone is required.</p> : null}
               <p className="mt-1 text-[11px] text-[#7b8ba3]">
                 Used for bookings, attendance, reminders, and reports regardless of the server timezone.
               </p>
@@ -903,14 +958,17 @@ const CreateWorkspacePage: React.FC = () => {
 
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                Currency
+                Currency{requiredMark}
               </label>
               <div className="relative">
                 <select
+                  id="workspace-currency"
                   value={currency}
                   onChange={(event) => setCurrency(event.target.value)}
                   disabled={!country}
-                  className={`${workspaceSelectClassName} text-black`}
+                  aria-required="true"
+                  aria-invalid={isFieldMissing("currency")}
+                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("currency") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                 >
                   <option value="">Select currency</option>
                   {currencyOptions.map((item) => (
@@ -919,6 +977,7 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
+              {isFieldMissing("currency") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Currency is required.</p> : null}
               <p className="mt-1 text-[11px] text-[#7b8ba3]">
                 Defaults from the selected country and can be confirmed by the founder.
               </p>
@@ -931,8 +990,7 @@ const CreateWorkspacePage: React.FC = () => {
             </p>
             <button
               type="submit"
-              disabled={!isWorkspaceFormComplete}
-              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] disabled:bg-[#c8d5f1] disabled:text-white/80 disabled:cursor-not-allowed transition-colors text-white text-[13px] font-pmedium inline-flex items-center justify-center gap-2"
+              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-pmedium inline-flex items-center justify-center gap-2"
             >
               Continue <ArrowRight size={16} />
             </button>
