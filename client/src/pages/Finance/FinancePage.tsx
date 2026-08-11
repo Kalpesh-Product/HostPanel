@@ -139,7 +139,16 @@ export function FinancePage() {
 
   const applyFinanceData = (payload: any) => {
     if (!payload || typeof payload !== 'object') return;
-    const nextAnnualRequests = Array.isArray(payload.annualRequests) ? payload.annualRequests : [];
+    const withUiId = (request: any) => ({
+      ...request,
+      id: request?.id || request?._id || '',
+    });
+    const nextAnnualRequests = Array.isArray(payload.annualRequests)
+      ? payload.annualRequests.map(withUiId)
+      : [];
+    const nextExtraRequests = Array.isArray(payload.extraRequests)
+      ? payload.extraRequests.map(withUiId)
+      : [];
     const nextDepartmentFinance = Array.isArray(payload.departmentFinance) ? payload.departmentFinance : [];
     const nextDepartments = Array.isArray(payload.departments) ? payload.departments : [];
 
@@ -149,7 +158,7 @@ export function FinancePage() {
         : [],
     );
     setAnnualRequests(nextAnnualRequests);
-    setExtraRequests(Array.isArray(payload.extraRequests) ? payload.extraRequests : []);
+    setExtraRequests(nextExtraRequests);
     setDepartmentFinance(nextDepartmentFinance);
     setAuditTrail(Array.isArray(payload.auditTrail) ? payload.auditTrail : []);
   };
@@ -162,7 +171,7 @@ export function FinancePage() {
       setErrorMessage('');
       try {
         const response = await getFinanceSnapshot(selectedFY);
-        if (isMounted) applyFinanceData(response?.data || {});
+        if (isMounted) applyFinanceData(response || {});
       } catch (error: any) {
         if (isMounted) setErrorMessage(error?.message || 'Failed to load finance dashboard data.');
       } finally {
@@ -233,8 +242,9 @@ export function FinancePage() {
     setIsSavingDecision(true);
     setErrorMessage('');
     try {
-      const response = await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY });
-      applyFinanceData(response?.data || {});
+      await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY });
+      const response = await getFinanceSnapshot(selectedFY);
+      applyFinanceData(response || {});
       setViewingRequest(null);
     } catch (error: any) {
       setErrorMessage(error?.message || 'Unable to update approval decision.');
@@ -259,7 +269,7 @@ export function FinancePage() {
     try {
       await updateMonthlyExpenseStatus({ fiscalYear: selectedFY, monthKey, expenseId, status: 'Paid' });
       const response = await getFinanceSnapshot(selectedFY);
-      applyFinanceData(response?.data || {});
+      applyFinanceData(response || {});
       setViewingExpense((current: any) => (current ? { ...current, paymentStatus: 'Paid', status: 'Paid' } : current));
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {

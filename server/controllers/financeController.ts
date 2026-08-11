@@ -539,9 +539,17 @@ export async function applyFinanceApprovalDecision(req: Request, res: Response, 
     if (!requestType) return res.status(400).json({ message: "requestType is required" });
     if (!decision) return res.status(400).json({ message: "decision is required" });
 
+    const roleValue = String((req as any).workspaceMembership?.role?.name || (req as any).workspaceMembership?.role || "")
+      .trim().toLowerCase().replace(/[\s-]+/g, "_");
+    const isOwner = ["owner", "founder", "super_admin", "admin"].includes(roleValue);
+    const isFinanceManager = ["finance_manager", "finance"].includes(roleValue);
+    const effectiveScope = isOwner ? "owner" : isFinanceManager ? "financeManager" : null;
+    if (!effectiveScope) return res.status(403).json({ message: "Only the owner or finance manager can decide finance requests." });
+    if (scope && scope !== effectiveScope) return res.status(403).json({ message: "Approval scope does not match the authenticated role." });
+
     const body = {
       status: decision,
-      scope: scope || "owner",
+      scope: effectiveScope,
       note: comment || "",
     };
 
