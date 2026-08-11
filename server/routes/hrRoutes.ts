@@ -9,6 +9,10 @@ import {
   updateEmployeeRecord,
   updateMyEmployeeProfile,
   updateMyProfilePicture,
+  getPayrollSnapshot,
+  preparePayroll,
+  updatePayrollStatus,
+  createPayrollAdjustment,
 } from "../controllers/hrControllers.js";
 import recruitmentRoutes from "./recruitmentRoutes.js";
 import upload from "../config/multerConfig.js";
@@ -32,6 +36,10 @@ router.post(
 router.post("/employees", createEmployeeRecord);
 router.patch("/employees/:employeeId", updateEmployeeRecord);
 router.patch("/employees/:employeeId/toggle-status", toggleEmployeeStatus);
+router.get("/payroll/snapshot", getPayrollSnapshot);
+router.post("/payroll/prepare", preparePayroll);
+router.patch("/payroll/cycles/:cycleId/status", updatePayrollStatus);
+router.post("/payroll/cycles/:cycleId/employees/:profileId/adjustments", createPayrollAdjustment);
 router.use("/recruitment", recruitmentRoutes);
 
 export default router;

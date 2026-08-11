@@ -284,6 +284,15 @@ const getAccessibleWorkspaces = async (userId: any) => {
 const normalizeInviteEmail = (email: string) =>
   String(email || "").trim().toLowerCase();
 
+const findActiveTenantEmployeeForUser = async (user: any) => {
+  if (!user?._id) return null;
+
+  return TenantEmployee.findOne({
+    userId: user._id,
+    status: "Active",
+  }).lean().exec();
+};
+
 const getFounderEmailForWorkspace = async (workspaceId: any) => {
   if (!workspaceId) return "";
   const workspace = await Workspace.findById(workspaceId).populate("owner", "email").lean().exec();
@@ -532,9 +541,7 @@ export const login = async (req, res, next) => {
       resolveCompanyForActiveWorkspace(user, activeMembership),
       WorkspaceMember.countDocuments({ user: user._id, isActive: true }),
       getAccessibleWorkspaces(user._id),
-      user?.email
-        ? TenantEmployee.findOne({ email: normalizeInviteEmail(user.email), status: "Active" }).exec()
-        : Promise.resolve(null),
+      findActiveTenantEmployeeForUser(user),
       bcrypt.compare(password, user.password),
     ]);
 
@@ -2029,24 +2036,22 @@ export const getTenantProfile = async (req, res, next) => {
     const userId = req.user;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const hostUser = await HostUser.findById(userId).select("email name").lean().exec();
+    const hostUser = await HostUser.findById(userId)
+      .select("email name profilePicture profileImage")
+      .lean()
+      .exec();
     if (!hostUser || !hostUser.email) {
       return res.status(401).json({ message: "User not found" });
     }
 
-    const userEmail = hostUser.email;
-
-    const emp = await TenantEmployee.findOne({
-      email: normalizeInviteEmail(userEmail),
-      status: "Active",
-    }).exec();
+    const emp = await findActiveTenantEmployeeForUser(hostUser);
 
     if (!emp) {
       return res.status(404).json({ message: "Employee record not found" });
     }
 
     const tenantCompany = await TenantCompany.findById(emp.tenantCompanyId)
-      .select("companyName contactName email phone businessType customerDetails companyDetails")
+      .select("workspaceId companyName contactName email phone businessType customerDetails companyDetails")
       .lean()
       .exec();
 
@@ -2054,6 +2059,12 @@ export const getTenantProfile = async (req, res, next) => {
       return res.status(404).json({ message: "Tenant profile not found" });
     }
 
+    const tenantWorkspace = tenantCompany.workspaceId
+      ? await Workspace.findById(tenantCompany.workspaceId)
+          .select("selectedPlan preferences")
+          .lean()
+          .exec()
+      : null;
     const roleLabel = emp.role === "Manager" ? "Tenant Manager" : "Tenant Employee";
 
     res.status(200).json({
@@ -2064,6 +2075,10 @@ export const getTenantProfile = async (req, res, next) => {
         designation: emp.designation || "",
         role: roleLabel,
         tenantRole: emp.role === "Manager" ? "tenant-manager" : "tenant-employee",
+        profilePictureUrl:
+          hostUser?.profilePicture?.url ||
+          hostUser?.profileImage ||
+          "",
         lastLoginAt: emp.lastLoginAt || null,
         registeredAt: emp.registeredAt || null,
         inviteAcceptedAt: emp.inviteAcceptedAt || null,
@@ -2078,6 +2093,11 @@ export const getTenantProfile = async (req, res, next) => {
         businessType: tenantCompany.businessType || "",
         customerDetails: tenantCompany.customerDetails || {},
         companyDetails: tenantCompany.companyDetails || {},
+      },
+      workspace: {
+        selectedPlan: tenantWorkspace?.selectedPlan || "basic",
+        timezone: tenantWorkspace?.preferences?.timezone || "",
+        currency: tenantWorkspace?.preferences?.currency || "",
       },
     });
   } catch (error) {

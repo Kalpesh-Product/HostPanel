@@ -24,6 +24,10 @@ import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
 interface BasicDashboardProps {
   onUpgradeClick: () => void;
+  /** Org member counts — passed down from useDashboardAccess() so this component
+   * doesn't re-fetch /api/organization/overview a second time on the same page load. */
+  activeMembers: number;
+  totalMembers: number;
 }
 
 // FY month labels Apr–Mar
@@ -31,7 +35,7 @@ const FY_MONTHS = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 
 const fyMonthIndex = (date: Date) => (date.getMonth() + 9) % 12;
 
-const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
+const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
   const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
   const { auth } = useAuth();
@@ -59,16 +63,6 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
         `/api/leads/get-leads?companyId=${encodeURIComponent(companyId)}&workspaceId=${encodeURIComponent(workspaceId)}`,
       );
       return Array.isArray(res?.data) ? res.data : [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // ── Org overview ───────────────────────────────────────────────────────────
-  const { data: orgOverview, isLoading: orgLoading } = useQuery({
-    queryKey: ["dashboard-org-basic"],
-    queryFn: async () => {
-      const res = await axiosPrivate.get("/api/organization/overview");
-      return res?.data?.data ?? res?.data ?? {};
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -117,13 +111,10 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
     return { total: leadsRaw.length, newLeads, contacted };
   }, [leadsRaw]);
 
-  const orgStats = useMemo(() => {
-    const ov = orgOverview as any;
-    return {
-      activeMembers: ov?.metrics?.activeMembers ?? 0,
-      totalMembers: ov?.metrics?.totalMembers ?? 0,
-    };
-  }, [orgOverview]);
+  const orgStats = useMemo(
+    () => ({ activeMembers, totalMembers }),
+    [activeMembers, totalMembers],
+  );
 
   // ── Visitor type donut ─────────────────────────────────────────────────────
   const visitorTypeDonut = useMemo(() => {
@@ -176,7 +167,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
     { icon: LayoutGrid, label: "Access Grants", description: "Control role permissions", route: "/company-settings/access-grants", color: "#f59e0b" },
   ];
 
-  if (visitorsLoading || leadsLoading || orgLoading) {
+  if (visitorsLoading || leadsLoading) {
     return <PlanDashboardSkeleton plan="basic" />;
   }
 

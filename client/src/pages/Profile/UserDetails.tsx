@@ -33,7 +33,6 @@ import {
 import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
-import { getStoredTenantRole } from "../../lib/tenant-session";
 import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
 import { getDepartmentDocuments, getAllDepartmentDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
@@ -436,6 +435,7 @@ interface EmployeeRecord {
   providentFundNumber?: string;
   salaryLabel?: string;
   salaryMonthlyLabel?: string;
+  tenantCompanyName?: string;
   userId?: string;
   _id?: string;
 }
@@ -446,7 +446,10 @@ export default function UserDetails() {
   const [employee, setEmployee] = useState<EmployeeRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const hasTenantRole = Boolean(getStoredTenantRole() || auth?.user?.tenantRole);
+  const hasTenantRole = Boolean(auth?.user?.tenantRole);
+  const { plan } = useDashboardAccess();
+  const isCustomPlan = String(plan || "basic").trim().toLowerCase() === "custom";
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -495,7 +498,11 @@ export default function UserDetails() {
     : employee?.department || "-";
   const profileStatus = employee?.status || "active";
 
-  const currentAvatarUrl = avatarPreviewUrl || employee?.profilePictureUrl || "";
+  const authAvatarUrl =
+    typeof authUser?.profilePicture === "object"
+      ? authUser?.profilePicture?.url
+      : authUser?.profilePicture || authUser?.profileImage || "";
+  const currentAvatarUrl = avatarPreviewUrl || employee?.profilePictureUrl || authAvatarUrl || "";
   const selectedPhoneCountry = PHONE_COUNTRIES.find((country) => country.isoCode === editForm.phoneCountryIso);
   const phoneValidation = validatePhoneNumber(editForm.phone, editForm.phoneCountryIso);
 
@@ -514,7 +521,11 @@ export default function UserDetails() {
     { label: "Emergency Contact Phone", value: employee?.emergencyContactPhone || "-", icon: Phone },
   ];
 
-  const workFields = [
+  const visiblePersonalFields = hasTenantRole
+    ? personalFields.filter((field) => ["Full Name", "Email", "Phone"].includes(field.label))
+    : personalFields;
+
+  const standardWorkFields = [
     { label: "Employee ID", value: employee?.employeeNumber || "-", icon: Hash },
     { label: "Role", value: profileRole, icon: BadgeCheck },
     { label: "Department", value: profileDepartment, icon: Building },
@@ -528,6 +539,14 @@ export default function UserDetails() {
     { label: "Notice Period", value: employee?.noticePeriodDays ? `${employee.noticePeriodDays} days` : "-", icon: CalendarDays },
     { label: "Probation", value: employee?.probationDays ? `${employee.probationDays} days` : employee?.probationDays === 0 ? "No Probation" : "-", icon: BadgeAlert },
   ];
+  const workFields = hasTenantRole
+    ? [
+        { label: "Tenant Company", value: employee?.tenantCompanyName || authUser?.tenantCompanyName || "-", icon: Building2 },
+        { label: "Role", value: profileRole, icon: BadgeCheck },
+        { label: "Designation", value: employee?.jobTitle || "-", icon: BadgeAlert },
+        { label: "Status", value: formatTitleCase(profileStatus), icon: BadgeCheck },
+      ]
+    : standardWorkFields;
 
   useEffect(() => {
     let mounted = true;
@@ -540,6 +559,30 @@ export default function UserDetails() {
         if (!currentUserId) {
           setEmployee(null);
           setIsLoading(false);
+          return;
+        }
+
+        if (hasTenantRole) {
+          const response = await axios.get("/api/auth/tenant/profile");
+          const tenantProfile = response?.data || {};
+          const tenantEmployee = tenantProfile?.employee || {};
+          const tenantCompany = tenantProfile?.company || {};
+
+          if (mounted) {
+            setEmployee({
+              fullName: String(tenantEmployee?.name || authUser?.name || ""),
+              email: String(tenantEmployee?.email || authUser?.email || ""),
+              profilePictureUrl: String(tenantEmployee?.profilePictureUrl || ""),
+              phone: String(tenantEmployee?.phone || ""),
+              role: String(tenantEmployee?.role || authUser?.tenantRole || "Tenant Employee"),
+              status: "active",
+              jobTitle: String(tenantEmployee?.designation || ""),
+              tenantCompanyName: String(tenantCompany?.companyName || authUser?.tenantCompanyName || ""),
+              userId: currentUserId,
+            });
+            setErrorMessage("");
+            setIsLoading(false);
+          }
           return;
         }
 
@@ -609,7 +652,7 @@ export default function UserDetails() {
 
     fetchEmployee();
     return () => { mounted = false; };
-  }, [authUser?._id, activeWorkspaceId, axios]);
+  }, [authUser?._id, authUser?.email, authUser?.name, authUser?.tenantCompanyName, authUser?.tenantRole, activeWorkspaceId, axios, hasTenantRole]);
 
   useEffect(() => {
     let isActive = true;
@@ -662,6 +705,11 @@ export default function UserDetails() {
       emergencyContactPhone: employee?.emergencyContactPhone || "",
     });
     setIsEditModalOpen(true);
+  };
+
+  const openAvatarPicker = () => {
+    setIsAvatarPreviewOpen(false);
+    window.setTimeout(() => avatarInputRef.current?.click(), 0);
   };
 
   const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -807,11 +855,10 @@ export default function UserDetails() {
             <div className="relative shrink-0">
               <button
                 type="button"
-                onClick={() =>
-                  currentAvatarUrl
-                    ? setIsAvatarPreviewOpen(true)
-                    : document.getElementById("profilePictureUpload")?.click()
-                }
+                onClick={() => {
+                  if (currentAvatarUrl) setIsAvatarPreviewOpen(true);
+                  else openAvatarPicker();
+                }}
                 className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] text-2xl font-bold text-white shadow-[0_18px_40px_rgba(37,99,235,0.28)] transition hover:brightness-95"
                 title={currentAvatarUrl ? "View profile photo" : "Upload profile photo"}
               >
@@ -821,14 +868,17 @@ export default function UserDetails() {
                   initials
                 )}
               </button>
-              <label
-                htmlFor="profilePictureUpload"
+              <button
+                type="button"
+                onClick={openAvatarPicker}
                 title="Change profile photo"
+                aria-label="Change profile photo"
                 className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white shadow-md transition hover:bg-slate-700"
               >
                 <Camera size={13} />
-              </label>
+              </button>
               <input
+                ref={avatarInputRef}
                 id="profilePictureUpload"
                 type="file"
                 accept=".png,.jpg,.jpeg,.webp"
@@ -843,13 +893,13 @@ export default function UserDetails() {
                     alt="Profile preview"
                     className="max-h-80 w-full rounded-xl border border-slate-100 object-contain p-4"
                   />
-                  <label
-                    htmlFor="profilePictureUpload"
-                    onClick={() => setIsAvatarPreviewOpen(false)}
+                  <button
+                    type="button"
+                    onClick={openAvatarPicker}
                     className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700"
                   >
-                    Change Photo
-                  </label>
+                    <Camera size={14} /> Change Image
+                  </button>
                 </div>
               </MuiModal>
 
@@ -939,7 +989,7 @@ export default function UserDetails() {
             }
           >
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {personalFields.filter((f) => {
+              {visiblePersonalFields.filter((f) => {
                 if (f.label === "Date of Birth" && !employee?.dateOfBirth && !hasTenantRole) return false;
                 if ((f.label === "Emergency Contact Name" || f.label === "Emergency Contact Phone") && !employee?.emergencyContactName && !hasTenantRole) return false;
                 return true;
@@ -959,8 +1009,12 @@ export default function UserDetails() {
         </>
       )}
 
-      <DepartmentDocumentsSection kind="policy" title="Department Policies" />
-      <DepartmentDocumentsSection kind="sop" title="Department SOPs" />
+      {isCustomPlan ? (
+        <>
+          <DepartmentDocumentsSection kind="policy" title="Department Policies" />
+          <DepartmentDocumentsSection kind="sop" title="Department SOPs" />
+        </>
+      ) : null}
     </div>
   </div>
 

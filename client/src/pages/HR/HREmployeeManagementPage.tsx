@@ -28,6 +28,11 @@ import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
 import { getCountries, getStates, getCities } from "@/utils/locationApi";
 import { uploadEmployeeDocuments } from "@/services/hr";
+import {
+  DEFAULT_WORKSPACE_CURRENCY,
+  formatWorkspaceCurrency,
+} from "@/lib/workspaceLocalization";
+import useDashboardAccess from "@/hooks/useDashboardAccess";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -148,7 +153,7 @@ const DEFAULT_DEPARTMENT_OPTIONS = [
   "Finance",
   "Administration",
   "Maintenance",
-  "Tech",
+  "Technology",
   "IT",
 ];
 const ALLOWED_DEPARTMENT_OPTIONS = new Set(DEFAULT_DEPARTMENT_OPTIONS.map((department) => department.toLowerCase()));
@@ -342,7 +347,8 @@ function mapEmployeeToUi(employee: Record<string, unknown> = {}): Employee {
   const departmentDisplay = formatDepartmentDisplay(role, departments, role === "Admin" ? "Assigned Departments" : "-");
   const statusKey = normalizeEmployeeStatusKey(String(employee.status || ""));
   const salary = (employee.salaryPackage as Record<string, unknown>) || {};
-  const salaryAmount = Number(salary.amount || salary.grossAnnual || 0);
+  const salaryAmount = Number(salary.grossAnnual || salary.amount || 0);
+  const salaryCurrency = String(salary.currency || DEFAULT_WORKSPACE_CURRENCY).trim().toUpperCase() || DEFAULT_WORKSPACE_CURRENCY;
   const name = String(employee.fullName || employee.name || employee.full_name || "");
   const dateOfBirthVal = formatDateForInput(employee.dateOfBirth || employee.dob || "");
   const joiningDateVal = formatDateForInput(employee.joiningDate || employee.joinDate || "");
@@ -391,9 +397,9 @@ function mapEmployeeToUi(employee: Record<string, unknown> = {}): Employee {
     nationalIdNumber: String(employee.nationalIdNumber || ""),
     taxId: String(employee.taxId || ""),
     providentFundNumber: String(employee.providentFundNumber || ""),
-    salaryPackage: { amount: salaryAmount, grossAnnual: salaryAmount, currency: "INR", payFrequency: "annual" },
-    salaryLabel: salaryAmount ? `₹${(salaryAmount / 100000).toFixed(1)}L` : "-",
-    salaryMonthlyLabel: salaryAmount ? `₹${Math.round(salaryAmount / 12).toLocaleString("en-IN")}/mo` : "-",
+    salaryPackage: { amount: salaryAmount, grossAnnual: salaryAmount, currency: salaryCurrency, payFrequency: String(salary.payFrequency || "annual") },
+    salaryLabel: salaryAmount ? formatEmployeeCurrency(salaryAmount, salaryCurrency) : "-",
+    salaryMonthlyLabel: salaryAmount ? `${formatEmployeeCurrency(salaryAmount / 12, salaryCurrency)}/mo` : "-",
     permissions: (employee.permissions as { modules: string[]; features: string[] }) || { modules: [], features: [] },
     documents: (employee.documents as Array<{ name: string; type: string; uploadedAt: string }>) || [],
     notes: String(employee.notes || ""),
@@ -515,12 +521,79 @@ function FormSection({ title, icon: Icon, children, defaultOpen = true }: { titl
           <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0">
             <Icon size={16} />
           </div>
-          <span className="text-[12px] font-black text-slate-800 uppercase tracking-[0.16em]">{title}</span>
+          <span className="text-[12px] font-pmedium text-slate-800 uppercase tracking-[0.16em]">{title}</span>
         </div>
         {open ? <ChevronDown size={16} className="text-slate-400 shrink-0" /> : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
       </button>
       {open && <div className="space-y-4">{children}</div>}
     </section>
+  );
+}
+
+function formatEmployeeCurrency(value: number, currency = DEFAULT_WORKSPACE_CURRENCY): string {
+  return formatWorkspaceCurrency(value, currency, { maximumFractionDigits: 0 });
+}
+
+function getCurrentMonthWorkingDays(): number {
+  const now = new Date();
+  const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  let workingDays = 0;
+  for (let day = 1; day <= totalDays; day += 1) {
+    if (new Date(now.getFullYear(), now.getMonth(), day).getDay() !== 0) workingDays += 1;
+  }
+  return Math.max(1, workingDays);
+}
+
+function CompensationCtcFields({
+  form,
+  currency,
+  error,
+  onChange,
+}: {
+  form: EmployeeFormState;
+  currency: string;
+  error?: string;
+  onChange: (value: string) => void;
+}): React.ReactElement {
+  const annualCtc = Number(form.salaryAmount || 0);
+  const monthlySalary = annualCtc > 0 ? annualCtc / 12 : 0;
+  const workingDays = getCurrentMonthWorkingDays();
+  const dailyRate = monthlySalary / workingDays;
+  const isUnpaidIntern = isInternshipEmploymentType(form.employmentType) && form.internshipIsUnpaid;
+
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+          Annual CTC ({currency}) {!isUnpaidIntern && <span className="text-red-400">*</span>}
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={form.salaryAmount}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={isUnpaidIntern}
+          className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 ${error ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
+          placeholder={isUnpaidIntern ? "Not applicable for unpaid internship" : "e.g. 600000"}
+        />
+        {error && <span className="text-[10px] font-pmedium text-red-500">{error}</span>}
+      </div>
+      <div className="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3">
+        <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-700">Payroll calculation preview</p>
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Monthly salary</p>
+            <p className="mt-1 text-sm font-pmedium text-slate-900">{formatEmployeeCurrency(monthlySalary, currency)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Daily rate · {workingDays} working days</p>
+            <p className="mt-1 text-sm font-pmedium text-slate-900">{formatEmployeeCurrency(dailyRate, currency)}</p>
+          </div>
+        </div>
+        <p className="mt-2 text-[9px] font-pmedium text-slate-500">Payroll uses the selected month’s actual working days. Each unpaid absence deducts one daily rate; a half day deducts half.</p>
+      </div>
+    </>
   );
 }
 
@@ -557,7 +630,7 @@ function DepartmentCheckboxDropdown({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full px-3 py-2 flex items-center justify-between gap-3 rounded-lg border bg-white text-left text-[12px] font-semibold outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${
+        className={`w-full px-3 py-2 flex items-center justify-between gap-3 rounded-lg border bg-white text-left text-[12px] font-pmedium outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${
           error ? "border-red-300 bg-red-50 text-red-600" : "border-slate-200/60 text-[#0F172A]"
         }`}
       >
@@ -569,7 +642,7 @@ function DepartmentCheckboxDropdown({
           {departments.map((department) => {
             const checked = selectedDepartments.includes(department);
             return (
-              <label key={department} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-700">
+              <label key={department} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-pmedium text-slate-700">
                 <input
                   type="checkbox"
                   checked={checked}
@@ -583,8 +656,8 @@ function DepartmentCheckboxDropdown({
         </div>
       )}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[9px] font-medium text-slate-400">{note}</p>
-        {error && <span className="text-[10px] font-medium text-red-500">{error}</span>}
+        <p className="text-[9px] font-pmedium text-slate-400">{note}</p>
+        {error && <span className="text-[10px] font-pmedium text-red-500">{error}</span>}
       </div>
     </div>
   );
@@ -596,6 +669,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const isMountedRef = useRef(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const { plan } = useDashboardAccess();
+  const isCustomPlan = String(plan || "").trim().toLowerCase() === "custom";
   const [currentUser, setCurrentUser] = useState<Record<string, unknown> | null>(() => getStoredUser());
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -604,6 +679,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [availableDepartments, setAvailableDepartments] = useState<string[]>(DEFAULT_DEPARTMENT_OPTIONS);
   const [bankNameOptions, setBankNameOptions] = useState<string[]>(() => mergeBankNameOptions());
   const [bankBranchOptions, setBankBranchOptions] = useState<BankBranchOption[]>(() => mergeBankBranchOptions());
+  const [workspaceCurrency, setWorkspaceCurrency] = useState(DEFAULT_WORKSPACE_CURRENCY);
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [stateOptions, setStateOptions] = useState<string[]>([]);
   const [cityOptions, setCityOptions] = useState<string[]>([]);
@@ -648,9 +724,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       { key: "sop" as const, label: "Company SOP" },
       { key: "policies" as const, label: "Company Policies" },
       { key: "birthdays" as const, label: "Month-wise Birthdays" },
-    ],
-    [],
+    ].filter((tab) => !["sop", "policies"].includes(tab.key) || isCustomPlan),
+    [isCustomPlan],
   );
+
+  useEffect(() => {
+    if (!isCustomPlan && ["sop", "policies"].includes(activeCompanyTab)) {
+      setActiveCompanyTab("employees");
+    }
+  }, [activeCompanyTab, isCustomPlan]);
 
   /* ───────────────────── Inline Add Employee Form State ───────────────────── */
   const [addForm, setAddForm] = useState<EmployeeFormState>(() => createEmployeeFormState());
@@ -692,6 +774,9 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         .map(mapEmployeeToUi);
       setEmployees(nextEmployees);
       setTransferredEmployees(nextTransferred);
+      const overviewSettings = (overview.settings as Record<string, unknown>) || {};
+      const nextCurrency = String(overviewSettings.currency || DEFAULT_WORKSPACE_CURRENCY).trim().toUpperCase();
+      setWorkspaceCurrency(nextCurrency || DEFAULT_WORKSPACE_CURRENCY);
       if (Array.isArray(overview.departments) && overview.departments.length > 0) {
         const nextDepts = (overview.departments as Array<{ name?: string } | string>)
           .map((d) => (typeof d === "string" ? d : d?.name || ""))
@@ -949,6 +1034,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     if (!form.country.trim()) errors.country = "Country is required";
     if (!form.state.trim()) errors.state = "State is required";
     if (!form.city.trim()) errors.city = "City is required";
+    const requiresCompensation = !isInternshipEmploymentType(form.employmentType) || !form.internshipIsUnpaid;
+    const annualCtc = Number(form.salaryAmount);
+    if (requiresCompensation && (!Number.isFinite(annualCtc) || annualCtc <= 0)) {
+      errors.salaryAmount = "Annual CTC must be greater than zero";
+    }
     if (form.ifscCode.trim() && !isValidIfscCode(form.ifscCode)) errors.ifscCode = "Invalid IFSC code";
     return errors;
   };
@@ -1259,7 +1349,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       noticePeriodDays: String(employee.noticePeriodDays || "30"),
       probationDays: String(employee.probationDays || "none"),
       joiningDate: employee.joiningDateValue,
-      salaryAmount: String(employee.salaryPackage?.amount || ""),
+      salaryAmount: String(employee.salaryPackage?.grossAnnual || employee.salaryPackage?.amount || ""),
       bankNameSelection: employee.bankName || "",
       bankNameCustom: "", bankName: employee.bankName || "",
       accountHolderName: employee.accountHolderName,
@@ -1673,8 +1763,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       probationDays: form.probationDays && form.probationDays !== "none" ? Number(form.probationDays) : 0,
       joiningDate: form.joiningDate || null,
       salaryPackage: requiresCompensation
-        ? { amount: form.salaryAmount ? Number(form.salaryAmount) : 0, grossAnnual: form.salaryAmount ? Number(form.salaryAmount) : 0, currency: "INR", payFrequency: "annual" }
-        : { amount: 0, grossAnnual: 0, currency: "INR", payFrequency: "annual" },
+        ? { amount: form.salaryAmount ? Number(form.salaryAmount) : 0, grossAnnual: form.salaryAmount ? Number(form.salaryAmount) : 0, currency: workspaceCurrency, payFrequency: "annual" }
+        : { amount: 0, grossAnnual: 0, currency: workspaceCurrency, payFrequency: "annual" },
       bankName: requiresCompensation
         ? String(form.bankNameSelection === BANK_NAME_CUSTOM_OPTION ? form.bankNameCustom : form.bankName || form.bankNameSelection || "").trim()
         : "",
@@ -2121,7 +2211,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   {(!isInternshipEmploymentType(addForm.employmentType) || !addForm.internshipIsUnpaid) ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual CTC (₹)</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual CTC ({workspaceCurrency})</label>
                         <input
                           type="number"
                           value={addForm.salaryAmount}
@@ -2710,37 +2800,43 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
       {/* ─── MODAL: Edit Employee ─── */}
       {isEditModalOpen && editingEmployee && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }}>
-          <div className="relative w-full max-w-3xl mx-4 bg-slate-100 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Edit3 size={16} /> Edit: {editingEmployee.name}
-              </h3>
-              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-                <X size={16} className="text-white/80" />
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }}>
+          <div className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between border-b border-blue-100 bg-blue-50/30 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-[#2563EB]">
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h2 className="text-base font-pmedium text-slate-900">Edit Employee</h2>
+                  <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-blue-600">{editingEmployee.name}</p>
+                </div>
+              </div>
+              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-blue-100/60 hover:text-slate-600">
+                <X size={16} />
               </button>
             </div>
-            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-5 bg-slate-100">
+            <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
               <FormSection title="Personal Info" icon={Users}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
-                    <input type="text" value={editForm.fullName} onChange={(e) => setEditForm((p) => ({ ...p, fullName: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
-                    {editFormErrors.fullName && <span className="text-[10px] font-medium text-red-500">{editFormErrors.fullName}</span>}
+                    <input type="text" value={editForm.fullName} onChange={(e) => setEditForm((p) => ({ ...p, fullName: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
+                    {editFormErrors.fullName && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.fullName}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
-                    <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
-                    {editFormErrors.email && <span className="text-[10px] font-medium text-red-500">{editFormErrors.email}</span>}
+                    <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
+                    {editFormErrors.email && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.email}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
-                    <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
-                    {editFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{editFormErrors.phone}</span>}
+                    <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
+                    {editFormErrors.phone && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.phone}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender</label>
-                    <select value={editForm.gender} onChange={(e) => setEditForm((p) => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                    <select value={editForm.gender} onChange={(e) => setEditForm((p) => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                       <option value="">Select Gender</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -2749,47 +2845,47 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
-                    <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((p) => ({ ...p, dateOfBirth: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((p) => ({ ...p, dateOfBirth: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
-                    <input type="text" value={editForm.currentAddress} onChange={(e) => setEditForm((p) => ({ ...p, currentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <input type="text" value={editForm.currentAddress} onChange={(e) => setEditForm((p) => ({ ...p, currentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
-                    <input type="text" value={editForm.permanentAddress} onChange={(e) => setEditForm((p) => ({ ...p, permanentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <input type="text" value={editForm.permanentAddress} onChange={(e) => setEditForm((p) => ({ ...p, permanentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
-                    <select value={editForm.country} onChange={(e) => setEditForm((p) => ({ ...p, country: e.target.value, state: "", city: "" }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.country ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
+                    <select value={editForm.country} onChange={(e) => setEditForm((p) => ({ ...p, country: e.target.value, state: "", city: "" }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.country ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select Country</option>
                       {countryOptions.map((country) => (<option key={country} value={country}>{country}</option>))}
                     </select>
-                    {editFormErrors.country && <span className="text-[10px] font-medium text-red-500">{editFormErrors.country}</span>}
+                    {editFormErrors.country && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.country}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
-                    <select value={editForm.state} onChange={(e) => setEditForm((p) => ({ ...p, state: e.target.value, city: "" }))} disabled={!editForm.country} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.state ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
+                    <select value={editForm.state} onChange={(e) => setEditForm((p) => ({ ...p, state: e.target.value, city: "" }))} disabled={!editForm.country} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.state ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select State</option>
                       {stateOptions.map((state) => (<option key={state} value={state}>{state}</option>))}
                     </select>
-                    {editFormErrors.state && <span className="text-[10px] font-medium text-red-500">{editFormErrors.state}</span>}
+                    {editFormErrors.state && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.state}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
-                    <select value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))} disabled={!editForm.state} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.city ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
+                    <select value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))} disabled={!editForm.state} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.city ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select City</option>
                       {cityOptions.map((city) => (<option key={city} value={city}>{city}</option>))}
                     </select>
-                    {editFormErrors.city && <span className="text-[10px] font-medium text-red-500">{editFormErrors.city}</span>}
+                    {editFormErrors.city && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.city}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
-                    <input type="text" value={editForm.emergencyContactName} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <input type="text" value={editForm.emergencyContactName} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
-                    <input type="tel" value={editForm.emergencyContactPhone} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <input type="tel" value={editForm.emergencyContactPhone} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                 </div>
               </FormSection>
@@ -2798,11 +2894,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role <span className="text-red-400">*</span></label>
-                    <select value={editForm.role} onChange={(e) => handleEditRoleChange(e.target.value)} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.role ? "border-red-300 bg-red-50" : "border-slate-300"}`}>
+                    <select value={editForm.role} onChange={(e) => handleEditRoleChange(e.target.value)} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.role ? "border-red-300 bg-red-50" : "border-slate-300"}`}>
                       <option value="">Select Role</option>
                       {Object.keys(ROLE_LABEL_TO_VALUE).map((label) => (<option key={label} value={label}>{label}</option>))}
                     </select>
-                    {editFormErrors.role && <span className="text-[10px] font-medium text-red-500">{editFormErrors.role}</span>}
+                    {editFormErrors.role && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.role}</span>}
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
@@ -2811,10 +2907,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         <input
                           value="All departments"
                           disabled
-                          className={`w-full px-3 py-2 bg-slate-50 border rounded-lg text-[12px] font-semibold outline-none transition-all ${editFormErrors.departments ? "border-red-300 bg-red-50 text-red-500" : "border-slate-200/60 text-slate-500"}`}
+                          className={`w-full px-3 py-2 bg-slate-50 border rounded-lg text-[12px] font-pmedium outline-none transition-all ${editFormErrors.departments ? "border-red-300 bg-red-50 text-red-500" : "border-slate-200/60 text-slate-500"}`}
                         />
-                        <p className="text-[9px] font-medium text-slate-400 mt-2">Founder and super admin are assigned all departments automatically.</p>
-                        {editFormErrors.departments && <p className="text-[10px] font-medium text-red-500 mt-2">{editFormErrors.departments}</p>}
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Founder and super admin are assigned all departments automatically.</p>
+                        {editFormErrors.departments && <p className="text-[10px] font-pmedium text-red-500 mt-2">{editFormErrors.departments}</p>}
                       </>
                     ) : getDepartmentSelectionMode(editForm.role) === "multiple" ? (
                       <DepartmentCheckboxDropdown
@@ -2829,32 +2925,32 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         <select
                           value={editForm.departments[0] || ""}
                           onChange={(e) => setEditForm((prev) => ({ ...prev, departments: e.target.value ? [e.target.value] : [] }))}
-                          className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.departments ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
+                          className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.departments ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                         >
                           <option value="">Select Department</option>
                           {allDepartments.map((dept) => (
                             <option key={dept} value={dept}>{dept}</option>
                           ))}
                         </select>
-                        <p className="text-[9px] font-medium text-slate-400 mt-2">Managers and employees can be assigned one department.</p>
-                        {editFormErrors.departments && <p className="text-[10px] font-medium text-red-500 mt-2">{editFormErrors.departments}</p>}
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Managers and employees can be assigned one department.</p>
+                        {editFormErrors.departments && <p className="text-[10px] font-pmedium text-red-500 mt-2">{editFormErrors.departments}</p>}
                       </>
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Joining Date <span className="text-red-400">*</span></label>
-                    <input type="date" value={editForm.joiningDate} onChange={(e) => setEditForm((p) => ({ ...p, joiningDate: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.joiningDate ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
-                    {editFormErrors.joiningDate && <span className="text-[10px] font-medium text-red-500">{editFormErrors.joiningDate}</span>}
+                    <input type="date" value={editForm.joiningDate} onChange={(e) => setEditForm((p) => ({ ...p, joiningDate: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.joiningDate ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
+                    {editFormErrors.joiningDate && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.joiningDate}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Employment Type</label>
-                    <select value={editForm.employmentType} onChange={(e) => { const v = e.target.value; setEditForm((p) => ({ ...p, employmentType: v, internshipIsUnpaid: isInternshipEmploymentType(v) ? p.internshipIsUnpaid : false })); }} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                    <select value={editForm.employmentType} onChange={(e) => { const v = e.target.value; setEditForm((p) => ({ ...p, employmentType: v, internshipIsUnpaid: isInternshipEmploymentType(v) ? p.internshipIsUnpaid : false })); }} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                       {EMPLOYMENT_TYPE_OPTIONS.map((opt) => (<option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Mode</label>
-                    <select value={editForm.workMode} onChange={(e) => setEditForm((p) => ({ ...p, workMode: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                    <select value={editForm.workMode} onChange={(e) => setEditForm((p) => ({ ...p, workMode: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                       {WORK_MODE_OPTIONS.map((opt) => (<option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>))}
                     </select>
                   </div>
@@ -2871,7 +2967,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                           employmentType: selected?.employmentType || p.employmentType,
                         }));
                       }}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     >
                       <option value="">Select from recruitment</option>
                       {editJobTitleSuggestions.map((job) => (
@@ -2883,7 +2979,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
-                    <input type="text" value={editForm.jobTitle} onChange={(e) => setEditForm((p) => ({ ...p, jobTitle: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <input type="text" value={editForm.jobTitle} onChange={(e) => setEditForm((p) => ({ ...p, jobTitle: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Code</label>
@@ -2891,34 +2987,40 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={editForm.jobCode}
                       readOnly
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-[12px] font-semibold text-slate-700 outline-none"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-[12px] font-pmedium text-slate-700 outline-none"
                       placeholder="Auto-filled from job role"
                     />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Manager</label>
-                    <select value={editForm.managerUserId} onChange={(e) => setEditForm((p) => ({ ...p, managerUserId: e.target.value }))} disabled={String(editForm.role || "").trim().toLowerCase() !== "employee"} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed">
+                    <select value={editForm.managerUserId} onChange={(e) => setEditForm((p) => ({ ...p, managerUserId: e.target.value }))} disabled={String(editForm.role || "").trim().toLowerCase() !== "employee"} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed">
                       <option value="">No Manager</option>
                       {managerOptions.map((mgr) => (
                         <option key={mgr.value} value={mgr.value}>{mgr.label} ({mgr.role})</option>
                       ))}
                     </select>
                     {String(editForm.role || "").trim().toLowerCase() !== "employee" && (
-                      <p className="text-[9px] font-medium text-slate-400">Manager can only be assigned for Employee role.</p>
+                      <p className="text-[9px] font-pmedium text-slate-400">Manager can only be assigned for Employee role.</p>
                     )}
                   </div>
                 </div>
               </FormSection>
 
-              <FormSection title="Bank Details" icon={FileText}>
+              <FormSection title="Compensation & Bank Details" icon={FileText}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <CompensationCtcFields
+                  form={editForm}
+                  currency={workspaceCurrency}
+                  error={editFormErrors.salaryAmount}
+                  onChange={(value) => setEditForm((previous) => ({ ...previous, salaryAmount: value }))}
+                />
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Location</label>
-                  <input type="text" value={editForm.workLocation} onChange={(e) => setEditForm((p) => ({ ...p, workLocation: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  <input type="text" value={editForm.workLocation} onChange={(e) => setEditForm((p) => ({ ...p, workLocation: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
-                  <select value={editForm.bankNameSelection} onChange={(e) => setEditForm((p) => ({ ...p, bankNameSelection: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                  <select value={editForm.bankNameSelection} onChange={(e) => setEditForm((p) => ({ ...p, bankNameSelection: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                     <option value="">Select Bank</option>
                     {bankNameOptions.map((bank) => (
                       <option key={bank} value={bank}>{bank}</option>
@@ -2929,27 +3031,27 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 {editForm.bankNameSelection === BANK_NAME_CUSTOM_OPTION && (
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
-                    <input type="text" value={editForm.bankNameCustom} onChange={(e) => setEditForm((p) => ({ ...p, bankNameCustom: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <input type="text" value={editForm.bankNameCustom} onChange={(e) => setEditForm((p) => ({ ...p, bankNameCustom: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Holder Name</label>
-                  <input type="text" value={editForm.accountHolderName} onChange={(e) => setEditForm((p) => ({ ...p, accountHolderName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  <input type="text" value={editForm.accountHolderName} onChange={(e) => setEditForm((p) => ({ ...p, accountHolderName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Number</label>
-                  <input type="text" value={editForm.accountNumber} onChange={(e) => setEditForm((p) => ({ ...p, accountNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  <input type="text" value={editForm.accountNumber} onChange={(e) => setEditForm((p) => ({ ...p, accountNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">IFSC Code</label>
-                  <input type="text" value={editForm.ifscCode} onChange={(e) => setEditForm((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  <input type="text" value={editForm.ifscCode} onChange={(e) => setEditForm((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Type</label>
-                  <select value={editForm.nationalIdType} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdType: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                  <select value={editForm.nationalIdType} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdType: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                     <option value="">Select Type</option>
                     {NATIONAL_ID_TYPES.map((type) => (
                       <option key={type} value={type}>{type}</option>
@@ -2958,15 +3060,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Number</label>
-                  <input type="text" value={editForm.nationalIdNumber} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  <input type="text" value={editForm.nationalIdNumber} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
-                  <input type="text" value={editForm.taxId} onChange={(e) => setEditForm((p) => ({ ...p, taxId: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  <input type="text" value={editForm.taxId} onChange={(e) => setEditForm((p) => ({ ...p, taxId: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
-                  <input type="text" value={editForm.providentFundNumber} onChange={(e) => setEditForm((p) => ({ ...p, providentFundNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  <input type="text" value={editForm.providentFundNumber} onChange={(e) => setEditForm((p) => ({ ...p, providentFundNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                 </div>
                 </div>
               </FormSection>
@@ -2975,19 +3077,19 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID File</label>
-                    <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, identityProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
+                    <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, identityProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm" />
                   </div>
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Address Proof</label>
-                    <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, addressProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
+                    <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, addressProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm" />
                   </div>
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Proof</label>
-                    <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, bankProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
+                    <input type="file" onChange={(e) => setEditForm((p) => ({ ...p, bankProof: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm" />
                   </div>
                   <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Other Documents</label>
-                    <input type="file" multiple onChange={(e) => setEditForm((p) => ({ ...p, otherDocuments: Array.from(e.target.files || []) }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm" />
+                    <input type="file" multiple onChange={(e) => setEditForm((p) => ({ ...p, otherDocuments: Array.from(e.target.files || []) }))} className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm" />
                   </div>
                 </div>
               </FormSection>
@@ -3005,29 +3107,35 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         document.body,
       )}
 
-      {/* ─── MODAL: Access Control Panel ─── */}
+      {/* ─── MODAL: Add Employee ─── */}
       {isAddModalOpen && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
+          className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto"
           onClick={() => { resetAddForm(); setIsAddModalOpen(false); }}
         >
           <div
-            className="relative w-full max-w-4xl mx-4 bg-slate-100 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+            className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-6 py-5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <UserPlus size={16} /> Add Employee
-              </h3>
+            <div className="flex items-start justify-between border-b border-blue-100 bg-blue-50/30 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-[#2563EB]">
+                  <UserPlus size={18} />
+                </div>
+                <div>
+                  <h2 className="text-base font-pmedium text-slate-900">Add Employee</h2>
+                  <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-blue-600">New employee record</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => { resetAddForm(); setIsAddModalOpen(false); }}
-                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                className="rounded-full p-2 text-slate-400 transition-colors hover:bg-blue-100/60 hover:text-slate-600"
               >
-                <X size={16} className="text-white/80" />
+                <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleAddFormSubmit} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-slate-100">
+            <form onSubmit={handleAddFormSubmit} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
               <FormSection title="Personal Info" icon={Users}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
@@ -3036,9 +3144,9 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.fullName}
                       onChange={(e) => handleAddFieldChange("fullName", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     />
-                    {addFormErrors.fullName && <span className="text-[10px] font-medium text-red-500">{addFormErrors.fullName}</span>}
+                    {addFormErrors.fullName && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.fullName}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
@@ -3046,9 +3154,9 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="email"
                       value={addForm.email}
                       onChange={(e) => handleAddFieldChange("email", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     />
-                    {addFormErrors.email && <span className="text-[10px] font-medium text-red-500">{addFormErrors.email}</span>}
+                    {addFormErrors.email && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.email}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
@@ -3056,16 +3164,16 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="tel"
                       value={addForm.phone}
                       onChange={(e) => handleAddFieldChange("phone", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     />
-                    {addFormErrors.phone && <span className="text-[10px] font-medium text-red-500">{addFormErrors.phone}</span>}
+                    {addFormErrors.phone && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.phone}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender</label>
                     <select
                       value={addForm.gender}
                       onChange={(e) => handleAddFieldChange("gender", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     >
                       <option value="">Select Gender</option>
                       <option value="Male">Male</option>
@@ -3079,7 +3187,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="date"
                       value={addForm.dateOfBirth}
                       onChange={(e) => handleAddFieldChange("dateOfBirth", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
@@ -3088,7 +3196,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.currentAddress}
                       onChange={(e) => handleAddFieldChange("currentAddress", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                       placeholder="Enter current address"
                     />
                   </div>
@@ -3098,7 +3206,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.permanentAddress}
                       onChange={(e) => handleAddFieldChange("permanentAddress", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                       placeholder="Enter permanent address"
                     />
                   </div>
@@ -3107,38 +3215,38 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     <select
                       value={addForm.country}
                       onChange={(e) => handleAddFieldChange("country", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.country ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     >
                       <option value="">Select Country</option>
                       {countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}
                     </select>
-                    {addFormErrors.country && <span className="text-[10px] font-medium text-red-500">{addFormErrors.country}</span>}
+                    {addFormErrors.country && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.country}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.state}
                       onChange={(e) => handleAddFieldChange("state", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.state ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                       disabled={!addForm.country}
                     >
                       <option value="">Select State</option>
                       {stateOptions.map((state) => <option key={state} value={state}>{state}</option>)}
                     </select>
-                    {addFormErrors.state && <span className="text-[10px] font-medium text-red-500">{addFormErrors.state}</span>}
+                    {addFormErrors.state && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.state}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.city}
                       onChange={(e) => handleAddFieldChange("city", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.city ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                       disabled={!addForm.state}
                     >
                       <option value="">Select City</option>
                       {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
                     </select>
-                    {addFormErrors.city && <span className="text-[10px] font-medium text-red-500">{addFormErrors.city}</span>}
+                    {addFormErrors.city && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.city}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
@@ -3146,7 +3254,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.emergencyContactName}
                       onChange={(e) => handleAddFieldChange("emergencyContactName", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     />
                   </div>
                   <div className="flex flex-col gap-1">
@@ -3155,7 +3263,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="tel"
                       value={addForm.emergencyContactPhone}
                       onChange={(e) => handleAddFieldChange("emergencyContactPhone", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     />
                   </div>
                 </div>
@@ -3168,14 +3276,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     <select
                       value={addForm.role}
                       onChange={(e) => handleAddRoleChange(e.target.value)}
-                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.role ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.role ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     >
                       <option value="">Select Role</option>
                       {Object.keys(ROLE_LABEL_TO_VALUE).map((label) => (
                         <option key={label} value={label}>{label}</option>
                       ))}
                     </select>
-                    {addFormErrors.role && <span className="text-[10px] font-medium text-red-500">{addFormErrors.role}</span>}
+                    {addFormErrors.role && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.role}</span>}
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
@@ -3184,10 +3292,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         <input
                           value="All departments"
                           disabled
-                          className={`w-full px-3 py-2 bg-slate-50 border rounded-lg text-[12px] font-semibold outline-none transition-all ${addFormErrors.departments ? "border-red-300 bg-red-50 text-red-500" : "border-slate-200/60 text-slate-500"}`}
+                          className={`w-full px-3 py-2 bg-slate-50 border rounded-lg text-[12px] font-pmedium outline-none transition-all ${addFormErrors.departments ? "border-red-300 bg-red-50 text-red-500" : "border-slate-200/60 text-slate-500"}`}
                         />
-                        <p className="text-[9px] font-medium text-slate-400 mt-2">Founder and super admin are assigned all departments automatically.</p>
-                        {addFormErrors.departments && <span className="text-[10px] font-medium text-red-500 mt-2">{addFormErrors.departments}</span>}
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Founder and super admin are assigned all departments automatically.</p>
+                        {addFormErrors.departments && <span className="text-[10px] font-pmedium text-red-500 mt-2">{addFormErrors.departments}</span>}
                       </>
                     ) : getDepartmentSelectionMode(addForm.role) === "multiple" ? (
                       <DepartmentCheckboxDropdown
@@ -3202,15 +3310,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         <select
                           value={addForm.departments[0] || ""}
                           onChange={(e) => handleAddFieldChange("departments", e.target.value ? [e.target.value] : [])}
-                          className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.departments ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
+                          className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.departments ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                         >
                           <option value="">Select Department</option>
                           {allDepartments.map((department) => (
                             <option key={department} value={department}>{department}</option>
                           ))}
                         </select>
-                        <p className="text-[9px] font-medium text-slate-400 mt-2">Managers and employees can be assigned one department.</p>
-                        {addFormErrors.departments && <span className="text-[10px] font-medium text-red-500 mt-2">{addFormErrors.departments}</span>}
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Managers and employees can be assigned one department.</p>
+                        {addFormErrors.departments && <span className="text-[10px] font-pmedium text-red-500 mt-2">{addFormErrors.departments}</span>}
                       </>
                     )}
                   </div>
@@ -3220,16 +3328,16 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="date"
                       value={addForm.joiningDate}
                       onChange={(e) => handleAddFieldChange("joiningDate", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.joiningDate ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     />
-                    {addFormErrors.joiningDate && <span className="text-[10px] font-medium text-red-500">{addFormErrors.joiningDate}</span>}
+                    {addFormErrors.joiningDate && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.joiningDate}</span>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Employment Type</label>
                     <select
                       value={addForm.employmentType}
                       onChange={(e) => handleAddEmploymentTypeChange(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     >
                       {EMPLOYMENT_TYPE_OPTIONS.map((opt) => (
                         <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
@@ -3241,7 +3349,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     <select
                       value={addForm.workMode}
                       onChange={(e) => handleAddFieldChange("workMode", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     >
                       {WORK_MODE_OPTIONS.map((opt) => (
                         <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
@@ -3260,7 +3368,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                           handleAddFieldChange("employmentType", selected.employmentType || addForm.employmentType);
                         }
                       }}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     >
                       <option value="">Select from recruitment</option>
                       {addFormJobTitleSuggestions.map((job) => (
@@ -3276,7 +3384,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.jobCode}
                       readOnly
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-[12px] font-semibold text-slate-700 outline-none"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-[12px] font-pmedium text-slate-700 outline-none"
                       placeholder="Auto-filled from job role"
                     />
                   </div>
@@ -3286,7 +3394,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.jobTitle}
                       onChange={(e) => handleAddFieldChange("jobTitle", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                       placeholder="Editable designation"
                     />
                   </div>
@@ -3296,7 +3404,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       value={addForm.managerUserId}
                       onChange={(e) => handleAddFieldChange("managerUserId", e.target.value)}
                       disabled={String(addForm.role || "").trim().toLowerCase() !== "employee"}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                     >
                       <option value="">No Manager</option>
                       {managerOptions.map((mgr) => (
@@ -3304,29 +3412,25 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       ))}
                     </select>
                     {String(addForm.role || "").trim().toLowerCase() !== "employee" && (
-                      <p className="text-[9px] font-medium text-slate-400">Manager can only be assigned for Employee role.</p>
+                      <p className="text-[9px] font-pmedium text-slate-400">Manager can only be assigned for Employee role.</p>
                     )}
                   </div>
                 </div>
               </FormSection>
-              <FormSection title="Bank Details" icon={FileText}>
+              <FormSection title="Compensation & Bank Details" icon={FileText}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual CTC</label>
-                  <input
-                    type="number"
-                    value={addForm.salaryAmount}
-                    onChange={(e) => handleAddFieldChange("salaryAmount", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                    placeholder="e.g. 600000"
-                  />
-                </div>
+                <CompensationCtcFields
+                  form={addForm}
+                  currency={workspaceCurrency}
+                  error={addFormErrors.salaryAmount}
+                  onChange={(value) => handleAddFieldChange("salaryAmount", value)}
+                />
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
                   <select
                     value={addForm.bankNameSelection}
                     onChange={(e) => handleAddFieldChange("bankNameSelection", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                   >
                     <option value="">Select Bank</option>
                     {bankNameOptions.map((bank) => (
@@ -3342,7 +3446,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.bankNameCustom}
                       onChange={(e) => handleAddFieldChange("bankNameCustom", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                       placeholder="Enter bank name"
                     />
                   </div>
@@ -3353,7 +3457,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     type="text"
                     value={addForm.accountHolderName}
                     onChange={(e) => handleAddFieldChange("accountHolderName", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3362,7 +3466,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     type="text"
                     value={addForm.accountNumber}
                     onChange={(e) => handleAddFieldChange("accountNumber", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3371,10 +3475,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     type="text"
                     value={addForm.ifscCode}
                     onChange={(e) => handleAddFieldChange("ifscCode", e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     placeholder="HDFC0XXXXXX"
                   />
-                  {addFormErrors.ifscCode && <span className="text-[10px] font-medium text-red-500">{addFormErrors.ifscCode}</span>}
+                  {addFormErrors.ifscCode && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.ifscCode}</span>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -3383,7 +3487,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <select
                     value={addForm.nationalIdType}
                     onChange={(e) => handleAddFieldChange("nationalIdType", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                   >
                     <option value="">Select Type</option>
                     {NATIONAL_ID_TYPES.map((type) => (
@@ -3397,7 +3501,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     type="text"
                     value={addForm.nationalIdNumber}
                     onChange={(e) => handleAddFieldChange("nationalIdNumber", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3406,7 +3510,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     type="text"
                     value={addForm.taxId}
                     onChange={(e) => handleAddFieldChange("taxId", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3415,7 +3519,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     type="text"
                     value={addForm.providentFundNumber}
                     onChange={(e) => handleAddFieldChange("providentFundNumber", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                   />
                 </div>
               </div>
@@ -3428,7 +3532,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <input
                     type="file"
                     onChange={(e) => handleAddFieldChange("identityProof", e.target.files?.[0] || null)}
-                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm"
+                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3436,7 +3540,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <input
                     type="file"
                     onChange={(e) => handleAddFieldChange("addressProof", e.target.files?.[0] || null)}
-                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm"
+                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3444,7 +3548,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <input
                     type="file"
                     onChange={(e) => handleAddFieldChange("bankProof", e.target.files?.[0] || null)}
-                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm"
+                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3453,7 +3557,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     type="file"
                     multiple
                     onChange={(e) => handleAddFieldChange("otherDocuments", Array.from(e.target.files || []))}
-                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-semibold file:shadow-sm"
+                    className="w-full text-[11px] text-slate-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white file:text-slate-800 file:font-pmedium file:shadow-sm"
                   />
                 </div>
               </div>

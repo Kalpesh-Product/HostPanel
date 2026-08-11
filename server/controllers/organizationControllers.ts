@@ -966,13 +966,16 @@ export const getOrganizationOverview = async (req, res, next) => {
         const uid = toId(hit.user);
         flaggedCountByUser.set(uid, (flaggedCountByUser.get(uid) || 0) + 1);
       }
-      for (const userId of overviewUserIds) {
-        const flagCount = flaggedCountByUser.get(toId(userId)) || 0;
-        if (flagCount === 1) continue;
-        const accountMainWorkspaceId =
-          toId(userId) === toId(workspace.owner) ? await resolveMainWorkspaceId(userId) : "";
-        await ensureUserMainUnit({ userId, accountMainWorkspaceId });
-      }
+      const userIdsNeedingRepair = overviewUserIds.filter(
+        (userId) => (flaggedCountByUser.get(toId(userId)) || 0) !== 1,
+      );
+      await Promise.all(
+        userIdsNeedingRepair.map(async (userId) => {
+          const accountMainWorkspaceId =
+            toId(userId) === toId(workspace.owner) ? await resolveMainWorkspaceId(userId) : "";
+          await ensureUserMainUnit({ userId, accountMainWorkspaceId });
+        }),
+      );
     }
 
     const allActingManagers = await ActingManager.find({

@@ -5,6 +5,7 @@ const USER_SCOPED_LOCAL_STORAGE_KEYS = [
   "hostpanel_acting_manager_context",
   "hostpanel_tenant_company_id",
   "hostpanel_tenant_company_name",
+  "hostpanel_tenant_role",
 ] as const;
 
 const USER_SCOPED_SESSION_STORAGE_KEYS = [
@@ -13,6 +14,7 @@ const USER_SCOPED_SESSION_STORAGE_KEYS = [
   "businessId",
   "tenant_company_id",
   "tenant_company_name",
+  "tenant_role",
 ] as const;
 
 /** Removes cached identity/workspace data that must never cross login sessions. */

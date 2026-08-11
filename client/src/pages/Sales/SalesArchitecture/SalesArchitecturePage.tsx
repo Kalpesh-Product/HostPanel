@@ -34,7 +34,7 @@ const getStoredUser = () => {
 
 const floors = [];
 const wings = [];
-const defaultBuilding = "";
+
 const deskCats = new Set(["open_desk", "cabin_desk"]);
 const bookingOnlyCats = new Set(["meeting_room", "conference_room", "virtual_office"]);
 const isDepartmentAssignableResource = (resource = {}) =>
@@ -248,7 +248,7 @@ export default function SalesArchitecturePage() {
   // organization overview response fetched below (oData.workspace.selectedPlan).
   const [workspacePlan, setWorkspacePlan] = useState("basic");
 
-  const [selectedBuilding, setSelectedBuilding] = useState(defaultBuilding);
+  const [selectedBuilding, setSelectedBuilding] = useState("All");
   const [tenantListFilter, setTenantListFilter] = useState("All");
   const [viewDeptId, setViewDeptId] = useState("");
   const [releaseTarget, setReleaseTarget] = useState(null);
@@ -348,18 +348,23 @@ export default function SalesArchitecturePage() {
   }, [axiosPrivate]);
 
   const availableBuildings = useMemo(() => {
-    const list = Array.from(new Set(resources.map((r) => buildingLabelFor(r) || defaultBuilding)))
+    const list = Array.from(new Set(resources.map((r) => buildingLabelFor(r)).filter(Boolean)))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    return list.length > 0 ? list : [defaultBuilding];
+    return list;
   }, [resources]);
 
   useEffect(() => {
-    if (!availableBuildings.includes(selectedBuilding))
-      setSelectedBuilding(availableBuildings[0] || defaultBuilding);
+    if (selectedBuilding !== "All" && !availableBuildings.includes(selectedBuilding)) {
+      setSelectedBuilding("All");
+      setSelectedFloor("All");
+      setSelectedWing("All");
+    }
   }, [availableBuildings, selectedBuilding]);
 
   const buildingResources = useMemo(() =>
-    resources.filter((r) => (buildingLabelFor(r) || defaultBuilding) === selectedBuilding),
+    selectedBuilding === "All"
+      ? resources
+      : resources.filter((r) => buildingLabelFor(r) === selectedBuilding),
     [resources, selectedBuilding]
   );
 
@@ -582,6 +587,12 @@ export default function SalesArchitecturePage() {
   };
 
   const clearSelection = () => { setSelectedIds([]); setPrimaryId(""); };
+  const selectBuilding = (building) => {
+    setSelectedBuilding(building);
+    setSelectedFloor("All");
+    setSelectedWing("All");
+    clearSelection();
+  };
   const selectFloor = (f) => { setSelectedFloor(f); setSelectedWing("All"); clearSelection(); };
   const toggleResource = (r) => {
     if (r.status !== "Active") return;
@@ -680,7 +691,13 @@ export default function SalesArchitecturePage() {
     <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
         <Building2 size={13} className="text-blue-600" />
-        <span className="text-[12px] font-pmedium text-slate-900">{selectedBuilding}</span>
+        <select value={selectedBuilding} onChange={(e) => selectBuilding(e.target.value)}
+          aria-label="Select location"
+          className="bg-transparent text-[12px] font-pmedium text-slate-900 outline-none cursor-pointer"
+        >
+          <option value="All">All Locations</option>
+          {availableBuildings.map((building) => <option key={building} value={building}>{building}</option>)}
+        </select>
       </div>
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
         <LayoutGrid size={13} className="text-blue-600" />
@@ -1489,7 +1506,13 @@ export default function SalesArchitecturePage() {
                 <div className="flex flex-wrap gap-2">
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <Building2 size={12} className="text-blue-500" />
-                    <span className="text-[11px] font-pmedium text-slate-900">{selectedBuilding}</span>
+                    <select value={selectedBuilding} onChange={(e) => selectBuilding(e.target.value)}
+                      aria-label="Select assignment location"
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Locations</option>
+                      {availableBuildings.map((building) => <option key={building} value={building}>{building}</option>)}
+                    </select>
                   </div>
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <LayoutGrid size={12} className="text-blue-500" />
@@ -1628,7 +1651,13 @@ export default function SalesArchitecturePage() {
                 <div className="flex flex-wrap gap-2">
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <Building2 size={12} className="text-blue-500" />
-                    <span className="text-[11px] font-pmedium text-slate-900">{selectedBuilding}</span>
+                    <select value={selectedBuilding} onChange={(e) => selectBuilding(e.target.value)}
+                      aria-label="Select assignment location"
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Locations</option>
+                      {availableBuildings.map((building) => <option key={building} value={building}>{building}</option>)}
+                    </select>
                   </div>
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <LayoutGrid size={12} className="text-blue-500" />

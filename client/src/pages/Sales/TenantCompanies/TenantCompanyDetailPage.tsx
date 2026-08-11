@@ -448,7 +448,11 @@ export default function TenantCompanyDetailPage() {
                             (val.includes('T') || val.endsWith('Z')) &&
                             !Number.isNaN(new Date(val).getTime());
 
-                          const displayVal = isIsoDateLike ? fmtDate(val) : String(val || 'N/A');
+                          const displayVal = isIsoDateLike
+                            ? fmtDate(val)
+                            : key === 'annualIncrement'
+                              ? fmt(Number(val || 0))
+                              : String(val || 'N/A');
 
                           return (
                             <div key={key}>
@@ -589,7 +593,7 @@ export default function TenantCompanyDetailPage() {
                                 {b.status || b.storedStatus || 'Booked'}
                               </span>
                             </td>
-                            <td className="px-5 py-4 text-right"><span className="text-xs font-black text-red-500">{fmt(b.bookingCredits || 0)}</span></td>
+                            <td className="px-5 py-4 text-right"><span className="text-xs font-black text-red-500">{(b.bookingCredits || 0)}</span></td>
                             <td className="px-5 py-4 text-center">
                               <button onClick={() => setViewBk(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                             </td>

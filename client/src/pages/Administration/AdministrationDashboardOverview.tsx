@@ -6,6 +6,7 @@ import {
   Wrench,
   ContactRound,
   Clock,
+  Eye,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -33,6 +34,7 @@ import { getTenantCompanies } from "@/services/tenant-companies";
 import { getMeetingRoomBookings } from "@/services/meeting-room-bookings";
 import { getResources } from "@/services/resources";
 import { getHousekeepingOverview } from "@/services/housekeeping";
+import { getVisitorManagementOverview } from "@/services/visitors";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -100,12 +102,29 @@ interface HousekeepingSummary {
   bookingTriggers?: number;
 }
 
+interface VisitorRecord {
+  id?: string;
+  recordId?: string;
+  fullName?: string;
+  name?: string;
+  purpose?: string;
+  visitorType?: string;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
+  dateOfVisit?: string;
+  createdAt?: string;
+  statusKey?: string;
+  status?: string;
+}
+
 interface DashboardState {
   tenants: TenantRecord[];
   bookings: BookingRecord[];
   resources: ResourceRecord[];
   housekeepingTasks: HousekeepingTaskRecord[];
   housekeepingSummary: HousekeepingSummary;
+  dailyVisitors: VisitorRecord[];
+  liveVisitors: VisitorRecord[];
 }
 
 const DEFAULT_DASHBOARD: DashboardState = {
@@ -114,6 +133,8 @@ const DEFAULT_DASHBOARD: DashboardState = {
   resources: [],
   housekeepingTasks: [],
   housekeepingSummary: {},
+  dailyVisitors: [],
+  liveVisitors: [],
 };
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
@@ -249,11 +270,12 @@ export function AdministrationDashboardOverview() {
           "",
         );
 
-        const [tenantsResponse, bookingsResponse, resourcesResponse, housekeepingResponse] = await Promise.allSettled([
+        const [tenantsResponse, bookingsResponse, resourcesResponse, housekeepingResponse, visitorsResponse] = await Promise.allSettled([
           getTenantCompanies(),
           dashboardWorkspaceId ? getMeetingRoomBookings(dashboardWorkspaceId) : Promise.resolve(null),
           getResources(),
           getHousekeepingOverview(),
+          getVisitorManagementOverview(),
         ]);
 
         if (!isMounted) {
@@ -296,15 +318,19 @@ export function AdministrationDashboardOverview() {
 
         const housekeepingData = housekeepingResponse.status === "fulfilled" ? (housekeepingResponse.value as { data?: Record<string, unknown> })?.data : undefined;
 
+        const visitorsOverview = visitorsResponse.status === "fulfilled" ? (visitorsResponse.value as Record<string, unknown>) : undefined;
+
         setDashboard({
           tenants: (Array.isArray(tenants) ? tenants : []) as TenantRecord[],
           bookings: (Array.isArray(bookings) ? bookings : []) as BookingRecord[],
           resources: (Array.isArray(resources) ? resources : []) as ResourceRecord[],
           housekeepingTasks: Array.isArray(housekeepingData?.tasks) ? (housekeepingData.tasks as HousekeepingTaskRecord[]) : [],
           housekeepingSummary: (housekeepingData?.summary as HousekeepingSummary) || {},
+          dailyVisitors: Array.isArray(visitorsOverview?.dailyVisitors) ? (visitorsOverview.dailyVisitors as VisitorRecord[]) : [],
+          liveVisitors: Array.isArray(visitorsOverview?.liveVisitors) ? (visitorsOverview.liveVisitors as VisitorRecord[]) : [],
         });
 
-        const failures = [tenantsResponse, bookingsResponse, resourcesResponse, housekeepingResponse].filter((result) => result.status === "rejected");
+        const failures = [tenantsResponse, bookingsResponse, resourcesResponse, housekeepingResponse, visitorsResponse].filter((result) => result.status === "rejected");
         setError(failures.length > 0 ? ((failures[0] as PromiseRejectedResult).reason?.message || "Some Administration data could not be loaded.") : "");
       } catch (loadError) {
         if (!isMounted) {
@@ -332,6 +358,31 @@ export function AdministrationDashboardOverview() {
   const resources = dashboard.resources;
   const housekeepingTasks = dashboard.housekeepingTasks;
   const housekeepingSummary = dashboard.housekeepingSummary;
+  const dailyVisitors = dashboard.dailyVisitors;
+  const liveVisitors = dashboard.liveVisitors;
+
+  const recentVisitors = useMemo(
+    () => [...dailyVisitors]
+      .sort((left, right) => new Date(right.checkInAt || right.dateOfVisit || right.createdAt || 0).getTime() - new Date(left.checkInAt || left.dateOfVisit || left.createdAt || 0).getTime())
+      .slice(0, 5),
+    [dailyVisitors],
+  );
+
+  const visitorTypeDonut = useMemo(() => {
+    const map: Record<string, number> = {};
+    dailyVisitors.forEach((v) => {
+      const raw = String(v.visitorType || "standard");
+      const type = raw.charAt(0).toUpperCase() + raw.slice(1);
+      map[type] = (map[type] || 0) + 1;
+    });
+    const entries = Object.entries(map);
+    const COLORS = ["#1E3D73", "#80bf01", "#2563EB", "#f59e0b", "#7c3aed"];
+    return {
+      series: entries.map(([, n]) => n),
+      labels: entries.map(([t]) => t),
+      colors: entries.map((_, i) => COLORS[i % COLORS.length]),
+    };
+  }, [dailyVisitors]);
 
   const tenantStats = useMemo(() => {
     const statusOf = (t: TenantRecord) => normalizeText(t.status);
@@ -472,6 +523,7 @@ export function AdministrationDashboardOverview() {
       <DashboardAttendanceCard />
 
       <WidgetSection layout={4} title="Overview" border normalCase>
+        <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
         <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/administration/tenant-companies" />
         <StatCard icon={CalendarCheck} label="Meeting Room Bookings" value={bookingStats.total} sub={`${bookingStats.confirmedToday} confirmed today`} color="#2563EB" route="/administration/bookings" />
         <StatCard icon={HandCoins} label="Resources" value={resourceStats.total} sub={`${resourceStats.inUse} in use · ${resourceStats.active} active`} color="#7c3aed" route="/administration/resource-management" />
@@ -497,6 +549,31 @@ export function AdministrationDashboardOverview() {
             <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No pending housekeeping tasks</p></div>
           )}
         </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
+          {recentVisitors.length > 0 ? recentVisitors.map((v, index) => (
+            <RecentItem
+              key={v.id || v.recordId || index}
+              title={v.fullName || v.name || "Visitor"}
+              sub={v.purpose || v.visitorType || "—"}
+              badge={v.checkInAt && !v.checkOutAt ? "Checked In" : v.checkOutAt ? "Checked Out" : "Logged"}
+              badgeColor={statusBadgeColor(v.checkInAt && !v.checkOutAt ? "active" : "completed")}
+              time={humanRelTime(v.checkInAt || v.dateOfVisit || v.createdAt || "")}
+            />
+          )) : (
+            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No visitors logged today</p></div>
+          )}
+        </SectionCard>
+
+        <DonutWidget
+          title="Visitor Type"
+          series={visitorTypeDonut.series}
+          labels={visitorTypeDonut.labels}
+          colors={visitorTypeDonut.colors}
+          centerLabel="Visitors"
+        />
       </div>
 
       <WidgetSection layout={4} title="Quick Links" border normalCase>

@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   CheckCircle2,
   Clock,
+  Eye,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -31,6 +32,7 @@ import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dash
 import { getWebsiteLeads } from "@/services/sales-leads";
 import { getTenantCompanies } from "@/services/tenant-companies";
 import { getPricingPackages } from "@/services/pricing-packages";
+import { getVisitorManagementOverview } from "@/services/visitors";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -70,16 +72,33 @@ interface PricingPackageRecord {
   createdAt?: string;
 }
 
+interface VisitorRecord {
+  id?: string;
+  recordId?: string;
+  fullName?: string;
+  name?: string;
+  purpose?: string;
+  visitorType?: string;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
+  dateOfVisit?: string;
+  createdAt?: string;
+}
+
 interface DashboardState {
   leads: WebsiteLeadRecord[];
   tenants: TenantCompanyRecord[];
   packages: PricingPackageRecord[];
+  dailyVisitors: VisitorRecord[];
+  liveVisitors: VisitorRecord[];
 }
 
 const DEFAULT_DASHBOARD: DashboardState = {
   leads: [],
   tenants: [],
   packages: [],
+  dailyVisitors: [],
+  liveVisitors: [],
 };
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
@@ -201,10 +220,11 @@ export function SalesDashboardOverview() {
       setError("");
 
       try {
-        const [leadsResponse, tenantsResponse, packagesResponse] = await Promise.allSettled([
+        const [leadsResponse, tenantsResponse, packagesResponse, visitorsResponse] = await Promise.allSettled([
           getWebsiteLeads(),
           getTenantCompanies(),
           getPricingPackages(),
+          getVisitorManagementOverview(),
         ]);
 
         if (!isMounted) {
@@ -229,13 +249,17 @@ export function SalesDashboardOverview() {
             ?? (packagesPayload as { packages?: unknown }).packages
           : [];
 
+        const visitorsOverview = visitorsResponse.status === "fulfilled" ? (visitorsResponse.value as Record<string, unknown>) : undefined;
+
         setDashboard({
           leads: Array.isArray(leadsData) ? (leadsData as WebsiteLeadRecord[]) : [],
           tenants: Array.isArray(tenantsData) ? (tenantsData as TenantCompanyRecord[]) : [],
           packages: Array.isArray(packagesData) ? (packagesData as PricingPackageRecord[]) : [],
+          dailyVisitors: Array.isArray(visitorsOverview?.dailyVisitors) ? (visitorsOverview.dailyVisitors as VisitorRecord[]) : [],
+          liveVisitors: Array.isArray(visitorsOverview?.liveVisitors) ? (visitorsOverview.liveVisitors as VisitorRecord[]) : [],
         });
 
-        const failures = [leadsResponse, tenantsResponse, packagesResponse].filter((result) => result.status === "rejected");
+        const failures = [leadsResponse, tenantsResponse, packagesResponse, visitorsResponse].filter((result) => result.status === "rejected");
         setError(
           failures.length > 0
             ? ((failures[0] as PromiseRejectedResult).reason?.message || "Some sales data could not be loaded.")
@@ -265,6 +289,31 @@ export function SalesDashboardOverview() {
   const leads = dashboard.leads;
   const tenants = dashboard.tenants;
   const packages = dashboard.packages;
+  const dailyVisitors = dashboard.dailyVisitors;
+  const liveVisitors = dashboard.liveVisitors;
+
+  const recentVisitors = useMemo(
+    () => [...dailyVisitors]
+      .sort((left, right) => new Date(right.checkInAt || right.dateOfVisit || right.createdAt || 0).getTime() - new Date(left.checkInAt || left.dateOfVisit || left.createdAt || 0).getTime())
+      .slice(0, 5),
+    [dailyVisitors],
+  );
+
+  const visitorTypeDonut = useMemo(() => {
+    const map: Record<string, number> = {};
+    dailyVisitors.forEach((v) => {
+      const raw = String(v.visitorType || "standard");
+      const type = raw.charAt(0).toUpperCase() + raw.slice(1);
+      map[type] = (map[type] || 0) + 1;
+    });
+    const entries = Object.entries(map);
+    const COLORS = ["#1E3D73", "#80bf01", "#2563EB", "#f59e0b", "#7c3aed"];
+    return {
+      series: entries.map(([, n]) => n),
+      labels: entries.map(([t]) => t),
+      colors: entries.map((_, i) => COLORS[i % COLORS.length]),
+    };
+  }, [dailyVisitors]);
 
   const totalLeads = leads.length;
   const newLeadsCount = leads.filter((lead) => normalizeText(lead.status || "Pending") === "pending").length;
@@ -413,6 +462,7 @@ export function SalesDashboardOverview() {
         <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/sales-crm/tenant-companies" />
         <StatCard icon={Tag} label="Pricing Packages" value={totalPackages} sub={`${activePackagesCount} active`} color="#7c3aed" route="/sales-crm/resource-pricing" />
         <StatCard icon={CheckCircle2} label="Contacted Leads" value={contactedLeadsCount} sub={`${contactedPercent}% of total leads`} color="#22c55e" route="/sales-crm/leads-management" />
+        <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
       </WidgetSection>
 
       {/* Team status, live visitors and recent leads */}
@@ -492,6 +542,29 @@ export function SalesDashboardOverview() {
           labels={tenantStatusDonut.labels}
           colors={tenantStatusDonut.colors}
           centerLabel="Tenants"
+        />
+
+        <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
+          {recentVisitors.length > 0 ? recentVisitors.map((v, index) => (
+            <RecentItem
+              key={v.id || v.recordId || index}
+              title={v.fullName || v.name || "Visitor"}
+              sub={v.purpose || v.visitorType || "—"}
+              badge={v.checkInAt && !v.checkOutAt ? "Checked In" : v.checkOutAt ? "Checked Out" : "Logged"}
+              badgeColor={statusBadgeColor(v.checkInAt && !v.checkOutAt ? "active" : "completed")}
+              time={humanRelTime(v.checkInAt || v.dateOfVisit || v.createdAt || "")}
+            />
+          )) : (
+            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No visitors logged today</p></div>
+          )}
+        </SectionCard>
+
+        <DonutWidget
+          title="Visitor Type"
+          series={visitorTypeDonut.series}
+          labels={visitorTypeDonut.labels}
+          colors={visitorTypeDonut.colors}
+          centerLabel="Visitors"
         />
       </div>
 

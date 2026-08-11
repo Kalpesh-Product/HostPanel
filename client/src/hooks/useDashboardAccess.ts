@@ -46,6 +46,8 @@ export interface DashboardAccessResult {
   grantedModuleIds: Set<string>;
   /** The full module catalog tree (sections/items/tabs), for building module-driven UI */
   moduleMap: { sections: WorkspaceModuleSection[] };
+  /** Org-wide member counts, sourced from the same organization/overview fetch this hook already makes */
+  metrics: { activeMembers: number; totalMembers: number };
 }
 
 const normalizeRoleBand = (role: string): RoleBand => {
@@ -188,6 +190,10 @@ export default function useDashboardAccess(): DashboardAccessResult {
       departments,
       grantedModuleIds,
       moduleMap,
+      metrics: {
+        activeMembers: (overviewData as any)?.metrics?.activeMembers ?? 0,
+        totalMembers: (overviewData as any)?.metrics?.totalMembers ?? 0,
+      },
     };
   }, [data, isModuleMapLoading, overviewData, isOverviewLoading, auth?.user]);
 

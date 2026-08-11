@@ -3,13 +3,16 @@ import React, { useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import TabLayout from "../../../../components/Tabs/TabLayout";
 import { PERMISSIONS } from "../../../../constants/permissions";
+import useDashboardAccess from "../../../../hooks/useDashboardAccess";
 
 const FrontendSettings = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { plan } = useDashboardAccess();
+  const isCustomPlan = String(plan || "basic").trim().toLowerCase() === "custom";
 
   // Map routes to tabs
-const tabs = [
+const allTabs = [
   {
     label: "Bulk Upload",
     path: "bulk-upload",
@@ -26,6 +29,14 @@ const tabs = [
     permission: PERMISSIONS.FRONTEND_POLICIES.value,
   },
 ];
+
+  const tabs = allTabs.filter((tab) => !["sops", "policies"].includes(tab.path) || isCustomPlan);
+
+  useEffect(() => {
+    if (!isCustomPlan && ["/sops", "/policies"].some((path) => location.pathname.includes(path))) {
+      navigate("bulk-upload", { replace: true });
+    }
+  }, [isCustomPlan, location.pathname, navigate]);
 
  
   // Redirect to "bulk-upload" if the current path is "/frontend-dashboard/settings"

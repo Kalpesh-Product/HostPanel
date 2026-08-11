@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth-session";
 import CompanySettingsDashboard from "./FrontendDashboard/CompanySettingsDashboard";
 import EmployeeDashboardOverview from "./EmployeeDashboardOverview";
+import AdminDashboardOverview from "./AdminDashboardOverview";
 import HRDashboardOverview from "../HR/HRDashboardOverview";
 import AdministrationDashboardOverview from "../Administration/AdministrationDashboardOverview";
 import SalesDashboardOverview from "../Sales/SalesDashboardOverview";
@@ -96,10 +97,12 @@ const DEPARTMENT_ROUTES: {
  * every owner would land on whichever department check happens to run first.
  * Department managers/members are routed to their department's rich
  * dashboard when one exists. A plain employee with no department match gets
- * the simple, common EmployeeDashboardOverview. Everyone else (admins/
- * managers without a matched department, including custom departments)
- * falls through to CompanySettingsDashboard, which renders the
- * granted-module-driven ModuleAccessDashboard for them.
+ * the simple, common EmployeeDashboardOverview. A roleBand "admin" with no
+ * department match gets AdminDashboardOverview (admin-branded header +
+ * granted-module-driven ModuleAccessDashboard, per their assigned
+ * departments). Everyone else (managers without a matched department,
+ * including custom departments) falls through to CompanySettingsDashboard,
+ * which renders the granted-module-driven ModuleAccessDashboard for them.
  */
 export function DashboardIndex() {
   const currentUser = useFreshCurrentUser();
@@ -133,6 +136,10 @@ export function DashboardIndex() {
 
     if (access.roleBand === "employee") {
       return <EmployeeDashboardOverview />;
+    }
+
+    if (access.roleBand === "admin") {
+      return <AdminDashboardOverview />;
     }
   }
 

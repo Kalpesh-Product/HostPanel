@@ -1,9 +1,9 @@
 export function getStoredTenantRole(): string {
   try {
     const raw = localStorage.getItem('hostpanel_tenant_role') || sessionStorage.getItem('tenant_role');
-    return raw || 'tenant-employee';
+    return raw || '';
   } catch {
-    return 'tenant-employee';
+    return '';
   }
 }
 

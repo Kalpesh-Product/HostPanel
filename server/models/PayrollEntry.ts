@@ -33,12 +33,18 @@ export interface IPayrollEntry extends Document {
         workingDays: number;
         payableDays: number;
         present: number;
+        projectedDays: number;
+        halfDays: number;
         paidLeaves: number;
+        holidayDays: number;
+        preJoiningDays: number;
+        absentDays: number;
         unpaidLeaves: number;
         dailyRate: number;
         presentPay: number;
         leavePay: number;
         halfDayPay: number;
+        holidayPay: number;
     };
     financials: {
         baseSalary: number;
@@ -185,12 +191,18 @@ const payrollEntrySchema = new Schema<IPayrollEntry>(
             workingDays: { type: Number, required: true, min: 0, default: 0 },
             payableDays: { type: Number, required: true, min: 0, default: 0 },
             present: { type: Number, required: true, min: 0, default: 0 },
+            projectedDays: { type: Number, required: true, min: 0, default: 0 },
+            halfDays: { type: Number, required: true, min: 0, default: 0 },
             paidLeaves: { type: Number, required: true, min: 0, default: 0 },
+            holidayDays: { type: Number, required: true, min: 0, default: 0 },
+            preJoiningDays: { type: Number, required: true, min: 0, default: 0 },
+            absentDays: { type: Number, required: true, min: 0, default: 0 },
             unpaidLeaves: { type: Number, required: true, min: 0, default: 0 },
             dailyRate: { type: Number, required: true, min: 0, default: 0 },
             presentPay: { type: Number, required: true, min: 0, default: 0 },
             leavePay: { type: Number, required: true, min: 0, default: 0 },
             halfDayPay: { type: Number, required: true, min: 0, default: 0 },
+            holidayPay: { type: Number, required: true, min: 0, default: 0 },
         },
         financials: {
             baseSalary: { type: Number, required: true, min: 0, default: 0 },

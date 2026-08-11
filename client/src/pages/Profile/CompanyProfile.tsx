@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Camera, CheckCircle2, Download, Eye, FileText, Loader2, MapPin, Pencil, Save, ShieldCheck, X } from "lucide-react";
@@ -7,6 +7,7 @@ import { Country } from "country-state-city";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import useWorkspacePreferences from "../../hooks/useWorkspacePreferences";
+import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { updateWorkspaceSettings } from "../../services/unit-settings";
 import { getCompanyDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
 import humanDate from "../../utils/humanDateForamt";
@@ -112,6 +113,9 @@ const CompanyProfile = () => {
   const axios = useAxiosPrivate();
   const queryClient = useQueryClient();
   const { auth, setAuth } = useAuth();
+  const { plan: dashboardPlan } = useDashboardAccess();
+  const hasTenantRole = Boolean((auth?.user as any)?.tenantRole);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -132,9 +136,50 @@ const CompanyProfile = () => {
       "",
   ).trim();
 
+const profileScopeKey = hasTenantRole
+  ? String((auth?.user as any)?.tenantCompanyId || "tenant")
+  : activeWorkspaceId;
+
 const { data: userDetails, refetch: refetchProfile } = useQuery({
-  queryKey: ["profileMeCompany", activeWorkspaceId],
+  queryKey: ["profileMeCompany", profileScopeKey],
   queryFn: async () => {
+    if (hasTenantRole) {
+      const res = await axios.get("/api/auth/tenant/profile");
+      const tenantProfile = res?.data || {};
+      const employee = tenantProfile?.employee || {};
+      const company = tenantProfile?.company || {};
+      const tenantWorkspace = tenantProfile?.workspace || {};
+      const customerDetails = company?.customerDetails || {};
+
+      return {
+        success: true,
+        data: {
+          user: {
+            ...(auth?.user || {}),
+            name: employee?.name || (auth?.user as any)?.name || "",
+            email: employee?.email || (auth?.user as any)?.email || "",
+            phone: employee?.phone || "",
+            tenantRole: employee?.tenantRole || (auth?.user as any)?.tenantRole || "",
+            tenantCompanyId: company?.id || (auth?.user as any)?.tenantCompanyId || "",
+            tenantCompanyName: company?.companyName || "",
+            companyName: company?.companyName || "",
+            logo: null,
+          },
+          workspace: {
+            workspaceName: company?.companyName || "",
+            businessName: company?.companyName || "",
+            brandName: "",
+            country: customerDetails?.hoCountry || "",
+            state: customerDetails?.hoState || "",
+            city: customerDetails?.hoCity || "",
+            businessTypes: company?.businessType ? [company.businessType] : [],
+            selectedPlan: tenantWorkspace?.selectedPlan || dashboardPlan || "basic",
+          },
+          tenantCompany: company,
+        },
+      };
+    }
+
     const res = await axios.get("/api/profile/me");
     return res.data;
   },
@@ -158,6 +203,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
   }, [setAuth, userDetails]);
 
   const workspace = userDetails?.data?.workspace || null;
+  const tenantCompany = userDetails?.data?.tenantCompany || null;
   const workspacePreferences = useWorkspacePreferences();
 
   const authUserRole = String(
@@ -331,30 +377,57 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
     reset(defaults);
   }, [defaults, reset]);
 
-  const companyFields = [
-    { name: "workspaceName", label: "Unit Name" },
-    { name: "businessName", label: "Company Name" },
-    { name: "brandName", label: "Brand Name" },
-    { name: "country", label: "Country" },
-    { name: "state", label: "State" },
-    { name: "city", label: "City" },
-    { name: "businessTypes", label: "Types of Vertical" },
-    { name: "selectedPlan", label: "Selected Plan" },
-  ];
+  const companyFields = hasTenantRole
+    ? [
+        { name: "companyName", label: "Tenant Company", value: tenantCompany?.companyName || "-" },
+        { name: "contactName", label: "Contact Person", value: tenantCompany?.contactName || "-" },
+        { name: "email", label: "Company Email", value: tenantCompany?.email || "-" },
+        { name: "phone", label: "Company Phone", value: tenantCompany?.phone || "-" },
+        { name: "businessType", label: "Business Type", value: tenantCompany?.businessType || "-" },
+        { name: "sector", label: "Sector", value: tenantCompany?.customerDetails?.sector || "-" },
+        { name: "country", label: "HO Country", value: tenantCompany?.customerDetails?.hoCountry || "-" },
+        { name: "state", label: "HO State", value: tenantCompany?.customerDetails?.hoState || "-" },
+        { name: "city", label: "HO City", value: tenantCompany?.customerDetails?.hoCity || "-" },
+        { name: "buildingName", label: "Building", value: tenantCompany?.companyDetails?.buildingName || "-" },
+        { name: "unitNo", label: "Unit Number", value: tenantCompany?.companyDetails?.unitNo || "-" },
+      ]
+    : [
+        { name: "workspaceName", label: "Unit Name", value: workspace?.workspaceName || "-" },
+        { name: "businessName", label: "Company Name", value: workspace?.businessName || "-" },
+        { name: "brandName", label: "Brand Name", value: workspace?.brandName || "-" },
+        { name: "country", label: "Country", value: workspace?.country || "-" },
+        { name: "state", label: "State", value: workspace?.state || "-" },
+        { name: "city", label: "City", value: workspace?.city || "-" },
+        {
+          name: "businessTypes",
+          label: "Types of Vertical",
+          value: Array.isArray(workspace?.businessTypes) ? workspace.businessTypes.join(", ") || "-" : "-",
+        },
+        { name: "selectedPlan", label: "Selected Plan", value: workspace?.selectedPlan || "-" },
+      ];
 
-  const selectedPlan = String(workspace?.selectedPlan || "").toLowerCase();
-  const upgradePlanOptions =
-    selectedPlan === "basic"
+  const selectedPlan = String(workspace?.selectedPlan || dashboardPlan || "basic").toLowerCase();
+  const isCustomPlan = selectedPlan === "custom";
+  const upgradePlanOptions = hasTenantRole
+    ? []
+    : selectedPlan === "basic"
       ? ["professional", "custom"]
       : selectedPlan === "professional"
-      ? ["custom"]
-      : [];
+        ? ["custom"]
+        : [];
   const upgradePlanCards = PLAN_UI_DATA.filter((plan) => upgradePlanOptions.includes(plan.key));
 
   const currentLogoUrl =
     previewUrl ||
-    (typeof auth?.user?.logo === "object" ? auth?.user?.logo?.url : auth?.user?.logo) ||
+    (!hasTenantRole
+      ? (typeof auth?.user?.logo === "object" ? auth?.user?.logo?.url : auth?.user?.logo)
+      : "") ||
     "";
+
+  const openLogoPicker = () => {
+    setIsLogoPreviewOpen(false);
+    window.setTimeout(() => logoInputRef.current?.click(), 0);
+  };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -554,11 +627,12 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                   — a wide, letterboxed rectangle rather than a square/circle frame. */}
               <button
                 type="button"
-                onClick={() =>
-                  currentLogoUrl
-                    ? setIsLogoPreviewOpen(true)
-                    : document.getElementById("companyLogoUpload")?.click()
-                }
+                onClick={() => {
+                  if (hasTenantRole) return;
+                  if (currentLogoUrl) setIsLogoPreviewOpen(true);
+                  else openLogoPicker();
+                }}
+                disabled={hasTenantRole}
                 className="flex h-16 w-56 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:bg-blue-50/30"
                 title={currentLogoUrl ? "Preview company logo" : "Upload company logo"}
               >
@@ -567,18 +641,23 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-slate-400">
                     <Building2 size={22} />
-                    <span className="text-[9px] font-semibold uppercase tracking-wide">Upload Logo</span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wide">{hasTenantRole ? "Tenant Company" : "Upload Logo"}</span>
                   </div>
                 )}
               </button>
-              <label
-                htmlFor="companyLogoUpload"
-                title="Change company logo"
-                className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white shadow-md transition hover:bg-slate-700"
-              >
-                <Camera size={13} />
-              </label>
+              {!hasTenantRole ? (
+                <button
+                  type="button"
+                  onClick={openLogoPicker}
+                  title="Change company logo"
+                  aria-label="Change company logo"
+                  className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white shadow-md transition hover:bg-slate-700"
+                >
+                  <Camera size={13} />
+                </button>
+              ) : null}
               <input
+                ref={logoInputRef}
                 id="companyLogoUpload"
                 type="file"
                 accept=".png,.jpg,.jpeg,.webp"
@@ -597,13 +676,13 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                     alt="Company logo preview"
                     className="max-h-80 w-full rounded-xl border border-slate-100 object-contain p-4"
                   />
-                  <label
-                    htmlFor="companyLogoUpload"
-                    onClick={() => setIsLogoPreviewOpen(false)}
+                  <button
+                    type="button"
+                    onClick={openLogoPicker}
                     className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700"
                   >
-                    Change Logo
-                  </label>
+                    <Camera size={14} /> Change Logo
+                  </button>
                 </div>
               </MuiModal>
 
@@ -664,7 +743,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
 
       <SectionShell
         eyebrow="Company"
-        title="Unit & Company Information"
+        title={hasTenantRole ? "Tenant Company Information" : "Unit & Company Information"}
         icon={Building2}
         action={
           upgradePlanOptions.length > 0 ? (
@@ -674,21 +753,20 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {companyFields.map((fieldConfig) => {
-            const value = workspace?.[fieldConfig.name]
-              ? Array.isArray(workspace[fieldConfig.name])
-                ? (workspace[fieldConfig.name] as string[]).join(", ")
-                : String(workspace[fieldConfig.name] || "")
-              : "-";
             const icon = ["country", "state", "city"].includes(fieldConfig.name)
               ? MapPin
               : fieldConfig.name === "selectedPlan"
                 ? ShieldCheck
                 : Building2;
 
-            return <DetailCard key={fieldConfig.name} label={fieldConfig.label} value={value} icon={icon} />;
+            return <DetailCard key={fieldConfig.name} label={fieldConfig.label} value={String(fieldConfig.value || "-")} icon={icon} />;
           })}
-          <DetailCard label="Timezone" value={displayTimezone || "-"} icon={Building2} />
-          <DetailCard label="Currency" value={displayCurrency || "-"} icon={Building2} />
+          {!hasTenantRole ? (
+            <>
+              <DetailCard label="Timezone" value={displayTimezone || "-"} icon={Building2} />
+              <DetailCard label="Currency" value={displayCurrency || "-"} icon={Building2} />
+            </>
+          ) : null}
         </div>
         {requestedUpgradePlan ? (
           <p className="text-center mt-4 text-[13px] font-medium text-[#2d67f0]">
@@ -697,8 +775,12 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
         ) : null}
       </SectionShell>
 
-      <CompanyDocumentsSection kind="policy" title="Company Policies" />
-      <CompanyDocumentsSection kind="sop" title="Company SOPs" />
+      {isCustomPlan ? (
+        <>
+          <CompanyDocumentsSection kind="policy" title="Company Policies" />
+          <CompanyDocumentsSection kind="sop" title="Company SOPs" />
+        </>
+      ) : null}
 
       <AccountDeletionDangerZone />
 

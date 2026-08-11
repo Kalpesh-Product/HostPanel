@@ -317,28 +317,11 @@ export function TechDashboardOverview() {
           <StatCard icon={CheckCircle2} label="Closed Leads" value={closedLeads.length} sub={`${rejectedLeads.length} rejected`} color="#22c55e" route="/company-settings/website-builder/leads" />
         </WidgetSection>
 
-        {/* Team status, live visitors and recent leads */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Team status and live visitors */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <TeamLiveStatusCard department="tech" viewAllRoute="/company-settings/website-builder/leads" />
 
           <DepartmentVisitorsCard department="tech" title="Tech Visitors" />
-
-          <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
-            <div className="space-y-3">
-              {recentLeads.length > 0 ? recentLeads.map((lead, index) => (
-                <RecentItem
-                  key={lead.id || lead._id || index}
-                  title={lead.name || lead.fullName || "Website Lead"}
-                  sub={leadContactLabel(lead)}
-                  badge={leadStatusLabel(lead.status)}
-                  badgeColor={statusBadgeColor(leadStatusLabel(lead.status))}
-                  time={humanRelTime(lead.createdAt || "")}
-                />
-              )) : (
-                <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No website leads yet</p></div>
-              )}
-            </div>
-          </SectionCard>
         </div>
 
         {/* Quick links */}

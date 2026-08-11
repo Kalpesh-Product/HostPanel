@@ -123,7 +123,8 @@ function getAttendanceStatusUI(status = ""): { dot: string; text: string; icon: 
 }
 
 interface TeamLiveStatusCardProps {
-  department: string;
+  /** Omit to show a workspace-wide roster (e.g. the founder dashboard) instead of filtering to one department. */
+  department?: string;
   viewAllRoute?: string;
 }
 
@@ -131,6 +132,7 @@ export const TeamLiveStatusCard = ({ department, viewAllRoute = "/extra-common-m
   const currentUser = useFreshCurrentUser();
 
   const currentUserDepartments = useMemo(() => {
+    if (!department) return [];
     const rawDepartments = [
       currentUser?.workspaceMembership?.department,
       ...(Array.isArray(currentUser?.workspaceMembership?.departments) ? currentUser.workspaceMembership.departments.map(toDepartmentName) : []),
@@ -171,6 +173,7 @@ export const TeamLiveStatusCard = ({ department, viewAllRoute = "/extra-common-m
 
     return teamAttendance
       .filter((row) => {
+        if (!department) return true;
         const rowDepartmentValues = [
           row?.department,
           row?.role,
@@ -190,7 +193,7 @@ export const TeamLiveStatusCard = ({ department, viewAllRoute = "/extra-common-m
       }))
       .sort((left, right) => (statusOrder[left.status] ?? 99) - (statusOrder[right.status] ?? 99))
       .slice(0, 4);
-  }, [currentUserDepartments, teamAttendance]);
+  }, [currentUserDepartments, teamAttendance, department]);
 
   return (
     <SectionCard title="Team Live Status" linkLabel="View all" linkRoute={viewAllRoute}>

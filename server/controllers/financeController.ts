@@ -29,6 +29,7 @@ import {
 } from "../services/payrollService.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import Workspace from "../models/Workspace.js";
 
 function getWorkspaceId(req: Request) {
   return (req as any)?.workspaceMembership?.workspace ? (req as any).workspaceMembership.workspace : null;
@@ -570,7 +571,9 @@ export async function getPayrollSnapshot(req: Request, res: Response, next: Next
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const result = await getPayrollSnapshotForCurrentUser({ workspaceId, userId });
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found." });
+    const result = await getPayrollSnapshotForCurrentUser({ workspace, userId, query: req.query });
 
     return res.status(200).json({
       success: true,
@@ -589,7 +592,9 @@ export async function getMyPayslips(req: Request, res: Response, next: NextFunct
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const result = await listPayslipsForCurrentUser({ workspaceId, userId });
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found." });
+    const result = await listPayslipsForCurrentUser({ workspace, userId, query: req.query });
 
     return res.status(200).json({
       success: true,
@@ -608,10 +613,9 @@ export async function processPayrollPayment(req: Request, res: Response, next: N
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { payrollEntryId, month } = req.body || {};
-    if (!payrollEntryId) return res.status(400).json({ message: "payrollEntryId is required" });
-
-    const result = await processPayrollPaymentForCurrentUser({ workspaceId, userId, payrollEntryId, month });
+    const { cycleId, profileId, ...body } = req.body || {};
+    if (!cycleId || !profileId) return res.status(400).json({ message: "cycleId and profileId are required" });
+    const result = await processPayrollPaymentForCurrentUser({ workspaceId, userId, cycleId, employeeProfileId: profileId, body });
 
     return res.status(200).json({
       success: true,
@@ -630,12 +634,9 @@ export async function generatePayslip(req: Request, res: Response, next: NextFun
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { employeeId, month, year, payslipNumber } = req.body || {};
-    if (!employeeId) return res.status(400).json({ message: "employeeId is required" });
-    if (!month) return res.status(400).json({ message: "month is required" });
-    if (!year) return res.status(400).json({ message: "year is required" });
-
-    const result = await generatePayslipForCurrentUser({ workspaceId, userId, employeeId, month, year, payslipNumber });
+    const { cycleId, profileId } = req.body || {};
+    if (!cycleId || !profileId) return res.status(400).json({ message: "cycleId and profileId are required" });
+    const result = await generatePayslipForCurrentUser({ workspaceId, userId, cycleId, employeeProfileId: profileId });
 
     return res.status(201).json({
       success: true,

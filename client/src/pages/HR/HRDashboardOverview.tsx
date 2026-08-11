@@ -30,10 +30,11 @@ import {
   getGreeting,
   humanRelTime,
   statusBadgeColor,
+  fmtINR,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
 import { TeamLiveStatusCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
-import { getEmployeeManagementOverview } from "@/services/hr";
+import { getEmployeeManagementOverview, getPayrollSnapshot } from "@/services/hr";
 import { getRecruitmentOverview } from "@/services/recruitment";
 import { getLeaveRequests } from "@/services/leave-requests";
 import { getHrAttendanceReview, getTeamAttendance } from "@/services/attendance";
@@ -144,6 +145,7 @@ interface DashboardState {
   jobOpenings: JobOpeningRecord[];
   leaveRequests: LeaveRequestRecord[];
   correctionRequests: CorrectionRecord[];
+  payrollCycle: Record<string, unknown>;
 }
 
 const DEFAULT_DASHBOARD: DashboardState = {
@@ -156,6 +158,7 @@ const DEFAULT_DASHBOARD: DashboardState = {
   jobOpenings: [],
   leaveRequests: [],
   correctionRequests: [],
+  payrollCycle: {},
 };
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
@@ -364,12 +367,13 @@ export function HRDashboardOverview() {
       setError("");
 
       try {
-        const [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse] = await Promise.allSettled([
+        const [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse, payrollResponse] = await Promise.allSettled([
           getEmployeeManagementOverview(),
           getRecruitmentOverview(),
           getLeaveRequests(),
           getHrAttendanceReview(),
           getTeamAttendance({ date: new Date().toISOString().slice(0, 10) }),
+          getPayrollSnapshot(),
         ]);
 
         if (!isMounted) {
@@ -384,6 +388,7 @@ export function HRDashboardOverview() {
         const teamAttendanceData = teamAttendanceResponse.status === "fulfilled"
           ? (teamAttendanceResponse.value as Record<string, unknown>)?.records || []
           : [];
+        const payrollData = payrollResponse.status === "fulfilled" ? (payrollResponse.value as Record<string, unknown>) || {} : {};
 
         setDashboard({
           employeeSummary: (employeeData.summary as Record<string, unknown>) || {},
@@ -399,9 +404,10 @@ export function HRDashboardOverview() {
             : Array.isArray(attendanceData.correctionRequests)
               ? (attendanceData.correctionRequests as CorrectionRecord[])
               : [],
+          payrollCycle: (payrollData.currentCycle as Record<string, unknown>) || {},
         });
 
-        const failures = [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse].filter((result) => result.status === "rejected");
+        const failures = [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse, payrollResponse].filter((result) => result.status === "rejected");
         setError(failures.length > 0 ? (failures[0].reason?.message || "Some HR data could not be loaded.") : "");
       } catch (loadError) {
         if (!isMounted) {
@@ -619,6 +625,13 @@ export function HRDashboardOverview() {
 
   const openPositions = activeJobs || jobOpenings.length;
 
+  const payrollStats = useMemo(() => {
+    const employees = Array.isArray(dashboard.payrollCycle?.employees) ? (dashboard.payrollCycle.employees as any[]) : [];
+    const netPayable = employees.reduce((sum, e) => sum + (e?.financials?.netSalary || 0), 0);
+    const paid = employees.filter((e) => normalizeText(e?.payment?.status || e?.financials?.paymentStatus) === "paid").length;
+    return { totalEmployees: employees.length, netPayable, paid };
+  }, [dashboard.payrollCycle]);
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
@@ -658,6 +671,7 @@ export function HRDashboardOverview() {
           <StatCard icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} color="#f59e0b" route="/hr/leave-request-processing" />
           <StatCard icon={Clock} label="Correction Requests" value={pendingCorrections} sub="Awaiting HR review" color="#ef4444" route="/hr/attendance-review" />
           <StatCard icon={Briefcase} label="Open Positions" value={openPositions} sub={`${selectedCandidates} shortlisted · ${onboardedCount} onboarded`} color="#7c3aed" route="/hr/recruitment" />
+          <StatCard icon={Wallet} label="Payroll" value={fmtINR(payrollStats.netPayable, workspacePreferences.currency)} sub={`${payrollStats.paid}/${payrollStats.totalEmployees} employees paid`} color="#0ea5e9" route="/hr/payroll-management" />
         </WidgetSection>
 
         {/* Team status, live visitors and today's correction queue */}

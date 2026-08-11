@@ -130,7 +130,7 @@ export const getPayrollSnapshot = async (params?: Record<string, any>) => {
   return unwrap(response);
 };
 
-export const processPayrollPayment = async (cycleId: string, profileId: string, payload: Record<string, any>) => {
+export const processPayrollPayment = async (cycleId: string, profileId: string, payload: Record<string, any> = {}) => {
   const response = await axiosPrivate.post("/api/finance/payroll/process-payment", { cycleId, profileId, ...payload });
   return unwrap(response);
 };

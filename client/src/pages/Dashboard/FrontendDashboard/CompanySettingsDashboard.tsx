@@ -193,7 +193,11 @@ const CompanySettingsDashboard = () => {
       {isFounderOrSuperAdmin ? (
         <>
           {access.plan === "basic" && (
-            <BasicDashboard onUpgradeClick={() => setShowUpgradeModal(true)} />
+            <BasicDashboard
+              onUpgradeClick={() => setShowUpgradeModal(true)}
+              activeMembers={access.metrics.activeMembers}
+              totalMembers={access.metrics.totalMembers}
+            />
           )}
           {access.plan === "professional" && (
             <ProfessionalDashboard onUpgradeClick={() => setShowUpgradeModal(true)} />

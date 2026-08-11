@@ -6,6 +6,7 @@ import Workspace from "../../models/Workspace.js";
 import WorkspaceMember from "../../models/WorkspaceMember.js";
 import Department from "../../models/Department.js";
 import EmployeeProfile from "../../models/EmployeeProfile.js";
+import TenantEmployee from "../../models/TenantEmployee.js";
 import { Role } from "../../models/Role.js";
 import { formatEmployeeId } from "../../utils/employee-id.js";
 import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../../config/s3config.js";
@@ -511,7 +512,7 @@ const ensureEmployeeProfileForMember = async ({
     gender: normalizeText(profile?.gender || ""),
     jobTitle: normalizeText(profile?.jobTitle || roleDoc?.name || resolvedUser?.designation || "Employee") || "Employee",
     jobCode: normalizeText(profile?.jobCode || ""),
-    departments: departmentData.ids,
+    departments: departmentData.ids.length ? departmentData.ids : (Array.isArray(profile?.departments) ? profile.departments : []),
     workLocation: normalizeText(profile?.workLocation || ""),
     permanentAddress: normalizeText(profile?.permanentAddress || ""),
     country: normalizeText(profile?.country || resolvedUser?.country || ""),
@@ -704,6 +705,10 @@ const buildOverviewPayload = async (workspace: any) => {
     bankNameOptions: bankNames,
     bankBranchOptions,
     summary: buildEmployeeSummary(employees),
+    settings: {
+      currency: String(workspace?.preferences?.currency || "INR").trim().toUpperCase() || "INR",
+      timezone: String(workspace?.preferences?.timezone || "Asia/Kolkata").trim() || "Asia/Kolkata",
+    },
   };
 };
 
@@ -739,6 +744,13 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
   }
   if (!fullName || !email) {
     throw Object.assign(new Error("Full name and email are required."), { statusCode: 400 });
+  }
+
+  const requestedEmploymentType = String(payload?.employmentType || "full_time").trim().toLowerCase();
+  const isUnpaidInternship = ["intern", "trainee"].includes(requestedEmploymentType) && Boolean(payload?.internshipIsUnpaid);
+  const requestedAnnualCtc = Number(payload?.salaryPackage?.grossAnnual ?? payload?.salaryPackage?.amount ?? 0);
+  if (payload?.salaryPackage && !isUnpaidInternship && (!Number.isFinite(requestedAnnualCtc) || requestedAnnualCtc <= 0)) {
+    throw Object.assign(new Error("Annual CTC must be greater than zero for a paid employee."), { statusCode: 400 });
   }
 
   const roleDoc = await getRoleDocument(workspace._id, payload?.workspaceRole || payload?.role || "employee");
@@ -809,7 +821,7 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     salaryPackage: {
       amount: Number(payload?.salaryPackage?.amount || profile?.salaryPackage?.amount || 0),
       grossAnnual: Number(payload?.salaryPackage?.grossAnnual || profile?.salaryPackage?.grossAnnual || 0),
-      currency: String(payload?.salaryPackage?.currency || profile?.salaryPackage?.currency || "INR"),
+      currency: String(workspace?.preferences?.currency || payload?.salaryPackage?.currency || profile?.salaryPackage?.currency || "INR").trim().toUpperCase(),
       payFrequency: String(payload?.salaryPackage?.payFrequency || profile?.salaryPackage?.payFrequency || "annual"),
       allowances: Number(payload?.salaryPackage?.allowances || profile?.salaryPackage?.allowances || 0),
       deductions: Number(payload?.salaryPackage?.deductions || profile?.salaryPackage?.deductions || 0),
@@ -1019,13 +1031,52 @@ const updateOwnEmployeeProfile = async (workspace: any, userId: string, payload:
 };
 
 const updateOwnProfilePicture = async (workspace: any, userId: string, file: any) => {
-  const profile = await findOwnEmployeeProfile(workspace, userId);
+  let profile = null;
+  try {
+    profile = await findOwnEmployeeProfile(workspace, userId);
+  } catch (error: any) {
+    if (Number(error?.statusCode || 0) !== 404) throw error;
+  }
 
   const safeFileName = String(file?.originalname || "avatar")
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^a-zA-Z0-9._-]/g, "");
-  const route = `employee-avatars/${workspace._id}/${profile._id}-${Date.now()}-${safeFileName}`;
+
+  if (!profile) {
+    const tenantEmployee = await TenantEmployee.findOne({
+      userId,
+      workspaceId: workspace._id,
+      status: "Active",
+    }).lean().exec();
+    if (!tenantEmployee) {
+      throw Object.assign(new Error("Employee record not found."), { statusCode: 404 });
+    }
+
+    const user = await HostUser.findById(userId).select("profilePicture").lean().exec();
+    const route = "tenant-avatars/" + workspace._id + "/" + userId + "-" + Date.now() + "-" + safeFileName;
+    const uploaded = await uploadFileToS3(route, file);
+    const previousUrl = user?.profilePicture?.url;
+
+    await HostUser.findByIdAndUpdate(userId, {
+      profilePicture: { url: uploaded.url, id: uploaded.id },
+    }).exec();
+
+    if (previousUrl) {
+      await deleteFileFromS3ByUrl(previousUrl).catch(() => {});
+    }
+
+    return {
+      fullName: tenantEmployee.name || "",
+      email: tenantEmployee.email || "",
+      phone: tenantEmployee.phone || "",
+      jobTitle: tenantEmployee.designation || "",
+      role: tenantEmployee.role || "Employee",
+      profilePictureUrl: uploaded.url,
+    };
+  }
+
+  const route = "employee-avatars/" + workspace._id + "/" + profile._id + "-" + Date.now() + "-" + safeFileName;
   const uploaded = await uploadFileToS3(route, file);
 
   const previousUrl = profile?.profilePicture?.url;

@@ -145,6 +145,16 @@ const DEFAULT_PAGE_NAV_ITEMS = [
   "Contact Us",
 ];
 
+const buildDefaultPageNavItems = () =>
+  DEFAULT_PAGE_NAV_ITEMS.map((name) => {
+    const slug = String(name).toLowerCase().replace(/\s+/g, "-");
+    return {
+      name,
+      slug,
+      enabled: slug === "home",
+    };
+  });
+
 // Migrates legacy "Testimonials" nav items to "Partner" for existing websites
 // and ensures "Careers" is present after "Partner"
 const migrateNavItems = (items: any[]): any[] => {
@@ -1127,11 +1137,7 @@ const CreateWebsite = () => {
       registeredCompanyName: "",
       copyrightText: "",
       socials: buildDefaultSocials(),
-      pageNavItems: DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
-        name,
-        slug: String(name).toLowerCase().replace(/\s+/g, "-"),
-        enabled: String(name).toLowerCase().replace(/\s+/g, "-") === "home",
-      })),
+      pageNavItems: buildDefaultPageNavItems(),
       productDropdownPages: [],
       aboutPageIntro: "",
       aboutPageOverview: "",
@@ -3041,7 +3047,10 @@ const CreateWebsite = () => {
       registeredCompanyName: "",
       copyrightText: "",
       socials: buildDefaultSocials(),
+      pageNavItems: buildDefaultPageNavItems(),
     });
+
+    setActiveMainPageTab(0);
   };
 
   const daysLeftForRenew = creditsResetDate

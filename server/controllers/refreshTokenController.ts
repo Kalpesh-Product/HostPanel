@@ -76,6 +76,15 @@ const getAccessibleWorkspaces = async (userId: any) => {
 const normalizeInviteEmail = (email: string) =>
   String(email || "").trim().toLowerCase();
 
+const findActiveTenantEmployeeForUser = async (user: any) => {
+  if (!user?._id) return null;
+
+  return TenantEmployee.findOne({
+    userId: user._id,
+    status: "Active",
+  }).lean().exec();
+};
+
 const getFounderEmailForWorkspace = async (workspaceId: any) => {
   if (!workspaceId) return "";
   const workspace = await Workspace.findById(workspaceId).populate("owner", "email").lean().exec();
@@ -216,9 +225,7 @@ const refreshTokenController = async (req, res, next) => {
       resolveCompanyForActiveWorkspace(user, activeMembership),
       WorkspaceMember.countDocuments({ user: user._id, isActive: true }),
       getAccessibleWorkspaces(user._id),
-      user?.email
-        ? TenantEmployee.findOne({ email: normalizeInviteEmail(user.email), status: "Active" }).lean().exec()
-        : Promise.resolve(null),
+      findActiveTenantEmployeeForUser(user),
     ]);
 
     // Check if user is a tenant employee

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import {
   Receipt, Building2, Calendar, CreditCard, CheckCircle2,
   XCircle, Search, FileText, ArrowRight, X, Clock, Eye,
-  IndianRupee, PieChart, Users, LayoutGrid, FileCheck, Send, Banknote, Globe, User, FileDown, FileSpreadsheet
+  PieChart, Users, LayoutGrid, FileCheck, Send, Banknote, Globe, User, FileDown, FileSpreadsheet
 } from 'lucide-react';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
@@ -427,7 +427,7 @@ export function BillingPaymentsPage() {
         const [billingRes, bookingRes, payrollRes, creditRes] = await Promise.allSettled([
           getTenantBillingSnapshot(selectedFY),
           getMeetingRoomBookings({ fiscalYear: selectedFY }),
-          getPayrollSnapshot(selectedFY),
+          getPayrollSnapshot(),
           getTenantCompanies({ fiscalYear: selectedFY }),
         ]);
 
@@ -734,19 +734,19 @@ export function BillingPaymentsPage() {
     if (isProcessingAction) return;
     setIsProcessingAction(true);
     try {
-      await processPayrollPayment(employee.cycleId || payrollData?.currentCycle?.id || '', employee.id);
+      await processPayrollPayment(employee.cycleId || payrollData?.currentCycle?.id || '', employee.profileId || employee.id);
       setPayrollData((prev) => {
         if (!prev?.currentCycle?.employees) return prev;
         return {
           ...prev,
           currentCycle: {
             ...prev.currentCycle,
-            employees: prev.currentCycle.employees.map((e) => e.id === employee.id ? { ...e, payment: { ...e.payment, status: 'Paid' }, financials: { ...e.financials, paymentStatus: 'Paid' } } : e),
+            employees: prev.currentCycle.employees.map((e) => e.id === employee.id ? { ...e, payment: { ...e.payment, status: 'Processing' }, financials: { ...e.financials, paymentStatus: 'Processing' } } : e),
           },
         };
       });
-      if (viewingEmployee?.id === employee.id) setViewingEmployee((prev) => prev ? { ...prev, payment: { ...prev.payment, status: 'Paid' }, financials: { ...prev.financials, paymentStatus: 'Paid' } } : null);
-      toast.success(`Payroll processed for ${employee.name}.`);
+      if (viewingEmployee?.id === employee.id) setViewingEmployee((prev) => prev ? { ...prev, payment: { ...prev.payment, status: 'Processing' }, financials: { ...prev.financials, paymentStatus: 'Processing' } } : null);
+      toast.success(`Payment processing started for ${employee.name}.`);
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to process payroll payment.');
@@ -759,7 +759,7 @@ export function BillingPaymentsPage() {
     if (isProcessingAction) return;
     setIsProcessingAction(true);
     try {
-      const res = await generatePayrollPayslip(employee.cycleId || payrollData?.currentCycle?.id || '', employee.id);
+      const res = await generatePayrollPayslip(employee.cycleId || payrollData?.currentCycle?.id || '', employee.profileId || employee.id);
       const updated = res?.data?.data || res?.data || {};
       setPayrollData((prev) => {
         if (!prev?.currentCycle?.employees) return prev;
@@ -784,7 +784,8 @@ export function BillingPaymentsPage() {
     if (isProcessingAction) return;
     setIsProcessingAction(true);
     try {
-      await sendPayrollPayslip(employee.cycleId || payrollData?.currentCycle?.id || '', employee.id);
+      if (!employee.payslip?.id) throw new Error('Generate the payslip before sending it.');
+      await sendPayrollPayslip(employee.payslip.id);
       toast.success(`Payslip sent to ${employee.name}.`);
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {

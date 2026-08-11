@@ -11,6 +11,14 @@ import {
 } from "../services/core/hr.service.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import TenantEmployee from "../models/TenantEmployee.js";
+import Workspace from "../models/Workspace.js";
+import {
+  addHrPayrollAdjustment,
+  getHrPayrollSnapshot,
+  prepareHrPayrollCycle,
+  updateHrPayrollCycleStatus,
+} from "../services/payrollService.js";
 
 const normalizeFileName = (value = "") =>
   String(value || "")
@@ -100,8 +108,19 @@ export const updateMyEmployeeProfile = async (req, res, next) => {
 
 export const updateMyProfilePicture = async (req, res, next) => {
   try {
-    const workspace = await resolveWorkspaceOrThrow(req, res);
-    if (!workspace) return;
+    let { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) {
+      const tenantEmployee = await TenantEmployee.findOne({
+        userId: req.user,
+        status: "Active",
+      }).select("workspaceId").lean().exec();
+      workspace = tenantEmployee?.workspaceId
+        ? await Workspace.findById(tenantEmployee.workspaceId).lean().exec()
+        : null;
+    }
+    if (!workspace) {
+      return res.status(404).json({ success: false, message: "Workspace not found for this user." });
+    }
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No image file provided." });
     }
@@ -180,4 +199,40 @@ export const uploadEmployeeDocuments = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const getPayrollSnapshot = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const data = await getHrPayrollSnapshot({ workspace, userId: req.user, query: req.query });
+    return res.status(200).json({ success: true, message: "Payroll snapshot loaded successfully.", data });
+  } catch (error) { next(error); }
+};
+
+export const preparePayroll = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const data = await prepareHrPayrollCycle({ workspace, userId: req.user, body: req.body });
+    return res.status(200).json({ success: true, message: "Payroll cycle prepared successfully.", data });
+  } catch (error) { next(error); }
+};
+
+export const updatePayrollStatus = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const data = await updateHrPayrollCycleStatus({ workspace, userId: req.user, cycleId: req.params.cycleId, body: req.body });
+    return res.status(200).json({ success: true, message: "Payroll cycle status updated successfully.", data });
+  } catch (error) { next(error); }
+};
+
+export const createPayrollAdjustment = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const data = await addHrPayrollAdjustment({ workspace, userId: req.user, cycleId: req.params.cycleId, profileId: req.params.profileId, body: req.body });
+    return res.status(200).json({ success: true, message: "Payroll adjustment applied successfully.", data });
+  } catch (error) { next(error); }
 };

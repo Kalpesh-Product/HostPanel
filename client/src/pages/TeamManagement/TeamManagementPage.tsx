@@ -1,8 +1,10 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { UsersRound } from "lucide-react";
 import PageFrame from "@/components/Pages/PageFrame";
 import { TeamManagementSkeleton } from "@/components/ui/Skeleton";
 import useManagedDepartment from "@/hooks/useManagedDepartment";
+import useDashboardAccess from "@/hooks/useDashboardAccess";
 
 const TABS = [
   { key: "roster", label: "Access Control" },
@@ -14,8 +16,17 @@ const TeamManagementPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoading, isManager, isOwnerOrSuperAdmin, managedDepartment } = useManagedDepartment();
+  const { plan } = useDashboardAccess();
+  const isCustomPlan = String(plan || "basic").trim().toLowerCase() === "custom";
+  const visibleTabs = TABS.filter((tab) => !["sops", "policies"].includes(tab.key) || isCustomPlan);
 
-  const activeTabKey = TABS.find((tab) => location.pathname.endsWith(`/${tab.key}`))?.key || "roster";
+  useEffect(() => {
+    if (!isCustomPlan && ["/sops", "/policies"].some((path) => location.pathname.endsWith(path))) {
+      navigate("roster", { replace: true });
+    }
+  }, [isCustomPlan, location.pathname, navigate]);
+
+  const activeTabKey = visibleTabs.find((tab) => location.pathname.endsWith("/" + tab.key))?.key || "roster";
 
   if (isLoading) {
     return (
@@ -74,7 +85,7 @@ const TeamManagementPage = () => {
           </div>
 
           <div className="mb-1 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
-            {TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"

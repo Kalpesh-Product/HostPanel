@@ -178,6 +178,10 @@ export const getLeads = async (req, res, next) => {
             isEscalated: true,
             workspaceId: targetWorkspaceId,
           },
+          // Without a bound, a slow/unresponsive Nomads backend blocks this
+          // request indefinitely — already caught below and falls back to
+          // mappedLocal, so a short timeout just makes that fallback fast.
+          timeout: 5000,
         },
       );
       const rawRemote = Array.isArray(leads?.data)

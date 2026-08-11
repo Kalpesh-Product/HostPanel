@@ -311,15 +311,12 @@ async function resolveTenantEmployeeForCurrentUser(userId) {
   }
 
   const employee = await TenantEmployee.findOne({
+    userId: user._id,
     status: "Active",
-    $or: [
-      { userId: user._id },
-      { email: normalizeText(user.email || "").toLowerCase() },
-    ],
   }).lean();
 
   if (!employee) {
-    const err = new Error("No active tenant employee record found for your account.");
+    const err = new Error("No active tenant employee record is linked to your account.");
     err.statusCode = 403;
     throw err;
   }
@@ -488,19 +485,30 @@ function formatPricingPackage(pkg) {
   };
 }
 
-async function formatTenantCompany(company) {
+// `preloaded` lets bulk callers (e.g. listTenantCompaniesForCurrentUser) hand in
+// results already fetched via a single batched $in query per collection, instead
+// of this function issuing its own 5 queries per company (N+1 on list pages).
+async function formatTenantCompany(company, preloaded = null) {
   if (!company) return null;
 
-  const [employees, creditRequests, agreementDocuments, creditHistory, assignedResources] = await Promise.all([
-    TenantEmployee.find({ tenantCompanyId: company._id }).lean().exec(),
-    TenantCreditRequest.find({ tenantCompanyId: company._id }).sort({ requestedAt: -1 }).lean().exec(),
-    TenantAgreementDocument.find({ tenantCompanyId: company._id }).sort({ uploadedAt: -1 }).lean().exec(),
-    TenantCreditLedger.find({ tenantCompanyId: company._id }).sort({ date: -1 }).lean().exec(),
-    Resource.find({
-      workspaceId: company.workspaceId,
-      assignedTenantCompanyId: company._id,
-    }).sort({ floor: 1, wing: 1, name: 1 }).lean().exec(),
-  ]);
+  const [employees, creditRequests, agreementDocuments, creditHistory, assignedResources] = preloaded
+    ? [
+        preloaded.employees || [],
+        preloaded.creditRequests || [],
+        preloaded.agreementDocuments || [],
+        preloaded.creditHistory || [],
+        preloaded.assignedResources || [],
+      ]
+    : await Promise.all([
+        TenantEmployee.find({ tenantCompanyId: company._id }).lean().exec(),
+        TenantCreditRequest.find({ tenantCompanyId: company._id }).sort({ requestedAt: -1 }).lean().exec(),
+        TenantAgreementDocument.find({ tenantCompanyId: company._id }).sort({ uploadedAt: -1 }).lean().exec(),
+        TenantCreditLedger.find({ tenantCompanyId: company._id }).sort({ date: -1 }).lean().exec(),
+        Resource.find({
+          workspaceId: company.workspaceId,
+          assignedTenantCompanyId: company._id,
+        }).sort({ floor: 1, wing: 1, name: 1 }).lean().exec(),
+      ]);
 
   const managerEmployee = company.managerEmployeeId
     ? employees.find((e) => e.id === company.managerEmployeeId) || null
@@ -665,7 +673,62 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
       .lean(),
   ]);
 
-  const tenants = await Promise.all(companies.map((c) => formatTenantCompany(c)));
+  const companyIds = companies.map((c) => c._id);
+
+  const [allEmployees, allCreditRequests, allAgreementDocuments, allCreditHistory, allAssignedResources] =
+    companyIds.length
+      ? await Promise.all([
+          TenantEmployee.find({ tenantCompanyId: { $in: companyIds } }).lean().exec(),
+          TenantCreditRequest.find({ tenantCompanyId: { $in: companyIds } })
+            .sort({ requestedAt: -1 })
+            .lean()
+            .exec(),
+          TenantAgreementDocument.find({ tenantCompanyId: { $in: companyIds } })
+            .sort({ uploadedAt: -1 })
+            .lean()
+            .exec(),
+          TenantCreditLedger.find({ tenantCompanyId: { $in: companyIds } })
+            .sort({ date: -1 })
+            .lean()
+            .exec(),
+          Resource.find({
+            workspaceId,
+            assignedTenantCompanyId: { $in: companyIds },
+          })
+            .sort({ floor: 1, wing: 1, name: 1 })
+            .lean()
+            .exec(),
+        ])
+      : [[], [], [], [], []];
+
+  const groupById = (docs, key) => {
+    const map = new Map();
+    for (const doc of docs) {
+      const k = String(doc[key] || "");
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(doc);
+    }
+    return map;
+  };
+
+  const employeesByCompany = groupById(allEmployees, "tenantCompanyId");
+  const creditRequestsByCompany = groupById(allCreditRequests, "tenantCompanyId");
+  const agreementDocumentsByCompany = groupById(allAgreementDocuments, "tenantCompanyId");
+  const creditHistoryByCompany = groupById(allCreditHistory, "tenantCompanyId");
+  const assignedResourcesByCompany = groupById(allAssignedResources, "assignedTenantCompanyId");
+
+  const tenants = await Promise.all(
+    companies.map((c) => {
+      const cid = String(c._id);
+      return formatTenantCompany(c, {
+        employees: employeesByCompany.get(cid) || [],
+        creditRequests: creditRequestsByCompany.get(cid) || [],
+        agreementDocuments: agreementDocumentsByCompany.get(cid) || [],
+        creditHistory: creditHistoryByCompany.get(cid) || [],
+        assignedResources: assignedResourcesByCompany.get(cid) || [],
+      });
+    }),
+  );
 
   return {
     tenants,
@@ -703,19 +766,9 @@ export async function getTenantCompanyForCurrentUser(userId, tenantCompanyId) {
   return { tenant: await formatTenantCompany(company) };
 }
 
-export async function getMyTenantCompanyForCurrentUser(userId, userEmail) {
-  if (!userEmail) {
-    const err = new Error("User email is required.");
-    err.statusCode = 400;
-    throw err;
-  }
-  const emp = await TenantEmployee.findOne({ email: userEmail, status: "Active" }).lean().exec();
-  if (!emp) {
-    const err = new Error("Tenant employee record not found.");
-    err.statusCode = 404;
-    throw err;
-  }
-  const company = await TenantCompany.findById(emp.tenantCompanyId).lean().exec();
+export async function getMyTenantCompanyForCurrentUser(userId, _userEmail) {
+  const { tenantCompanyId } = await resolveTenantEmployeeForCurrentUser(userId);
+  const company = await TenantCompany.findById(tenantCompanyId).lean().exec();
   if (!company) {
     const err = new Error("Tenant company not found.");
     err.statusCode = 404;

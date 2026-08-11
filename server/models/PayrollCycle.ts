@@ -31,7 +31,10 @@ export interface IPayrollEmployee {
         workingDays: number;
         payableDays: number;
         present: number;
+        projectedDays: number;
+        halfDays: number;
         paidLeaves: number;
+        absentDays: number;
         unpaidLeaves: number;
         dailyRate: number;
         presentPay: number;
@@ -202,7 +205,10 @@ const payrollEmployeeSchema = new Schema<IPayrollEmployee>(
             workingDays: { type: Number, required: true, min: 0, default: 0 },
             payableDays: { type: Number, required: true, min: 0, default: 0 },
             present: { type: Number, required: true, min: 0, default: 0 },
+            projectedDays: { type: Number, required: true, min: 0, default: 0 },
+            halfDays: { type: Number, required: true, min: 0, default: 0 },
             paidLeaves: { type: Number, required: true, min: 0, default: 0 },
+            absentDays: { type: Number, required: true, min: 0, default: 0 },
             unpaidLeaves: { type: Number, required: true, min: 0, default: 0 },
             dailyRate: { type: Number, required: true, min: 0, default: 0 },
             presentPay: { type: Number, required: true, min: 0, default: 0 },

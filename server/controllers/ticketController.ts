@@ -303,13 +303,26 @@ export const getTickets = async (req: Request, res: Response): Promise<void> => 
             filter.assigneeUserId = new mongoose.Types.ObjectId(normalizedAssigneeUserId);
         }
 
-        const tickets = await Ticket.find(filter)
-            .sort({ createdAt: -1 })
-            .populate("ownerId", "name email")
-            .populate("assigneeUserId", "name email")
-            .populate("assetId");
+        const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+        const parsedLimit = parseInt(String(req.query.limit), 10);
+        // Every current caller already sends `limit` (100-200) and treats the
+        // response as that bounded page; this default just protects the route
+        // for any caller that doesn't.
+        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 500) : 200;
+        const skip = (page - 1) * limit;
 
-        res.status(200).json({ success: true, data: tickets });
+        const [tickets, total] = await Promise.all([
+            Ticket.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate("ownerId", "name email")
+                .populate("assigneeUserId", "name email")
+                .populate("assetId"),
+            Ticket.countDocuments(filter),
+        ]);
+
+        res.status(200).json({ success: true, data: tickets, total, page, limit, totalPages: Math.ceil(total / limit) });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
