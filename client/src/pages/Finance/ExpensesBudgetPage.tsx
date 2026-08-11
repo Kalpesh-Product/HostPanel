@@ -375,10 +375,11 @@ function getBudgetUsedAmount(request: any = {}): number {
 
 function mapAnnualRequestToBudget(request: any = {}): Budget {
   const approvalFlow = normalizeApprovalFlow(request.approvalFlow || {});
+  const requestId = String(request.id || request._id || '');
   const status = request.status || approvalFlow.finalStatus || 'Pending';
   const used = getBudgetUsedAmount(request);
   return {
-    id: request.id || '',
+    id: requestId,
     department: request.department || 'Unassigned',
     requested: Number(request.requestedBudget || 0),
     approved: status === 'Approved' ? Number(request.requestedBudget || 0) : 0,
@@ -389,7 +390,7 @@ function mapAnnualRequestToBudget(request: any = {}): Budget {
     previousSpend: Number(request.previousSpend || 0),
     details: request.breakdown || request.reason || request.description || '',
     approvalFlow,
-    requestId: request.id || '',
+    requestId,
     monthlyBreakdown: Array.isArray(request.monthlyBreakdown) ? request.monthlyBreakdown : Array.isArray(request.monthlyPlan) ? request.monthlyPlan : [],
     submittedByName: request.submittedByName || '',
     approvalStateLabel: request.approvalStateLabel || '',
@@ -398,9 +399,10 @@ function mapAnnualRequestToBudget(request: any = {}): Budget {
 
 function mapExtraRequestToBudget(request: any = {}): ExtraBudget {
   const approvalFlow = normalizeApprovalFlow(request.approvalFlow || {});
+  const requestId = String(request.id || request._id || '');
   const status = request.status || approvalFlow.finalStatus || 'Pending';
   return {
-    id: request.id || '',
+    id: requestId,
     department: request.department || 'Unassigned',
     requested: Number(request.amount || 0),
     approved: status === 'Approved' ? Number(request.amount || 0) : 0,
@@ -410,7 +412,7 @@ function mapExtraRequestToBudget(request: any = {}): ExtraBudget {
     month: request.month || '',
     dueDate: request.dueDate || '',
     approvalFlow,
-    requestId: request.id || '',
+    requestId,
     submittedByName: request.submittedByName || '',
     approvalStateLabel: request.approvalStateLabel || '',
   };
@@ -804,7 +806,7 @@ export function ExpensesBudgetPage() {
         const response = await getFinanceSnapshot(selectedFY);
         if (!alive) return;
 
-        const payload = response?.data || {};
+        const payload = response || {};
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(
               request,
@@ -1022,8 +1024,8 @@ export function ExpensesBudgetPage() {
 
   const handleApproveEstimated = (req: Budget) => {
     applyFinanceApprovalDecision('annual', req.id, { status: 'Approved', scope: 'financeManager', fiscalYear: selectedFY })
-      .then((response: any) => {
-        const payload = response?.data || {};
+      .then(async () => {
+        const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
           : [];
@@ -1039,8 +1041,8 @@ export function ExpensesBudgetPage() {
   const handleApproveExtra = () => {
     if (!viewingExtra?.id) return;
     applyFinanceApprovalDecision('extra', viewingExtra.id, { status: 'Approved', scope: 'financeManager', fiscalYear: selectedFY })
-      .then((response: any) => {
-        const payload = response?.data || {};
+      .then(async () => {
+        const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
           : [];
@@ -1058,8 +1060,8 @@ export function ExpensesBudgetPage() {
     if (!rejectingRequest) return;
     if (rejectingRequest.modalType === 'estimated') {
       try {
-        const response = await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
-        const payload = response?.data || {};
+        await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
+        const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
           : [];
@@ -1072,8 +1074,8 @@ export function ExpensesBudgetPage() {
       } catch (error: any) { toast.error(error?.message || 'Failed to reject annual budget.'); }
     } else if (rejectingRequest.modalType === 'extra') {
       try {
-        const response = await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
-        const payload = response?.data || {};
+        await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
+        const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
           : [];

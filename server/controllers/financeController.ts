@@ -542,7 +542,9 @@ export async function applyFinanceApprovalDecision(req: Request, res: Response, 
     const roleValue = String((req as any).workspaceMembership?.role?.name || (req as any).workspaceMembership?.role || "")
       .trim().toLowerCase().replace(/[\s-]+/g, "_");
     const isOwner = ["owner", "founder", "super_admin", "admin"].includes(roleValue);
-    const isFinanceManager = ["finance_manager", "finance"].includes(roleValue);
+    // Workspace members may be stored as the generic Manager role while their
+    // Finance department assignment supplies the functional Finance Manager scope.
+    const isFinanceManager = ["finance_manager", "finance", "manager"].includes(roleValue);
     const effectiveScope = isOwner ? "owner" : isFinanceManager ? "financeManager" : null;
     if (!effectiveScope) return res.status(403).json({ message: "Only the owner or finance manager can decide finance requests." });
     if (scope && scope !== effectiveScope) return res.status(403).json({ message: "Approval scope does not match the authenticated role." });
