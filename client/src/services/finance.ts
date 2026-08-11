@@ -19,12 +19,16 @@ export const getFinanceSnapshot = async (fiscalYear: string) => {
 export const applyFinanceApprovalDecision = async (
   type: string,
   id: string,
-  payload: { status: string; fiscalYear?: string },
+  payload: { status: string; fiscalYear?: string; scope?: 'owner' | 'financeManager'; note?: string },
 ) => {
-  const response = await axiosPrivate.patch(
-    `/api/finance/requests/${type}/${id}/decision`,
-    payload,
-  );
+  const response = await axiosPrivate.post('/api/finance/approval/decision', {
+    requestId: id,
+    requestType: type,
+    decision: payload.status,
+    scope: payload.scope,
+    comment: payload.note,
+    fiscalYear: payload.fiscalYear,
+  });
   return unwrap(response);
 };
 
@@ -37,6 +41,7 @@ export const updateMonthlyExpenseStatus = async (payload: {
   monthKey: string;
   expenseId: string;
   expenseKey?: string;
+  department?: string;
   status: string;
   paymentStatus?: string;
 }) => {
