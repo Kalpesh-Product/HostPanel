@@ -41,6 +41,7 @@ export const updateMonthlyExpenseStatus = async (payload: {
   monthKey: string;
   expenseId: string;
   expenseKey?: string;
+  department?: string;
   status: string;
   paymentStatus?: string;
 }) => {

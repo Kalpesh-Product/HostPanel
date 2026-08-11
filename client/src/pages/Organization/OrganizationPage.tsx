@@ -41,6 +41,7 @@ import {
 } from '../../lib/owner-access';
 import { getWorkspaceCount, isDepartmentAllowedForPlan } from '../../utils/workspacePlanAccess';
 import { statusPillClass } from '../../lib/status-pill';
+import type { PlanType } from '../../utils/inviteOnboarding';
 
 // sessionStorage only - see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
@@ -321,7 +322,7 @@ export function OrganizationPage() {
     activeCount: number;
     canAddUser: boolean;
   } | null>(null);
-  const [workspacePlan, setWorkspacePlan] = useState('basic');
+  const [workspacePlan, setWorkspacePlan] = useState<PlanType>('basic');
   const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
   const [newDepartmentForm, setNewDepartmentForm] = useState({
     departmentId: '',
