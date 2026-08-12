@@ -2,23 +2,22 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Archive,
   Calendar,
-  FileDown,
   Check,
   CheckCircle2,
   CheckSquare,
   Clock,
   Eye,
-  FileSpreadsheet,
-  FileText,
   Layers,
+  Loader2,
   LogOut,
   RefreshCw,
   Search,
-  ShieldAlert,
+  UserCheck,
   UserMinus,
   X,
   XCircle,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { createReport } from "@/services/reports";
@@ -33,6 +32,7 @@ import {
 import { downloadReportFile } from "@/utils/report-download";
 import PageFrame from "@/components/Pages/PageFrame";
 import ResignationManagementSettingsPanel from "./ResignationManagementSettingsPanel";
+import { statusPillClass } from "@/lib/status-pill";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -51,6 +51,7 @@ interface ResignationRequest {
   recordId?: string;
   employeeName?: string;
   employeeId?: string;
+  email?: string;
   department?: string;
   requesterRole?: string;
   role?: string;
@@ -70,6 +71,8 @@ interface ResignationRequest {
   updatedAt?: string;
   joiningDate?: string;
   noticePeriodDays?: number;
+  requestedNoticeStartDate?: string;
+  expectedLastWorkingDate?: string;
   noticeStartDate?: string;
   noticeEndDate?: string;
   noticeEndAt?: string;
@@ -151,10 +154,6 @@ function formatStatusLabel(value?: string): string {
   return "Pending";
 }
 
-function getInitials(name = ""): string {
-  return name.split(" ").map((n) => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-}
-
 function isMatchDepartment(requestDepartment?: string, filterDepartment?: string): boolean {
   if (filterDepartment === "All Departments") return true;
   const left = String(requestDepartment || "").trim().toLowerCase();
@@ -191,12 +190,9 @@ function isMatchSearch(request: ResignationRequest, query: string): boolean {
     .some((value) => String(value).toLowerCase().includes(term));
 }
 
-function getStatusChipClass(status?: string): string {
-  const normalized = String(status || "pending").trim().toLowerCase();
-  if (normalized === "approved") return "bg-blue-50 text-blue-700 border-blue-200";
-  if (normalized === "rejected") return "bg-red-50 text-red-600 border-red-200";
-  if (normalized === "completed") return "bg-green-50 text-green-700 border-green-200";
-  return "bg-amber-50 text-amber-700 border-amber-200";
+function getStatusBadge(status?: string): React.ReactElement {
+  const label = formatStatusLabel(status);
+  return <span className={statusPillClass(label)}>{label}</span>;
 }
 
 function buildResignationExportRows(
@@ -290,6 +286,7 @@ export function HRResignationManagementPage() {
   const [managingResignation, setManagingResignation] = useState<ResignationRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<ResignationRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [isSavingDecision, setIsSavingDecision] = useState(false);
 
   const loadOverview = useCallback(async () => {
     try {
@@ -452,6 +449,7 @@ export function HRResignationManagementPage() {
   }
 
   async function handleApproveRequest(request: ResignationRequest) {
+    setIsSavingDecision(true);
     try {
       const response = await reviewResignationRequest(request.id || "", { status: "approved" });
       const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
@@ -460,11 +458,14 @@ export function HRResignationManagementPage() {
       toast.success("Resignation request approved.");
     } catch (error: any) {
       toast.error(error.message || "Unable to approve resignation request.");
+    } finally {
+      setIsSavingDecision(false);
     }
   }
 
   async function handleRejectSubmit() {
     if (!rejectingRequest || !rejectReason.trim()) return;
+    setIsSavingDecision(true);
     try {
       const response = await reviewResignationRequest(rejectingRequest.id || "", {
         status: "rejected",
@@ -478,6 +479,8 @@ export function HRResignationManagementPage() {
       toast.success("Resignation request rejected.");
     } catch (error: any) {
       toast.error(error.message || "Unable to reject resignation request.");
+    } finally {
+      setIsSavingDecision(false);
     }
   }
 
@@ -498,6 +501,7 @@ export function HRResignationManagementPage() {
 
   async function handleCompleteResignation() {
     if (!managingResignation) return;
+    setIsSavingDecision(true);
     try {
       const response = await completeResignationRequest(managingResignation.id || "", {});
       const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
@@ -507,6 +511,8 @@ export function HRResignationManagementPage() {
       toast.success("Resignation request completed.");
     } catch (error: any) {
       toast.error(error.message || "Unable to complete resignation request.");
+    } finally {
+      setIsSavingDecision(false);
     }
   }
 
@@ -558,21 +564,20 @@ export function HRResignationManagementPage() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Review & manage employee offboarding</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button
+              {/* <button
                 type="button"
-                // onClick={handleExportPDF}
+                onClick={handleExportPDF}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                 <FileDown size={16} className="text-red-500"/>
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-              </button>
-              <button
+              </button> */}
+              {/* <button
                 type="button"
-                // onClick={handleExportExcel}
+                onClick={handleExportExcel}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-              </button>
-              
+              </button> */}
             </div>
           </div>
 
@@ -656,77 +661,57 @@ export function HRResignationManagementPage() {
             {/* Requests tab */}
             {activeTab === "requests" && (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[980px] text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-6 py-5">Employee</th>
-                      <th className="px-6 py-5">Department / Role</th>
-                      <th className="px-6 py-5">Applied Date</th>
-                      <th className="px-6 py-5 text-center">Notice Period</th>
-                      <th className="px-6 py-5">Reason</th>
-                      <th className="px-6 py-5 text-center">Status</th>
-                      <th className="px-6 py-5 text-center">Actions</th>
+                      <th className="px-5 py-4">Employee ID</th>
+                      <th className="px-5 py-4">Employee</th>
+                      <th className="px-5 py-4">Role</th>
+                      <th className="px-5 py-4">Department</th>
+                      <th className="px-5 py-4">Applied Date</th>
+                      <th className="px-5 py-4 text-center">Notice Period</th>
+                      <th className="px-5 py-4 text-center">Status</th>
+                      <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredRequests.map((request) => (
-                      <tr key={request.id} className="hover:bg-blue-50/30 transition-all group">
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-800 bg-gradient-to-br from-[#2563EB] to-[#1e40af] text-[10px] font-pmedium text-white shadow-sm">
-                              {getInitials(request.employeeName)}
-                            </div>
-                            <div>
-                              <div className="font-pmedium text-slate-900">{request.employeeName}</div>
-                              <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
-                            </div>
+                      <tr key={request.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700 whitespace-nowrap">{request.employeeId || "-"}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                            <UserCheck size={14} className="text-slate-400" />
+                            <span className="truncate text-[12px] text-slate-800">{request.employeeName}</span>
                           </div>
+                          {request.email ? <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{request.email}</p> : null}
                         </td>
-                        <td className="px-6 py-5">
-                          <span className="font-pmedium text-slate-700 text-sm">{request.department || "General"}</span>
-                          <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
-                        </td>
-                        <td className="px-6 py-5 text-sm font-pmedium text-slate-700">{formatDateLabel(request.createdAt)}</td>
-                        <td className="px-6 py-5 text-center font-pmedium text-[#2563EB]">{request.noticePeriodDays || 0} Days</td>
-                        <td className="px-6 py-5">
-                          <p className="max-w-[260px] truncate text-xs font-pmedium text-slate-500" title={request.reason}>
-                            {request.reason}
-                          </p>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <span className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider ${getStatusChipClass(request.status)}`}>
-                            <Clock size={10} /> {formatStatusLabel(request.status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="px-5 py-4 text-[11px] font-pmedium capitalize text-slate-600 whitespace-nowrap">{request.requesterRole}</td>
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{request.department || "General"}</td>
+                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{formatDateLabel(request.createdAt)}</td>
+                        <td className="px-5 py-4 text-center text-[12px] font-pmedium text-[#2563EB] whitespace-nowrap">{request.noticePeriodDays || 0} Days</td>
+                        <td className="px-5 py-4 text-center">{getStatusBadge(request.status)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => openRequestDetails(request)}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all"
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
                             >
-                              View
+                              <Eye size={15} strokeWidth={2.5} />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleApproveRequest(request)}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-green-50 hover:text-green-600 rounded-xl font-pmedium text-[10px] uppercase transition-all"
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"
                             >
-                              Approve
+                              <Check size={15} strokeWidth={2.5} />
                             </button>
                             <button
                               type="button"
                               onClick={() => setRejectingRequest(request)}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl font-pmedium text-[10px] uppercase transition-all"
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all"
                             >
-                              Reject
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleExportRequestReport(request, "PDF")}
-                              className="px-3 py-1.5 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all"
-                            >
-                              Export
+                              <X size={15} strokeWidth={2.5} />
                             </button>
                           </div>
                         </td>
@@ -734,8 +719,7 @@ export function HRResignationManagementPage() {
                     ))}
                     {filteredRequests.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-pmedium">
-                          <ShieldAlert size={28} className="mx-auto mb-3 text-slate-300" />
+                        <td colSpan={8} className="text-center py-20 text-slate-400 font-pmedium">
                           No pending resignation requests.
                         </td>
                       </tr>
@@ -748,71 +732,68 @@ export function HRResignationManagementPage() {
             {/* Active Notice tab */}
             {activeTab === "notice" && (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[980px] text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-6 py-5">Employee</th>
-                      <th className="px-6 py-5">Department / Role</th>
-                      <th className="px-6 py-5">Last Working Date</th>
-                      <th className="px-6 py-5">Checklist Progress</th>
-                      <th className="px-6 py-5 text-center">Action</th>
+                      <th className="px-5 py-4">Employee ID</th>
+                      <th className="px-5 py-4">Employee</th>
+                      <th className="px-5 py-4">Department / Role</th>
+                      <th className="px-5 py-4">Last Working Date</th>
+                      <th className="px-5 py-4">Checklist Progress</th>
+                      <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredNotice.map((request) => (
-                      <tr key={request.id} className="hover:bg-blue-50/30 transition-all group">
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-800 bg-gradient-to-br from-[#2563EB] to-[#1e40af] text-[10px] font-pmedium text-white shadow-sm">
-                              {getInitials(request.employeeName)}
-                            </div>
-                            <div>
-                              <div className="font-pmedium text-slate-900">{request.employeeName}</div>
-                              <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
-                            </div>
+                      <tr key={request.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700 whitespace-nowrap">{request.employeeId || "-"}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                            <UserCheck size={14} className="text-slate-400" />
+                            <span className="truncate text-[12px] text-slate-800">{request.employeeName}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-5">
-                          <span className="font-pmedium text-slate-700 text-sm">{request.department || "General"}</span>
+                        <td className="px-5 py-4">
+                          <span className="text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{request.department || "General"}</span>
                           <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
                         </td>
-                        <td className="px-6 py-5 text-sm font-semibold text-amber-600">
-                          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-sm text-amber-600">
-                            <Calendar size={14} /> {formatDateLabel(request.noticeEndAt)}
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[11px] font-pmedium text-amber-600">
+                            <Calendar size={12} /> {formatDateLabel(request.noticeEndAt)}
                           </span>
                         </td>
-                        <td className="px-6 py-5">
+                        <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-2 w-full max-w-[160px] overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-2 w-full max-w-[140px] overflow-hidden rounded-full bg-slate-100">
                               <div
-                                className={`h-2 rounded-full transition-all ${request.checklistProgress === 100 ? "bg-green-500" : "bg-[#2563EB]"}`}
+                                className={`h-2 rounded-full transition-all ${request.checklistProgress === 100 ? "bg-emerald-500" : "bg-[#2563EB]"}`}
                                 style={{ width: `${request.checklistProgress || 0}%` }}
                               />
                             </div>
-                            <span className="text-xs font-pmedium text-slate-600">
+                            <span className="text-[11px] font-pmedium text-slate-600 whitespace-nowrap">
                               {request.completedChecklistCount}/{request.totalChecklistCount}
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-5 text-center">
+                        <td className="px-5 py-4 text-center">
                           <button
                             type="button"
                             onClick={() => openManageChecklist(request)}
-                            className={`mx-auto inline-flex items-center gap-1.5 rounded-xl px-4 py-2 font-pmedium text-[10px] uppercase transition-all ${
+                            className={`mx-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-pmedium text-[10px] uppercase tracking-wider transition-all ${
                               request.canComplete
-                                ? "bg-green-600 text-white shadow-md shadow-green-200 hover:bg-green-700"
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
                                 : "bg-blue-50 text-[#2563EB] hover:bg-blue-100"
                             }`}
                           >
-                            {request.canComplete ? <CheckCircle2 size={14} /> : <CheckSquare size={14} />}
-                            {request.canComplete ? "Complete Resignation" : "Manage"}
+                            {request.canComplete ? <CheckCircle2 size={13} /> : <CheckSquare size={13} />}
+                            {request.canComplete ? "Complete" : "Manage"}
                           </button>
                         </td>
                       </tr>
                     ))}
                     {filteredNotice.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-pmedium">
+                        <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">
                           No employees currently on notice period.
                         </td>
                       </tr>
@@ -825,60 +806,53 @@ export function HRResignationManagementPage() {
             {/* History tab */}
             {activeTab === "history" && (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[980px] text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-6 py-5">Employee</th>
-                      <th className="px-6 py-5">Department / Role</th>
-                      <th className="px-6 py-5">Resignation Date</th>
-                      <th className="px-6 py-5">Reason on File</th>
-                      <th className="px-6 py-5 text-center">Status</th>
-                      <th className="px-6 py-5 text-center">Action</th>
+                      <th className="px-5 py-4">Employee ID</th>
+                      <th className="px-5 py-4">Employee</th>
+                      <th className="px-5 py-4">Department / Role</th>
+                      <th className="px-5 py-4">Resignation Date</th>
+                      <th className="px-5 py-4">Reason on File</th>
+                      <th className="px-5 py-4 text-center">Status</th>
+                      <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredHistory.map((request) => (
-                      <tr key={request.id} className="opacity-80 hover:opacity-100 hover:bg-blue-50/30 transition-all group">
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-500 bg-gradient-to-br from-slate-400 to-slate-500 text-[10px] font-pmedium text-white shadow-sm">
-                              {getInitials(request.employeeName)}
-                            </div>
-                            <div>
-                              <div className="font-pmedium text-slate-700">{request.employeeName}</div>
-                              <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
-                            </div>
+                      <tr key={request.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700 whitespace-nowrap">{request.employeeId || "-"}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                            <UserCheck size={14} className="text-slate-400" />
+                            <span className="truncate text-[12px] text-slate-800">{request.employeeName}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-5">
-                          <span className="font-pmedium text-slate-600 text-sm">{request.department || "General"}</span>
+                        <td className="px-5 py-4">
+                          <span className="text-[11px] font-pmedium text-slate-600 whitespace-nowrap">{request.department || "General"}</span>
                           <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
                         </td>
-                        <td className="px-6 py-5 text-sm font-pmedium text-slate-700">{formatDateLabel(request.completedAt || request.rejectedAt || request.approvedAt)}</td>
-                        <td className="px-6 py-5">
-                          <p className="max-w-[260px] truncate text-xs italic font-pmedium text-slate-500" title={request.reason}>
+                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{formatDateLabel(request.completedAt || request.rejectedAt || request.approvedAt)}</td>
+                        <td className="px-5 py-4">
+                          <p className="max-w-[220px] truncate text-[11px] font-pmedium text-slate-500" title={request.reason}>
                             {request.reason}
                           </p>
                         </td>
-                        <td className="px-6 py-5 text-center">
-                          <span className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider ${getStatusChipClass(request.status)}`}>
-                            <Archive size={10} /> {formatStatusLabel(request.status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-center">
+                        <td className="px-5 py-4 text-center">{getStatusBadge(request.status)}</td>
+                        <td className="px-5 py-4 text-center">
                           <button
                             type="button"
                             onClick={() => openRequestDetails(request)}
-                            className="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-xl font-pmedium text-[10px] uppercase transition-all"
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
                           >
-                            View Details
+                            <Eye size={15} strokeWidth={2.5} />
                           </button>
                         </td>
                       </tr>
                     ))}
                     {filteredHistory.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">
+                        <td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">
                           No historical resignation records found.
                         </td>
                       </tr>
@@ -892,238 +866,282 @@ export function HRResignationManagementPage() {
       </PageFrame>
 
       {/* ── View Request Modal ── */}
-      {viewingRequest && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 bg-slate-900 p-6 md:p-8">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#2563EB] to-[#1e40af] text-lg font-bold text-white">
-                  {getInitials(viewingRequest.employeeName)}
-                </div>
-                <div>
-                  <h2 className="flex items-center gap-2 text-2xl font-bold text-white">
-                    <LogOut size={22} className="text-red-400" /> Resignation Request
-                  </h2>
-                  <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">{viewingRequest.exitCode}</p>
-                </div>
+      <AnimatePresence>
+        {viewingRequest && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/20 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] border border-slate-200/60 bg-white shadow-2xl sm:max-h-[85vh] sm:rounded-[24px]"
+            >
+              <div className="flex w-full justify-center py-2 sm:hidden">
+                <div className="h-1 w-10 rounded-full bg-slate-200" />
               </div>
-              <button
-                type="button"
-                onClick={() => setViewingRequest(null)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 transition hover:bg-red-500 hover:text-white"
-              >
-                <X size={18} />
-              </button>
-            </div>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><LogOut size={17} /></div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-pmedium text-slate-900">Resignation Request</h2>
+                    <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{viewingRequest.exitCode || "-"} &bull; {formatStatusLabel(viewingRequest.status)}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setViewingRequest(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+              </div>
 
-            <div className="flex-1 overflow-y-auto bg-white p-6 md:p-8">
-              <div className="space-y-6">
-                <section>
-                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Employee Information</h3>
-                  <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-5">
-                    <div className="col-span-2">
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">Name</p>
-                      <p className="text-lg font-semibold text-slate-900">
-                        {viewingRequest.employeeName} <span className="ml-1 text-xs text-slate-400">({viewingRequest.employeeId})</span>
-                      </p>
-                    </div>
-                    <div className="col-span-2 md:col-span-1">
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">Department / Role</p>
-                      <p className="font-semibold text-slate-900">{viewingRequest.department || "General"}</p>
-                      <p className="text-xs text-slate-500">{viewingRequest.requesterRole}</p>
-                    </div>
-                    <div className="col-span-2 md:col-span-1">
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">Joining Date</p>
-                      <p className="font-semibold text-slate-900">{formatDateLabel(viewingRequest.joiningDate)}</p>
+              <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 [&::-webkit-scrollbar]:hidden">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee</p>
+                    <p className="mt-1 flex items-center gap-2 text-[12px] font-pmedium text-[#0F172A]">
+                      <UserCheck size={14} className="shrink-0 text-slate-400" />
+                      {viewingRequest.employeeName || "-"} <span className="text-slate-400">({viewingRequest.employeeId || "-"})</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Department</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{viewingRequest.department || "General"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{viewingRequest.requesterRole || "-"}</p>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between border-t border-slate-200/70 pt-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Status</p>
+                    {getStatusBadge(viewingRequest.status)}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Applied Date</p>
+                    <p className="text-[13px] font-pmedium text-[#0F172A]">{formatDateLabel(viewingRequest.createdAt)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-right">
+                    <p className="mb-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Notice Period</p>
+                    <p className="text-[13px] font-pmedium text-[#0F172A]">{viewingRequest.noticePeriodDays || 0} Days</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Requested Effective Date</p>
+                    <p className="flex items-center gap-2 text-[13px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-slate-400" /> {formatDateLabel(viewingRequest.requestedNoticeStartDate)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{viewingRequest.status === "pending" ? "Expected Last Working Date" : "Last Working Date"}</p>
+                    <p className="flex items-center gap-2 text-[13px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-[#2563EB]" /> {formatDateLabel(viewingRequest.noticeEndAt || viewingRequest.completedAt || viewingRequest.expectedLastWorkingDate)}</p>
+                  </div>
+                </div>
+
+                {Array.isArray(viewingRequest.requestedDocuments) && viewingRequest.requestedDocuments.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Requested Documents</p>
+                    <div className="flex flex-wrap gap-2">
+                      {viewingRequest.requestedDocuments.map((doc) => (
+                        <span key={doc} className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium text-blue-700">{doc}</span>
+                      ))}
                     </div>
                   </div>
-                </section>
+                )}
 
-                <section>
-                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Resignation Details</h3>
-                  <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-blue-50/40 p-5 md:grid-cols-3">
-                    <div>
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-blue-500">Applied Date</p>
-                      <p className="font-semibold text-slate-900">{formatDateLabel(viewingRequest.createdAt)}</p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-blue-500">Notice Period</p>
-                      <p className="font-semibold text-slate-900">{viewingRequest.noticePeriodDays || 0} Days</p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-blue-500">Last Working Date</p>
-                      <p className="text-lg font-bold text-red-600">{formatDateLabel(viewingRequest.noticeEndAt || viewingRequest.completedAt)}</p>
-                    </div>
-                    <div className="col-span-1 md:col-span-3">
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-blue-500">Reason</p>
-                      <div className="rounded-xl border border-blue-100 bg-white p-4 text-sm font-medium leading-relaxed text-slate-700">
-                        {viewingRequest.reason}
-                      </div>
-                    </div>
-                    {Array.isArray(viewingRequest.requestedDocuments) && viewingRequest.requestedDocuments.length > 0 && (
-                      <div className="col-span-1 md:col-span-3">
-                        <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-blue-500">Requested Documents</p>
-                        <div className="flex flex-wrap gap-2">
-                          {viewingRequest.requestedDocuments.map((doc) => (
-                            <span key={doc} className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-[#2563EB]">{doc}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </section>
+                <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Reason</p>
+                  <p className="text-[13px] font-pmedium text-slate-700 leading-relaxed">{viewingRequest.reason || "-"}</p>
+                </div>
 
                 {viewingRequest.status === "approved" && (
-                  <section>
-                    <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Clearance Checklist</h3>
-                    <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <div>
+                    <p className="mb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Clearance Checklist</p>
+                    <div className="space-y-2">
                       {Array.isArray(viewingRequest.checklist) && viewingRequest.checklist.length > 0 ? (
                         viewingRequest.checklist.map((item) => (
-                          <div key={item.key} className={`flex items-start gap-4 rounded-xl border-2 p-4 ${item.completed ? "border-green-200 bg-green-50" : "border-slate-200 bg-white"}`}>
-                            <div className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded ${item.completed ? "bg-green-500 text-white" : "border-2 border-slate-300 bg-white text-transparent"}`}>
-                              <Check size={16} strokeWidth={3} />
+                          <div key={item.key} className={`flex items-start gap-3 rounded-xl border p-3 ${item.completed ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+                            <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded ${item.completed ? "bg-emerald-500 text-white" : "border-2 border-slate-300 bg-white text-transparent"}`}>
+                              <Check size={13} strokeWidth={3} />
                             </div>
-                            <div>
-                              <p className={`text-sm font-semibold ${item.completed ? "text-green-800 line-through" : "text-slate-900"}`}>{item.label}</p>
-                              <p className={`mt-0.5 text-[10px] font-medium uppercase tracking-wider ${item.completed ? "text-green-600" : "text-slate-500"}`}>{item.description}</p>
+                            <div className="min-w-0">
+                              <p className={`text-[12px] font-pmedium ${item.completed ? "text-emerald-800 line-through" : "text-slate-900"}`}>{item.label}</p>
+                              <p className={`mt-0.5 text-[9px] font-pmedium uppercase tracking-wider ${item.completed ? "text-emerald-600" : "text-slate-500"}`}>{item.description}</p>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className="text-sm text-slate-500">No checklist items defined yet.</div>
+                        <div className="text-[12px] font-pmedium text-slate-500">No checklist items defined yet.</div>
                       )}
                     </div>
-                  </section>
+                  </div>
                 )}
 
-                <section className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">
-                  Resignation status: <span className="font-semibold text-slate-700">{formatStatusLabel(viewingRequest.status)}</span>
-                </section>
+                {viewingRequest.status === "rejected" && viewingRequest.rejectionReason && (
+                  <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500"></div>
+                    <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><XCircle size={14} /> Grounds for Rejection</p>
+                    <p className="text-[13px] font-pmedium text-red-900 leading-relaxed">{viewingRequest.rejectionReason}</p>
+                  </div>
+                )}
               </div>
-            </div>
 
-            <div className="flex shrink-0 gap-3 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => setViewingRequest(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Close</button>
-              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "PDF")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">EXPORT PDF</button>
-              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "Excel")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-pmedium text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">EXPORT EXCEL</button>
-              {viewingRequest.status === "pending" && (
-                <>
-                  <button type="button" onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} className="flex-1 rounded-2xl border border-red-200 bg-white py-4 font-pmedium text-red-600 transition hover:bg-red-50">Reject Request</button>
-                  <button type="button" onClick={() => handleApproveRequest(viewingRequest)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-pmedium text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700">Approve & Start Notice</button>
-                </>
-              )}
-              {viewingRequest.status === "approved" && (
-                <button type="button" onClick={() => openManageChecklist(viewingRequest)} className="flex-1 rounded-2xl bg-green-600 py-4 font-pmedium text-white shadow-lg shadow-green-200 transition hover:bg-green-700">Open Checklist</button>
-              )}
-            </div>
+              <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
+                {viewingRequest.status === "pending" ? (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
+                      <X size={14} /> Reject
+                    </button>
+                    <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isSavingDecision} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50">
+                      {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                      {isSavingDecision ? "SAVING..." : "APPROVE & START NOTICE"}
+                    </button>
+                  </div>
+                ) : viewingRequest.status === "approved" ? (
+                  <button type="button" onClick={() => openManageChecklist(viewingRequest)} className="w-full flex items-center justify-center gap-1.5 bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-blue-700 active:scale-95 transition-all">
+                    <CheckSquare size={14} /> Open Checklist
+                  </button>
+                ) : (
+                  <button onClick={() => setViewingRequest(null)} className="w-full py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
+                    CLOSE PANEL
+                  </button>
+                )}
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ── Manage Checklist Modal ── */}
-      {managingResignation && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 p-6 md:p-8">
-              <div>
-                <h2 className="flex items-center gap-2 text-2xl font-bold text-white"><CheckSquare size={22} /> Resignation Clearance Checklist</h2>
-                <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                  {managingResignation.employeeName} &bull; {managingResignation.exitCode}
-                </p>
+      <AnimatePresence>
+        {managingResignation && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/20 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] border border-slate-200/60 bg-white shadow-2xl sm:max-h-[85vh] sm:rounded-[24px]"
+            >
+              <div className="flex w-full justify-center py-2 sm:hidden">
+                <div className="h-1 w-10 rounded-full bg-slate-200" />
               </div>
-              <button type="button" onClick={() => setManagingResignation(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 transition hover:bg-red-500 hover:text-white"><X size={18} /></button>
-            </div>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><CheckSquare size={17} /></div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-pmedium text-slate-900">Clearance Checklist</h2>
+                    <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{managingResignation.employeeName} &bull; {managingResignation.exitCode || "-"}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setManagingResignation(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+              </div>
 
-            <div className="flex-1 overflow-y-auto bg-white p-6 md:p-8">
-              <div className="space-y-4">
+              <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 [&::-webkit-scrollbar]:hidden">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-xs font-medium leading-relaxed text-amber-800">
+                  <p className="text-[11px] font-pmedium leading-relaxed text-amber-800">
                     Mark each clearance step as complete. The final resignation can be closed only after every checklist item is done and the notice period has finished.
                   </p>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {(managingResignation.checklist || []).map((item) => (
                     <button
                       key={item.key}
                       type="button"
                       onClick={() => handleToggleChecklist(item.key || "")}
-                      className={`flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition ${
-                        item.completed ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50 hover:border-blue-300"
+                      className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition ${
+                        item.completed ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-blue-300"
                       }`}
                     >
-                      <div className={`flex h-6 w-6 items-center justify-center rounded ${item.completed ? "bg-green-500 text-white" : "border-2 border-slate-300 bg-white text-transparent"}`}>
-                        <Check size={16} strokeWidth={3} />
+                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${item.completed ? "bg-emerald-500 text-white" : "border-2 border-slate-300 bg-white text-transparent"}`}>
+                        <Check size={13} strokeWidth={3} />
                       </div>
-                      <div>
-                        <p className={`text-sm font-semibold ${item.completed ? "text-green-800 line-through" : "text-slate-900"}`}>{item.label}</p>
-                        <p className={`mt-0.5 text-[10px] font-medium uppercase tracking-wider ${item.completed ? "text-green-600" : "text-slate-500"}`}>{item.description}</p>
+                      <div className="min-w-0">
+                        <p className={`text-[12px] font-pmedium ${item.completed ? "text-emerald-800 line-through" : "text-slate-900"}`}>{item.label}</p>
+                        <p className={`mt-0.5 text-[9px] font-pmedium uppercase tracking-wider ${item.completed ? "text-emerald-600" : "text-slate-500"}`}>{item.description}</p>
                       </div>
                     </button>
                   ))}
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="mb-3 flex items-center justify-between text-xs font-pmedium uppercase tracking-wider text-slate-500">
+                  <div className="mb-3 flex items-center justify-between text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                     <span>Checklist Progress</span>
                     <span>{managingResignation.completedChecklistCount || 0}/{managingResignation.totalChecklistCount || 0}</span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-200">
                     <div
-                      className={`h-2 rounded-full ${managingResignation.checklistProgress === 100 ? "bg-green-500" : "bg-[#2563EB]"}`}
+                      className={`h-2 rounded-full ${managingResignation.checklistProgress === 100 ? "bg-emerald-500" : "bg-[#2563EB]"}`}
                       style={{ width: `${managingResignation.checklistProgress || 0}%` }}
                     />
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex shrink-0 gap-4 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => setManagingResignation(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Save Progress & Close</button>
-              <button type="button" onClick={handleCompleteResignation} disabled={!managingResignation.canComplete} className="flex-1 rounded-2xl bg-green-600 py-4 font-pmedium text-white shadow-lg shadow-green-200 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
-                <UserMinus size={18} className="mr-2 inline-block" /> Complete Resignation
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Reject Request Modal ── */}
-      {rejectingRequest && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-red-700 bg-red-600 p-6 md:p-8">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-white/20 p-3 text-white"><XCircle size={24} /></div>
-                <div>
-                  <h2 className="text-2xl font-bold leading-none text-white">Reject Resignation</h2>
-                  <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-red-200">{rejectingRequest.exitCode}</p>
+              <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button type="button" onClick={() => setManagingResignation(null)} className="w-full sm:flex-1 py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
+                    Save Progress & Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCompleteResignation}
+                    disabled={!managingResignation.canComplete || isSavingDecision}
+                    className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-emerald-600 active:scale-95 transition-all disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-100"
+                  >
+                    {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
+                    Complete Resignation
+                  </button>
                 </div>
               </div>
-              <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"><X size={18} /></button>
-            </div>
-            <div className="space-y-5 bg-white p-6 md:p-8">
-              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
-                <p className="text-xs font-medium leading-relaxed text-red-700">
-                  You are rejecting an resignation request from <span className="font-semibold text-red-900">{rejectingRequest.employeeName}</span>. A rejection reason is required.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Reason for Rejection *</label>
-                <textarea
-                  className="w-full resize-none rounded-xl border-2 border-transparent bg-slate-50 p-4 font-medium text-slate-900 outline-none transition focus:border-red-400"
-                  rows={4}
-                  placeholder="Explain why the resignation is being rejected..."
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex gap-4 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Cancel</button>
-              <button type="button" disabled={!rejectReason.trim()} onClick={handleRejectSubmit} className="flex-1 rounded-2xl bg-red-600 py-4 font-pmedium text-white shadow-lg shadow-red-200 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">Confirm Rejection</button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* ── Reject Request Modal ── */}
+      <AnimatePresence>
+        {rejectingRequest && (
+          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/20 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] border border-slate-200/60 bg-white shadow-2xl sm:rounded-[24px]"
+            >
+              <div className="flex w-full justify-center py-2 sm:hidden">
+                <div className="h-1 w-10 rounded-full bg-slate-200" />
+              </div>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><XCircle size={17} /></div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-pmedium text-slate-900">Reject Resignation</h2>
+                    <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{rejectingRequest.employeeName}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+              </div>
+              <div className="p-4 sm:p-6 space-y-4 bg-white">
+                <div className="p-4 sm:p-5 bg-red-50/80 border border-red-200/80 rounded-2xl">
+                  <label className="text-[10px] font-pmedium text-red-600 uppercase tracking-widest mb-2 block">Mandatory Rejection Note</label>
+                  <textarea
+                    rows={4} required placeholder="Explain why the resignation is being rejected..."
+                    className="w-full p-3 sm:p-4 text-[13px] sm:text-[14px] rounded-xl border border-red-200 outline-none focus:ring-2 focus:ring-red-200 bg-white font-pmedium text-red-900 placeholder:text-red-300 shadow-sm"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="w-full sm:flex-1 py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
+                    Cancel
+                  </button>
+                  <button type="button" disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="w-full sm:flex-[2] flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
+                    {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                    Confirm Rejection
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

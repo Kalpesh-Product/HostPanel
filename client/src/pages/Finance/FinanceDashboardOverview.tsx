@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Clock, Wallet, UserCheck, CreditCard, Receipt, Calculator } from "lucide-react";
+import { Wallet, UserCheck, CreditCard, Receipt, Calculator } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
 import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
@@ -65,7 +65,7 @@ const DEFAULT_DASHBOARD: DashboardState = {
 
 /* ───────────────────────────── Component ───────────────────────────── */
 
-const WorkspaceClock = ({ workspaceName, timezone }: { workspaceName: string; timezone: string }) => {
+const WorkspaceClock = ({ timezone, location }: { timezone: string; location: string }) => {
   const [tick, setTick] = useState(new Date());
 
   useEffect(() => {
@@ -87,25 +87,9 @@ const WorkspaceClock = ({ workspaceName, timezone }: { workspaceName: string; ti
     }
   }, [tick, timezone]);
 
-  if (!workspaceName && !timeLabel) return null;
+  if (!timeLabel) return null;
 
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
-      {workspaceName && (
-        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600">
-          <Building2 size={13} />
-          {workspaceName}
-        </span>
-      )}
-      {workspaceName && timeLabel && <span className="h-3.5 w-px bg-slate-300" />}
-      {timeLabel && (
-        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600 tabular-nums">
-          <Clock size={13} />
-          {timeLabel}
-        </span>
-      )}
-    </div>
-  );
+  return <>{` | ${timeLabel}`}{location ? ` - ${location}` : ""}</>;
 };
 
 export function FinanceDashboardOverview() {
@@ -280,11 +264,7 @@ export function FinanceDashboardOverview() {
               <PlanBadge plan={access.plan} />
             </div>
             <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}</p>
-          </div>
-
-          <div className="mt-1 sm:mt-0">
-            <WorkspaceClock workspaceName={access.workspaceName} timezone={workspacePreferences.timezone} />
+            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
           </div>
         </div>
       </PageFrame>

@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
-  Archive,
+  Calendar,
   CheckCircle2,
   Clock,
-  FileText,
+  Eye,
   Layers,
+  Loader2,
   LogOut,
   Pencil,
   Plus,
@@ -14,12 +16,12 @@ import {
   Send,
   ShieldAlert,
   Trash2,
-  UserMinus,
   X,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import { statusPillClass } from "@/lib/status-pill";
 
 interface ResignationRuleItem {
   key: string;
@@ -49,6 +51,8 @@ interface ResignationRequest {
   reason?: string;
   status?: string;
   noticePeriodDays?: number;
+  requestedNoticeStartDate?: string;
+  expectedLastWorkingDate?: string;
   noticeEndAt?: string;
   completedAt?: string;
   rejectedAt?: string;
@@ -88,6 +92,28 @@ function formatDate(value?: string) {
       });
 }
 
+function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addDaysLabel(dateStr: string, days: number): string {
+  if (!dateStr) return "-";
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "-";
+  date.setDate(date.getDate() + Math.max(0, days));
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatStatusLabel(value?: string): string {
+  const status = String(value || "pending").trim().toLowerCase();
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function getStatusBadge(status?: string): React.ReactElement {
+  const label = formatStatusLabel(status);
+  return <span className={statusPillClass(label)}>{label}</span>;
+}
+
 function isMatchStatus(requestStatus?: string, filterStatus?: string): boolean {
   if (!filterStatus || filterStatus === "all") return true;
   return String(requestStatus || "pending").trim().toLowerCase() === String(filterStatus).trim().toLowerCase();
@@ -99,24 +125,6 @@ function isMatchSearch(request: ResignationRequest, query: string): boolean {
   return [request.exitCode, request.reason, request.status]
     .filter(Boolean)
     .some((value) => String(value).toLowerCase().includes(term));
-}
-
-function StatusBadge({ status = "pending" }: { status?: string }) {
-  const key = status.toLowerCase();
-  const styles: Record<string, string> = {
-    pending: "border-amber-200 bg-amber-50 text-amber-700",
-    approved: "border-blue-200 bg-blue-50 text-blue-700",
-    rejected: "border-red-200 bg-red-50 text-red-700",
-    completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  };
-  return (
-    <span
-      className={"inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider " + (styles[key] || styles.pending)}
-    >
-      <UserMinus size={10} />
-      {key.charAt(0).toUpperCase() + key.slice(1)}
-    </span>
-  );
 }
 
 export function ResignationRequestWorkflowTab() {
@@ -131,7 +139,9 @@ export function ResignationRequestWorkflowTab() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingRequest, setEditingRequest] = useState<ResignationRequest | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<ResignationRequest | null>(null);
   const [reason, setReason] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState("");
   const [requestedDocuments, setRequestedDocuments] = useState<string[]>([]);
   const [customDocument, setCustomDocument] = useState("");
   const [documentNotes, setDocumentNotes] = useState("");
@@ -241,6 +251,7 @@ export function ResignationRequestWorkflowTab() {
   const openCreateForm = () => {
     setEditingRequest(null);
     setReason("");
+    setEffectiveDate("");
     setRequestedDocuments([]);
     setCustomDocument("");
     setDocumentNotes("");
@@ -249,8 +260,10 @@ export function ResignationRequestWorkflowTab() {
   };
 
   const openEditForm = (request: ResignationRequest) => {
+    setViewingRequest(null);
     setEditingRequest(request);
     setReason(request.reason || "");
+    setEffectiveDate(request.requestedNoticeStartDate || "");
     setRequestedDocuments(Array.isArray(request.requestedDocuments) ? request.requestedDocuments : []);
     setCustomDocument("");
     setDocumentNotes(request.requestedDocumentNotes || "");
@@ -262,6 +275,7 @@ export function ResignationRequestWorkflowTab() {
     setShowForm(false);
     setEditingRequest(null);
     setReason("");
+    setEffectiveDate("");
     setRequestedDocuments([]);
     setCustomDocument("");
     setDocumentNotes("");
@@ -297,6 +311,14 @@ export function ResignationRequestWorkflowTab() {
       toast.error("Please enter at least 10 characters for the resignation reason.");
       return;
     }
+    if (!effectiveDate) {
+      toast.error("Choose the effective date you want your notice period to start from.");
+      return;
+    }
+    if (effectiveDate < todayDateString()) {
+      toast.error("Effective date cannot be in the past.");
+      return;
+    }
     if (!acknowledged) {
       toast.error("Confirm that you reviewed the notice period and resignation instructions.");
       return;
@@ -306,6 +328,7 @@ export function ResignationRequestWorkflowTab() {
     try {
       const payload = {
         reason: reason.trim(),
+        noticeStartDate: effectiveDate,
         requestedDocuments,
         requestedDocumentNotes: documentNotes.trim(),
         policyAcknowledged: true,
@@ -420,57 +443,46 @@ export function ResignationRequestWorkflowTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left">
+            <table className="w-full min-w-[900px] text-left">
               <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                 <tr>
                   <th className="px-5 py-4">Request</th>
-                  <th className="px-5 py-4">Reason</th>
-                  <th className="px-5 py-4">Documents requested</th>
                   <th className="px-5 py-4 text-center">Status</th>
-                  <th className="px-5 py-4 text-center">Notice</th>
-                  <th className="px-5 py-4 text-center">Submitted</th>
+                  <th className="px-5 py-4 text-center">Notice Period</th>
+                  <th className="px-5 py-4">Effective Date</th>
+                  <th className="px-5 py-4">Last Working Date</th>
+                  <th className="px-5 py-4">Submitted</th>
                   <th className="px-5 py-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/60">
                 {filteredRequests.map((request) => (
-                  <tr key={request.id || request._id} className="transition-all hover:bg-blue-50/30 group">
-                    <td className="px-5 py-4 text-sm font-pmedium text-slate-900">{request.exitCode || "-"}</td>
-                    <td className="max-w-xs px-5 py-4">
-                      <p className="truncate text-xs text-slate-700" title={request.reason}>{request.reason || "-"}</p>
-                      {request.rejectionReason && (
-                        <p className="mt-1 truncate text-[11px] text-red-600">HR: {request.rejectionReason}</p>
-                      )}
-                    </td>
-                    <td className="max-w-xs px-5 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {(request.requestedDocuments || []).map((document) => (
-                          <span key={document} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] text-slate-600">
-                            <FileText size={10} className="mr-1 inline" />{document}
-                          </span>
-                        ))}
-                        {!request.requestedDocuments?.length && <span className="text-xs text-slate-400">None</span>}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-center"><StatusBadge status={request.status} /></td>
-                    <td className="px-5 py-4 text-center text-xs text-slate-600">
-                      {request.noticePeriodDays || 0} days
-                      {request.noticeEndAt && <span className="block text-[10px] text-slate-400">Ends {formatDate(request.noticeEndAt)}</span>}
-                    </td>
-                    <td className="px-5 py-4 text-center text-xs text-slate-600">{formatDate(request.createdAt || request.updatedAt)}</td>
+                  <tr key={request.id || request._id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-5 py-4 text-[12px] font-pmedium text-slate-900 whitespace-nowrap">{request.exitCode || "-"}</td>
+                    <td className="px-5 py-4 text-center">{getStatusBadge(request.status)}</td>
+                    <td className="px-5 py-4 text-center text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{request.noticePeriodDays || 0} Days</td>
+                    <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{formatDate(request.requestedNoticeStartDate)}</td>
+                    <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{formatDate(request.noticeEndAt || request.expectedLastWorkingDate)}</td>
+                    <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{formatDate(request.createdAt || request.updatedAt)}</td>
                     <td className="px-5 py-4 text-center">
-                      {String(request.status || "").toLowerCase() === "pending" ? (
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => openEditForm(request)}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-1.5 text-[10px] font-pmedium uppercase text-slate-600 transition-all hover:bg-blue-50 hover:text-[#2563EB]"
+                          onClick={() => setViewingRequest(request)}
+                          className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
                         >
-                          <Pencil size={12} />
-                          Edit
+                          <Eye size={15} strokeWidth={2.5} />
                         </button>
-                      ) : (
-                        <span className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Locked</span>
-                      )}
+                        {String(request.status || "").toLowerCase() === "pending" && (
+                          <button
+                            type="button"
+                            onClick={() => openEditForm(request)}
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+                          >
+                            <Pencil size={15} strokeWidth={2.5} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -479,6 +491,107 @@ export function ResignationRequestWorkflowTab() {
           </div>
         )}
       </div>
+
+      {/* ── View Request Modal ── */}
+      <AnimatePresence>
+        {viewingRequest && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/20 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] border border-slate-200/60 bg-white shadow-2xl sm:max-h-[85vh] sm:rounded-[24px]"
+            >
+              <div className="flex w-full justify-center py-2 sm:hidden">
+                <div className="h-1 w-10 rounded-full bg-slate-200" />
+              </div>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><LogOut size={17} /></div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-pmedium text-slate-900">Resignation Request</h2>
+                    <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{viewingRequest.exitCode || "-"} &bull; {formatStatusLabel(viewingRequest.status)}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setViewingRequest(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+              </div>
+
+              <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 [&::-webkit-scrollbar]:hidden">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Submitted</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{formatDate(viewingRequest.createdAt || viewingRequest.updatedAt)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Notice Period</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{viewingRequest.noticePeriodDays || 0} Days</p>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between border-t border-slate-200/70 pt-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Status</p>
+                    {getStatusBadge(viewingRequest.status)}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Effective Date</p>
+                    <p className="flex items-center gap-2 text-[13px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-slate-400" /> {formatDate(viewingRequest.requestedNoticeStartDate)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                    <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{viewingRequest.status === "pending" ? "Expected Last Working Date" : "Last Working Date"}</p>
+                    <p className="flex items-center gap-2 text-[13px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-[#2563EB]" /> {formatDate(viewingRequest.noticeEndAt || viewingRequest.expectedLastWorkingDate)}</p>
+                  </div>
+                </div>
+
+                {Array.isArray(viewingRequest.requestedDocuments) && viewingRequest.requestedDocuments.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Requested Documents</p>
+                    <div className="flex flex-wrap gap-2">
+                      {viewingRequest.requestedDocuments.map((doc) => (
+                        <span key={doc} className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium text-blue-700">{doc}</span>
+                      ))}
+                    </div>
+                    {viewingRequest.requestedDocumentNotes && (
+                      <p className="mt-2 text-[11px] font-pmedium text-slate-500">{viewingRequest.requestedDocumentNotes}</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Reason</p>
+                  <p className="text-[13px] font-pmedium text-slate-700 leading-relaxed">{viewingRequest.reason || "-"}</p>
+                </div>
+
+                {viewingRequest.status === "rejected" && viewingRequest.rejectionReason && (
+                  <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500"></div>
+                    <p className="text-[10px] font-pmedium text-red-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><XCircle size={14} /> HR Feedback</p>
+                    <p className="text-[13px] font-pmedium text-red-900 leading-relaxed">{viewingRequest.rejectionReason}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
+                {String(viewingRequest.status || "").toLowerCase() === "pending" ? (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <button onClick={() => setViewingRequest(null)} className="w-full sm:flex-1 py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
+                      Close
+                    </button>
+                    <button onClick={() => openEditForm(viewingRequest)} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-blue-700 active:scale-95 transition-all">
+                      <Pencil size={14} /> Edit Request
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setViewingRequest(null)} className="w-full py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
+                    Close
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ── Create / Edit Popup Form ── */}
       {showForm && createPortal(
@@ -500,7 +613,7 @@ export function ResignationRequestWorkflowTab() {
                 </h2>
                 <p className="mt-1 text-[11px] font-pmedium text-slate-500">
                   {editingRequest
-                    ? editingRequest.exitCode + " is still pending HR review. Update your reason or requested documents."
+                    ? editingRequest.exitCode + " is still pending HR review. Update your details below."
                     : "Review the notice period, return requirements, and resignation instructions before submitting."}
                 </p>
               </div>
@@ -525,7 +638,7 @@ export function ResignationRequestWorkflowTab() {
                     {noticePeriodDays} {noticePeriodDays === 1 ? "day" : "days"}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-blue-700">
-                    The notice period starts after HR approves the request. HR will confirm your final working day.
+                    Choose when you want your notice period to start. Your last working day is calculated automatically.
                   </p>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -536,6 +649,33 @@ export function ResignationRequestWorkflowTab() {
                   <p className="mt-2 text-xs leading-5 text-amber-800">
                     Submitting this form does not immediately end employment. Continue attendance, handover, and assigned work until HR completes the resignation.
                   </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <label htmlFor="exit-effective-date" className="text-xs font-pmedium uppercase tracking-wider text-slate-700">
+                  Effective date <span className="text-red-500">*</span>
+                </label>
+                <p className="mt-1 text-xs text-slate-500">The date from which you want your notice period to begin.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="relative">
+                    <Calendar size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="exit-effective-date"
+                      type="date"
+                      required
+                      min={todayDateString()}
+                      value={effectiveDate}
+                      onChange={(event) => setEffectiveDate(event.target.value)}
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-2 flex flex-col justify-center">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Expected last working date</p>
+                    <p className="mt-0.5 text-sm font-pmedium text-blue-900">
+                      {effectiveDate ? addDaysLabel(effectiveDate, noticePeriodDays) : "Choose an effective date"}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -702,10 +842,10 @@ export function ResignationRequestWorkflowTab() {
               </button>
               <button
                 type="submit"
-                disabled={isSaving || reason.trim().length < 10 || !acknowledged}
+                disabled={isSaving || reason.trim().length < 10 || !effectiveDate || !acknowledged}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 text-xs font-pmedium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                <Send size={14} />
+                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 {isSaving
                   ? "Saving..."
                   : editingRequest

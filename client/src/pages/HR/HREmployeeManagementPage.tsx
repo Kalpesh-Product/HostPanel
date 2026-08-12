@@ -2955,6 +2955,18 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Notice Period (Days)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={editForm.noticePeriodDays}
+                      onChange={(e) => setEditForm((p) => ({ ...p, noticePeriodDays: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      placeholder="30"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role / Code</label>
                     <select
                       value={editForm.jobCode}
@@ -3355,6 +3367,18 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Notice Period (Days)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={addForm.noticePeriodDays}
+                      onChange={(e) => handleAddFieldChange("noticePeriodDays", e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      placeholder="30"
+                    />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role</label>

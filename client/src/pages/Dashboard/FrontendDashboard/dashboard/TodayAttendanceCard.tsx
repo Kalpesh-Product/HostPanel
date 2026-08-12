@@ -200,7 +200,7 @@ const TodayAttendanceCard = () => {
 
   return (
     <>
-      <section className="rounded-2xl border border-blue-100 bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 p-4 shadow-sm lg:p-5">
+      <section className="rounded-2xl border border-blue-100 from-[#2563EB]/5 to-blue-50/50 p-4 shadow-sm lg:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <div className={`rounded-2xl p-3 ${statusConfig.bg} ${statusConfig.color}`}><StatusIcon size={21} /></div>

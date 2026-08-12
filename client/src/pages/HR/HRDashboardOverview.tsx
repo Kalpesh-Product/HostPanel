@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users,
@@ -6,11 +6,12 @@ import {
   Clock,
   Briefcase,
   UserCheck,
-  Building2,
   UserPlus,
   Wallet,
   UserMinus,
   FileText,
+  Cake,
+  LogOut,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -38,16 +39,44 @@ import { getEmployeeManagementOverview, getPayrollSnapshot } from "@/services/hr
 import { getRecruitmentOverview } from "@/services/recruitment";
 import { getLeaveRequests } from "@/services/leave-requests";
 import { getHrAttendanceReview, getTeamAttendance } from "@/services/attendance";
+import { getResignationRequests } from "@/services/resignation-management";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
 interface EmployeeRecord {
   id?: string;
+  employeeId?: string;
   name?: string;
+  fullName?: string;
+  email?: string;
+  department?: string;
+  workspaceRole?: string;
+  rawRole?: string;
+  role?: string;
+  dateOfBirth?: string | null;
+  status?: string;
   source?: string;
   joiningDate?: string;
   joiningDateValue?: string;
   createdAt?: string;
+}
+
+interface ResignationRecord {
+  id?: string;
+  recordId?: string;
+  employeeName?: string;
+  employeeId?: string;
+  department?: string;
+  requesterRole?: string;
+  role?: string;
+  exitCode?: string;
+  status?: string;
+  statusLabel?: string;
+  reason?: string;
+  noticeEndAt?: string;
+  noticeEndDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface CandidateRecord {
@@ -146,6 +175,7 @@ interface DashboardState {
   leaveRequests: LeaveRequestRecord[];
   correctionRequests: CorrectionRecord[];
   payrollCycle: Record<string, unknown>;
+  resignations: ResignationRecord[];
 }
 
 const DEFAULT_DASHBOARD: DashboardState = {
@@ -159,6 +189,7 @@ const DEFAULT_DASHBOARD: DashboardState = {
   leaveRequests: [],
   correctionRequests: [],
   payrollCycle: {},
+  resignations: [],
 };
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
@@ -252,50 +283,151 @@ function formatPercentage(value: unknown): string {
   return `${Math.max(0, Math.min(100, Math.round(Number(value || 0))))}%`;
 }
 
-/* ───────────────────────────── Component ───────────────────────────── */
+/* ───────────────────────────── Birthday helpers ───────────────────────────── */
 
-const WorkspaceClock = ({ workspaceName, timezone }: { workspaceName: string; timezone: string }) => {
-  const [tick, setTick] = useState(new Date());
+const BIRTHDAY_MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
-  useEffect(() => {
-    const timer = setInterval(() => setTick(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+interface ParsedBirthdayRow {
+  month: number;
+  day: number;
+  year: number;
+}
 
-  const timeLabel = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      }).format(tick);
-    } catch {
-      return "";
-    }
-  }, [tick, timezone]);
+function parseBirthdayRow(employee: EmployeeRecord): ParsedBirthdayRow | null {
+  const dob = String(employee.dateOfBirth || "").trim();
+  if (!dob) return null;
+  const date = new Date(dob.length <= 10 ? `${dob}T00:00:00` : dob);
+  if (Number.isNaN(date.getTime())) return null;
 
-  if (!workspaceName && !timeLabel) return null;
+  return {
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+    year: date.getFullYear(),
+  };
+}
+
+function formatBirthdayShort(month: number, day: number): string {
+  return `${BIRTHDAY_MONTH_NAMES[month - 1].slice(0, 3)} ${day}`;
+}
+
+/* ───────────────────────────── Dashboard birthday card ───────────────────────────── */
+
+function DashboardBirthdaysCard({ employees }: { employees: EmployeeRecord[] }) {
+  const currentMonthKey = useMemo(() => String(new Date().getMonth() + 1), []);
+  const currentMonthName = useMemo(() => BIRTHDAY_MONTH_NAMES[Number(currentMonthKey) - 1] || "", [currentMonthKey]);
+
+  const visible = useMemo(() => {
+    return employees
+      .map((employee) => ({ employee, birthday: parseBirthdayRow(employee) }))
+      .filter((item): item is { employee: EmployeeRecord; birthday: ParsedBirthdayRow } => item.birthday !== null && String(item.birthday.month) === currentMonthKey)
+      .sort((a, b) => String(a.birthday.day).padStart(2, "0").localeCompare(String(b.birthday.day).padStart(2, "0")))
+      .slice(0, 8);
+  }, [employees, currentMonthKey]);
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
-      {workspaceName && (
-        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600">
-          <Building2 size={13} />
-          {workspaceName}
-        </span>
-      )}
-      {workspaceName && timeLabel && <span className="h-3.5 w-px bg-slate-300" />}
-      {timeLabel && (
-        <span className="flex items-center gap-1.5 text-small font-pmedium text-slate-600 tabular-nums">
-          <Clock size={13} />
-          {timeLabel}
-        </span>
-      )}
-    </div>
+    <SectionCard title={`${currentMonthName} Birthdays`} linkLabel="View all" linkRoute="/hr/company-management">
+      <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
+        {visible.length > 0 ? visible.map(({ employee, birthday }) => {
+          const empName = employee.name || employee.fullName || "Employee";
+          return (
+            <div key={employee.id || empName} className="flex items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="h-8 w-8 shrink-0 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[10px] font-pmedium shadow-sm border border-blue-800">
+                  {(empName || "?").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-content font-pmedium text-gray-800 truncate">{empName}</p>
+                  <p className="text-small text-gray-500 truncate">{employee.department || "General"}</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-pmedium text-slate-500 flex-shrink-0">
+                {formatBirthdayShort(birthday.month, birthday.day)}
+              </span>
+            </div>
+          );
+        }) : (
+          <div className="min-h-40 flex flex-col items-center justify-center text-gray-400">
+            <Cake size={26} className="text-slate-300 mb-2" />
+            <p className="text-content font-pmedium text-center">No birthdays this month.</p>
+          </div>
+        )}
+      </div>
+    </SectionCard>
   );
-};
+}
+
+/* ───────────────────────────── Dashboard resignations card ───────────────────────────── */
+
+function getResignationStatusBadge(status?: string): React.ReactNode {
+  const normalized = normalizeText(status);
+  if (normalized === "approved") {
+    return (
+      <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-blue-50 text-blue-700 border-blue-200">{status}</span>
+    );
+  }
+  if (normalized === "rejected") {
+    return (
+      <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">{status}</span>
+    );
+  }
+  if (normalized === "completed") {
+    return (
+      <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-green-50 text-green-700 border-green-200">{status}</span>
+    );
+  }
+  return (
+    <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">Pending</span>
+  );
+}
+
+function DashboardResignationsCard({ requests }: { requests: ResignationRecord[] }) {
+  const visible = useMemo(
+    () =>
+      [...requests]
+        .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
+        .slice(0, 5),
+    [requests],
+  );
+
+  return (
+    <SectionCard title="Recent Resignations" linkLabel="View all" linkRoute="/hr/resignation-management">
+      <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
+        {visible.length > 0 ? visible.map((request) => {
+          const initials = String(request.employeeName || "?").split(" ").map((part) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+          return (
+            <div key={request.id || request.recordId || request.employeeName} className="flex items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="h-8 w-8 shrink-0 rounded-full bg-red-50 text-red-600 border border-red-200 flex items-center justify-center text-[10px] font-pmedium">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-content font-pmedium text-gray-800 truncate">{request.employeeName || "Employee"}</p>
+                  <p className="text-small text-gray-500 truncate">
+                    {request.department || "General"}{request.requesterRole ? ` · ${request.requesterRole}` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                <span className="text-[10px] font-pmedium text-slate-500">{humanRelTime(request.createdAt || "")}</span>
+                {getResignationStatusBadge(request.status || "pending")}
+              </div>
+            </div>
+          );
+        }) : (
+          <div className="min-h-40 flex flex-col items-center justify-center text-gray-400">
+            <UserMinus size={26} className="text-slate-300 mb-2" />
+            <p className="text-content font-pmedium text-center">No resignation requests.</p>
+          </div>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
+/* ───────────────────────────── Component ───────────────────────────── */
 
 export function HRDashboardOverview() {
   const currentUser = useFreshCurrentUser();
@@ -310,7 +442,7 @@ export function HRDashboardOverview() {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
+    const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -359,6 +491,20 @@ export function HRDashboardOverview() {
     }
   }, [founderName, now, workspacePreferences.timezone]);
 
+  const timeLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: workspacePreferences.timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(now);
+    } catch {
+      return "";
+    }
+  }, [now, workspacePreferences.timezone]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -367,13 +513,14 @@ export function HRDashboardOverview() {
       setError("");
 
       try {
-        const [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse, payrollResponse] = await Promise.allSettled([
+        const [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse, payrollResponse, resignationResponse] = await Promise.allSettled([
           getEmployeeManagementOverview(),
           getRecruitmentOverview(),
           getLeaveRequests(),
           getHrAttendanceReview(),
           getTeamAttendance({ date: new Date().toISOString().slice(0, 10) }),
           getPayrollSnapshot(),
+          getResignationRequests(),
         ]);
 
         if (!isMounted) {
@@ -389,6 +536,7 @@ export function HRDashboardOverview() {
           ? (teamAttendanceResponse.value as Record<string, unknown>)?.records || []
           : [];
         const payrollData = payrollResponse.status === "fulfilled" ? (payrollResponse.value as Record<string, unknown>) || {} : {};
+        const resignationData = resignationResponse.status === "fulfilled" ? (resignationResponse.value as Record<string, unknown>) || {} : {};
 
         setDashboard({
           employeeSummary: (employeeData.summary as Record<string, unknown>) || {},
@@ -405,9 +553,15 @@ export function HRDashboardOverview() {
               ? (attendanceData.correctionRequests as CorrectionRecord[])
               : [],
           payrollCycle: (payrollData.currentCycle as Record<string, unknown>) || {},
+          resignations: Array.isArray(resignationData.exitRequests)
+            ? (resignationData.exitRequests as ResignationRecord[])
+            : [
+                ...(Array.isArray(resignationData.pendingRequests) ? (resignationData.pendingRequests as ResignationRecord[]) : []),
+                ...(Array.isArray(resignationData.activeNoticeRequests) ? (resignationData.activeNoticeRequests as ResignationRecord[]) : []),
+              ],
         });
 
-        const failures = [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse, payrollResponse].filter((result) => result.status === "rejected");
+        const failures = [employeeResponse, recruitmentResponse, leaveResponse, attendanceResponse, teamAttendanceResponse, payrollResponse, resignationResponse].filter((result) => result.status === "rejected");
         setError(failures.length > 0 ? (failures[0].reason?.message || "Some HR data could not be loaded.") : "");
       } catch (loadError) {
         if (!isMounted) {
@@ -632,6 +786,24 @@ export function HRDashboardOverview() {
     return { totalEmployees: employees.length, netPayable, paid };
   }, [dashboard.payrollCycle]);
 
+  const thisMonthBirthdays = useMemo(() => {
+    const month = new Date().getMonth() + 1;
+    return employees.filter((employee) => {
+      const parsed = parseBirthdayRow(employee);
+      return parsed !== null && parsed.month === month;
+    }).length;
+  }, [employees]);
+
+  const pendingResignations = useMemo(
+    () => dashboard.resignations.filter((request) => normalizeText(request.status) === "pending").length,
+    [dashboard.resignations],
+  );
+
+  const activeNoticeCount = useMemo(
+    () => dashboard.resignations.filter((request) => normalizeText(request.status) === "approved").length,
+    [dashboard.resignations],
+  );
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
@@ -648,11 +820,11 @@ export function HRDashboardOverview() {
                 <PlanBadge plan={access.plan} />
               </div>
               <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-              <p className="text-content font-pmedium text-gray-700">{todayLabel}</p>
-            </div>
-
-            <div className="mt-1 sm:mt-0">
-              <WorkspaceClock workspaceName={access.workspaceName} timezone={workspacePreferences.timezone} />
+              <p className="text-content font-pmedium text-gray-700">
+                {todayLabel}
+                {timeLabel ? ` | ${timeLabel}` : ""}
+                {workspacePreferences.location ? ` - ${workspacePreferences.location}` : ""}
+              </p>
             </div>
           </div>
         </PageFrame>
@@ -672,6 +844,9 @@ export function HRDashboardOverview() {
           <StatCard icon={Clock} label="Correction Requests" value={pendingCorrections} sub="Awaiting HR review" color="#ef4444" route="/hr/attendance-review" />
           <StatCard icon={Briefcase} label="Open Positions" value={openPositions} sub={`${selectedCandidates} shortlisted · ${onboardedCount} onboarded`} color="#7c3aed" route="/hr/recruitment" />
           <StatCard icon={Wallet} label="Payroll" value={fmtINR(payrollStats.netPayable, workspacePreferences.currency)} sub={`${payrollStats.paid}/${payrollStats.totalEmployees} employees paid`} color="#0ea5e9" route="/hr/payroll-management" />
+          <StatCard icon={Cake} label={`${BIRTHDAY_MONTH_NAMES[new Date().getMonth()] || ""} Birthdays`} value={thisMonthBirthdays} sub="Celebrations this month" color="#ec4899" route="/hr/company-management" />
+          <StatCard icon={UserMinus} label="Pending Resignations" value={pendingResignations} sub="Awaiting HR review" color="#ef4444" route="/hr/resignation-management" />
+          <StatCard icon={LogOut} label="On Notice" value={activeNoticeCount} sub="Active notice periods" color="#f97316" route="/hr/resignation-management" />
         </WidgetSection>
 
         {/* Team status, live visitors and today's correction queue */}
@@ -794,6 +969,12 @@ export function HRDashboardOverview() {
             colors={recruitmentFunnel.colors}
             centerLabel="Candidates"
           />
+        </div>
+
+        {/* Monthly Birthdays + Recent Resignations */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <DashboardBirthdaysCard employees={employees} />
+          <DashboardResignationsCard requests={dashboard.resignations} />
         </div>
 
         <BarWidget

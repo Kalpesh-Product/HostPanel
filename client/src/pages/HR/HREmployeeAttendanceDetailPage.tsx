@@ -484,7 +484,7 @@ export default function HREmployeeAttendanceDetailPage() {
 
   return (
     <PageFrame>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      <div className="min-h-screen from-slate-50 via-white to-slate-100">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="mb-5 flex items-center justify-between gap-3">
             <button
@@ -511,7 +511,7 @@ export default function HREmployeeAttendanceDetailPage() {
           </div>
 
           <div className="mb-6 overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
+            <div className="border-b border-slate-100 from-slate-50 to-white px-6 py-5">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium uppercase tracking-[0.2em] text-blue-600">Employee Profile</p>
                 <h1 className="mt-2 truncate text-2xl font-pmedium tracking-tight text-slate-900">{employeeLabel}</h1>
@@ -589,16 +589,16 @@ export default function HREmployeeAttendanceDetailPage() {
                     <div className="rounded-2xl border border-slate-100 bg-white p-4">
                       <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Check In</p>
                       <p className="mt-1 text-sm font-pmedium text-slate-900">{selectedDay.checkIn ? formatTime12h(selectedDay.checkIn) : "--:--"}</p>
-                      {selectedDay.checkInLocation ? (
+                      {/* {selectedDay.checkInLocation ? (
                         <p className="mt-1 flex items-center gap-1 text-[10px] text-slate-500"><MapPin size={10} /> {selectedDay.checkInLocation}</p>
-                      ) : null}
+                      ) : null} */}
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-white p-4">
                       <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Check Out</p>
                       <p className="mt-1 text-sm font-pmedium text-slate-900">{selectedDay.checkOut ? formatTime12h(selectedDay.checkOut) : "--:--"}</p>
-                      {selectedDay.checkOutLocation ? (
+                      {/* {selectedDay.checkOutLocation ? (
                         <p className="mt-1 flex items-center gap-1 text-[10px] text-slate-500"><MapPin size={10} /> {selectedDay.checkOutLocation}</p>
-                      ) : null}
+                      ) : null} */}
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-white p-4">
                       <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Break Time</p>

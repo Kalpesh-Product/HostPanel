@@ -3665,7 +3665,14 @@ export function MeetingRoomsPage() {
     });
   }, [workspaceMembers, internalBookingForm.bookedForUserId, internalBookingForm.department, currentUserId]);
 
-  const canCreateInternalBooking = internalBookingEligibleParticipants.length > 0;
+  const canCreateInternalBooking = useMemo(() => {
+    return workspaceMembers.some((member: any) => {
+      const memberId = resolveMemberUserId(member);
+      if (!memberId || memberId === currentUserId) return false;
+      const role = normalize(member.role);
+      return role !== 'external' && role !== 'tenant';
+    });
+  }, [workspaceMembers, currentUserId]);
 
   // --------- RESCHEDULE TIME OPTIONS ---------
   const rescheduleStartTimeOptions = useMemo(() => {
@@ -4091,7 +4098,7 @@ export function MeetingRoomsPage() {
         date: internalBookingForm.date,
         startTime: internalBookingForm.startTime,
         endTime: internalBookingForm.endTime,
-        attendees: internalBookingForm.attendees,
+        attendees: Math.max(internalBookingForm.attendees || 1, safeInviteeIds.length + 1),
         purpose: internalBookingForm.purpose || 'Internal Meeting',
         inviteeUserIds: safeInviteeIds,
         bookingNotes: internalBookingForm.notes,
@@ -6982,7 +6989,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="px-3 py-5 sm:px-4 sm:py-6 md:px-5 md:py-8 space-y-5 overflow-y-auto flex-1 bg-slate-50/30">
-                {internalBookingEligibleParticipants.length === 0 && (
+                {!canCreateInternalBooking && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-pmedium text-amber-800 flex items-start justify-between gap-3">
                     <div>
                       <p className="uppercase tracking-widest text-[10px] text-amber-700">No organization members found</p>

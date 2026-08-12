@@ -16,6 +16,7 @@ import {
 
 export type WorkspacePreferences = {
   timezone: string;
+  location: string;
   currency: string;
   dateFormat: string;
   timeFormat: "12h" | "24h";
@@ -26,6 +27,7 @@ export type WorkspacePreferences = {
 
 const DEFAULT_PREFERENCES: WorkspacePreferences = {
   timezone: DEFAULT_WORKSPACE_TIMEZONE,
+  location: "",
   currency: DEFAULT_WORKSPACE_CURRENCY,
   dateFormat: "DD MMM YYYY",
   timeFormat: "12h",
@@ -53,10 +55,12 @@ export default function useWorkspacePreferences(): WorkspacePreferences {
     void (async () => {
       try {
         const response = await axiosPrivate.get("/api/workspaces/settings");
+        const profile = response?.data?.data?.settings?.profile;
         const incoming = response?.data?.data?.settings?.preferences;
         if (!mounted || !incoming) return;
         setPreferences({
           timezone: normalizeWorkspaceTimeZone(incoming.timezone),
+          location: String(profile?.location || "").trim(),
           currency: normalizeWorkspaceCurrency(incoming.currency),
           dateFormat: String(incoming.dateFormat || DEFAULT_PREFERENCES.dateFormat),
           timeFormat: incoming.timeFormat === "24h" ? "24h" : "12h",

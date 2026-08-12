@@ -96,6 +96,25 @@ const plusDays = (date: Date, days: number) => {
   result.setUTCDate(result.getUTCDate() + Math.max(0, days));
   return result;
 };
+const startOfDay = (date: Date) => {
+  const result = new Date(date);
+  result.setUTCHours(0, 0, 0, 0);
+  return result;
+};
+const parseNoticeStartDate = (value: unknown, fieldLabel = "Effective date") => {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    throw new ResignationManagementError(`${fieldLabel} is required.`, 400);
+  }
+  const date = new Date(raw.length <= 10 ? `${raw}T00:00:00.000Z` : raw);
+  if (Number.isNaN(date.getTime())) {
+    throw new ResignationManagementError(`${fieldLabel} is invalid.`, 400);
+  }
+  if (startOfDay(date).getTime() < startOfDay(new Date()).getTime()) {
+    throw new ResignationManagementError(`${fieldLabel} cannot be in the past.`, 400);
+  }
+  return date;
+};
 const checklistTemplate = () =>
   DEFAULT_CHECKLIST.map(([key, label, description]) => ({
     key,
@@ -171,6 +190,10 @@ const formatRequest = (document: any, now = new Date()) => {
     managerUserId: request?.managerUserId ? String(request.managerUserId) : null,
     joiningDate: dateOnly(request?.joiningDate),
     noticePeriodDays: Number(request?.noticePeriodDays || 0),
+    requestedNoticeStartDate: dateOnly(request?.requestedNoticeStartDate),
+    expectedLastWorkingDate: request?.requestedNoticeStartDate
+      ? dateOnly(plusDays(new Date(request.requestedNoticeStartDate), Number(request?.noticePeriodDays || 0)))
+      : "",
     reason: request?.reason || "",
     requestedDocuments: Array.isArray(request?.requestedDocuments)
       ? request.requestedDocuments.filter(Boolean)
@@ -697,6 +720,7 @@ export const createResignationRequestForCurrentUser = async (
       400,
     );
   }
+  const requestedNoticeStartDate = parseNoticeStartDate(input?.noticeStartDate);
   const settingsRecord = await loadResignationSettingsDocument(access.workspace._id);
   const policyChecklist = checklistFromSettings(settingsRecord);
   const requestedDocuments = stringArray(input?.requestedDocuments);
@@ -730,6 +754,7 @@ export const createResignationRequestForCurrentUser = async (
         requesterUserId: access.actor._id,
         activeRequestKey: requestKey,
         ...snapshot,
+        requestedNoticeStartDate,
         reason,
         requestedDocuments,
         requestedDocumentNotes,
@@ -809,6 +834,7 @@ export const updateResignationRequestForCurrentUser = async (
       400,
     );
   }
+  const requestedNoticeStartDate = parseNoticeStartDate(input?.noticeStartDate);
   const requestedDocuments = stringArray(input?.requestedDocuments);
   const requestedDocumentNotes = clean(input?.requestedDocumentNotes, 2000);
 
@@ -822,6 +848,7 @@ export const updateResignationRequestForCurrentUser = async (
     {
       $set: {
         reason,
+        requestedNoticeStartDate,
         requestedDocuments,
         requestedDocumentNotes,
         updatedByUserId: access.actor._id,
@@ -896,6 +923,9 @@ export const reviewResignationRequestForCurrentUser = async (
 
   const now = new Date();
   const reviewer = actorName(access);
+  const noticeStartAt = request.requestedNoticeStartDate
+    ? new Date(request.requestedNoticeStartDate)
+    : now;
   const values =
     status === "approved"
       ? {
@@ -903,9 +933,9 @@ export const reviewResignationRequestForCurrentUser = async (
           approvedAt: now,
           approvedByUserId: access.actor._id,
           approvedBy: reviewer,
-          noticeStartAt: now,
+          noticeStartAt,
           noticeEndAt: plusDays(
-            now,
+            noticeStartAt,
             Number(request.noticePeriodDays || 0),
           ),
           rejectedAt: null,

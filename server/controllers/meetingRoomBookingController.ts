@@ -769,7 +769,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
         // ── End of External booking branch ───────────────────────────────────
 
-        const attendeeCount = Math.max(1, Number(attendees || inviteeUserIds.length + 1));
+        const attendeeCount = Math.max(1, Number(attendees) || 0, (inviteeUserIds?.length || 0) + 1);
         if (attendeeCount > Number(room.capacity || 0)) return res.status(400).json({ message: "Attendee count exceeds room capacity" });
         if (await findOverlap(roomId, range.start, range.end)) return res.status(409).json({ message: "Room is already booked for the selected time slot" });
 

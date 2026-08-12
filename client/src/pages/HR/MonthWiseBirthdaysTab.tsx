@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
-  Cake, CalendarDays, Gift, Search, Users, Sparkles, Clock,
+  Cake, CalendarDays, Gift, Search, Users, Sparkles, Clock, UserCheck,
 } from "lucide-react";
 
 /* ───────────────────────────── Types ───────────────────────────── */
@@ -74,6 +74,12 @@ function formatDateLabel(month: number, day: number, year: number): string {
 
 function formatMonthLabel(month: number, day: number): string {
   return `${MONTH_NAMES[month - 1].slice(0, 3)} ${day}`;
+}
+
+function getRoleBadgeClass(role: string): string {
+  if (role === "Founder" || role === "Super Admin" || role === "Admin") return "bg-purple-100 text-purple-700";
+  if (role === "Manager") return "bg-blue-100 text-blue-600";
+  return "bg-slate-100 text-slate-500";
 }
 
 function getStatusBadge(status: ParsedBirthday["status"]): React.ReactNode {
@@ -174,7 +180,7 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
 
       {/* ═══ DATA PANEL ═══ */}
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-        {/* Data Panel Header Row: month pills on the left, search + summary on the right */}
+        {/* Data Panel Header Row: month pills on the left, search on the right */}
         <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
           <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {MONTH_TABS.map((tab) => (
@@ -202,23 +208,18 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
               />
             </div>
-            {/* <div className="flex items-center gap-2 text-[11px] font-pmedium text-slate-500 whitespace-nowrap">
-              <CalendarDays size={14} className="text-[#2563EB]" />
-              {selectedMonth === "all" ? "All Months" : MONTH_NAMES[Number(selectedMonth) - 1]}
-              <span className="text-slate-300">|</span>
-              <span className="text-[#2563EB]">{visible.length}</span> birthdays
-            </div> */}
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table (as per employee management) */}
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4 text-left">Employee ID</th>
-                <th className="px-5 py-4 text-left">Employee Name</th>
-                <th className="px-5 py-4 text-left">Department &amp; Role</th>
+                <th className="px-5 py-4 text-left">Employee</th>
+                <th className="px-5 py-4 text-left">Role</th>
+                <th className="px-5 py-4 text-left">Department</th>
                 <th className="px-5 py-4 text-left">Date of Birth</th>
                 <th className="px-5 py-4 text-center">Age</th>
                 <th className="px-5 py-4 text-left">Birthday</th>
@@ -227,7 +228,7 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
             <tbody className="divide-y divide-slate-100/60">
               {visible.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">
+                  <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">
                     <Cake size={32} className="mx-auto text-slate-300 mb-3" />
                     No birthdays found for this selection.
                   </td>
@@ -238,29 +239,21 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
                   return (
                     <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
-                        <span className="font-pmedium text-slate-800 text-[12px]">{emp.employeeId || emp.id}</span>
+                        <span className="font-bold text-slate-800 text-[12px]">{emp.employeeId || emp.id}</span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-pmedium shadow-sm shrink-0 border bg-[#2563EB] text-white border-blue-800">
-                            {(emp.name || "?").charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="font-pmedium text-slate-800 text-[12px]">{emp.name}</span>
-                            {emp.email && (
-                              <p className="text-[9px] font-pmedium text-slate-400 mt-0.5">{emp.email}</p>
-                            )}
-                          </div>
+                        <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                          <UserCheck size={14} className="text-slate-400" />
+                          <span className="text-[12px] text-slate-800">{emp.name}</span>
                         </div>
+                        {emp.email ? <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{emp.email}</p> : null}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-pmedium text-slate-700 text-[11px]">{emp.department || "-"}</span>
-                          <span className="inline-block w-fit px-1.5 py-0.5 rounded text-[8px] font-pmedium uppercase bg-slate-100 text-slate-500">
-                            {emp.role || "-"}
-                          </span>
-                        </div>
+                        <span className={`inline-flex w-fit px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-wider ${getRoleBadgeClass(emp.role)}`}>
+                          {emp.role || "-"}
+                        </span>
                       </td>
+                      <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{emp.department || "-"}</td>
                       <td className="px-5 py-4">
                         <span className="text-[11px] font-pmedium text-slate-500">
                           {formatDateLabel(item.month, item.day, item.year)}

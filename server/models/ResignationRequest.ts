@@ -32,6 +32,7 @@ export interface IResignationRequest extends Document {
     managerUserId?: mongoose.Types.ObjectId | null;
     joiningDate?: Date | null;
     noticePeriodDays: number;
+    requestedNoticeStartDate?: Date | null;
     reason: string;
     requestedDocuments: string[];
     requestedDocumentNotes?: string;
@@ -186,6 +187,10 @@ const resignationRequestSchema = new Schema<IResignationRequest>(
             type: Number,
             default: 30,
             min: 0,
+        },
+        requestedNoticeStartDate: {
+            type: Date,
+            default: null,
         },
         reason: {
             type: String,
