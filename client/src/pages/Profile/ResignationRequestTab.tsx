@@ -36,7 +36,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-interface ExitRequest {
+interface ResignationRequest {
   id?: string;
   _id?: string;
   exitCode?: string;
@@ -54,9 +54,9 @@ interface ExitRequest {
   rejectionReason?: string;
 }
 
-export function ExitRequestTab() {
+export function ResignationRequestTab() {
   const axios = useAxiosPrivate();
-  const [requests, setRequests] = useState<ExitRequest[]>([]);
+  const [requests, setRequests] = useState<ResignationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -67,7 +67,7 @@ export function ExitRequestTab() {
 
   const loadRequests = useCallback(async () => {
     try {
-      const response = await axios.get("/api/hr/exit-management/requests");
+      const response = await axios.get("/api/hr/resignation-management/requests");
       const data = response?.data?.data || response?.data || response || {};
       const list = Array.isArray(data.requests) ? data.requests : Array.isArray(data) ? data : [];
       setRequests(list);
@@ -77,7 +77,7 @@ export function ExitRequestTab() {
       if (err?.response?.status === 404) {
         setErrorMessage("");
       } else {
-        setErrorMessage(err?.response?.data?.message || err?.message || "Failed to load exit requests");
+        setErrorMessage(err?.response?.data?.message || err?.message || "Failed to load resignation requests");
       }
     }
   }, [axios]);
@@ -115,15 +115,15 @@ export function ExitRequestTab() {
         requestedDocuments,
         requestedDocumentNotes: documentNotes.trim(),
       };
-      await axios.post("/api/hr/exit-management/requests", payload);
+      await axios.post("/api/hr/resignation-management/requests", payload);
       await loadRequests();
       setReason("");
       setRequestedDocuments([]);
       setDocumentNotes("");
       setShowForm(false);
-      toast.success("Exit request submitted");
+      toast.success("Resignation request submitted");
     } catch (err: unknown) {
-      toast.error((err as Error)?.message || "Failed to submit exit request");
+      toast.error((err as Error)?.message || "Failed to submit resignation request");
     } finally {
       setIsSaving(false);
     }
@@ -132,7 +132,7 @@ export function ExitRequestTab() {
   return (
     <div className="border-default border-borderGray rounded-xl bg-white p-4">
       <div className="flex items-center justify-between pb-4">
-        <span className="text-title font-pmedium text-primary uppercase">Exit Requests</span>
+        <span className="text-title font-pmedium text-primary uppercase">Resignation Requests</span>
        
       </div>
 
@@ -166,10 +166,10 @@ export function ExitRequestTab() {
           className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
-          {showForm ? "Cancel" : "New Exit Request"}
+          {showForm ? "Cancel" : "New Resignation Request"}
         </button>
         {!canSubmit && !showForm && (
-          <p className="text-xs text-amber-600">You already have an active exit request.</p>
+          <p className="text-xs text-amber-600">You already have an active resignation request.</p>
         )}
       </div>
 
@@ -182,7 +182,7 @@ export function ExitRequestTab() {
             </div>
             <div>
               <p className="text-[10px] font-pmedium uppercase tracking-[0.32em] text-blue-600">Resignation</p>
-              <h2 className="text-lg font-pmedium text-slate-900">New Exit Request</h2>
+              <h2 className="text-lg font-pmedium text-slate-900">New Resignation Request</h2>
             </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -270,8 +270,8 @@ export function ExitRequestTab() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100 shadow-sm">
             <LogOut className="text-slate-400" size={24} />
           </div>
-          <p className="text-slate-500 font-semibold mb-1 uppercase tracking-widest text-[11px]">No exit requests found</p>
-          <p className="text-slate-400 text-[13px]">Your exit requests will appear here.</p>
+          <p className="text-slate-500 font-semibold mb-1 uppercase tracking-widest text-[11px]">No resignation requests found</p>
+          <p className="text-slate-400 text-[13px]">Your resignation requests will appear here.</p>
         </div>
       ) : (
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col overflow-x-auto">
@@ -341,4 +341,4 @@ export function ExitRequestTab() {
   );
 }
 
-export default ExitRequestTab;
+export default ResignationRequestTab;

@@ -2,15 +2,13 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Camera, CheckCircle2, Download, Eye, FileText, Loader2, MapPin, Pencil, Save, ShieldCheck, X } from "lucide-react";
+import { Building2, Camera, CheckCircle2, Loader2, MapPin, Pencil, Save, ShieldCheck, X } from "lucide-react";
 import { Country } from "country-state-city";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import useWorkspacePreferences from "../../hooks/useWorkspacePreferences";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { updateWorkspaceSettings } from "../../services/unit-settings";
-import { getCompanyDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
-import humanDate from "../../utils/humanDateForamt";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
@@ -24,90 +22,6 @@ const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL ||
 const MAX_LOGO_SIZE_MB = 1;
 const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 
-const openDocument = (fileUrl: string) => {
-  if (!fileUrl) return;
-  window.open(fileUrl, "_blank", "noopener,noreferrer");
-};
-
-// Read-only list of active company-wide SOPs/Policies (uploaded from HR's
-// Company Management page) — view opens the PDF in a new tab, download
-// pulls a local copy.
-const CompanyDocumentsSection = ({ kind, title }: { kind: DepartmentDocumentType; title: string }) => {
-  const axios = useAxiosPrivate();
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["companyProfileDocuments", kind],
-    queryFn: async () => {
-      const response = await getCompanyDocuments(axios, kind);
-      return response?.data?.data?.documents || [];
-    },
-    staleTime: 60 * 1000,
-  });
-
-  const documents = (Array.isArray(data) ? data : []).filter((item: any) => item.isActive !== false);
-
-  const handleDownload = async (doc: any) => {
-    try {
-      await downloadDepartmentDocumentFile(axios, doc._id, `${doc.name || "Document"}.pdf`);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to download document.");
-    }
-  };
-
-  return (
-    <SectionShell eyebrow="Company" title={title} icon={FileText}>
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-16 rounded-2xl border border-slate-100 bg-slate-50/80 animate-pulse" />
-          ))}
-        </div>
-      ) : documents.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-8 text-center">
-          <FileText className="mx-auto text-slate-300" size={22} />
-          <p className="mt-2 text-[12px] font-pmedium text-slate-400">No {title.toLowerCase()} uploaded yet.</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          {documents.map((doc: any) => (
-            <div
-              key={doc._id}
-              className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
-                  <FileText size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-pmedium text-slate-900 truncate">{doc.name || "Untitled"}</p>
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
-                    Updated {humanDate(doc.updatedAt)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => openDocument(doc.fileUrl)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB]"
-                >
-                  <Eye size={12} /> View
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownload(doc)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase text-slate-600 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB]"
-                >
-                  <Download size={12} /> Download
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </SectionShell>
-  );
-};
 
 const CompanyProfile = () => {
   const axios = useAxiosPrivate();
@@ -407,7 +321,6 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
       ];
 
   const selectedPlan = String(workspace?.selectedPlan || dashboardPlan || "basic").toLowerCase();
-  const isCustomPlan = selectedPlan === "custom";
   const upgradePlanOptions = hasTenantRole
     ? []
     : selectedPlan === "basic"
@@ -775,12 +688,6 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
         ) : null}
       </SectionShell>
 
-      {isCustomPlan ? (
-        <>
-          <CompanyDocumentsSection kind="policy" title="Company Policies" />
-          <CompanyDocumentsSection kind="sop" title="Company SOPs" />
-        </>
-      ) : null}
 
       <AccountDeletionDangerZone />
 

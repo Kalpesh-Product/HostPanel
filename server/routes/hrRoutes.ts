@@ -15,6 +15,7 @@ import {
   createPayrollAdjustment,
 } from "../controllers/hrControllers.js";
 import recruitmentRoutes from "./recruitmentRoutes.js";
+import resignationManagementRoutes from "./resignationManagementRoutes.js";
 import upload from "../config/multerConfig.js";
 
 const router = Router();
@@ -40,6 +41,8 @@ router.get("/payroll/snapshot", getPayrollSnapshot);
 router.post("/payroll/prepare", preparePayroll);
 router.patch("/payroll/cycles/:cycleId/status", updatePayrollStatus);
 router.post("/payroll/cycles/:cycleId/employees/:profileId/adjustments", createPayrollAdjustment);
+router.use("/resignation-management", resignationManagementRoutes);
+router.use("/exit-management", resignationManagementRoutes); // Legacy API compatibility.
 router.use("/recruitment", recruitmentRoutes);
 
 export default router;

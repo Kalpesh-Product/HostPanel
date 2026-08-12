@@ -2,8 +2,6 @@
 import React, { useRef, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import {
-  TextField,
-  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -17,6 +15,7 @@ import { toast } from "sonner";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import UploadFileInput from "../../../../components/UploadFileInput";
+import WebsiteFormField from "../../../../components/WebsiteFormField";
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import useAuth from "../../../../hooks/useAuth";
@@ -275,38 +274,33 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
         </button>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <TextField
+          <WebsiteFormField
             select
-            size="small"
             label="Field Type"
             value={fieldType}
             onChange={(event) => setFieldType(event.target.value)}
-            fullWidth
           >
             {CAREERS_FORM_FIELD_TYPES.map((fieldTypeOption) => (
-              <MenuItem key={fieldTypeOption.value} value={fieldTypeOption.value}>
+              <option key={fieldTypeOption.value} value={fieldTypeOption.value}>
                 {fieldTypeOption.label}
-              </MenuItem>
+              </option>
             ))}
-          </TextField>
-          <TextField
-            size="small"
+          </WebsiteFormField>
+          <WebsiteFormField
             label="Field Label"
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             placeholder="Field label"
-            fullWidth
           />
           {fieldType === "select" ? (
-            <TextField
-              size="small"
-              label="Options"
-              value={options}
-              onChange={(event) => setOptions(event.target.value)}
-              placeholder="Options separated by commas"
-              fullWidth
-              sx={{ gridColumn: { md: "span 2" } }}
-            />
+            <div className="md:col-span-2">
+              <WebsiteFormField
+                label="Options"
+                value={options}
+                onChange={(event) => setOptions(event.target.value)}
+                placeholder="Options separated by commas"
+              />
+            </div>
           ) : null}
           <label className="flex items-center gap-2 text-xs text-slate-600">
             <input
@@ -968,26 +962,24 @@ const ProductPageSubProducts = ({
               name={`productDropdownPages.${pageIndex}.subProducts.${index}.name`}
               control={control}
               render={({ field }) => (
-                <TextField {...field} size="small" label="Product Name" fullWidth />
+                <WebsiteFormField field={field} label="Product Name" />
               )}
             />
             <Controller
               name={`productDropdownPages.${pageIndex}.subProducts.${index}.cost`}
               control={control}
               render={({ field }) => (
-                <TextField {...field} size="small" label="Product Cost" fullWidth />
+                <WebsiteFormField field={field} label="Product Cost" />
               )}
             />
             <Controller
               name={`productDropdownPages.${pageIndex}.subProducts.${index}.description`}
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Product Description"
-                  fullWidth
-                  inputProps={{ maxLength: 200 }}
+                  maxLength={200}
                   helperText={`${String(field.value || "").length}/200`}
                 />
               )}
@@ -3305,35 +3297,32 @@ const CreateWebsite = () => {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b-default border-borderGray py-4">
                   <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Products Page Settings <SectionPreviewInfo section="productsPage" /></span>
                   <div className="flex flex-shrink-0 items-center gap-3 flex-wrap">
-                    <TextField
-                      select
-                      size="small"
-                      label="Select Page"
-                      displayEmpty
-                      value={selectedProductPageOption}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        if (value === "__new__") {
-                          addNewBlankProductPage();
-                        } else {
-                          addProductPage(value);
-                        }
-                        setSelectedProductPageOption("");
-                      }}
-                      sx={{ minWidth: 200 }}
-                    >
-                      <MenuItem value="" disabled>
-                        Select Page
-                      </MenuItem>
-                      {availableProductPageOptions.map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                      <MenuItem value="__new__" className="text-accent font-pmedium">
-                        + Add New Page
-                      </MenuItem>
-                    </TextField>
+                    <div className="min-w-[200px]">
+                      <WebsiteFormField
+                        select
+                        label="Select Page"
+                        value={selectedProductPageOption}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          if (value === "__new__") {
+                            addNewBlankProductPage();
+                          } else {
+                            addProductPage(value);
+                          }
+                          setSelectedProductPageOption("");
+                        }}
+                      >
+                        <option value="" disabled>
+                          Select Page
+                        </option>
+                        {availableProductPageOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                        <option value="__new__">+ Add New Page</option>
+                      </WebsiteFormField>
+                    </div>
                     {productsPageNavIndex >= 0 ? (
                       <div>
                         <Controller
@@ -3445,14 +3434,14 @@ const CreateWebsite = () => {
                             name={`productDropdownPages.${activeProductPageTab}.name`}
                             control={control}
                             render={({ field }) => (
-                              <TextField {...field} size="small" label="Product Page Name" fullWidth />
+                              <WebsiteFormField field={field} label="Product Page Name" />
                             )}
                           />
                           <Controller
                             name={`productDropdownPages.${activeProductPageTab}.slug`}
                             control={control}
                             render={({ field }) => (
-                              <TextField {...field} size="small" label="Product Page Route Slug" fullWidth />
+                              <WebsiteFormField field={field} label="Product Page Route Slug" />
                             )}
                           />
                           </div>
@@ -3468,54 +3457,35 @@ const CreateWebsite = () => {
                               name={`productDropdownPages.${activeProductPageTab}.heroHeading`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  size="small"
-                                  label="Hero Heading"
-                                  fullWidth
-                                />
+                                <WebsiteFormField field={field} label="Hero Heading" />
                               )}
                             />
                             <Controller
                               name={`productDropdownPages.${activeProductPageTab}.heroSubHeading`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  size="small"
-                                  label="Hero Small Text / Sub Heading"
-                                  fullWidth
-                                />
+                                <WebsiteFormField field={field} label="Hero Small Text / Sub Heading" />
                               )}
                             />
                             <Controller
                               name={`productDropdownPages.${activeProductPageTab}.heroMode`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  value={field.value || "single"}
-                                  onChange={(event) => field.onChange(event.target.value)}
+                                <WebsiteFormField
+                                  field={{ ...field, value: field.value || "single" }}
                                   select
-                                  size="small"
                                   label="Hero Mode"
-                                  fullWidth
                                 >
-                                  <MenuItem value="single">Single Image</MenuItem>
-                                  <MenuItem value="carousel">Carousel</MenuItem>
-                                </TextField>
+                                  <option value="single">Single Image</option>
+                                  <option value="carousel">Carousel</option>
+                                </WebsiteFormField>
                               )}
                             />
                             <Controller
                               name={`productDropdownPages.${activeProductPageTab}.heroButtonText`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  size="small"
-                                  label="Hero Button Text"
-                                  fullWidth
-                                />
+                                <WebsiteFormField field={field} label="Hero Button Text" />
                               )}
                             />
                             {String(
@@ -3569,12 +3539,10 @@ const CreateWebsite = () => {
                                   .toLowerCase();
                                 const isMenuPage = isMenuPageSlug(currentSlug);
                                 return (
-                                  <TextField
+                                  <WebsiteFormField
                                     select
                                     value={String(isMenuPage ? false : field.value !== false)}
-                                    size="small"
                                     label="Enable Lead Form"
-                                    fullWidth
                                     onChange={(event) =>
                                       field.onChange(event.target.value === "true")
                                     }
@@ -3585,9 +3553,9 @@ const CreateWebsite = () => {
                                         : "Enabled for all non-menu product pages."
                                     }
                                   >
-                                    <MenuItem value={"true"}>Enabled</MenuItem>
-                                    <MenuItem value={"false"}>Disabled</MenuItem>
-                                  </TextField>
+                                    <option value="true">Enabled</option>
+                                    <option value="false">Disabled</option>
+                                  </WebsiteFormField>
                                 );
                               }}
                             />
@@ -3595,12 +3563,7 @@ const CreateWebsite = () => {
                               name={`productDropdownPages.${activeProductPageTab}.leadFormLabel`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  size="small"
-                                  label="CTA Button Label"
-                                  fullWidth
-                                />
+                                <WebsiteFormField field={field} label="CTA Button Label" />
                               )}
                             />
                           </div>
@@ -3820,11 +3783,9 @@ const CreateWebsite = () => {
                       name="aboutPageIntro"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          size="small"
+                        <WebsiteFormField
+                          field={field}
                           label="About Page Heading / Hero Intro"
-                          fullWidth
                           placeholder="About {Company Name}"
                         />
                       )}
@@ -3847,11 +3808,9 @@ const CreateWebsite = () => {
                             name={`about.${index}.text`}
                             control={control}
                             render={({ field }) => (
-                              <TextField
-                                {...field}
-                                size="small"
+                              <WebsiteFormField
+                                field={field}
                                 label={`Shared About Paragraph ${index + 1}`}
-                                fullWidth
                                 multiline
                                 minRows={3}
                               />
@@ -3872,11 +3831,9 @@ const CreateWebsite = () => {
                     name="aboutPageStory"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Our Story"
-                        fullWidth
                         multiline
                         minRows={4}
                       />
@@ -3887,11 +3844,9 @@ const CreateWebsite = () => {
                       name="aboutPageMission"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          size="small"
+                        <WebsiteFormField
+                          field={field}
                           label="Mission"
-                          fullWidth
                           multiline
                           minRows={3}
                         />
@@ -3901,11 +3856,9 @@ const CreateWebsite = () => {
                       name="aboutPageVision"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          size="small"
+                        <WebsiteFormField
+                          field={field}
                           label="Vision"
-                          fullWidth
                           multiline
                           minRows={3}
                         />
@@ -3916,11 +3869,9 @@ const CreateWebsite = () => {
                     name="aboutPageValues"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Values (comma separated)"
-                        fullWidth
                         placeholder="Community, Trust, Transparency"
                       />
                     )}
@@ -3963,14 +3914,14 @@ const CreateWebsite = () => {
                               name={`founders.${index}.name`}
                               control={control}
                               render={({ field }) => (
-                                <TextField {...field} size="small" label="Name & Title (e.g. John Doe – Founder & CEO)" fullWidth />
+                                <WebsiteFormField field={field} label="Name & Title (e.g. John Doe – Founder & CEO)" />
                               )}
                             />
                             <Controller
                               name={`founders.${index}.role`}
                               control={control}
                               render={({ field }) => (
-                                <TextField {...field} size="small" label="Role / Designation" fullWidth />
+                                <WebsiteFormField field={field} label="Role / Designation" />
                               )}
                             />
                           </div>
@@ -3979,11 +3930,9 @@ const CreateWebsite = () => {
                               name={`founders.${index}.bio`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  size="small"
+                                <WebsiteFormField
+                                  field={field}
                                   label="Bio / Description"
-                                  fullWidth
                                   multiline
                                   minRows={4}
                                 />
@@ -3995,11 +3944,9 @@ const CreateWebsite = () => {
                               name={`founders.${index}.highlights`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  size="small"
+                                <WebsiteFormField
+                                  field={field}
                                   label="Highlights (one per line, e.g. – 20 Years Experience)"
-                                  fullWidth
                                   multiline
                                   minRows={4}
                                   placeholder={"– 20 Years Experience\n– 15 Years in Startups\n– 4 Startups"}
@@ -4029,12 +3976,10 @@ const CreateWebsite = () => {
                         name="aboutPageTeamHeading"
                         control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
+                          <WebsiteFormField
+                            field={field}
                             label="Our Team Heading"
                             placeholder="Our Team"
-                            fullWidth
                           />
                         )}
                       />
@@ -4064,19 +4009,14 @@ const CreateWebsite = () => {
                               name={`aboutPageImageCards.${index}.title`}
                               control={control}
                               render={({ field }) => (
-                                <TextField {...field} size="small" label="Name / Title" fullWidth />
+                                <WebsiteFormField field={field} label="Name / Title" />
                               )}
                             />
                             <Controller
                               name={`aboutPageImageCards.${index}.description`}
                               control={control}
                               render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  size="small"
-                                  label="Role / Description"
-                                  fullWidth
-                                />
+                                <WebsiteFormField field={field} label="Role / Description" />
                               )}
                             />
                           </div>
@@ -4136,12 +4076,10 @@ const CreateWebsite = () => {
                     name="galleryPageHeading"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Gallery Heading Text"
                         placeholder="Gallery Images"
-                        fullWidth
                       />
                     )}
                   />
@@ -4204,12 +4142,10 @@ const CreateWebsite = () => {
                     name="partnerPageHeading"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Page Heading"
                         placeholder="Become A Partner"
-                        fullWidth
                       />
                     )}
                   />
@@ -4217,12 +4153,10 @@ const CreateWebsite = () => {
                     name="partnerPageContent"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Body Content (left side)"
                         placeholder="We are open to partnerships with..."
-                        fullWidth
                         multiline
                         minRows={6}
                       />
@@ -4232,12 +4166,10 @@ const CreateWebsite = () => {
                     name="partnerFormTitle"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Form Title (right side)"
                         placeholder={`Partner With ${values?.companyName || "Us"}`}
-                        fullWidth
                       />
                     )}
                   />
@@ -4281,12 +4213,10 @@ const CreateWebsite = () => {
                     name="careersPageHeading"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Page Heading"
                         placeholder="Join Our Team"
-                        fullWidth
                       />
                     )}
                   />
@@ -4294,14 +4224,12 @@ const CreateWebsite = () => {
                     name="careersPageIntro"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Introduction Text"
                         placeholder="Tell visitors about your company and why they should join..."
                         multiline
                         minRows={6}
-                        fullWidth
                       />
                     )}
                   />
@@ -4382,11 +4310,9 @@ const CreateWebsite = () => {
                             name={`careersFormFields.${index}.label`}
                             control={control}
                             render={({ field: labelField }) => (
-                              <TextField
-                                {...labelField}
-                                size="small"
+                              <WebsiteFormField
+                                field={labelField}
                                 placeholder="Field label"
-                                fullWidth
                               />
                             )}
                           />
@@ -4474,27 +4400,25 @@ const CreateWebsite = () => {
                         name="websiteEmail"
                         control={control}
                         render={({ field }) => (
-                          <TextField {...field} size="small" label="Email" fullWidth />
+                          <WebsiteFormField field={field} label="Email" />
                         )}
                       />
                       <Controller
                         name="phone"
                         control={control}
                         render={({ field }) => (
-                          <TextField {...field} size="small" label="Phone" fullWidth />
+                          <WebsiteFormField field={field} label="Phone" />
                         )}
                       />
                       <Controller
                         name="address"
                         control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
+                          <WebsiteFormField
+                            field={field}
                             label="Address"
-                            fullWidth
                             multiline
-                            minRows={2}
+                            minRows={1}
                           />
                         )}
                       />
@@ -4502,12 +4426,7 @@ const CreateWebsite = () => {
                         name="mapUrl"
                         control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
-                            label="Map Embed URL"
-                            fullWidth
-                          />
+                          <WebsiteFormField field={field} label="Map Embed URL" />
                         )}
                       />
                     </div>
@@ -4518,12 +4437,10 @@ const CreateWebsite = () => {
                       name="contactBusinessHours"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          size="small"
+                        <WebsiteFormField
+                          field={field}
                           label="Business Hours (Optional)"
                           placeholder="Mon-Fri 9:00 AM - 7:00 PM"
-                          fullWidth
                         />
                       )}
                     />
@@ -4531,10 +4448,15 @@ const CreateWebsite = () => {
                       name="contactEnableInquiryForm"
                       control={control}
                       render={({ field }) => (
-                        <TextField {...field} select size="small" label="Enable Inquiry Form" fullWidth>
-                          <MenuItem value={true}>Enabled</MenuItem>
-                          <MenuItem value={false}>Disabled</MenuItem>
-                        </TextField>
+                        <WebsiteFormField
+                          select
+                          value={String(field.value !== false)}
+                          onChange={(event) => field.onChange(event.target.value === "true")}
+                          label="Enable Inquiry Form"
+                        >
+                          <option value="true">Enabled</option>
+                          <option value="false">Disabled</option>
+                        </WebsiteFormField>
                       )}
                     />
                   </div>
@@ -4543,11 +4465,9 @@ const CreateWebsite = () => {
                     name="contactInquirySuccessMessage"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Inquiry Submit Success Message"
-                        fullWidth
                         multiline
                         minRows={2}
                       />
@@ -4577,23 +4497,15 @@ const CreateWebsite = () => {
                   rules={{ required: "Company name is required" }}
                   render={({ field }) => (
                     <Tooltip title="Company name cannot be changed" arrow>
-                      <TextField
-                        {...field}
-                        size="small"
-                        label="Company Name"
-                        fullWidth
-                        disabled
-                        sx={{
-                          "& .MuiInputBase-input.Mui-disabled": {
-                            WebkitTextFillColor: "#94a3b8",
-                          },
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#e2e8f0",
-                          },
-                        }}
-                        helperText={errors?.companyName?.message}
-                        error={!!errors.companyName}
-                      />
+                      <div>
+                        <WebsiteFormField
+                          field={field}
+                          label="Company Name"
+                          disabled
+                          helperText={errors?.companyName?.message}
+                          error={!!errors.companyName}
+                        />
+                      </div>
                     </Tooltip>
                   )}
                 />
@@ -4633,12 +4545,10 @@ const CreateWebsite = () => {
                   control={control}
                   // rules={{ required: "Title is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Hero Title"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.heroTitle }}
+                      maxLength={CHAR_LIMITS.heroTitle}
                       helperText={getHelperText(
                         errors?.title?.message,
                         values?.title,
@@ -4653,12 +4563,10 @@ const CreateWebsite = () => {
                   control={control}
                   // rules={{ required: "Sub Title is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Hero Sub Title"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.heroSubTitle }}
+                      maxLength={CHAR_LIMITS.heroSubTitle}
                       helperText={getHelperText(
                         errors?.subTitle?.message,
                         values?.subTitle,
@@ -4672,13 +4580,11 @@ const CreateWebsite = () => {
                   name="CTAButtonText"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Call To Action Button Text"
                       placeholder={ctaPlaceholder}
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.ctaButtonText }}
+                      maxLength={CHAR_LIMITS.ctaButtonText}
                       helperText={getHelperText(
                         errors?.CTAButtonText?.message,
                         values?.CTAButtonText,
@@ -4729,12 +4635,9 @@ const CreateWebsite = () => {
                   name="aboutTitle"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      value={field.value || ""}
-                      size="small"
+                    <WebsiteFormField
+                      field={{ ...field, value: field.value || "" }}
                       label="About Section Heading"
-                      fullWidth
                       placeholder="About Our Vision"
                     />
                   )}
@@ -4759,14 +4662,12 @@ const CreateWebsite = () => {
                       control={control}
                       // rules={{ required: "About paragraph is required" }}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          size="small"
+                        <WebsiteFormField
+                          field={field}
                           label="About Paragraph"
-                          fullWidth
                           multiline
                           minRows={3}
-                          inputProps={{ maxLength: CHAR_LIMITS.aboutText }}
+                          maxLength={CHAR_LIMITS.aboutText}
                           helperText={getHelperText(
                             errors?.about?.[index]?.text?.message,
                             values?.about?.[index]?.text,
@@ -4822,13 +4723,11 @@ const CreateWebsite = () => {
                   name="productTitle"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Products Title"
-                      fullWidth
                       placeholder="Our Products"
-                      inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
+                      maxLength={CHAR_LIMITS.productTitle}
                     />
                   )}
                 />
@@ -4859,12 +4758,9 @@ const CreateWebsite = () => {
                             name={`productDropdownPages.${index}.homeCardHeading`}
                             control={control}
                             render={({ field }) => (
-                              <TextField
-                                {...field}
-                                value={field.value || ""}
-                                size="small"
+                              <WebsiteFormField
+                                field={{ ...field, value: field.value || "" }}
                                 label="Card Heading"
-                                fullWidth
                                 placeholder={pageName}
                               />
                             )}
@@ -4873,14 +4769,11 @@ const CreateWebsite = () => {
                             name={`productDropdownPages.${index}.homeCardSubText`}
                             control={control}
                             render={({ field }) => (
-                              <TextField
-                                {...field}
-                                value={field.value || ""}
-                                size="small"
+                              <WebsiteFormField
+                                field={{ ...field, value: field.value || "" }}
                                 label="Card Sub Text"
-                                fullWidth
                                 placeholder="Short description for this product page (max 200 chars)"
-                                inputProps={{ maxLength: 200 }}
+                                maxLength={200}
                                 helperText={`${String(field.value || "").length}/200`}
                               />
                             )}
@@ -5018,8 +4911,8 @@ const CreateWebsite = () => {
                               <button type="button" onClick={() => removeFaq(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
                             </div>
                           </div>
-                          <TextField value={faq.question} onChange={(e) => updateFaq(idx, "question", e.target.value)} size="small" label="Question" fullWidth inputProps={{ maxLength: 200 }} />
-                          <TextField value={faq.answer} onChange={(e) => updateFaq(idx, "answer", e.target.value)} size="small" label="Answer" fullWidth multiline minRows={2} inputProps={{ maxLength: 500 }} />
+                          <WebsiteFormField value={faq.question} onChange={(e) => updateFaq(idx, "question", e.target.value)} label="Question" maxLength={200} />
+                          <WebsiteFormField value={faq.answer} onChange={(e) => updateFaq(idx, "answer", e.target.value)} label="Answer" multiline minRows={2} maxLength={500} />
                         </div>
                       ))}
                       {faqs.length < 10 ? (
@@ -5046,12 +4939,10 @@ const CreateWebsite = () => {
                   name="productTitle"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label={sectionTitles[selectedVertical] || "Products Section Title"}
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
+                      maxLength={CHAR_LIMITS.productTitle}
                       helperText={getHelperText(
                         errors?.productTitle?.message,
                         values?.productTitle,
@@ -5082,12 +4973,10 @@ const CreateWebsite = () => {
                         control={control}
                         // rules={{ required: "Name is required" }}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
+                          <WebsiteFormField
+                            field={field}
                             label="Product Name"
-                            fullWidth
-                            inputProps={{ maxLength: CHAR_LIMITS.productName }}
+                            maxLength={CHAR_LIMITS.productName}
                             helperText={getHelperText(
                               errors?.products?.[index]?.name?.message,
                               values?.products?.[index]?.name,
@@ -5102,12 +4991,10 @@ const CreateWebsite = () => {
                         control={control}
                         // rules={{ required: "Type is required" }}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
+                          <WebsiteFormField
+                            field={field}
                             label="Product Type"
-                            fullWidth
-                            inputProps={{ maxLength: CHAR_LIMITS.productType }}
+                            maxLength={CHAR_LIMITS.productType}
                             helperText={getHelperText(
                               errors?.products?.[index]?.type?.message,
                               values?.products?.[index]?.type,
@@ -5123,16 +5010,10 @@ const CreateWebsite = () => {
                         control={control}
                         // rules={{ required: "Description is required" }}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
+                          <WebsiteFormField
+                            field={field}
                             label="Product Description"
-                            fullWidth
-                            // multiline
-                            // minRows={3}
-                            inputProps={{
-                              maxLength: CHAR_LIMITS.productDescription,
-                            }}
+                            maxLength={CHAR_LIMITS.productDescription}
                             helperText={getHelperText(
                               errors?.products?.[index]?.description?.message,
                               values?.products?.[index]?.description,
@@ -5148,11 +5029,9 @@ const CreateWebsite = () => {
                         control={control}
                         // rules={{ required: "Cost is required" }}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
+                          <WebsiteFormField
+                            field={field}
                             label="Product Cost"
-                            fullWidth
                             helperText={
                               errors?.products?.[index]?.cost?.message
                             }
@@ -5238,12 +5117,10 @@ const CreateWebsite = () => {
                   name="galleryTitle"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Gallery Section Title"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.galleryTitle }}
+                      maxLength={CHAR_LIMITS.galleryTitle}
                       helperText={getHelperText(
                         errors?.galleryTitle?.message,
                         values?.galleryTitle,
@@ -5284,12 +5161,10 @@ const CreateWebsite = () => {
                   name="testimonialTitle"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Testimonials Section Title"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.testimonialTitle }}
+                      maxLength={CHAR_LIMITS.testimonialTitle}
                       helperText={getHelperText(
                         errors?.testimonialTitle?.message,
                         values?.testimonialTitle,
@@ -5324,14 +5199,10 @@ const CreateWebsite = () => {
                           name={`testimonials.${index}.name`}
                           control={control}
                           render={({ field }) => (
-                            <TextField
-                              {...field}
-                              size="small"
+                            <WebsiteFormField
+                              field={field}
                               label="Name"
-                              fullWidth
-                              inputProps={{
-                                maxLength: CHAR_LIMITS.testimonialName,
-                              }}
+                              maxLength={CHAR_LIMITS.testimonialName}
                               helperText={getHelperText(
                                 errors?.testimonials?.[index]?.name?.message,
                                 values?.testimonials?.[index]?.name,
@@ -5345,13 +5216,12 @@ const CreateWebsite = () => {
                           name={`testimonials.${index}.rating`}
                           control={control}
                           render={({ field }) => (
-                            <TextField
-                              {...field}
+                            <WebsiteFormField
+                              field={field}
                               type="number"
-                              size="small"
                               label="Rating (1-5)"
-                              fullWidth
-                              inputProps={{ min: 1, max: 5 }}
+                              min={1}
+                              max={5}
                               helperText={
                                 errors?.testimonials?.[index]?.rating?.message
                               }
@@ -5364,16 +5234,12 @@ const CreateWebsite = () => {
                         name={`testimonials.${index}.testimony`}
                         control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
+                          <WebsiteFormField
+                            field={field}
                             label="Testimony"
-                            fullWidth
                             multiline
                             minRows={4}
-                            inputProps={{
-                              maxLength: CHAR_LIMITS.testimonialTestimony,
-                            }}
+                            maxLength={CHAR_LIMITS.testimonialTestimony}
                             helperText={getHelperText(
                               errors?.testimonials?.[index]?.testimony?.message,
                               values?.testimonials?.[index]?.testimony,
@@ -5429,12 +5295,9 @@ const CreateWebsite = () => {
                   name="logoCarousel.title"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      value={field.value || ""}
-                      size="small"
+                    <WebsiteFormField
+                      field={{ ...field, value: field.value || "" }}
                       label="Section Heading"
-                      fullWidth
                       placeholder="Trusted by"
                     />
                   )}
@@ -5471,12 +5334,10 @@ const CreateWebsite = () => {
                   name="contactTitle"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Contact Section Title"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.contactTitle }}
+                      maxLength={CHAR_LIMITS.contactTitle}
                       helperText={getHelperText(
                         errors?.contactTitle?.message,
                         values?.contactTitle,
@@ -5508,21 +5369,21 @@ const CreateWebsite = () => {
                   //   },
                   // }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      onChange={(e) => {
-                        // Optional: auto-extract src if a whole iframe was pasted
-                        const extractIframeSrc = (val = "") =>
-                          val.match(/src=["']([^"']+)["']/i)?.[1] || val;
-                        const raw = e.target.value;
-                        const cleaned = extractIframeSrc(raw).trim();
+                    <WebsiteFormField
+                      field={{
+                        ...field,
+                        onChange: (e: any) => {
+                          // Optional: auto-extract src if a whole iframe was pasted
+                          const extractIframeSrc = (val = "") =>
+                            val.match(/src=["']([^"']+)["']/i)?.[1] || val;
+                          const raw = e.target.value;
+                          const cleaned = extractIframeSrc(raw).trim();
 
-                        field.onChange(cleaned);
+                          field.onChange(cleaned);
+                        },
                       }}
-                      size="small"
                       label="Embed Map URL"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.mapUrl }}
+                      maxLength={CHAR_LIMITS.mapUrl}
                       helperText={getHelperText(
                         errors?.mapUrl?.message,
                         values?.mapUrl,
@@ -5537,12 +5398,10 @@ const CreateWebsite = () => {
                   control={control}
                   // rules={{ required: "Email is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Email"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.websiteEmail }}
+                      maxLength={CHAR_LIMITS.websiteEmail}
                       helperText={getHelperText(
                         errors?.websiteEmail?.message,
                         values?.websiteEmail,
@@ -5557,12 +5416,10 @@ const CreateWebsite = () => {
                   control={control}
                   // rules={{ required: "Phone is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Phone"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.phone }}
+                      maxLength={CHAR_LIMITS.phone}
                       helperText={getHelperText(
                         errors?.phone?.message,
                         values?.phone,
@@ -5577,14 +5434,12 @@ const CreateWebsite = () => {
                   control={control}
                   // rules={{ required: "Address is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Address"
-                      fullWidth
                       multiline
                       minRows={2}
-                      inputProps={{ maxLength: CHAR_LIMITS.address }}
+                      maxLength={CHAR_LIMITS.address}
                       helperText={getHelperText(
                         errors?.address?.message,
                         values?.address,
@@ -5611,14 +5466,10 @@ const CreateWebsite = () => {
                   control={control}
                   // rules={{ required: "Registered company name is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Registered Company Name"
-                      fullWidth
-                      inputProps={{
-                        maxLength: CHAR_LIMITS.registeredCompanyName,
-                      }}
+                      maxLength={CHAR_LIMITS.registeredCompanyName}
                       helperText={getHelperText(
                         errors?.registeredCompanyName?.message,
                         values?.registeredCompanyName,
@@ -5633,12 +5484,10 @@ const CreateWebsite = () => {
                   control={control}
                   // rules={{ required: "Copyright text is required" }}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
+                    <WebsiteFormField
+                      field={field}
                       label="Copyright Text"
-                      fullWidth
-                      inputProps={{ maxLength: CHAR_LIMITS.copyrightText }}
+                      maxLength={CHAR_LIMITS.copyrightText}
                       helperText={getHelperText(
                         errors?.copyrightText?.message,
                         values?.copyrightText,
@@ -5667,34 +5516,40 @@ const CreateWebsite = () => {
                         render={({ field }) => {
                           const current = field.value || { enabled: false, link: "" };
                           return (
-                            <div className="flex items-center gap-3">
-                              <label className="flex w-28 shrink-0 cursor-pointer items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={current.enabled === true}
-                                  onChange={(e) =>
-                                    field.onChange({
-                                      ...current,
-                                      enabled: e.target.checked,
-                                    })
-                                  }
-                                  className="h-4 w-4 rounded border-slate-300 accent-slate-800"
-                                />
+                            <div className="flex items-start gap-3">
+                              <div className="flex w-28 shrink-0 flex-col">
                                 <span
-                                  className={`text-xs font-medium ${
-                                    current.enabled ? "text-slate-700" : "text-slate-400"
-                                  }`}
+                                  className="text-[10px] font-pmedium uppercase tracking-widest opacity-0"
+                                  aria-hidden="true"
                                 >
-                                  {platform.label}
+                                  &nbsp;
                                 </span>
-                              </label>
-                              <TextField
+                                <label className="mt-1 flex cursor-pointer items-center gap-2 py-2.5">
+                                  <input
+                                    type="checkbox"
+                                    checked={current.enabled === true}
+                                    onChange={(e) =>
+                                      field.onChange({
+                                        ...current,
+                                        enabled: e.target.checked,
+                                      })
+                                    }
+                                    className="h-4 w-4 rounded border-slate-300 accent-slate-800"
+                                  />
+                                  <span
+                                    className={`text-xs font-medium ${
+                                      current.enabled ? "text-slate-700" : "text-slate-400"
+                                    }`}
+                                  >
+                                    {platform.label}
+                                  </span>
+                                </label>
+                              </div>
+                              <WebsiteFormField
                                 value={current.link || ""}
                                 onChange={(e) =>
                                   field.onChange({ ...current, link: e.target.value })
                                 }
-                                size="small"
-                                fullWidth
                                 disabled={current.enabled !== true}
                                 label={
                                   platform.key === "whatsapp"

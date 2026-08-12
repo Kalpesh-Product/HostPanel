@@ -67,7 +67,6 @@ const MainLayout = () => {
   const hasTenantRole = Boolean(auth?.user?.tenantRole);
   const isTenantRoute = location.pathname.startsWith("/dashboard/tenant") || (hasTenantRole && location.pathname.startsWith("/profile/"));
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const outletKey = `${location.pathname}${location.search}`;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -154,7 +153,7 @@ const MainLayout = () => {
               className="bg-white h-[80vh] overflow-y-auto flex flex-col justify-between min-w-0"
             >
               <ScrollToTop />
-              <div key={outletKey} className="w-full min-w-0" data-tour="page-content">
+              <div className="w-full min-w-0" data-tour="page-content">
                 <Outlet />
                 <PageGuideButton available={isTourAvailable} onStart={startCurrentTour} />
               </div>

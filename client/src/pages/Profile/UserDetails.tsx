@@ -34,7 +34,7 @@ import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
-import { getDepartmentDocuments, getAllDepartmentDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
+import { getCompanyDocuments, getDepartmentDocuments, getAllDepartmentDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import humanDate from "../../utils/humanDateForamt";
 import MuiModal from "../../components/MuiModal";
@@ -291,6 +291,54 @@ function DocumentRow({
   );
 }
 
+// Read-only company-wide documents uploaded from HR Company Management.
+// These live above department documents so My Profile is the single document hub.
+function CompanyDocumentsSection({ kind, title }: { kind: DepartmentDocumentType; title: string }) {
+  const axios = useAxiosPrivate();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["myProfileCompanyDocuments", kind],
+    queryFn: async () => {
+      const response = await getCompanyDocuments(axios, kind);
+      return response?.data?.data?.documents || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const documents = (Array.isArray(data) ? data : []).filter((item: any) => item.isActive !== false);
+
+  const handleDownload = async (doc: any) => {
+    try {
+      await downloadDepartmentDocumentFile(axios, doc._id, `${doc.name || "Document"}.pdf`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to download document.");
+    }
+  };
+
+  return (
+    <SectionShell eyebrow="Company" title={title} icon={FileText}>
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-2xl border border-slate-100 bg-slate-50/80 animate-pulse" />
+          ))}
+        </div>
+      ) : documents.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-8 text-center">
+          <FileText className="mx-auto text-slate-300" size={22} />
+          <p className="mt-2 text-[12px] font-pmedium text-slate-400">No {title.toLowerCase()} uploaded yet.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {documents.map((doc: any) => (
+            <DocumentRow key={doc._id} doc={doc} onDownload={handleDownload} />
+          ))}
+        </div>
+      )}
+    </SectionShell>
+  );
+}
+
 // Read-only list of active SOPs/Policies uploaded from Team Management,
 // surfaced here the same way Company Profile surfaces company-wide
 // SOPs/Policies — but department-scoped, with two very different audiences:
@@ -440,11 +488,19 @@ interface EmployeeRecord {
   _id?: string;
 }
 
+const myProfileEmployeeCache = new Map<string, EmployeeRecord>();
+
 export default function UserDetails() {
   const { auth, setAuth } = useAuth();
   const axios = useAxiosPrivate();
-  const [employee, setEmployee] = useState<EmployeeRecord | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const profileCacheKey = [
+    String((auth?.user as any)?.workspaceMembership?.workspace || (auth?.user as any)?.primaryWorkspace || (auth?.user as any)?.workspaceId || "workspace"),
+    String((auth?.user as any)?._id || (auth?.user as any)?.id || (auth?.user as any)?.email || "user"),
+    String((auth?.user as any)?.tenantCompanyId || "host"),
+  ].join(":");
+  const cachedEmployee = myProfileEmployeeCache.get(profileCacheKey) || null;
+  const [employee, setEmployee] = useState<EmployeeRecord | null>(() => cachedEmployee);
+  const [isLoading, setIsLoading] = useState(() => !cachedEmployee);
   const [errorMessage, setErrorMessage] = useState("");
   const hasTenantRole = Boolean(auth?.user?.tenantRole);
   const { plan } = useDashboardAccess();
@@ -550,9 +606,15 @@ export default function UserDetails() {
 
   useEffect(() => {
     let mounted = true;
-    setEmployee(null);
     setErrorMessage("");
-    setIsLoading(true);
+    const cached = myProfileEmployeeCache.get(profileCacheKey) || null;
+    if (cached) {
+      setEmployee(cached);
+      setIsLoading(false);
+    } else {
+      setEmployee(null);
+      setIsLoading(true);
+    }
     const fetchEmployee = async () => {
       try {
         const currentUserId = String(authUser?._id || "").trim();
@@ -644,7 +706,9 @@ export default function UserDetails() {
         }
       } catch (err: unknown) {
         if (mounted) {
-          setErrorMessage((err as Error)?.message || "Failed to load profile");
+          if (!cached) {
+            setErrorMessage((err as Error)?.message || "Failed to load profile");
+          }
           setIsLoading(false);
         }
       }
@@ -652,7 +716,13 @@ export default function UserDetails() {
 
     fetchEmployee();
     return () => { mounted = false; };
-  }, [authUser?._id, authUser?.email, authUser?.name, authUser?.tenantCompanyName, authUser?.tenantRole, activeWorkspaceId, axios, hasTenantRole]);
+  }, [authUser?._id, authUser?.email, authUser?.name, authUser?.tenantCompanyName, authUser?.tenantRole, activeWorkspaceId, axios, hasTenantRole, profileCacheKey]);
+
+  useEffect(() => {
+    if (employee) {
+      myProfileEmployeeCache.set(profileCacheKey, employee);
+    }
+  }, [employee, profileCacheKey]);
 
   useEffect(() => {
     let isActive = true;
@@ -820,17 +890,43 @@ export default function UserDetails() {
     }
   };
 
-  if (isLoading && !employee && !authUser?.name) {
+  if (isLoading && !employee) {
     return (
-      <div className="border-default border-borderGray rounded-xl bg-white p-4 space-y-4">
-        <div className="h-6 bg-slate-200 rounded w-1/3 animate-pulse" />
-        <div className="h-32 rounded-[2rem] border border-white/80 bg-white/90 shadow-sm animate-pulse" />
-        <div className="h-48 rounded-[2rem] border border-white/80 bg-white/90 shadow-sm animate-pulse" />
+      <div className="border-default border-borderGray rounded-xl bg-white p-4" aria-label="Loading profile">
+        <div className="mb-4 h-5 w-28 animate-pulse rounded bg-slate-200" />
+        <div className="space-y-5">
+          <div className="rounded-[2.5rem] border border-slate-100 bg-white p-6 sm:p-8 lg:p-10">
+            <div className="flex items-start gap-4">
+              <div className="h-20 w-20 shrink-0 animate-pulse rounded-[1.75rem] bg-slate-200" />
+              <div className="flex-1 space-y-3 pt-2">
+                <div className="h-8 w-56 max-w-full animate-pulse rounded-lg bg-slate-200" />
+                <div className="h-4 w-80 max-w-full animate-pulse rounded bg-slate-100" />
+                <div className="flex gap-2 pt-1">
+                  <div className="h-7 w-24 animate-pulse rounded-full bg-slate-100" />
+                  <div className="h-7 w-28 animate-pulse rounded-full bg-slate-100" />
+                </div>
+              </div>
+            </div>
+          </div>
+          {[9, 6].map((cardCount, sectionIndex) => (
+            <div key={sectionIndex} className="rounded-[2rem] border border-slate-100 bg-white p-5 sm:p-6">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-5 w-44 animate-pulse rounded bg-slate-200" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: cardCount }).map((_, index) => (
+                  <div key={index} className="h-20 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (errorMessage && !employee && !authUser?.name) {
+  if (errorMessage && !employee) {
     return (
       <div className="border-default border-borderGray rounded-xl bg-white p-4">
         <div className="rounded-[2rem] border border-rose-200 bg-rose-50 p-6 text-center">
@@ -1011,8 +1107,10 @@ export default function UserDetails() {
 
       {isCustomPlan ? (
         <>
-          <DepartmentDocumentsSection kind="policy" title="Department Policies" />
+          <CompanyDocumentsSection kind="sop" title="Company SOPs" />
+          <CompanyDocumentsSection kind="policy" title="Company Policies" />
           <DepartmentDocumentsSection kind="sop" title="Department SOPs" />
+          <DepartmentDocumentsSection kind="policy" title="Department Policies" />
         </>
       ) : null}
     </div>

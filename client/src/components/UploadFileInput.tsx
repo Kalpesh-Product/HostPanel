@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { TextField, IconButton, Avatar, Box } from "@mui/material";
+import { IconButton, Avatar, Box } from "@mui/material";
 import { LuImageUp } from "react-icons/lu";
 import { MdDelete } from "react-icons/md";
 import MuiModal from "./MuiModal";
@@ -147,36 +147,52 @@ const UploadFileInput = ({
         onChange={handleFileChange}
       />
 
-      <TextField
-        size="small"
-        variant="outlined"
-        fullWidth
-        label={label}
-        disabled={disabled}
-        value={
+      {(() => {
+        const displayValue =
           value instanceof File
             ? value.name
             : value && typeof value === "object" && typeof (value as any).url === "string"
               ? (value as any).url.split("/").pop() || "Image uploaded"
-              : String((value && typeof value === "object" && (value as any).name) || "")
-        }
-        placeholder="Choose a file..."
-        InputProps={{
-          readOnly: true,
-          endAdornment: (
-            <div className="flex items-center">
-              {previewUrl && (
-                <IconButton size="small" color="error" onClick={handleClear} title="Remove image">
-                  <MdDelete />
-                </IconButton>
-              )}
-              <IconButton component="label" htmlFor={id ?? "file-upload"} color="primary">
-                <LuImageUp />
-              </IconButton>
+              : String((value && typeof value === "object" && (value as any).name) || "");
+        return (
+          <div className="flex flex-col">
+            {label ? (
+              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                {label}
+              </label>
+            ) : null}
+            <div
+              className={`mt-1 flex w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-[13px] font-pmedium ${
+                disabled ? "border-slate-200/60 bg-slate-50 text-slate-400" : "border-slate-200/60 bg-white"
+              }`}
+            >
+              <span className={`truncate ${displayValue ? "text-[#0F172A]" : "text-slate-400"}`}>
+                {displayValue || "Choose a file..."}
+              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                {previewUrl && (
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    title="Remove image"
+                    className="rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <MdDelete size={16} />
+                  </button>
+                )}
+                <label
+                  htmlFor={id ?? "file-upload"}
+                  className={`rounded p-1 text-[#2563EB] hover:bg-[#2563EB]/10 ${
+                    disabled ? "pointer-events-none opacity-40" : "cursor-pointer"
+                  }`}
+                >
+                  <LuImageUp size={16} />
+                </label>
+              </div>
             </div>
-          ),
-        }}
-      />
+          </div>
+        );
+      })()}
 
       <UploadLimitWarning message={warning} onDismiss={() => setWarning(null)} />
 

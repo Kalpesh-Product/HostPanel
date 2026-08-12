@@ -41,6 +41,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  UsersRound,
   Wallet,
   Warehouse,
   Wrench,
@@ -156,6 +157,7 @@ type WorkspaceAccessMapState = {
 type RoleAccessContext = {
   role: string;
   grantedModules: string[];
+  departmentNames: string[];
 };
 
 const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
@@ -186,7 +188,7 @@ export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "change-password": "/profile/change-password",
   "assigned-assets": "/profile/assigned-assets",
   payslips: "/profile/payslips",
-  "exit-request": "/profile/exit-request",
+  "exit-request": "/profile/resignation-request",
   "meeting-room-system": "/meetings/meeting-rooms",
   "customer-support": "/company-settings/customer-support",
   tasks: "/extra-common-modules/tasks",
@@ -205,7 +207,7 @@ export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "leave-request-processing": "/hr/leave-request-processing",
   recruitment: "/hr/recruitment",
   "payroll-management": "/hr/payroll-management",
-  "exit-management": "/hr/exit-management",
+  "exit-management": "/hr/resignation-management",
   "tenant-companies-admin": "/administration/tenant-companies",
   bookings: "/administration/bookings",
   "visitors-management": "/visitors/visitor-management",
@@ -246,6 +248,7 @@ export const ICON_BY_ID: Record<string, ElementType> = {
   inventory: Warehouse,
   "department-inventory": Warehouse,
   "finance-management": Wallet,
+  "team-management": UsersRound,
   reports: FileChartColumn,
   "website-builder": Globe,
   "wono-nomad": ShieldCheck,
@@ -336,7 +339,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "change-password", label: "Change Password", route: "/profile/change-password", implemented: true, unlockedInWorkspace: true },
       { id: "assigned-assets", label: "Assigned Assets", route: "/profile/assigned-assets", implemented: true, unlockedInWorkspace: true },
       { id: "payslips", label: "Payslips", route: "/profile/payslips", implemented: true, unlockedInWorkspace: true },
-      { id: "exit-request", label: "Exit Request", route: "/profile/exit-request", implemented: true, unlockedInWorkspace: true },
+      { id: "exit-request", label: "Resignation Request", route: "/profile/resignation-request", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "founder-core-modules": {
@@ -754,6 +757,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   const [roleAccessContext, setRoleAccessContext] = useState<RoleAccessContext>({
     role: "",
     grantedModules: [],
+    departmentNames: [],
   });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   // Accordion state for the Add-Ons page: everything starts closed, and only
@@ -819,6 +823,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
               "",
           ),
           grantedModules: memberGranted,
+          departmentNames: Array.isArray(me?.departmentNames) ? me.departmentNames : [],
         });
       } catch {
         if (!active) return;
@@ -832,6 +837,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
               "",
           ),
           grantedModules: [],
+          departmentNames: Array.isArray((auth.user as { departmentNames?: string[] } | null)?.departmentNames)
+            ? (auth.user as { departmentNames?: string[] }).departmentNames || []
+            : [],
         });
       } finally {
         if (active) {
@@ -1001,7 +1009,12 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
   const cards = useMemo(() => {
     if (sectionId === "add-ons") return [];
-    const profilePlanTabs = sectionId === "profile" ? getProfileTabItemsForPlan(planLabel) : [];
+    const profilePlanTabs = sectionId === "profile"
+      ? getProfileTabItemsForPlan(planLabel, {
+          roleBand: roleAccessContext.role,
+          departmentNames: roleAccessContext.departmentNames,
+        })
+      : [];
     const rawItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
     const itemsWithAttendance = sectionId === "common-modules"
       ? (rawItems.some((i) => String(i?.id || "").trim() === "attendance")
@@ -1109,12 +1122,14 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       })
       .filter(Boolean) as LandingCard[];
   }, [
+    roleAccessContext.departmentNames,
     enabledIds,
     isUsingWorkspaceSection,
     planLabel,
     roleAllowedModuleIds,
     sectionData,
     sectionId,
+    roleAccessContext.role,
     workspaceEnabledCanonicalIds,
   ]);
 

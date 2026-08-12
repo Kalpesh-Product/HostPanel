@@ -42,6 +42,7 @@ import { getLeaveRequests } from "../../../../services/leave-requests";
 import { useModuleStats } from "./moduleStatProviders";
 import TodayAttendanceCard from "./TodayAttendanceCard";
 import TeamLiveStatusCard from "./TeamLiveStatusCard";
+import { canAccessCompanyProfile } from "../../../Profile/profileAccess";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 
 interface CustomDashboardProps {
@@ -74,7 +75,7 @@ const toQuickLink = (id: string, label: string): QuickLinkItem | null => {
 };
 
 const CustomDashboard = ({ access }: CustomDashboardProps) => {
-  const { hasModule, enabledModuleIds, moduleMap } = access;
+  const { hasModule, enabledModuleIds, moduleMap, roleBand, departmentNames } = access;
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
   const workspacePreferences = useWorkspacePreferences();
@@ -360,7 +361,9 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
 
   const profileLinks: QuickLinkItem[] = [
     { icon: UserCog, label: "My Profile", description: "Your personal account details", route: "/profile/my-profile", color: "#1E3D73" },
-    { icon: Building2, label: "Company Profile", description: "Workspace & business details", route: "/profile/company-profile", color: "#7c3aed" },
+    ...(canAccessCompanyProfile({ roleBand, departmentNames })
+      ? [{ icon: Building2, label: "Company Profile", description: "Workspace & business details", route: "/profile/company-profile", color: "#7c3aed" }]
+      : []),
     { icon: KeyRound, label: "Change Password", description: "Update your login credentials", route: "/profile/change-password", color: "#0891b2" },
   ];
 

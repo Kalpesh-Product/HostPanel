@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { Controller, useFieldArray } from "react-hook-form";
-import { TextField } from "@mui/material";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
+import WebsiteFormField from "../../../../components/WebsiteFormField";
 
 const RoomsSection = ({
   control,
@@ -40,25 +40,19 @@ const RoomsSection = ({
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Title"
-                fullWidth
-                {...register(`${fieldName}.${index}.title`)}
+                registration={register(`${fieldName}.${index}.title`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label={priceLabel}
-                fullWidth
-                {...register(`${fieldName}.${index}.price`)}
+                registration={register(`${fieldName}.${index}.price`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Description"
-                fullWidth
                 multiline
                 minRows={3}
-                {...register(`${fieldName}.${index}.description`)}
+                registration={register(`${fieldName}.${index}.description`)}
               />
             </div>
             <div className="pt-4">

@@ -60,7 +60,7 @@ const MODULE_GROUPS = [
       { id: "leave-request-processing", label: "Leave Request Processing", implemented: false },
       { id: "attendance-review", label: "Attendance Review", implemented: false },
       { id: "payroll-management", label: "Payroll Management", implemented: false },
-      { id: "exit-management", label: "Exit Management", implemented: false },
+      { id: "exit-management", label: "Resignation Management", implemented: true },
       { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
       { id: "bookings", label: "Bookings", implemented: false },
       { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
@@ -115,7 +115,7 @@ const MODULE_GROUPS = [
           { id: "leave-request-processing", label: "Leave Request Processing", implemented: false },
           { id: "attendance-review", label: "Attendance Review", implemented: false },
           { id: "payroll-management", label: "Payroll Management", implemented: false },
-          { id: "exit-management", label: "Exit Management", implemented: false },
+          { id: "exit-management", label: "Resignation Management", implemented: true },
         ],
       },
       {

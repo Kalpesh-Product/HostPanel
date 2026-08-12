@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export interface IExitChecklistItem {
+export interface IResignationChecklistItem {
     key: string;
     label: string;
     description?: string;
@@ -12,12 +12,13 @@ export interface IExitChecklistItem {
     notes?: string;
 }
 
-export interface IExitRequest extends Document {
+export interface IResignationRequest extends Document {
     workspaceId: mongoose.Types.ObjectId;
     ownerId: mongoose.Types.ObjectId;
     exitNumber: number;
     exitCode: string;
     requesterUserId: mongoose.Types.ObjectId;
+    activeRequestKey?: string;
     employeeName: string;
     employeeId: string;
     email: string;
@@ -34,6 +35,11 @@ export interface IExitRequest extends Document {
     reason: string;
     requestedDocuments: string[];
     requestedDocumentNotes?: string;
+    returnRequirements: IResignationChecklistItem[];
+    exitInstructions: string[];
+    confirmationWarning?: string;
+    policyAcknowledgedAt?: Date | null;
+    policyVersion: number;
     status: "pending" | "approved" | "rejected" | "completed";
     noticeStartAt?: Date | null;
     noticeEndAt?: Date | null;
@@ -44,7 +50,7 @@ export interface IExitRequest extends Document {
     rejectedByUserId?: mongoose.Types.ObjectId | null;
     rejectedBy?: string;
     rejectionReason?: string;
-    checklist: IExitChecklistItem[];
+    checklist: IResignationChecklistItem[];
     completedAt?: Date | null;
     completedByUserId?: mongoose.Types.ObjectId | null;
     completedBy?: string;
@@ -53,7 +59,7 @@ export interface IExitRequest extends Document {
     updatedAt?: Date;
 }
 
-const exitChecklistItemSchema = new Schema<IExitChecklistItem>(
+const exitChecklistItemSchema = new Schema<IResignationChecklistItem>(
     {
         key: { type: String, required: true, trim: true, maxlength: 80 },
         label: { type: String, required: true, trim: true, maxlength: 180 },
@@ -68,7 +74,7 @@ const exitChecklistItemSchema = new Schema<IExitChecklistItem>(
     { _id: false }
 );
 
-const exitRequestSchema = new Schema<IExitRequest>(
+const resignationRequestSchema = new Schema<IResignationRequest>(
     {
         workspaceId: {
             type: Schema.Types.ObjectId,
@@ -97,6 +103,11 @@ const exitRequestSchema = new Schema<IExitRequest>(
             ref: "HostUser",
             required: true,
             index: true,
+        },
+        activeRequestKey: {
+            type: String,
+            default: undefined,
+            trim: true,
         },
         employeeName: {
             type: String,
@@ -192,6 +203,29 @@ const exitRequestSchema = new Schema<IExitRequest>(
             trim: true,
             maxlength: 2000,
         },
+        returnRequirements: {
+            type: [exitChecklistItemSchema],
+            default: [],
+        },
+        exitInstructions: {
+            type: [{ type: String, trim: true, maxlength: 500 }],
+            default: [],
+        },
+        confirmationWarning: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 1200,
+        },
+        policyAcknowledgedAt: {
+            type: Date,
+            default: null,
+        },
+        policyVersion: {
+            type: Number,
+            min: 1,
+            default: 1,
+        },
         status: {
             type: String,
             enum: ["pending", "approved", "rejected", "completed"],
@@ -280,12 +314,15 @@ const exitRequestSchema = new Schema<IExitRequest>(
     }
 );
 
-exitRequestSchema.index({ workspaceId: 1, exitNumber: 1 }, { unique: true });
-exitRequestSchema.index({ workspaceId: 1, exitCode: 1 }, { unique: true });
-exitRequestSchema.index({ workspaceId: 1, requesterUserId: 1, status: 1, createdAt: -1 });
-exitRequestSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
-exitRequestSchema.index({ workspaceId: 1, noticeEndAt: 1, status: 1 });
+resignationRequestSchema.index({ workspaceId: 1, exitNumber: 1 }, { unique: true });
+resignationRequestSchema.index({ workspaceId: 1, exitCode: 1 }, { unique: true });
+resignationRequestSchema.index({ workspaceId: 1, requesterUserId: 1, status: 1, createdAt: -1 });
+// Pending/approved requests carry this key. The unique sparse index prevents
+// double submissions even when two requests arrive at the same time.
+resignationRequestSchema.index({ activeRequestKey: 1 }, { unique: true, sparse: true });
+resignationRequestSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
+resignationRequestSchema.index({ workspaceId: 1, noticeEndAt: 1, status: 1 });
 
-export const ExitRequest = (mongoose.models.ExitRequest as mongoose.Model<IExitRequest>) ||
-    mongoose.model<IExitRequest>("ExitRequest", exitRequestSchema);
-export default ExitRequest;
+export const ResignationRequest = (mongoose.models.ExitRequest as mongoose.Model<IResignationRequest>) ||
+    mongoose.model<IResignationRequest>("ExitRequest", resignationRequestSchema);
+export default ResignationRequest;

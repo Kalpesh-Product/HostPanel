@@ -722,7 +722,7 @@ export function HRDashboardOverview() {
           <QuickLink icon={UserPlus} label="Recruitment" description="Candidates & job openings" route="/hr/recruitment" color="#8b5cf6" />
           <QuickLink icon={Wallet} label="Payroll" description="Payroll management" route="/hr/payroll-management" color="#0ea5e9" />
           <QuickLink icon={FileText} label="HR Documents" description="Policies & documents" route="/hr/documents" color="#64748b" />
-          <QuickLink icon={UserMinus} label="Exit Management" description="Offboarding workflow" route="/hr/exit-management" color="#ef4444" />
+          <QuickLink icon={UserMinus} label="Resignation Management" description="Offboarding workflow" route="/hr/resignation-management" color="#ef4444" />
         </WidgetSection>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

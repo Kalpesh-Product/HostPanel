@@ -65,7 +65,7 @@ import HREmployeeAttendanceDetailPage from "../pages/HR/HREmployeeAttendanceDeta
 import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
-import HRExitManagementPage from "../pages/HR/HRExitManagementPage";
+import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
 import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
 import AccountingPage from "../pages/Finance/AccountingPage";
@@ -153,10 +153,11 @@ import AccessGrant from "../pages/Profile/AccessGrant";
 import ProfileLayout from "../pages/Profile/ProfileLayout";
 import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
+import CompanyProfileAccessGuard from "../pages/Profile/CompanyProfileAccessGuard";
 import ChangePassword from "../pages/Profile/ChangePassword";
 import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
 import { PayslipsTab } from "../pages/Profile/PayslipsTab";
-import { ExitRequestTab } from "../pages/Profile/ExitRequestTab";
+import { ResignationRequestWorkflowTab as ResignationRequestTab } from "../pages/Profile/ResignationRequestWorkflowTab";
 import PerformanceLayout from "../pages/Performance/PerformanceLayout";
 import PerformanceHome from "../pages/Performance/PerformanceHome";
 import DepartmentPerformanceLayout from "../pages/Performance/DepartmentPerformanceLayout";
@@ -408,7 +409,7 @@ export const routes = createBrowserRouter([
                       { path: "booking-history", element: <TenantBookingHistoryPage /> },
                       { path: "buy-credits", element: <TenantBuyCreditsPage /> },
                       { path: "tickets", element: <TenantTicketsPage /> },
-                      { path: "profile", element: <Navigate to="/profile/company-profile" replace /> },
+                      { path: "profile", element: <Navigate to="/profile/my-profile" replace /> },
                     ],
                   },
                 ],
@@ -678,7 +679,7 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "company-profile",
-                    element: <CompanyProfile />,
+                    element: <CompanyProfileAccessGuard><CompanyProfile /></CompanyProfileAccessGuard>,
                   },
                   {
                     path: "change-password",
@@ -693,8 +694,12 @@ export const routes = createBrowserRouter([
                     element: <PayslipsTab />,
                   },
                   {
+                    path: "resignation-request",
+                    element: <ResignationRequestTab />,
+                  },
+                  {
                     path: "exit-request",
-                    element: <ExitRequestTab />,
+                    element: <Navigate to="/profile/resignation-request" replace />,
                   },
                   // {
                   //   path: "permissions",
@@ -1156,8 +1161,12 @@ export const routes = createBrowserRouter([
                         element: <HRPayrollPage />,
                       },
                       {
+                        path: "resignation-management",
+                        element: <HRResignationManagementPage />,
+                      },
+                      {
                         path: "exit-management",
-                        element: <HRExitManagementPage />,
+                        element: <Navigate to="/hr/resignation-management" replace />,
                       },
                     ],
                   },

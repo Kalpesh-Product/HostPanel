@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   Archive,
   Calendar,
   FileDown,
@@ -11,6 +10,7 @@ import {
   Eye,
   FileSpreadsheet,
   FileText,
+  Layers,
   LogOut,
   RefreshCw,
   Search,
@@ -22,16 +22,17 @@ import {
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { createReport } from "@/services/reports";
-import { HRExitManagementSkeleton } from "@/components/ui/Skeleton";
+import { HRResignationManagementSkeleton } from "@/components/ui/Skeleton";
 import { getStoredUser, normalizeUserRole } from "@/lib/auth-session";
 import {
-  completeExitRequest,
-  getExitRequests,
-  reviewExitRequest,
-  updateExitChecklist,
-} from "@/services/exit-management";
+  completeResignationRequest,
+  getResignationRequests,
+  reviewResignationRequest,
+  updateResignationChecklist,
+} from "@/services/resignation-management";
 import { downloadReportFile } from "@/utils/report-download";
 import PageFrame from "@/components/Pages/PageFrame";
+import ResignationManagementSettingsPanel from "./ResignationManagementSettingsPanel";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -45,7 +46,7 @@ interface ChecklistItem {
   notes?: string;
 }
 
-interface ExitRequest {
+interface ResignationRequest {
   id?: string;
   recordId?: string;
   employeeName?: string;
@@ -80,13 +81,13 @@ interface ExitRequest {
   completedAt?: string;
 }
 
-interface ExitManagementOverview {
-  exitRequests: ExitRequest[];
-  pendingRequests: ExitRequest[];
-  activeNoticeRequests: ExitRequest[];
-  historyRequests: ExitRequest[];
-  rejectedRequests: ExitRequest[];
-  completedRequests: ExitRequest[];
+interface ResignationManagementOverview {
+  exitRequests: ResignationRequest[];
+  pendingRequests: ResignationRequest[];
+  activeNoticeRequests: ResignationRequest[];
+  historyRequests: ResignationRequest[];
+  rejectedRequests: ResignationRequest[];
+  completedRequests: ResignationRequest[];
   summary: {
     pendingCount: number;
     activeNoticeCount: number;
@@ -107,7 +108,15 @@ interface ManagerProfile {
 
 const FALLBACK_DEPARTMENTS = ["HR", "Administration", "Finance", "Sales", "Tech", "IT", "Maintenance"];
 
-const defaultOverview: ExitManagementOverview = {
+const STATUS_PILLS = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+  { key: "completed", label: "Completed" },
+];
+
+const defaultOverview: ResignationManagementOverview = {
   exitRequests: [],
   pendingRequests: [],
   activeNoticeRequests: [],
@@ -153,7 +162,28 @@ function isMatchDepartment(requestDepartment?: string, filterDepartment?: string
   return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
 }
 
-function isMatchSearch(request: ExitRequest, query: string): boolean {
+function isMatchStatus(requestStatus?: string, filterStatus?: string): boolean {
+  if (!filterStatus || filterStatus === "all") return true;
+  return String(requestStatus || "pending").trim().toLowerCase() === String(filterStatus).trim().toLowerCase();
+}
+
+function isSameMonth(value?: string | Date, reference = new Date()): boolean {
+  if (!value) return false;
+  const date = value instanceof Date ? value : new Date(String(value).slice(0, 10));
+  if (isNaN(date.getTime())) return false;
+  return date.getFullYear() === reference.getFullYear() && date.getMonth() === reference.getMonth();
+}
+
+function isWithinLastDays(value?: string | Date, days = 30): boolean {
+  if (!value) return false;
+  const date = value instanceof Date ? value : new Date(String(value).slice(0, 10));
+  if (isNaN(date.getTime())) return false;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return date >= cutoff;
+}
+
+function isMatchSearch(request: ResignationRequest, query: string): boolean {
   const term = String(query || "").trim().toLowerCase();
   if (!term) return true;
   return [request.employeeName, request.employeeId, request.department, request.exitCode, request.reason]
@@ -169,14 +199,14 @@ function getStatusChipClass(status?: string): string {
   return "bg-amber-50 text-amber-700 border-amber-200";
 }
 
-function buildExitExportRows(
-  records: ExitRequest[] = [],
+function buildResignationExportRows(
+  records: ResignationRequest[] = [],
   scopeLabel = "",
   departmentLabel = "",
   searchLabel = "",
 ): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [
-    { label: "Report Scope", value: scopeLabel || "Exit Management" },
+    { label: "Report Scope", value: scopeLabel || "Resignation Management" },
     { label: "Department Filter", value: departmentLabel || "All Departments" },
     { label: "Search Filter", value: searchLabel || "All" },
     { label: "Record Count", value: String(records.length) },
@@ -200,15 +230,15 @@ function buildExitExportRows(
   return rows;
 }
 
-function buildExitRequestExportRows(request: ExitRequest): Array<{ label: string; value: string }> {
+function buildResignationRequestExportRows(request: ResignationRequest): Array<{ label: string; value: string }> {
   const checklist = Array.isArray(request.checklist) ? request.checklist : [];
   const rows: Array<{ label: string; value: string }> = [
     { label: "Employee Name", value: request.employeeName || "Employee" },
     { label: "Employee ID", value: request.employeeId || "-" },
     { label: "Department", value: request.department || "General" },
     { label: "Role", value: request.requesterRole || "Employee" },
-    { label: "Report Scope", value: "Individual Exit Request" },
-    { label: "Exit Code", value: request.exitCode || "-" },
+    { label: "Report Scope", value: "Individual Resignation Request" },
+    { label: "Resignation Code", value: request.exitCode || "-" },
     { label: "Status", value: request.statusLabel || formatStatusLabel(request.status) },
     { label: "Applied Date", value: formatDateLabel(request.createdAt) },
     { label: "Joining Date", value: formatDateLabel(request.joiningDate) },
@@ -240,7 +270,7 @@ function buildExitRequestExportRows(request: ExitRequest): Array<{ label: string
 /*  Main Page Component                                              */
 /* ──────────────────────────────────────────────────────────────── */
 
-export function HRExitManagementPage() {
+export function HRResignationManagementPage() {
   const currentUser = getStoredUser();
   const managerProfile: ManagerProfile = {
     name: currentUser?.fullName || currentUser?.firstName || "HR Manager",
@@ -251,22 +281,23 @@ export function HRExitManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState("");
-  const [overview, setOverview] = useState<ExitManagementOverview>(defaultOverview);
+  const [overview, setOverview] = useState<ResignationManagementOverview>(defaultOverview);
   const [activeTab, setActiveTab] = useState("requests");
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
-  const [viewingRequest, setViewingRequest] = useState<ExitRequest | null>(null);
-  const [managingExit, setManagingExit] = useState<ExitRequest | null>(null);
-  const [rejectingRequest, setRejectingRequest] = useState<ExitRequest | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [viewingRequest, setViewingRequest] = useState<ResignationRequest | null>(null);
+  const [managingResignation, setManagingResignation] = useState<ResignationRequest | null>(null);
+  const [rejectingRequest, setRejectingRequest] = useState<ResignationRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
   const loadOverview = useCallback(async () => {
     try {
-      const response = await getExitRequests();
+      const response = await getResignationRequests();
       const data = response?.data || response || {};
       setOverview({ ...defaultOverview, ...data });
     } catch (error: any) {
-      toast.error(error.message || "Unable to load exit management data.");
+      toast.error(error.message || "Unable to load resignation management data.");
     }
   }, []);
 
@@ -293,21 +324,27 @@ export function HRExitManagementPage() {
 
   const filteredRequests = useMemo(() => {
     return (Array.isArray(overview.pendingRequests) ? overview.pendingRequests : []).filter((r) =>
-      isMatchDepartment(r.department, departmentFilter) && isMatchSearch(r, searchQuery)
+      isMatchDepartment(r.department, departmentFilter) &&
+      isMatchStatus(r.status, statusFilter) &&
+      isMatchSearch(r, searchQuery)
     );
-  }, [overview.pendingRequests, departmentFilter, searchQuery]);
+  }, [overview.pendingRequests, departmentFilter, statusFilter, searchQuery]);
 
   const filteredNotice = useMemo(() => {
     return (Array.isArray(overview.activeNoticeRequests) ? overview.activeNoticeRequests : []).filter((r) =>
-      isMatchDepartment(r.department, departmentFilter) && isMatchSearch(r, searchQuery)
+      isMatchDepartment(r.department, departmentFilter) &&
+      isMatchStatus(r.status, statusFilter) &&
+      isMatchSearch(r, searchQuery)
     );
-  }, [overview.activeNoticeRequests, departmentFilter, searchQuery]);
+  }, [overview.activeNoticeRequests, departmentFilter, statusFilter, searchQuery]);
 
   const filteredHistory = useMemo(() => {
     return (Array.isArray(overview.historyRequests) ? overview.historyRequests : []).filter((r) =>
-      isMatchDepartment(r.department, departmentFilter) && isMatchSearch(r, searchQuery)
+      isMatchDepartment(r.department, departmentFilter) &&
+      isMatchStatus(r.status, statusFilter) &&
+      isMatchSearch(r, searchQuery)
     );
-  }, [overview.historyRequests, departmentFilter, searchQuery]);
+  }, [overview.historyRequests, departmentFilter, statusFilter, searchQuery]);
 
   const activeReportRows = useMemo(() => {
     if (activeTab === "notice") return filteredNotice;
@@ -317,16 +354,16 @@ export function HRExitManagementPage() {
 
   const activeReportScopeLabel = useMemo(() => {
     if (activeTab === "notice") return "Active Notice Periods";
-    if (activeTab === "history") return "Exit History";
-    return "Exit Requests Queue";
+    if (activeTab === "history") return "Resignation History";
+    return "Resignation Requests Queue";
   }, [activeTab]);
 
-  function openRequestDetails(request: ExitRequest) {
+  function openRequestDetails(request: ResignationRequest) {
     setViewingRequest(request);
   }
 
-  function openManageChecklist(request: ExitRequest) {
-    setManagingExit(request);
+  function openManageChecklist(request: ResignationRequest) {
+    setManagingResignation(request);
     setViewingRequest(null);
   }
 
@@ -334,7 +371,7 @@ export function HRExitManagementPage() {
     setIsRefreshing(true);
     try {
       await loadOverview();
-      toast.success("Exit management refreshed.");
+      toast.success("Resignation management refreshed.");
     } finally {
       setIsRefreshing(false);
     }
@@ -343,7 +380,7 @@ export function HRExitManagementPage() {
   async function handleExportReport(format = "PDF") {
     const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
     if (!activeReportRows.length) {
-      toast.error("There are no exit records to export.");
+      toast.error("There are no resignation records to export.");
       return;
     }
     setIsExportingReport(reportFormat);
@@ -363,26 +400,26 @@ export function HRExitManagementPage() {
         description,
         sourceType: "custom",
         sourceRef: `exit-management-${activeTab}`,
-        reportRows: buildExitExportRows(activeReportRows, activeReportScopeLabel, deptLabel, searchQuery),
+        reportRows: buildResignationExportRows(activeReportRows, activeReportScopeLabel, deptLabel, searchQuery),
         monthlyData: [],
       });
       if (reportFormat === "PDF") {
         await downloadReportFile(response?.data?.download, { openInNewTab: false });
       }
       const createdReportId = response?.data?.report?.recordId;
-      toast.success(reportFormat === "PDF" ? "Exit report saved to Reports." : "Exit report saved to Reports. Preview it before downloading.");
+      toast.success(reportFormat === "PDF" ? "Resignation report saved to Reports." : "Resignation report saved to Reports. Preview it before downloading.");
       navigate(createdReportId ? `/dashboard/hr/report?reportId=${createdReportId}` : "/dashboard/hr/report");
     } catch (error: any) {
-      toast.error(error?.message || "Failed to create exit report.");
+      toast.error(error?.message || "Failed to create resignation report.");
     } finally {
       setIsExportingReport("");
     }
   }
 
-  async function handleExportRequestReport(request: ExitRequest | null, format = "PDF") {
+  async function handleExportRequestReport(request: ResignationRequest | null, format = "PDF") {
     if (!request) return;
     const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
-    const reportTitle = `${request.employeeName || "Employee"} Exit Report`;
+    const reportTitle = `${request.employeeName || "Employee"} Resignation Report`;
     const deptLabel = request.department || "HR";
     setIsExportingReport(reportFormat);
     try {
@@ -392,66 +429,66 @@ export function HRExitManagementPage() {
         category: "Employee",
         dataWindow: "Custom",
         reportMonth: new Date().toISOString().slice(0, 7),
-        period: "Individual Exit Request",
+        period: "Individual Resignation Request",
         generatedBy: managerProfile.name,
         format: reportFormat,
-        description: `${request.employeeName || "Employee"} individual exit request report.`,
+        description: `${request.employeeName || "Employee"} individual resignation request report.`,
         sourceType: "custom",
         sourceRef: String(request.exitCode || request.recordId || request.id || "").trim(),
-        reportRows: buildExitRequestExportRows(request),
+        reportRows: buildResignationRequestExportRows(request),
         monthlyData: [],
       });
       if (reportFormat === "PDF") {
         await downloadReportFile(response?.data?.download, { openInNewTab: false });
       }
       const createdReportId = response?.data?.report?.recordId;
-      toast.success(reportFormat === "PDF" ? "Exit request report saved to Reports." : "Exit request report saved to Reports. Preview it before downloading.");
+      toast.success(reportFormat === "PDF" ? "Resignation request report saved to Reports." : "Resignation request report saved to Reports. Preview it before downloading.");
       navigate(createdReportId ? `/dashboard/hr/report?reportId=${createdReportId}` : "/dashboard/hr/report");
     } catch (error: any) {
-      toast.error(error?.message || "Failed to create exit request report.");
+      toast.error(error?.message || "Failed to create resignation request report.");
     } finally {
       setIsExportingReport("");
     }
   }
 
-  async function handleApproveRequest(request: ExitRequest) {
+  async function handleApproveRequest(request: ResignationRequest) {
     try {
-      const response = await reviewExitRequest(request.id || "", { status: "approved" });
-      const updatedRequest: ExitRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
+      const response = await reviewResignationRequest(request.id || "", { status: "approved" });
+      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
       if (updatedRequest) setViewingRequest(updatedRequest);
       await loadOverview();
-      toast.success("Exit request approved.");
+      toast.success("Resignation request approved.");
     } catch (error: any) {
-      toast.error(error.message || "Unable to approve exit request.");
+      toast.error(error.message || "Unable to approve resignation request.");
     }
   }
 
   async function handleRejectSubmit() {
     if (!rejectingRequest || !rejectReason.trim()) return;
     try {
-      const response = await reviewExitRequest(rejectingRequest.id || "", {
+      const response = await reviewResignationRequest(rejectingRequest.id || "", {
         status: "rejected",
         rejectionReason: rejectReason,
       });
-      const updatedRequest: ExitRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
+      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
       if (updatedRequest) setViewingRequest(updatedRequest);
       setRejectingRequest(null);
       setRejectReason("");
       await loadOverview();
-      toast.success("Exit request rejected.");
+      toast.success("Resignation request rejected.");
     } catch (error: any) {
-      toast.error(error.message || "Unable to reject exit request.");
+      toast.error(error.message || "Unable to reject resignation request.");
     }
   }
 
   async function handleToggleChecklist(itemKey: string) {
-    if (!managingExit) return;
-    const checklistItem = (managingExit.checklist || []).find((item) => item.key === itemKey);
+    if (!managingResignation) return;
+    const checklistItem = (managingResignation.checklist || []).find((item) => item.key === itemKey);
     const nextCompleted = !checklistItem?.completed;
     try {
-      const response = await updateExitChecklist(managingExit.id || "", { itemKey, completed: nextCompleted });
-      const updatedRequest: ExitRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
-      if (updatedRequest) setManagingExit(updatedRequest);
+      const response = await updateResignationChecklist(managingResignation.id || "", { itemKey, completed: nextCompleted });
+      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
+      if (updatedRequest) setManagingResignation(updatedRequest);
       await loadOverview();
       toast.success(nextCompleted ? "Checklist item marked complete." : "Checklist item reopened.");
     } catch (error: any) {
@@ -459,26 +496,52 @@ export function HRExitManagementPage() {
     }
   }
 
-  async function handleCompleteExit() {
-    if (!managingExit) return;
+  async function handleCompleteResignation() {
+    if (!managingResignation) return;
     try {
-      const response = await completeExitRequest(managingExit.id || "", {});
-      const updatedRequest: ExitRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
-      if (updatedRequest) setManagingExit(updatedRequest);
-      setManagingExit(null);
+      const response = await completeResignationRequest(managingResignation.id || "", {});
+      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
+      if (updatedRequest) setManagingResignation(updatedRequest);
+      setManagingResignation(null);
       await loadOverview();
-      toast.success("Exit request completed.");
+      toast.success("Resignation request completed.");
     } catch (error: any) {
-      toast.error(error.message || "Unable to complete exit request.");
+      toast.error(error.message || "Unable to complete resignation request.");
     }
   }
 
   const pendingCount = overview.summary?.pendingCount || 0;
-  const activeNoticeCount = overview.summary?.activeNoticeCount || 0;
   const completedCount = overview.summary?.completedCount || 0;
+  const rejectedCount = overview.summary?.rejectedCount || 0;
+
+  const tabStatCards = useMemo(() => {
+    const notice = Array.isArray(overview.activeNoticeRequests) ? overview.activeNoticeRequests : [];
+    const history = Array.isArray(overview.historyRequests) ? overview.historyRequests : [];
+    if (activeTab === "notice") {
+      return [
+        { label: "Total On Notice", value: notice.length, icon: <Clock size={16} />, color: "", labelClass: "text-slate-400", iconClass: "bg-slate-100 text-slate-500" },
+        { label: "In Progress", value: notice.filter((r) => !r.canComplete).length, icon: <CheckSquare size={16} />, color: "border-l-4 border-l-blue-500", labelClass: "text-blue-600", iconClass: "bg-blue-50 text-[#2563EB]" },
+        { label: "Ready to Complete", value: notice.filter((r) => r.canComplete).length, icon: <CheckCircle2 size={16} />, color: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600", iconClass: "bg-emerald-50 text-emerald-500" },
+      ];
+    }
+    if (activeTab === "history") {
+      return [
+        { label: "Total History", value: history.length, icon: <Archive size={16} />, color: "", labelClass: "text-slate-400", iconClass: "bg-slate-100 text-slate-500" },
+        { label: "Completed", value: completedCount, icon: <CheckCircle2 size={16} />, color: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600", iconClass: "bg-emerald-50 text-emerald-500" },
+        { label: "Rejected", value: rejectedCount, icon: <XCircle size={16} />, color: "border-l-4 border-l-red-500", labelClass: "text-red-600", iconClass: "bg-red-50 text-red-500" },
+      ];
+    }
+    const allRequests = Array.isArray(overview.exitRequests) ? overview.exitRequests : [];
+    return [
+      { label: "Total Requests", value: allRequests.length, icon: <Layers size={16} />, color: "", labelClass: "text-slate-400", iconClass: "bg-slate-100 text-slate-500" },
+      { label: "Pending", value: pendingCount, icon: <Clock size={16} />, color: "border-l-4 border-l-amber-500", labelClass: "text-amber-600", iconClass: "bg-amber-50 text-amber-500" },
+      { label: "This Month", value: allRequests.filter((r) => isSameMonth(r.createdAt)).length, icon: <Calendar size={16} />, color: "border-l-4 border-l-blue-500", labelClass: "text-blue-600", iconClass: "bg-blue-50 text-[#2563EB]" },
+      { label: "Last 30 Days", value: allRequests.filter((r) => isWithinLastDays(r.createdAt)).length, icon: <RefreshCw size={16} />, color: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600", iconClass: "bg-emerald-50 text-emerald-500" },
+    ];
+  }, [activeTab, overview.activeNoticeRequests, overview.historyRequests, overview.exitRequests, pendingCount, completedCount, rejectedCount]);
 
   if (isLoading) {
-    return <HRExitManagementSkeleton />;
+    return <HRResignationManagementSkeleton />;
   }
 
   return (
@@ -490,7 +553,7 @@ export function HRExitManagementPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Exit Management
+                Resignation Management
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Review & manage employee offboarding</p>
             </div>
@@ -516,14 +579,14 @@ export function HRExitManagementPage() {
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
           <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
-              { key: "requests", label: `REQUESTS (${pendingCount})` },
-              { key: "notice", label: `ACTIVE NOTICE (${activeNoticeCount})` },
-              { key: "history", label: `HISTORY (${completedCount})` },
+              { key: "requests", label: "Requests" },
+              { key: "notice", label: "Active Notice" },
+              { key: "history", label: "History" },
             ].map((tab) => (
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); }}
                 className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
@@ -535,59 +598,58 @@ export function HRExitManagementPage() {
             ))}
           </div>
 
-          {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 shrink-0">
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending Requests</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{pendingCount}</p>
+          {/* ── Stat Cards (tab-specific, total first) ── */}
+          <div className={`grid grid-cols-1 gap-3 mb-3 shrink-0 ${tabStatCards.length >= 4 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
+            {tabStatCards.map((card) => (
+              <div key={card.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.color}`}>
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-pmedium ${card.labelClass} uppercase tracking-widest mb-1`}>{card.label}</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
+                </div>
+                <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>{card.icon}</div>
               </div>
-              <div className="p-2 rounded-2xl bg-amber-50 text-amber-500 shrink-0">
-                <AlertTriangle size={16} />
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Active Notice Periods</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{activeNoticeCount}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-blue-50 text-[#2563EB] shrink-0">
-                <Clock size={16} />
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Completed Exits</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{completedCount}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-500 shrink-0">
-                <Archive size={16} />
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* ── Data Panel ── */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            {/* Data panel header row */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+            {/* Data panel header row: status sub-tabs | filter + search + resignation rules */}
+            <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {STATUS_PILLS.map((pill) => (
+                  <button
+                    key={pill.key}
+                    type="button"
+                    onClick={() => setStatusFilter(pill.key)}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-pmedium transition-all ${
+                      statusFilter === pill.key
+                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap xl:w-auto">
                 <select
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 cursor-pointer"
+                  className="min-w-[120px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50"
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
                 >
                   {allDepartments.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <div className="relative min-w-[200px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <div className="relative min-w-[180px] flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     type="text"
                     placeholder="Search employee, code, or reason..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                   />
                 </div>
+                <ResignationManagementSettingsPanel onSaved={loadOverview} />
               </div>
             </div>
 
@@ -615,19 +677,19 @@ export function HRExitManagementPage() {
                               {getInitials(request.employeeName)}
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-900">{request.employeeName}</div>
-                              <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
+                              <div className="font-pmedium text-slate-900">{request.employeeName}</div>
+                              <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="font-medium text-slate-700 text-sm">{request.department || "General"}</span>
-                          <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
+                          <span className="font-pmedium text-slate-700 text-sm">{request.department || "General"}</span>
+                          <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
                         </td>
-                        <td className="px-6 py-5 text-sm font-medium text-slate-700">{formatDateLabel(request.createdAt)}</td>
-                        <td className="px-6 py-5 text-center font-semibold text-[#2563EB]">{request.noticePeriodDays || 0} Days</td>
+                        <td className="px-6 py-5 text-sm font-pmedium text-slate-700">{formatDateLabel(request.createdAt)}</td>
+                        <td className="px-6 py-5 text-center font-pmedium text-[#2563EB]">{request.noticePeriodDays || 0} Days</td>
                         <td className="px-6 py-5">
-                          <p className="max-w-[260px] truncate text-xs font-medium text-slate-500" title={request.reason}>
+                          <p className="max-w-[260px] truncate text-xs font-pmedium text-slate-500" title={request.reason}>
                             {request.reason}
                           </p>
                         </td>
@@ -672,7 +734,7 @@ export function HRExitManagementPage() {
                     ))}
                     {filteredRequests.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                        <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-pmedium">
                           <ShieldAlert size={28} className="mx-auto mb-3 text-slate-300" />
                           No pending resignation requests.
                         </td>
@@ -705,14 +767,14 @@ export function HRExitManagementPage() {
                               {getInitials(request.employeeName)}
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-900">{request.employeeName}</div>
-                              <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
+                              <div className="font-pmedium text-slate-900">{request.employeeName}</div>
+                              <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="font-medium text-slate-700 text-sm">{request.department || "General"}</span>
-                          <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
+                          <span className="font-pmedium text-slate-700 text-sm">{request.department || "General"}</span>
+                          <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
                         </td>
                         <td className="px-6 py-5 text-sm font-semibold text-amber-600">
                           <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-sm text-amber-600">
@@ -727,7 +789,7 @@ export function HRExitManagementPage() {
                                 style={{ width: `${request.checklistProgress || 0}%` }}
                               />
                             </div>
-                            <span className="text-xs font-semibold text-slate-600">
+                            <span className="text-xs font-pmedium text-slate-600">
                               {request.completedChecklistCount}/{request.totalChecklistCount}
                             </span>
                           </div>
@@ -743,14 +805,14 @@ export function HRExitManagementPage() {
                             }`}
                           >
                             {request.canComplete ? <CheckCircle2 size={14} /> : <CheckSquare size={14} />}
-                            {request.canComplete ? "Complete Exit" : "Manage"}
+                            {request.canComplete ? "Complete Resignation" : "Manage"}
                           </button>
                         </td>
                       </tr>
                     ))}
                     {filteredNotice.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-pmedium">
                           No employees currently on notice period.
                         </td>
                       </tr>
@@ -768,7 +830,7 @@ export function HRExitManagementPage() {
                     <tr>
                       <th className="px-6 py-5">Employee</th>
                       <th className="px-6 py-5">Department / Role</th>
-                      <th className="px-6 py-5">Exit Date</th>
+                      <th className="px-6 py-5">Resignation Date</th>
                       <th className="px-6 py-5">Reason on File</th>
                       <th className="px-6 py-5 text-center">Status</th>
                       <th className="px-6 py-5 text-center">Action</th>
@@ -783,18 +845,18 @@ export function HRExitManagementPage() {
                               {getInitials(request.employeeName)}
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-700">{request.employeeName}</div>
-                              <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
+                              <div className="font-pmedium text-slate-700">{request.employeeName}</div>
+                              <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.employeeId}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="font-medium text-slate-600 text-sm">{request.department || "General"}</span>
-                          <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
+                          <span className="font-pmedium text-slate-600 text-sm">{request.department || "General"}</span>
+                          <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-400">{request.requesterRole}</p>
                         </td>
-                        <td className="px-6 py-5 text-sm font-medium text-slate-700">{formatDateLabel(request.completedAt || request.rejectedAt || request.approvedAt)}</td>
+                        <td className="px-6 py-5 text-sm font-pmedium text-slate-700">{formatDateLabel(request.completedAt || request.rejectedAt || request.approvedAt)}</td>
                         <td className="px-6 py-5">
-                          <p className="max-w-[260px] truncate text-xs italic text-slate-500" title={request.reason}>
+                          <p className="max-w-[260px] truncate text-xs italic font-pmedium text-slate-500" title={request.reason}>
                             {request.reason}
                           </p>
                         </td>
@@ -816,8 +878,8 @@ export function HRExitManagementPage() {
                     ))}
                     {filteredHistory.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                          No historical exit records found.
+                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">
+                          No historical resignation records found.
                         </td>
                       </tr>
                     )}
@@ -840,7 +902,7 @@ export function HRExitManagementPage() {
                 </div>
                 <div>
                   <h2 className="flex items-center gap-2 text-2xl font-bold text-white">
-                    <LogOut size={22} className="text-red-400" /> Exit Request
+                    <LogOut size={22} className="text-red-400" /> Resignation Request
                   </h2>
                   <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">{viewingRequest.exitCode}</p>
                 </div>
@@ -878,7 +940,7 @@ export function HRExitManagementPage() {
                 </section>
 
                 <section>
-                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Exit Details</h3>
+                  <h3 className="mb-4 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-400">Resignation Details</h3>
                   <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-blue-50/40 p-5 md:grid-cols-3">
                     <div>
                       <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-blue-500">Applied Date</p>
@@ -898,7 +960,7 @@ export function HRExitManagementPage() {
                         {viewingRequest.reason}
                       </div>
                     </div>
-                    {viewingRequest.requestedDocuments?.length > 0 && (
+                    {Array.isArray(viewingRequest.requestedDocuments) && viewingRequest.requestedDocuments.length > 0 && (
                       <div className="col-span-1 md:col-span-3">
                         <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-blue-500">Requested Documents</p>
                         <div className="flex flex-wrap gap-2">
@@ -935,7 +997,7 @@ export function HRExitManagementPage() {
                 )}
 
                 <section className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">
-                  Exit status: <span className="font-semibold text-slate-700">{formatStatusLabel(viewingRequest.status)}</span>
+                  Resignation status: <span className="font-semibold text-slate-700">{formatStatusLabel(viewingRequest.status)}</span>
                 </section>
               </div>
             </div>
@@ -959,28 +1021,28 @@ export function HRExitManagementPage() {
       )}
 
       {/* ── Manage Checklist Modal ── */}
-      {managingExit && (
+      {managingResignation && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 p-6 md:p-8">
               <div>
-                <h2 className="flex items-center gap-2 text-2xl font-bold text-white"><CheckSquare size={22} /> Exit Clearance Checklist</h2>
+                <h2 className="flex items-center gap-2 text-2xl font-bold text-white"><CheckSquare size={22} /> Resignation Clearance Checklist</h2>
                 <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                  {managingExit.employeeName} &bull; {managingExit.exitCode}
+                  {managingResignation.employeeName} &bull; {managingResignation.exitCode}
                 </p>
               </div>
-              <button type="button" onClick={() => setManagingExit(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 transition hover:bg-red-500 hover:text-white"><X size={18} /></button>
+              <button type="button" onClick={() => setManagingResignation(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 transition hover:bg-red-500 hover:text-white"><X size={18} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto bg-white p-6 md:p-8">
               <div className="space-y-4">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                   <p className="text-xs font-medium leading-relaxed text-amber-800">
-                    Mark each clearance step as complete. The final exit can be closed only after every checklist item is done and the notice period has finished.
+                    Mark each clearance step as complete. The final resignation can be closed only after every checklist item is done and the notice period has finished.
                   </p>
                 </div>
                 <div className="space-y-3">
-                  {(managingExit.checklist || []).map((item) => (
+                  {(managingResignation.checklist || []).map((item) => (
                     <button
                       key={item.key}
                       type="button"
@@ -1002,12 +1064,12 @@ export function HRExitManagementPage() {
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <div className="mb-3 flex items-center justify-between text-xs font-pmedium uppercase tracking-wider text-slate-500">
                     <span>Checklist Progress</span>
-                    <span>{managingExit.completedChecklistCount || 0}/{managingExit.totalChecklistCount || 0}</span>
+                    <span>{managingResignation.completedChecklistCount || 0}/{managingResignation.totalChecklistCount || 0}</span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-200">
                     <div
-                      className={`h-2 rounded-full ${managingExit.checklistProgress === 100 ? "bg-green-500" : "bg-[#2563EB]"}`}
-                      style={{ width: `${managingExit.checklistProgress || 0}%` }}
+                      className={`h-2 rounded-full ${managingResignation.checklistProgress === 100 ? "bg-green-500" : "bg-[#2563EB]"}`}
+                      style={{ width: `${managingResignation.checklistProgress || 0}%` }}
                     />
                   </div>
                 </div>
@@ -1015,9 +1077,9 @@ export function HRExitManagementPage() {
             </div>
 
             <div className="flex shrink-0 gap-4 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => setManagingExit(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Save Progress & Close</button>
-              <button type="button" onClick={handleCompleteExit} disabled={!managingExit.canComplete} className="flex-1 rounded-2xl bg-green-600 py-4 font-pmedium text-white shadow-lg shadow-green-200 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
-                <UserMinus size={18} className="mr-2 inline-block" /> Complete Exit
+              <button type="button" onClick={() => setManagingResignation(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition hover:bg-slate-100">Save Progress & Close</button>
+              <button type="button" onClick={handleCompleteResignation} disabled={!managingResignation.canComplete} className="flex-1 rounded-2xl bg-green-600 py-4 font-pmedium text-white shadow-lg shadow-green-200 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+                <UserMinus size={18} className="mr-2 inline-block" /> Complete Resignation
               </button>
             </div>
           </div>
@@ -1041,7 +1103,7 @@ export function HRExitManagementPage() {
             <div className="space-y-5 bg-white p-6 md:p-8">
               <div className="rounded-xl border border-red-100 bg-red-50 p-4">
                 <p className="text-xs font-medium leading-relaxed text-red-700">
-                  You are rejecting an exit request from <span className="font-semibold text-red-900">{rejectingRequest.employeeName}</span>. A rejection reason is required.
+                  You are rejecting an resignation request from <span className="font-semibold text-red-900">{rejectingRequest.employeeName}</span>. A rejection reason is required.
                 </p>
               </div>
               <div className="space-y-2">
@@ -1066,4 +1128,4 @@ export function HRExitManagementPage() {
   );
 }
 
-export default HRExitManagementPage;
+export default HRResignationManagementPage;

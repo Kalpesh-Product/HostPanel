@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { TextField, IconButton, Avatar, Box } from "@mui/material";
+import { IconButton, Avatar, Box } from "@mui/material";
 import { LuImageUp } from "react-icons/lu";
 import { MdDelete } from "react-icons/md";
 import MuiModal from "./MuiModal";
@@ -250,29 +250,29 @@ const UploadMultipleFilesInput = ({
         onChange={handleFileChange}
       />
 
-      <TextField
-        size="small"
-        variant="outlined"
-        fullWidth
-        label={`${label} (max ${maxFiles})`}
-        disabled={disabled}
-        value={displayValue}
-        placeholder={`Choose up to ${maxFiles} files...`}
-        InputProps={{
-          readOnly: true,
-          endAdornment: (
-            <IconButton
-              component="label"
-              htmlFor={id ?? "multiple-file-upload"}
-              color="primary"
-              disabled={disabled || reachedLimit}
-              title={reachedLimit ? `Limit ${maxFiles} files` : "Select files"}
-            >
-              <LuImageUp />
-            </IconButton>
-          ),
-        }}
-      />
+      <div className="flex flex-col">
+        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+          {label} (max {maxFiles})
+        </label>
+        <div
+          className={`mt-1 flex w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-[13px] font-pmedium ${
+            disabled ? "border-slate-200/60 bg-slate-50 text-slate-400" : "border-slate-200/60 bg-white"
+          }`}
+        >
+          <span className={`truncate ${displayValue ? "text-[#0F172A]" : "text-slate-400"}`}>
+            {displayValue || `Choose up to ${maxFiles} files...`}
+          </span>
+          <label
+            htmlFor={id ?? "multiple-file-upload"}
+            title={reachedLimit ? `Limit ${maxFiles} files` : "Select files"}
+            className={`shrink-0 rounded p-1 text-[#2563EB] hover:bg-[#2563EB]/10 ${
+              disabled || reachedLimit ? "pointer-events-none opacity-40" : "cursor-pointer"
+            }`}
+          >
+            <LuImageUp size={16} />
+          </label>
+        </div>
+      </div>
 
       <UploadLimitWarning message={warning} onDismiss={() => setWarning(null)} />
 

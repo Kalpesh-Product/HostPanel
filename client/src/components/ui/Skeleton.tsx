@@ -579,7 +579,7 @@ export function OrganizationSkeleton() {
   );
 }
 
-export function HRExitManagementSkeleton() {
+export function HRResignationManagementSkeleton() {
   return (
     <div className="animate-pulse space-y-6 p-6">
       <div className="flex items-center gap-4">

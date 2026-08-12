@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { Controller, useFieldArray } from "react-hook-form";
-import { TextField } from "@mui/material";
 import UploadFileInput from "../../../../components/UploadFileInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
+import WebsiteFormField from "../../../../components/WebsiteFormField";
 
 const MenuSection = ({ control, register }) => {
   const { fields, append, remove } = useFieldArray({
@@ -32,31 +32,23 @@ const MenuSection = ({ control, register }) => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Category"
-                fullWidth
-                {...register(`menuItems.${index}.category`)}
+                registration={register(`menuItems.${index}.category`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Name"
-                fullWidth
-                {...register(`menuItems.${index}.name`)}
+                registration={register(`menuItems.${index}.name`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Price"
-                fullWidth
-                {...register(`menuItems.${index}.price`)}
+                registration={register(`menuItems.${index}.price`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Description"
-                fullWidth
                 multiline
                 minRows={3}
-                {...register(`menuItems.${index}.description`)}
+                registration={register(`menuItems.${index}.description`)}
               />
             </div>
             <div className="pt-4">

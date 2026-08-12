@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export interface IExitDocumentTemplate extends Document {
+export interface IResignationDocumentTemplate extends Document {
     workspaceId: mongoose.Types.ObjectId;
     label: string;
     normalizedLabel: string;
@@ -13,7 +13,7 @@ export interface IExitDocumentTemplate extends Document {
     updatedAt?: Date;
 }
 
-const exitDocumentTemplateSchema = new Schema<IExitDocumentTemplate>(
+const resignationDocumentTemplateSchema = new Schema<IResignationDocumentTemplate>(
     {
         workspaceId: {
             type: Schema.Types.ObjectId,
@@ -66,8 +66,8 @@ const exitDocumentTemplateSchema = new Schema<IExitDocumentTemplate>(
     }
 );
 
-exitDocumentTemplateSchema.index({ workspaceId: 1, normalizedLabel: 1 }, { unique: true });
+resignationDocumentTemplateSchema.index({ workspaceId: 1, normalizedLabel: 1 }, { unique: true });
 
-export const ExitDocumentTemplate = (mongoose.models.ExitDocumentTemplate as mongoose.Model<IExitDocumentTemplate>) ||
-    mongoose.model<IExitDocumentTemplate>("ExitDocumentTemplate", exitDocumentTemplateSchema);
-export default ExitDocumentTemplate;
+export const ResignationDocumentTemplate = (mongoose.models.ExitDocumentTemplate as mongoose.Model<IResignationDocumentTemplate>) ||
+    mongoose.model<IResignationDocumentTemplate>("ExitDocumentTemplate", resignationDocumentTemplateSchema);
+export default ResignationDocumentTemplate;

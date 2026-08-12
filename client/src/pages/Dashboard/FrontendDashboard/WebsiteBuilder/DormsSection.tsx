@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { Controller, useFieldArray } from "react-hook-form";
-import { TextField } from "@mui/material";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
+import WebsiteFormField from "../../../../components/WebsiteFormField";
 
 const DormsSection = ({ control, register }) => {
   const { fields, append, remove } = useFieldArray({
@@ -32,32 +32,24 @@ const DormsSection = ({ control, register }) => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Title"
-                fullWidth
-                {...register(`dorms.${index}.title`)}
+                registration={register(`dorms.${index}.title`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Capacity"
                 type="number"
-                fullWidth
-                {...register(`dorms.${index}.capacity`, { valueAsNumber: true })}
+                registration={register(`dorms.${index}.capacity`, { valueAsNumber: true })}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Price"
-                fullWidth
-                {...register(`dorms.${index}.price`)}
+                registration={register(`dorms.${index}.price`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Description"
-                fullWidth
                 multiline
                 minRows={3}
-                {...register(`dorms.${index}.description`)}
+                registration={register(`dorms.${index}.description`)}
               />
             </div>
             <div className="pt-4">

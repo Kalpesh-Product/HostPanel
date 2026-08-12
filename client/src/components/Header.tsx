@@ -151,7 +151,7 @@ const Header = ({
   };
 
   const handleProfileClick = () => {
-    navigate("/profile/company-profile");
+    navigate("/profile/my-profile");
     handlePopoverClose();
   };
 

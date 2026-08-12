@@ -145,7 +145,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "leave-request-processing": "/hr/leave-request-processing",
   "attendance-review": "/hr/attendance-review",
   "payroll-management": "/hr/payroll-management",
-  "exit-management": "/hr/exit-management",
+  "exit-management": "/hr/resignation-management",
   "tenant-companies-admin": "/administration/tenant-companies",
   bookings: "/administration/bookings",
   "visitors-management": "/visitors/visitor-management",

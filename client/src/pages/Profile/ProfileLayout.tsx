@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { getProfileTabItemsForPlan } from "./profileAccess";
-import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import useAuth from "../../hooks/useAuth";
+import useDashboardAccess from "../../hooks/useDashboardAccess";
 
 const readWorkspacePlan = (): string => {
   try {
@@ -16,41 +16,27 @@ const readWorkspacePlan = (): string => {
 
 const ProfileLayout = () => {
   const location = useLocation();
-  const axiosPrivate = useAxiosPrivate();
-  // localStorage.workspace_setup is only written once, at initial
-  // workspace-setup time — it never reflects a plan change made later from
-  // master panel. Use it as the instant-first-paint fallback only; the live
-  // fetch below (same endpoint Sidebar.tsx polls) overrides it once it
-  // resolves, so tabs unlock correctly after an upgrade instead of staying
-  // gated on "basic" forever.
-  const [plan, setPlan] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    axiosPrivate
-      .get("/api/workspaces/module-access-map")
-      .then((res) => {
-        const selectedPlan = res?.data?.data?.selectedPlan;
-        if (mounted) setPlan(selectedPlan || readWorkspacePlan());
-      })
-      .catch(() => {
-        if (mounted) setPlan(readWorkspacePlan());
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [axiosPrivate]);
-
-  const profileTabs = plan ? getProfileTabItemsForPlan(plan) : [];
+  const { auth } = useAuth();
+  const { plan, roleBand, departmentNames, isLoading } = useDashboardAccess();
+  const effectivePlan = isLoading ? readWorkspacePlan() : plan;
+  const effectiveRole = isLoading
+    ? String((auth?.user as any)?.workspaceMembership?.role || (auth?.user as any)?.role || roleBand)
+    : roleBand;
+  const effectiveDepartments = departmentNames.length > 0
+    ? departmentNames
+    : ((auth?.user as any)?.departmentNames || []);
+  const profileTabs = getProfileTabItemsForPlan(effectivePlan, {
+    roleBand: effectiveRole,
+    departmentNames: effectiveDepartments,
+  });
   const showTabs = location.pathname !== "/profile" && !location.pathname.includes("budget/");
-  const activeTabId = profileTabs.find((tab) => location.pathname.includes(tab.id))?.id;
+  const activeTabId = profileTabs.find(
+    (tab) => location.pathname === tab.route || location.pathname.includes(tab.id),
+  )?.id;
 
   return (
     <div className="p-4">
-      {showTabs && plan === null && (
-        <div className="h-10 rounded-2xl border border-slate-100 bg-white shadow-sm animate-pulse" />
-      )}
-      {showTabs && plan !== null && (
+      {showTabs && (
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {profileTabs.map((tab) => {
             const isActive = activeTabId === tab.id;

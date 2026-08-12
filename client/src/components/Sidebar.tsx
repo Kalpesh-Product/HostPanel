@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import {
   ChevronDown,
@@ -234,7 +234,7 @@ const departmentModules: NavNode[] = [
       { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, route: "/hr/leave-request-processing", disabled: false },
       { id: "attendance-review", label: "Attendance Review", icon: ClipboardCheck, route: "/hr/attendance-review", disabled: false },
       { id: "payroll-management", label: "Payroll Management", icon: Banknote, route: "/hr/payroll-management", disabled: false },
-      { id: "exit-management",      label: "Exit Management",            icon: UserMinus,    route: "/hr/exit-management", disabled: false },
+      { id: "exit-management",      label: "Resignation Management",            icon: UserMinus,    route: "/hr/resignation-management", disabled: false },
     ],
   },
   {
@@ -322,7 +322,7 @@ const DEFAULT_WORKSPACE_DEPARTMENT_NAMES = new Set([
   "it",
 ]);
 const generalData: NavNode[] = [
-  { id: "profile", label: "Profile", icon: User, route: "/profile/company-profile" },
+  { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
 
@@ -376,15 +376,15 @@ const ROUTE_BY_ID: Record<string, string> = {
   "tenant-booking-history": "/dashboard/tenant/booking-history",
   "tenant-buy-credits": "/dashboard/tenant/buy-credits",
   "tenant-tickets": "/dashboard/tenant/tickets",
-  "tenant-profile": "/profile/company-profile",
-  profile: "/profile/company-profile",
+  "tenant-profile": "/profile/my-profile",
+  profile: "/profile/my-profile",
   "employee-management": "/hr/company-management",
   "hr-documents": "/hr/documents",
   "attendance-review": "/hr/attendance-review",
   "leave-request-processing": "/hr/leave-request-processing",
   "recruitment": "/hr/recruitment",
   "payroll-management": "/hr/payroll-management",
-  "exit-management": "/hr/exit-management",
+  "exit-management": "/hr/resignation-management",
   "it-repair-logs": "/it/repair-logs",
   "it-system-access": "/it/system-access",
   "maintenance-repair-logs": "/maintenance/repair-logs",
@@ -561,36 +561,74 @@ const NavItem = ({
   forceSmall,
   tooltip,
 }: NavItemProps) => {
+  const tooltipId = useId();
+  const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(null);
+
+  const showTooltip = (element: HTMLButtonElement) => {
+    if (!tooltip) return;
+    const bounds = element.getBoundingClientRect();
+    setTooltipPosition({
+      left: bounds.right + 12,
+      top: bounds.top + bounds.height / 2,
+    });
+  };
+
   return (
-    <button
-      type="button"
-      title={tooltip || (disabled ? (disabledTitle) : "")}
-      className={`group relative flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left transition-all hover:bg-white ${
-        isActive ? "bg-white text-black shadow-sm" : "text-black/80"
-      } ${isRed ? "text-red-500 hover:text-red-600" : ""} ${
-        locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"
-      }`}
-      style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
-      onClick={onClick}
-    >
-      {Icon && (
-        <Icon
-          size={18}
-          className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
-        />
-      )}
-      {!collapsed && (
-        <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
-          {label}
-        </span>
-      )}
-      {!collapsed && hasChildren && (
-        isOpen
-          ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
-          : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
-      )}
-      {!collapsed && locked && !hasChildren && <Lock size={12} className="ml-auto shrink-0 text-black/40" />}
-    </button>
+    <>
+      <button
+        type="button"
+        title={!tooltip && disabled ? disabledTitle : undefined}
+        aria-label={collapsed ? label : undefined}
+        aria-describedby={tooltipPosition ? tooltipId : undefined}
+        className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
+          collapsed ? "h-10 justify-center gap-0 p-0" : "gap-2 px-3 py-2.5"
+        } ${isActive ? "bg-white text-black shadow-sm" : "text-black/80"} ${
+          isRed ? "text-red-500 hover:text-red-600" : ""
+        } ${locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"}`}
+        style={collapsed ? undefined : { paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+        onClick={onClick}
+        onMouseEnter={(event) => showTooltip(event.currentTarget)}
+        onMouseLeave={() => setTooltipPosition(null)}
+        onFocus={(event) => showTooltip(event.currentTarget)}
+        onBlur={() => setTooltipPosition(null)}
+      >
+        {Icon && (
+          <Icon
+            size={18}
+            className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
+          />
+        )}
+        {!collapsed && (
+          <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
+            {label}
+          </span>
+        )}
+        {!collapsed && hasChildren && (
+          isOpen
+            ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
+            : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
+        )}
+        {!collapsed && locked && !hasChildren && <Lock size={12} className="ml-auto shrink-0 text-black/40" />}
+      </button>
+
+      {tooltip && tooltipPosition
+        ? createPortal(
+            <div
+              id={tooltipId}
+              role="tooltip"
+              className="pointer-events-none fixed z-[100] -translate-y-1/2 whitespace-nowrap rounded-md bg-black px-3 py-2 font-['Poppins'] text-xs font-semibold text-white shadow-lg"
+              style={{ left: tooltipPosition.left, top: tooltipPosition.top }}
+            >
+              <span
+                aria-hidden="true"
+                className="absolute left-[-6px] top-1/2 -translate-y-1/2 border-y-[6px] border-r-[6px] border-y-transparent border-r-black"
+              />
+              {tooltip}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 };
 

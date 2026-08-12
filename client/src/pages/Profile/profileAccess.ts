@@ -13,6 +13,11 @@ export type ProfileTabItem = {
   unlocked: boolean;
 };
 
+export type CompanyProfileAccessContext = {
+  roleBand?: string | null;
+  departmentNames?: string[] | null;
+};
+
 const CUSTOM_ONLY_TAB_IDS = new Set<ProfileTabId>([
   "assigned-assets",
   "payslips",
@@ -52,16 +57,36 @@ export const PROFILE_TAB_ITEMS: ProfileTabItem[] = [
   },
   {
     id: "exit-request",
-    label: "Exit Request",
-    route: "/profile/exit-request",
+    label: "Resignation Request",
+    route: "/profile/resignation-request",
     unlocked: false,
   },
 ];
 
-export const getProfileTabItemsForPlan = (plan?: string | null): ProfileTabItem[] => {
+export const canAccessCompanyProfile = ({
+  roleBand,
+  departmentNames,
+}: CompanyProfileAccessContext): boolean => {
+  const normalizedRole = String(roleBand || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  const isFounderOrSuperAdmin = ["owner", "founder", "super_admin", "superadmin"].includes(normalizedRole);
+  const isHrManager = normalizedRole === "manager" && (departmentNames || []).some(
+    (name) => String(name || "").trim().toLowerCase() === "hr",
+  );
+
+  return isFounderOrSuperAdmin || isHrManager;
+};
+
+export const getProfileTabItemsForPlan = (
+  plan?: string | null,
+  access?: CompanyProfileAccessContext,
+): ProfileTabItem[] => {
   const normalizedPlan = String(plan || "basic").trim().toLowerCase();
 
   return PROFILE_TAB_ITEMS
+    .filter((item) => item.id !== "company-profile" || !access || canAccessCompanyProfile(access))
     .filter((item) => normalizedPlan === "custom" || !CUSTOM_ONLY_TAB_IDS.has(item.id))
     .map((item) => ({ ...item, unlocked: true }));
 };

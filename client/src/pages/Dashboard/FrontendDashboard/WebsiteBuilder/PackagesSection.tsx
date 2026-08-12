@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { Controller, useFieldArray } from "react-hook-form";
-import { TextField } from "@mui/material";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
+import WebsiteFormField from "../../../../components/WebsiteFormField";
 
 const PackagesSection = ({ control, register }) => {
   const { fields, append, remove } = useFieldArray({
@@ -32,32 +32,24 @@ const PackagesSection = ({ control, register }) => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Title"
-                fullWidth
-                {...register(`packages.${index}.title`)}
+                registration={register(`packages.${index}.title`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Price"
-                fullWidth
-                {...register(`packages.${index}.price`)}
+                registration={register(`packages.${index}.price`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Stay Duration"
                 placeholder="e.g., 2 days / 1 week / 14 nights"
-                fullWidth
-                {...register(`packages.${index}.duration`)}
+                registration={register(`packages.${index}.duration`)}
               />
-              <TextField
-                size="small"
+              <WebsiteFormField
                 label="Description"
-                fullWidth
                 multiline
                 minRows={3}
-                {...register(`packages.${index}.description`)}
+                registration={register(`packages.${index}.description`)}
               />
             </div>
             <div className="pt-4">

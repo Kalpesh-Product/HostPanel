@@ -2,22 +2,14 @@
 import { useRef, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { Country, State, City } from "country-state-city";
-import {
-  TextField,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  OutlinedInput,
-  Select,
-  Checkbox,
-  ListItemText,
-} from "@mui/material";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import publicAxios from "axios";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../components/UploadMultipleFilesInput";
+import WebsiteFormField from "../../../components/WebsiteFormField";
+import WebsiteMultiSelectField from "../../../components/WebsiteMultiSelectField";
 import useAuth from "../../../hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -161,7 +153,6 @@ const NomadListing = () => {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
   const formRef = useRef(null);
-  const inclusionsSelectRef = useRef(null);
   // Removed: services/units selectors no longer needed
   // const servicesSelectRef = useRef(null);
   // const unitsSelectRef = useRef(null);
@@ -432,12 +423,10 @@ const NomadListing = () => {
               name="companyTitle"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Company Title"
                   helperText="Defaults to your company name if left blank"
-                  fullWidth
                 />
               )}
             />
@@ -448,12 +437,10 @@ const NomadListing = () => {
               name="website"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Website URL"
                   helperText="Defaults to your company's registered website if left blank"
-                  fullWidth
                 />
               )}
             />
@@ -465,12 +452,10 @@ const NomadListing = () => {
               control={control}
               rules={{ required: "Company Type is required" }}
               render={({ field }) => (
-                <TextField
-                  {...field}
+                <WebsiteFormField
+                  field={field}
                   select
-                  size="small"
                   label="Company Type"
-                  fullWidth
                   error={!!errors.companyType}
                   onChange={(e) => {
                     field.onChange(e);
@@ -481,34 +466,30 @@ const NomadListing = () => {
                     setValue("inclusions", current.filter((v) => allowed.has(v)));
                   }}
                 >
+                  <option value="" disabled>
+                    Select Company Type
+                  </option>
                   {companyTypes.map((type) => {
                     const normalizedType = normalizeNomadListingType(type);
                     const isBrandNewType = !addedTypes.has(normalizedType);
                     const disabledForTypeLimit = isBrandNewType && !canAddNewType;
+                    const suffix = !isBrandNewType
+                      ? " (Added)"
+                      : disabledForTypeLimit
+                        ? " (Type limit reached)"
+                        : "";
                     return (
-                      <MenuItem
+                      <option
                         key={type}
                         value={type.toLowerCase().replace(/\s+/g, "")}
                         disabled={disabledForTypeLimit}
-                        className="font-pmedium"
                       >
-                        <span className="flex w-full items-center justify-between gap-4 font-pmedium">
-                          <span>{type}</span>
-                          {!isBrandNewType && (
-                            <span className="text-[10px] font-pmedium uppercase tracking-wide text-emerald-600">
-                              Added
-                            </span>
-                          )}
-                          {disabledForTypeLimit && (
-                            <span className="text-[10px] font-pmedium uppercase tracking-wide text-rose-600">
-                              Type limit reached
-                            </span>
-                          )}
-                        </span>
-                      </MenuItem>
+                        {type}
+                        {suffix}
+                      </option>
                     );
                   })}
-                </TextField>
+                </WebsiteFormField>
               )}
             />
             <p className={`mt-1.5 text-[11px] font-pmedium ${isAtLimit ? "text-rose-600" : "text-slate-500"}`}>
@@ -544,37 +525,20 @@ const NomadListing = () => {
               render={({ field }) => {
                 const options = AMENITIES_BY_TYPE[selectedCompanyType] || [];
                 return (
-                  <FormControl size="small" fullWidth disabled={!selectedCompanyType} ref={inclusionsSelectRef}>
-                    <InputLabel>Inclusions</InputLabel>
-                    <Select
-                      {...field}
-                      multiple
-                      value={
-                        Array.isArray(field.value)
-                          ? field.value
-                          : field.value
+                  <WebsiteMultiSelectField
+                    label="Inclusions"
+                    value={
+                      Array.isArray(field.value)
+                        ? field.value
+                        : field.value
                           ? [field.value]
                           : []
-                      }
-                      input={<OutlinedInput label="Inclusions" />}
-                      MenuProps={getMultiSelectMenuProps(inclusionsSelectRef)}
-                      renderValue={(selected) =>
-                        Array.isArray(selected) ? selected.join(", ") : ""
-                      }
-                    >
-                      {options.map((option) => (
-                        <MenuItem key={option} value={option}>
-                          <Checkbox
-                            checked={
-                              Array.isArray(field.value) &&
-                              field.value.includes(option)
-                            }
-                          />
-                          <ListItemText primary={option} />
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                    }
+                    onChange={field.onChange}
+                    options={options}
+                    disabled={!selectedCompanyType}
+                    placeholder="Select inclusions"
+                  />
                 );
               }}
             />
@@ -727,13 +691,11 @@ const NomadListing = () => {
               name="address"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Address"
                   multiline
                   minRows={3}
-                  fullWidth
                 />
               )}
             />
@@ -744,13 +706,11 @@ const NomadListing = () => {
               name="about"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="About"
                   multiline
                   minRows={3}
-                  fullWidth
                 />
               )}
             />
@@ -765,15 +725,15 @@ const NomadListing = () => {
                 max: { value: 5, message: "Rating must be between 1 and 5" },
               }}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Ratings"
                   type="number"
-                  inputProps={{ min: 1, max: 5, step: 0.1 }}
+                  min={1}
+                  max={5}
+                  step={0.1}
                   error={!!errors.ratings}
                   helperText={errors?.ratings?.message}
-                  fullWidth
                 />
               )}
             />
@@ -792,15 +752,15 @@ const NomadListing = () => {
                   "Total reviews must be a whole number",
               }}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Total Reviews"
                   type="number"
-                  inputProps={{ min: 0, max: 500000, step: 1 }}
+                  min={0}
+                  max={500000}
+                  step={1}
                   error={!!errors.totalReviews}
                   helperText={errors?.totalReviews?.message}
-                  fullWidth
                 />
               )}
             />
@@ -813,12 +773,10 @@ const NomadListing = () => {
               control={control}
               rules={{ required: "Country is required" }}
               render={({ field }) => (
-                <TextField
-                  {...field}
+                <WebsiteFormField
+                  field={field}
                   select
-                  size="small"
                   label="Country"
-                  fullWidth
                   error={!!errors.country}
                   helperText={errors?.country?.message}
                   onChange={(e) => {
@@ -827,12 +785,15 @@ const NomadListing = () => {
                     setValue("city", "");
                   }}
                 >
+                  <option value="" disabled>
+                    Select Country
+                  </option>
                   {Country.getAllCountries().map((c) => (
-                    <MenuItem key={c.isoCode} value={c.name}>
+                    <option key={c.isoCode} value={c.name}>
                       {c.name}
-                    </MenuItem>
+                    </option>
                   ))}
-                </TextField>
+                </WebsiteFormField>
               )}
             />
           </div>
@@ -851,12 +812,10 @@ const NomadListing = () => {
                   ? State.getStatesOfCountry(countryObj.isoCode)
                   : [];
                 return (
-                  <TextField
-                    {...field}
+                  <WebsiteFormField
+                    field={field}
                     select
-                    size="small"
                     label="State"
-                    fullWidth
                     disabled={!countryObj}
                     error={!!errors.state}
                     helperText={errors?.state?.message}
@@ -865,12 +824,15 @@ const NomadListing = () => {
                       setValue("city", "");
                     }}
                   >
+                    <option value="" disabled>
+                      Select State
+                    </option>
                     {states.map((s) => (
-                      <MenuItem key={s.isoCode} value={s.name}>
+                      <option key={s.isoCode} value={s.name}>
                         {s.name}
-                      </MenuItem>
+                      </option>
                     ))}
-                  </TextField>
+                  </WebsiteFormField>
                 );
               }}
             />
@@ -897,22 +859,23 @@ const NomadListing = () => {
                     ? City.getCitiesOfState(countryObj.isoCode, stateObj.isoCode)
                     : [];
                 return (
-                  <TextField
-                    {...field}
+                  <WebsiteFormField
+                    field={field}
                     select
-                    size="small"
                     label="City"
-                    fullWidth
                     disabled={!stateObj}
                     error={!!errors.city}
                     helperText={errors?.city?.message}
                   >
+                    <option value="" disabled>
+                      Select City
+                    </option>
                     {cities.map((c) => (
-                      <MenuItem key={c.name} value={c.name}>
+                      <option key={c.name} value={c.name}>
                         {c.name}
-                      </MenuItem>
+                      </option>
                     ))}
-                  </TextField>
+                  </WebsiteFormField>
                 );
               }}
             />
@@ -932,8 +895,8 @@ const NomadListing = () => {
                 },
               }}
               render={({ field }) => (
-                <TextField
-                  {...field}
+                <WebsiteFormField
+                  field={field}
                   onChange={(e) => {
                     field.onChange(e);
                     const coords = extractLatLngFromMapUrl(e.target.value);
@@ -942,9 +905,7 @@ const NomadListing = () => {
                       setValue("longitude", coords.lng);
                     }
                   }}
-                  size="small"
                   label="Google Map URL"
-                  fullWidth
                   helperText={errors?.googleMap?.message}
                   error={!!errors.googleMap}
                 />
@@ -961,15 +922,15 @@ const NomadListing = () => {
                 max: { value: 90, message: "Latitude must be between -90 and 90" },
               }}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Latitude"
                   type="number"
-                  inputProps={{ min: -90, max: 90, step: "any" }}
+                  min={-90}
+                  max={90}
+                  step="any"
                   error={!!errors.latitude}
                   helperText={errors?.latitude?.message}
-                  fullWidth
                 />
               )}
             />
@@ -984,15 +945,15 @@ const NomadListing = () => {
                 max: { value: 180, message: "Longitude must be between -180 and 180" },
               }}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
+                <WebsiteFormField
+                  field={field}
                   label="Longitude"
                   type="number"
-                  inputProps={{ min: -180, max: 180, step: "any" }}
+                  min={-180}
+                  max={180}
+                  step="any"
                   error={!!errors.longitude}
                   helperText={errors?.longitude?.message}
-                  fullWidth
                 />
               )}
             />
@@ -1068,11 +1029,9 @@ const NomadListing = () => {
                     control={control}
                     rules={{ required: "Name is required" }}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
+                      <WebsiteFormField
+                        field={field}
                         label="Reviewer Name"
-                        fullWidth
                         helperText={errors?.reviews?.[index]?.name?.message}
                         error={!!errors?.reviews?.[index]?.name}
                       />
@@ -1087,13 +1046,12 @@ const NomadListing = () => {
                       max: { value: 5, message: "Rating must be between 1 and 5" },
                     }}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
+                      <WebsiteFormField
+                        field={field}
                         type="number"
-                        size="small"
                         label="Rating (1-5)"
-                        fullWidth
-                        inputProps={{ min: 1, max: 5 }}
+                        min={1}
+                        max={5}
                         error={!!errors?.reviews?.[index]?.rating}
                         helperText={errors?.reviews?.[index]?.rating?.message}
                       />
@@ -1101,24 +1059,23 @@ const NomadListing = () => {
                   />
                 </div>
                 {/* Review text */}
-                <Controller
-                  name={`reviews.${index}.review`}
-                  control={control}
-                  // rules={{ required: "Review is required" }}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
-                      label="Review"
-                      fullWidth
-                      multiline
-                      minRows={3}
-                      helperText={errors?.reviews?.[index]?.review?.message}
-                      error={!!errors?.reviews?.[index]?.review}
-                      sx={{ mt: 2 }}
-                    />
-                  )}
-                />
+                <div className="mt-4">
+                  <Controller
+                    name={`reviews.${index}.review`}
+                    control={control}
+                    // rules={{ required: "Review is required" }}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="Review"
+                        multiline
+                        minRows={3}
+                        helperText={errors?.reviews?.[index]?.review?.message}
+                        error={!!errors?.reviews?.[index]?.review}
+                      />
+                    )}
+                  />
+                </div>
               </div>
             ))}
             <div>

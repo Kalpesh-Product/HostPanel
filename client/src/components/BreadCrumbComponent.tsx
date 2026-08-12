@@ -653,11 +653,11 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/hr/exit-management",
+    pattern: "/hr/resignation-management",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
       { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
-      { label: "Exit Management" },
+      { label: "Resignation Management" },
     ],
   },
   {
@@ -759,10 +759,10 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/profile/exit-request",
+    pattern: "/profile/resignation-request",
     crumbs: [
       { label: SECTION_LABELS.profile, path: "/profile" },
-      { label: "Exit Request" },
+      { label: "Resignation Request" },
     ],
   },
 ];
@@ -858,25 +858,12 @@ const BreadCrumbComponent = () => {
       <Breadcrumbs
         separator=">"
         aria-label="breadcrumb"
-        // sx={{
-        //   "& .MuiBreadcrumbs-ol": {
-        //     fontSize: "1rem !important",
-        //     color: "#1E3D73",
-        //     fontFamily: "Poppins-SemiBold, sans-serif",
-        //   },
-        //   "& .MuiBreadcrumbs-li": {
-        //     fontSize: "0.9rem !important",
-        //   },
-        //   "& .MuiBreadcrumbs-li .MuiTypography-root": {
-        //     fontSize: "0.9rem !important",
-        //     color: "#1E3D73 !important",
-        //     fontFamily: "Poppins-SemiBold, sans-serif !important",
-        //   },
-        //   "& .MuiBreadcrumbs-separator": {
-        //     margin: "0 1rem",
-        //     fontFamily: "Poppins-SemiBold, sans-serif",
-        //   },
-        // }}
+        sx={{
+          "& .MuiBreadcrumbs-li, & .MuiBreadcrumbs-li .MuiTypography-root, & .MuiBreadcrumbs-li a": {
+            fontSize: "0.875rem !important",
+            fontFamily: "Poppins-SemiBold, sans-serif !important",
+          },
+        }}
       >
         {breadcrumbsToRender}
       </Breadcrumbs>
