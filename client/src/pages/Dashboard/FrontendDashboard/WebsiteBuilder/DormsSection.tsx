@@ -12,7 +12,7 @@ const DormsSection = ({ control, register }) => {
 
   return (
     <div className="col-span-2">
-      <div className="py-4 border-b-default border-borderGray">
+      <div className="py-4 border-b-default border-borderGray" data-tour="wb-editor-offerings-section">
         <span className="text-subtitle font-pmedium">Dorms</span>
       </div>
       <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4">

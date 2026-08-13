@@ -71,6 +71,11 @@ export const respondToMeetingRoomInvite = async (bookingId: string, payload: Rec
   const response = await axiosPrivate.post(`${BASE}/bookings/${bookingId}/respond`, payload);
   return unwrap(response);
 };
+export const addMeetingRoomBookingInvites = async (bookingId: string, inviteeUserIds: string[]) => {
+  const response = await axiosPrivate.post(`${BASE}/bookings/${bookingId}/invites`, { inviteeUserIds });
+  return unwrap(response);
+};
+
 
 // ======================
 // CLIENTS / OTHER (Added for VisitorManagement.tsx)

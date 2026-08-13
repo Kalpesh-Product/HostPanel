@@ -413,6 +413,8 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "organization-management": Building,
   "module-management": Boxes,
   "access-grants": UserCog,
+  "workspace-settings": SlidersHorizontal,
+  "workspace-management": MonitorCog,
   "unit-settings": SlidersHorizontal,
   "unit-management": LayoutGrid,
   analytics: BarChart,
@@ -1817,20 +1819,6 @@ useEffect(() => {
                 </div>
               </div>
             ))
-        )}
-
-        {isSidebarHydrated && planLabel === "basic" && (
-          <div className="px-4 pt-2">
-            <div className="border-t border-black/10 pt-2 space-y-1">
-              <NavGroup
-                item={{ id: "add-ons", label: "Add-Ons", icon: Puzzle, route: "/module-sections/add-ons" }}
-                collapsed={collapsed}
-                pathname={location.pathname}
-                onNavigate={onNavigate}
-                sectionKey="add-ons"
-              />
-            </div>
-          </div>
         )}
 
         {isSidebarHydrated && (

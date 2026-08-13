@@ -19,6 +19,7 @@ import {
   prepareHrPayrollCycle,
   updateHrPayrollCycleStatus,
 } from "../services/payrollService.js";
+import { listBanksByCountry, verifyBankDetails } from "../services/bankVerificationService.js";
 
 const normalizeFileName = (value = "") =>
   String(value || "")
@@ -44,6 +45,28 @@ export const getEmployeeManagementOverview = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const getEmployeeBankDirectory = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const data = await listBanksByCountry({
+      countryCode: String(req.query.countryCode || ""),
+      state: String(req.query.state || ""),
+      city: String(req.query.city || ""),
+    });
+    return res.status(200).json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const verifyEmployeeBankAccount = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const data = await verifyBankDetails(req.body || {});
+    return res.status(200).json({ success: true, data });
+  } catch (error) { next(error); }
 };
 
 export const createEmployeeRecord = async (req, res, next) => {

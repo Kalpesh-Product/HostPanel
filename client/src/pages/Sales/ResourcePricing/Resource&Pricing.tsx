@@ -1122,6 +1122,13 @@ export default function PricingPackagesPage() {
     };
   }
 
+  const handleBulkUploadClick = () => {
+    setBulkUploadSummary(null);
+    setBulkUploadFileName('');
+    setErrorMessage('');
+    setIsBulkUploadOpen(true);
+  };
+
   async function readSpreadsheetRows(file) {
     const XLSX = await import('xlsx');
     const name = String(file?.name || '').toLowerCase();
@@ -1670,7 +1677,7 @@ export default function PricingPackagesPage() {
 
                 <button
                                               type="button"
-                                              // onClick={handleBulkUploadClick}
+                                              onClick={handleBulkUploadClick}
                                               className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
                                             >
                                               <UploadCloud size={13} /> 
@@ -1683,15 +1690,17 @@ export default function PricingPackagesPage() {
               <>
                 <button
                                 type="button"
-                                // onClick={handleExportPDF}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                onClick={() => handleExportPackagesReport('PDF')}
+                                disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
                                 <FileDown size={16} className="text-red-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
-                                // onClick={handleExportExcel}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                onClick={() => handleExportPackagesReport('Excel')}
+                                disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>

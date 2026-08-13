@@ -1502,16 +1502,16 @@ export default function TenantCompaniesPage() {
     [customPackageAreaResources],
   );
   const customPackageVisibleOpenAreaResources = useMemo(
-    () => customPackageOpenAreaResources,
-    [customPackageOpenAreaResources],
+    () => (customPackageBlockMix === 'cabin' ? [] : customPackageOpenAreaResources),
+    [customPackageOpenAreaResources, customPackageBlockMix],
   );
   const customPackageVisibleCabinAreaResources = useMemo(
-    () => customPackageCabinAreaResources,
-    [customPackageCabinAreaResources],
+    () => (customPackageBlockMix === 'open' ? [] : customPackageCabinAreaResources),
+    [customPackageCabinAreaResources, customPackageBlockMix],
   );
   const customPackageVisibleSingleOpenDeskResources = useMemo(
-    () => customPackageSingleOpenDeskResources,
-    [customPackageSingleOpenDeskResources],
+    () => (customPackageBlockMix === 'cabin' ? [] : customPackageSingleOpenDeskResources),
+    [customPackageSingleOpenDeskResources, customPackageBlockMix],
   );
   const customPackageSelectedResourceKeys = useMemo(
     () => new Set(
@@ -4129,7 +4129,7 @@ export default function TenantCompaniesPage() {
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-indigo-500 uppercase tracking-widest flex items-center gap-1">Credits Allocated (Auto)</label>
                         <input required type="number" min="0" disabled={Boolean(selectedTenantPackage)} className="w-full px-4 py-3.5 bg-white border-2 border-indigo-200 rounded-xl font-pmedium text-indigo-700 outline-none disabled:bg-indigo-100/50 disabled:cursor-not-allowed" value={companyForm.creditsAllocated} onChange={e => setCompanyForm({ ...companyForm, creditsAllocated: parseInt(e.target.value) || 0, planType: 'Custom', pricingPackageId: '__custom__' })} />
-                        <p className="text-[9px] font-pmedium text-indigo-400 mt-1">Credits used for meeting room bookings.</p>
+                        <p className="text-[9px] font-pmedium text-indigo-400 mt-1">Credits can be used for Meeting & Conference Rooms Bookings.</p>
                       </div>
                       {isCustomPackageSelected && (
                         <div className="md:col-span-2 space-y-3 rounded-xl border border-indigo-100 bg-white p-3">
@@ -4199,6 +4199,7 @@ export default function TenantCompaniesPage() {
                           {hasCustomPackageScopeSelection ? (
                             customPackageVisibleOpenAreaResources.length > 0 || customPackageVisibleCabinAreaResources.length > 0 || customPackageVisibleSingleOpenDeskResources.length > 0 ? (
                               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                {customPackageBlockMix !== 'cabin' && (
                                 <div className="rounded-xl border border-emerald-200 bg-white p-3">
                                   <div className="mb-2 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2">
@@ -4236,6 +4237,8 @@ export default function TenantCompaniesPage() {
                                     )}
                                   </div>
                                 </div>
+                                )}
+                                {customPackageBlockMix !== 'open' && (
                                 <div className="rounded-xl border border-blue-200 bg-white p-3">
                                   <div className="mb-2 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2">
@@ -4273,6 +4276,8 @@ export default function TenantCompaniesPage() {
                                     )}
                                   </div>
                                 </div>
+                                )}
+                                {customPackageBlockMix !== 'cabin' && (
                                 <div className="rounded-xl border border-sky-200 bg-white p-3">
                                   <div className="mb-2 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2">
@@ -4300,6 +4305,7 @@ export default function TenantCompaniesPage() {
                                     )}
                                   </div>
                                 </div>
+                                )}
                               </div>
                             ) : (
                               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">

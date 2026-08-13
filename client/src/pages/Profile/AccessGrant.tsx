@@ -17,6 +17,7 @@ import {
   Clock,
   UserX,
   Mail,
+  User,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
@@ -82,6 +83,10 @@ interface LinkedWorkspace {
   location?: string;
   isCurrentWorkspace?: boolean;
   isMain?: boolean;
+  isActive?: boolean;
+  isDisabled?: boolean;
+  isDeleted?: boolean;
+  status?: string;
   selectedPlan?: string;
   departments?: Array<{ id: string; name: string }>;
   [key: string]: unknown;
@@ -425,7 +430,6 @@ export default function AccessGrantsPage() {
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showTransferWarning, setShowTransferWarning] = useState(false);
   const [transferTargetUserId, setTransferTargetUserId] = useState('');
-  const [ownershipTransferWorkspaceIds, setOwnershipTransferWorkspaceIds] = useState<string[]>([]);
   const [linkedWorkspaces, setLinkedWorkspaces] = useState<LinkedWorkspace[]>([]);
   const [showWorkspaceTransferDialog, setShowWorkspaceTransferDialog] = useState(false);
   const [showWorkspaceLinkDialog, setShowWorkspaceLinkDialog] = useState(false);
@@ -567,7 +571,13 @@ export default function AccessGrantsPage() {
   const users = useMemo(() => members, [members]);
   const workspacePlan = getWorkspacePlan({ selectedPlan: workspace?.selectedPlan });
   const transferWorkspaceOptions = useMemo(
-    () => linkedWorkspaces.filter((item) => !item?.isCurrentWorkspace),
+    () =>
+      linkedWorkspaces.filter(
+        (item) =>
+          !item?.isCurrentWorkspace &&
+          item?.isActive !== false &&
+          item?.isDeleted !== true,
+      ),
     [linkedWorkspaces],
   );
   const selectedUserRole = normalizeRole(selectedUser?.rawRole || '');
@@ -704,22 +714,18 @@ export default function AccessGrantsPage() {
     [users, transferTargetUserId],
   );
 
-  const selectedOwnershipWorkspaceIds = useMemo(
+  // Ownership handover always covers the whole account. Unit IDs are derived
+  // from the linked-unit list so there is no partial-transfer selection state.
+  const ownershipTransferWorkspaceIds = useMemo(
     () =>
       Array.from(
-        new Set([currentWorkspaceId, ...ownershipTransferWorkspaceIds].filter(Boolean)),
+        new Set([
+          currentWorkspaceId,
+          ...linkedWorkspaces.map((item) => String(item.id || '')),
+        ].filter(Boolean)),
       ),
-    [ownershipTransferWorkspaceIds, currentWorkspaceId],
+    [linkedWorkspaces, currentWorkspaceId],
   );
-
-  // Ownership handover covers the whole account: every linked unit must be
-  // selected before the transfer can be confirmed.
-  const allOwnershipUnitsSelected = useMemo(() => {
-    const allUnitIds = linkedWorkspaces
-      .map((item) => String(item.id || ''))
-      .filter(Boolean);
-    return allUnitIds.length > 0 && allUnitIds.every((id) => selectedOwnershipWorkspaceIds.includes(id));
-  }, [linkedWorkspaces, selectedOwnershipWorkspaceIds]);
 
   const getRoleBadge = (group) => {
     switch (group) {
@@ -735,6 +741,12 @@ export default function AccessGrantsPage() {
       default:
         return <span className={statusPillClass("Employee")}>Employee</span>;
     }
+  };
+
+  const linkedWorkspaceStatusLabel = (item: LinkedWorkspace): string => {
+    if (item?.isDeleted) return 'Deleted';
+    if (item?.isDisabled || item?.isActive === false) return 'Disabled';
+    return '';
   };
 
   const workspaceAccessSections = useMemo(() => {
@@ -1261,14 +1273,7 @@ export default function AccessGrantsPage() {
 
     setIsSaving(true);
     try {
-      const workspaceIds = Array.from(
-        new Set(
-          [
-            currentWorkspaceId,
-            ...ownershipTransferWorkspaceIds,
-          ].filter(Boolean),
-        ),
-      );
+      const workspaceIds = ownershipTransferWorkspaceIds;
       if (!currentWorkspaceId || workspaceIds.length === 0) {
         toast.error('Select at least the current unit for ownership transfer.');
         return;
@@ -1303,7 +1308,6 @@ export default function AccessGrantsPage() {
       setShowDetailPanel(false);
       setSelectedUser(null);
       setTransferTargetUserId('');
-      setOwnershipTransferWorkspaceIds([]);
       toast.success(`Ownership transferred to ${targetMember?.name || 'the selected user'}.`);
       navigate('/dashboard', { replace: true });
     } catch (error) {
@@ -1595,9 +1599,6 @@ export default function AccessGrantsPage() {
                   <button
                     onClick={() => {
                       setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
-                      setOwnershipTransferWorkspaceIds(
-                        linkedWorkspaces.map((item) => String(item.id || '')).filter(Boolean),
-                      );
                       setShowTransferWarning(false);
                       setShowTransferDialog(true);
                     }}
@@ -1662,12 +1663,8 @@ export default function AccessGrantsPage() {
                             <span className="font-pmedium text-slate-800 text-[12px]">{user.employeeId || '—'}</span>
                           </td>
                           <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-pmedium shadow-sm shrink-0 ${
-                                user.roleGroup === 'Founder' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'
-                              }`}>
-                                {getInitials(user.name)}
-                              </div>
+                            <div className="flex items-center gap-2.5">
+                              <User size={14} className="shrink-0 text-slate-400" />
                               <span className="font-pmedium text-slate-800 text-[12px]">{user.name}</span>
                             </div>
                           </td>
@@ -1744,7 +1741,7 @@ export default function AccessGrantsPage() {
                                       ? 'Account deleted — role cannot be managed'
                                       : isUserDisabled
                                         ? 'Enable the user to change their role'
-                                        : canEditAccessGrants ? 'Manage Role' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
+                                        : canEditAccessGrants ? 'Manage Unit Access' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
                                   >
                                     <UserCog size={15} strokeWidth={2.5} />
                                   </button>
@@ -1769,12 +1766,12 @@ export default function AccessGrantsPage() {
         </div>
 
         {showDetailPanel && selectedUser && (
-          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[1rem] max-w-md w-full overflow-hidden shadow-2xl border border-white/10 scale-95 sm:scale-90">
-              <div className="p-2.5 sm:p-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Access Control</p>
-                  <h2 className="text-[13px] sm:text-sm font-pmedium text-white mt-1">
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-blue-50/30 p-4 sm:p-5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Access Control</p>
+                  <h2 className="mt-1 truncate text-sm sm:text-base font-pmedium text-slate-900">
                     {canManageAnyAccess ? 'Manage Access' : 'View Access'} - {selectedUser.name}
                   </h2>
                 </div>
@@ -1783,13 +1780,13 @@ export default function AccessGrantsPage() {
                     setShowDetailPanel(false);
                     setSelectedUser(null);
                   }}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors border border-white/5"
+                  className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"
                 >
-                  <X className="w-5 h-5 text-slate-300" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-2.5 sm:p-3 space-y-2.5 bg-gradient-to-b from-slate-50 to-white">
+              <div className="space-y-2.5 overflow-y-auto bg-white p-4 sm:p-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-[#2563EB] to-[#1e40af] rounded-full flex items-center justify-center text-white font-semibold text-xs shrink-0">
                     {getInitials(selectedUser.name)}
@@ -1901,23 +1898,23 @@ export default function AccessGrantsPage() {
         )}
 
         {showMemberAccessDialog && memberAccessTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-2xl overflow-hidden rounded-[1.25rem] border border-white/10 bg-white shadow-2xl">
-              <div className="flex items-center justify-between bg-slate-900 px-4 py-3.5">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-blue-50/30 px-4 py-4 sm:px-5 sm:py-5">
                 <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Sidebar Access</p>
-                  <h3 className="mt-1 text-base font-semibold text-white">{memberAccessTarget.name}</h3>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Sidebar Access</p>
+                  <h3 className="mt-1 text-base font-pmedium text-slate-900">{memberAccessTarget.name}</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowMemberAccessDialog(false)}
-                  className="rounded-xl border border-white/10 p-2.5 text-slate-300 transition-colors hover:bg-white/10"
+                  className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="max-h-[68vh] space-y-3 overflow-y-auto bg-slate-50 p-4">
+              <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
                  {/* hide founder core modules for target employee */}
                 {orderedAccessSections.map((section, sectionIndex) =>
                 isTargetEmployee && normalizeModuleKey(section.key) === 'founder-core-modules' ? null : (
@@ -2170,11 +2167,11 @@ export default function AccessGrantsPage() {
                 ))}
               </div>
 
-              <div className="flex justify-end gap-2.5 border-t border-slate-100 bg-white px-4 py-3">
+              <div className="flex shrink-0 justify-end gap-2.5 border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
                 <button
                   type="button"
                   onClick={() => setShowMemberAccessDialog(false)}
-                  className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-pmedium text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-pmedium text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
@@ -2182,7 +2179,7 @@ export default function AccessGrantsPage() {
                   type="button"
                   disabled={isSaving || !canManageModuleAccess}
                   onClick={handleSaveMemberAccess}
-                  className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-xs font-pmedium text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-xl bg-[#2563EB] px-3.5 py-1.5 text-xs font-pmedium text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : 'Save Access'}
                 </button>
@@ -2192,12 +2189,12 @@ export default function AccessGrantsPage() {
         )}
 
           {showWorkspaceRemoveDialog && selectedUser && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-              <div className="my-6 w-full max-w-md overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
-                <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+              <div className="my-6 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-red-50/40 p-4 sm:p-5">
                   <div>
-                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-red-300">Remove Unit Access</p>
-                    <h2 className="mt-1 text-sm font-pmedium text-white">Remove access for {selectedUser.name}</h2>
+                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-red-600">Remove Unit Access</p>
+                    <h2 className="mt-1 text-sm font-pmedium text-slate-900">Remove access for {selectedUser.name}</h2>
                   </div>
                   <button
                     type="button"
@@ -2205,13 +2202,13 @@ export default function AccessGrantsPage() {
                       setShowWorkspaceRemoveDialog(false);
                       setWorkspaceRemoveTargetIds([]);
                     }}
-                    className="rounded-xl border border-white/5 p-2.5 transition-colors hover:bg-white/10"
+                    className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"
                   >
-                    <X className="h-5 w-5 text-slate-300" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="space-y-3 bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
+                <div className="space-y-3 bg-white p-4 sm:p-5">
                   <div>
                     <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">
                       Units to remove
@@ -2296,22 +2293,22 @@ export default function AccessGrantsPage() {
             </div>
           )}
           {showWorkspaceLinkDialog && selectedUser && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-              <div className="my-6 w-full max-w-md overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
-                <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+              <div className="my-6 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-sky-50/40 p-4 sm:p-5">
                   <div>
-                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Unit Access</p>
-                    <h2 className="mt-1 text-sm font-pmedium text-white">Add access for {selectedUser.name}</h2>
+                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-sky-600">Unit Access</p>
+                    <h2 className="mt-1 text-sm font-pmedium text-slate-900">Add access for {selectedUser.name}</h2>
                   </div>
                   <button
                     onClick={() => setShowWorkspaceLinkDialog(false)}
-                    className="rounded-xl border border-white/5 p-2.5 transition-colors hover:bg-white/10"
+                    className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"
                   >
-                    <X className="h-5 w-5 text-slate-300" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="space-y-3 bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
+                <div className="space-y-3 bg-white p-4 sm:p-5">
                   <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
                     <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Current units</p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -2421,22 +2418,22 @@ export default function AccessGrantsPage() {
           )}
 
           {showWorkspaceTransferDialog && selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-            <div className="my-6 w-full max-w-lg overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
-              <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+            <div className="my-6 w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-indigo-50/40 p-4 sm:p-5">
                 <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-slate-400">Unit Transfer</p>
-                  <h2 className="mt-1 text-sm font-pmedium text-white">Transfer {selectedUser.name}</h2>
+                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-indigo-600">Unit Transfer</p>
+                  <h2 className="mt-1 text-sm font-pmedium text-slate-900">Transfer {selectedUser.name}</h2>
                 </div>
                 <button
                   onClick={() => setShowWorkspaceTransferDialog(false)}
-                  className="rounded-xl border border-white/5 p-2.5 transition-colors hover:bg-white/10"
+                  className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"
                 >
-                  <X className="h-5 w-5 text-slate-300" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="max-h-[calc(100vh-13rem)] space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
+              <div className="max-h-[calc(100vh-13rem)] space-y-3 overflow-y-auto bg-white p-4 sm:p-5">
                 <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
                   <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Current assignment</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -2627,25 +2624,36 @@ export default function AccessGrantsPage() {
         )}
 
         {showTransferDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[2rem] bg-white">
-              <div className="bg-[#1E293B] p-5 sm:p-6">
-                <h2 className="flex items-center gap-2 text-lg font-pmedium text-white">
-                  <AlertCircle className="h-5 w-5 text-amber-400" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+            <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-amber-50/40 p-5 sm:p-6">
+                <h2 className="flex items-center gap-2 text-lg font-pmedium text-slate-900">
+                  <AlertCircle className="h-5 w-5 text-amber-500" />
                   Transfer Ownership
                 </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransferDialog(false);
+                    setShowTransferWarning(false);
+                    setTransferTargetUserId('');
+                  }}
+                  className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
-              <div className="space-y-4 p-5 sm:p-6">
+              <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
                 {!showTransferWarning ? (
                   <>
                     <p className="text-sm font-pmedium text-slate-500">
-                      Select the Super Admin who will become Founder. All linked units are included — the new Founder takes over every one of them.
+                      Select the Super Admin who will become Owner. All linked units are included — the new Owner takes over every one of them.
                     </p>
 
                     <div className="space-y-2">
                       <label className="block text-xs font-pmedium uppercase tracking-wider text-slate-500">
-                        New Founder
+                        New Owner
                       </label>
                       <select
                         value={transferTargetUserId || eligibleOwnershipCandidates[0]?.id || ''}
@@ -2669,61 +2677,45 @@ export default function AccessGrantsPage() {
                       </div>
                     ) : null}
 
-                    {!allOwnershipUnitsSelected ? (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-xs font-semibold text-amber-900">
-                          Every linked unit must be selected to transfer ownership.
-                        </p>
-                        <p className="mt-1 text-xs font-medium text-amber-700">
-                          The new Founder will take over all selected units. Check every unit to enable the transfer.
-                        </p>
-                      </div>
-                    ) : null}
-
                     <div className="space-y-2">
                       <div>
                         <p className="text-xs font-pmedium uppercase tracking-wider text-slate-500">
                           Linked Units
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
-                          Every linked unit is included — the new Founder takes over all of them.
+                          Every linked unit is included — the new Owner takes over all of them.
                         </p>
                       </div>
                       <div className="max-h-52 space-y-2 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
                         {linkedWorkspaces.map((linkedWorkspace) => {
                           const linkedWorkspaceId = String(linkedWorkspace.id || '');
                           const isCurrentUnit = Boolean(linkedWorkspace.isCurrentWorkspace);
-                          const isChecked =
-                            isCurrentUnit || ownershipTransferWorkspaceIds.includes(linkedWorkspaceId);
+                          const linkedWorkspaceStatus = linkedWorkspaceStatusLabel(linkedWorkspace);
 
                           return (
-                            <label
+                            <div
                               key={linkedWorkspaceId}
-                              className="flex items-start gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5"
+                              className="rounded-xl border border-slate-100 bg-white px-3 py-2.5"
                             >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                disabled={isCurrentUnit}
-                                onChange={(event) =>
-                                  setOwnershipTransferWorkspaceIds((current) =>
-                                    event.target.checked
-                                      ? Array.from(new Set([...current, linkedWorkspaceId]))
-                                      : current.filter((id) => id !== linkedWorkspaceId),
-                                  )
-                                }
-                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
-                              />
-                              <span className="min-w-0">
-                                <span className="block text-sm font-semibold text-slate-800">
-                                  {linkedWorkspace.workspaceName || 'Workspace'}
-                                  {isCurrentUnit ? ' (Current)' : ''}
-                                </span>
-                                <span className="mt-0.5 block text-xs text-slate-400">
-                                  {linkedWorkspace.location || 'Location not set'}
-                                </span>
+                              <span className="block text-sm font-semibold text-slate-800">
+                                {linkedWorkspace.workspaceName || 'Workspace'}
+                                {isCurrentUnit ? ' (Current)' : ''}
                               </span>
-                            </label>
+                              <span className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                                {linkedWorkspace.location || 'Location not set'}
+                                {linkedWorkspaceStatus ? (
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-pmedium uppercase tracking-wider ${
+                                      linkedWorkspaceStatus === 'Deleted'
+                                        ? 'bg-rose-50 text-rose-600'
+                                        : 'bg-amber-50 text-amber-600'
+                                    }`}
+                                  >
+                                    {linkedWorkspaceStatus}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </div>
                           );
                         })}
                       </div>
@@ -2749,10 +2741,10 @@ export default function AccessGrantsPage() {
                             Final warning before ownership transfer
                           </p>
                           <p className="text-sm leading-relaxed text-amber-800">
-                            The Founder will be transferred to <b>{transferTargetUser?.name || 'the selected user'}</b> in all these units. They will become Founder of every unit below, and the current Founder ({ownerName}) will remain in them only as a linked Super Admin.
+                            The Ownership will be transferred to <b>{transferTargetUser?.name || 'the selected user'}</b> in all these units. They will own every unit below, and the current Owner ({ownerName}) will remain in them only as a linked Super Admin.
                           </p>
                           <p className="text-xs font-medium text-amber-700">
-                            New Founder: {transferTargetUser?.name || 'Unknown user'} - {transferTargetUser?.roleGroup || 'Super-Admin'} ({transferTargetUser?.email || 'Email unavailable'})
+                            New Owner: {transferTargetUser?.name || 'Unknown user'} - {transferTargetUser?.roleGroup || 'Super-Admin'} ({transferTargetUser?.email || 'Email unavailable'})
                           </p>
                         </div>
                       </div>
@@ -2763,38 +2755,41 @@ export default function AccessGrantsPage() {
                         Units included
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {linkedWorkspaces
-                          .filter(
-                            (item) =>
-                              item.isCurrentWorkspace ||
-                              ownershipTransferWorkspaceIds.includes(String(item.id || '')),
-                          )
-                          .map((item) => (
+                        {linkedWorkspaces.map((item) => {
+                          const linkedWorkspaceStatus = linkedWorkspaceStatusLabel(item);
+                          return (
                             <span
                               key={item.id}
-                              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+                              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                                linkedWorkspaceStatus === 'Deleted'
+                                  ? 'border-rose-200 bg-rose-50 text-rose-600'
+                                  : linkedWorkspaceStatus === 'Disabled'
+                                    ? 'border-amber-200 bg-amber-50 text-amber-600'
+                                    : 'border-slate-200 bg-white text-slate-600'
+                              }`}
                             >
                               {item.workspaceName || 'Workspace'}
+                              {linkedWorkspaceStatus ? ` (${linkedWorkspaceStatus})` : ''}
                             </span>
-                          ))}
+                          );
+                        })}
                       </div>
                     </div>
 
                     <p className="text-xs text-slate-400">
-                      The new Founder can later remove the former Founder's additional unit access from Access Grants.
+                      The new Owner can later remove the former Owner's additional unit access from Access Grants.
                     </p>
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100/60 p-5 sm:p-6">
+              <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100/60 bg-white p-5 sm:p-6">
                 <button
                   type="button"
                   onClick={() => {
                     setShowTransferDialog(false);
                     setShowTransferWarning(false);
                     setTransferTargetUserId('');
-                    setOwnershipTransferWorkspaceIds([]);
                   }}
                   className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
                 >
@@ -2808,8 +2803,7 @@ export default function AccessGrantsPage() {
                     !canEditAccessGrants ||
                     eligibleOwnershipCandidates.length === 0 ||
                     isReadOnlySession ||
-                    ownershipTransferWorkspaceIds.length === 0 ||
-                    !allOwnershipUnitsSelected
+                    ownershipTransferWorkspaceIds.length === 0
                   }
                   title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
                   className="rounded-2xl bg-red-500 px-5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-red-600 disabled:opacity-60"

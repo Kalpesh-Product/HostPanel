@@ -28,6 +28,16 @@ export interface IEmployeeProfilePicture {
     publicId: string;
 }
 
+// Generic {type, value} pair for national IDs, tax IDs, social insurance
+// numbers, etc. Deliberately not a fixed enum of country-specific fields —
+// each workspace picks whichever types are relevant to them (see
+// ID_PROOF_PRESETS on the client for the default suggestions) so this works
+// the same way regardless of which country a tenant operates in.
+export interface IEmployeeIdProof {
+    type: string;
+    value: string;
+}
+
 export interface IEmployeeProfile extends Document {
     workspaceId: mongoose.Types.ObjectId;
     linkedUserId?: mongoose.Types.ObjectId | null;
@@ -80,6 +90,7 @@ export interface IEmployeeProfile extends Document {
     nationalIdNumber?: string;
     taxId?: string;
     providentFundNumber?: string;
+    idProofs: IEmployeeIdProof[];
     accessModules: string[];
     accessFeatures: string[];
     accessAddOnModules: string[];
@@ -124,6 +135,14 @@ const employeeDocumentSchema = new Schema<IEmployeeDocument>(
         url: { type: String, trim: true, default: "" },
         publicId: { type: String, trim: true, default: "" },
         uploadedAt: { type: Date, default: Date.now },
+    },
+    { _id: false }
+);
+
+const employeeIdProofSchema = new Schema<IEmployeeIdProof>(
+    {
+        type: { type: String, trim: true, required: true, maxlength: 80 },
+        value: { type: String, trim: true, default: "", maxlength: 120 },
     },
     { _id: false }
 );
@@ -337,6 +356,7 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
         nationalIdNumber: { type: String, trim: true, default: "" },
         taxId: { type: String, trim: true, default: "" },
         providentFundNumber: { type: String, trim: true, default: "" },
+        idProofs: { type: [employeeIdProofSchema], default: [] },
         accessModules: { type: [String], default: [] },
         accessFeatures: { type: [String], default: [] },
         accessAddOnModules: { type: [String], default: [] },

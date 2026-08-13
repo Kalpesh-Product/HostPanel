@@ -60,7 +60,7 @@ const WidgetSection = ({
     <div className={`motion-preset-slide-up-sm py-0 ${height ? height : ""}`}>
       {title && (
         <div
-          className={`border-default border-borderGray p-4 flex w-full justify-between items-center rounded-t-xl ${
+          className={`border-default p-4 flex w-full justify-between items-center rounded-t-xl ${
             normalCase ? "" : "uppercase"
           }`}
         >
@@ -119,7 +119,7 @@ const WidgetSection = ({
           {button && <PrimaryButton title={buttonTitle} handleSubmit={handleClick} />}
         </div>
       )}
-      <div style={border ? { border: "2px solid #d1d5db", borderTop: "0" } : {}} className="h-full rounded-b-xl">
+      <div className={`h-full rounded-b-xl ${border ? "border-default border-t-0" : ""}`}>
         <div
           style={{ padding: padding ? "0" : "1rem" }}
           className={`h-full w-full grid gap-4 py-4 ${gridClasses[(layout as 1 | 2 | 3 | 4 | 5 | 6)] ?? gridClasses[1]}`}

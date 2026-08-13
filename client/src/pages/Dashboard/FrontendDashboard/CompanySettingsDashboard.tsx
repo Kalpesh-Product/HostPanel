@@ -41,7 +41,23 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
 
   if (!timeLabel) return null;
 
-  return <>{` | ${timeLabel}`}{location ? ` - ${location}` : ""}</>;
+  return (
+    <>
+      {` | `}
+      <span className="inline-block whitespace-nowrap" aria-label={timeLabel}>
+        {timeLabel.split("").map((ch, i) =>
+          /[0-9]/.test(ch) ? (
+            <span key={i} className="inline-block w-[0.665em] text-center">
+              {ch}
+            </span>
+          ) : (
+            <span key={i}>{ch}</span>
+          )
+        )}
+      </span>
+      {location ? ` - ${location}` : ""}
+    </>
+  );
 };
 
 const DEFAULT_WORKSPACE_DEPARTMENT_NAMES = new Set([
@@ -150,7 +166,9 @@ const CompanySettingsDashboard = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">{pageTitle}</h2>
+              <h2 className="inline-flex items-center text-title font-pmedium text-primary uppercase">
+                {pageTitle}
+              </h2>
               {isFounderOrSuperAdmin && (
                 <button
                   type="button"

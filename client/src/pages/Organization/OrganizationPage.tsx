@@ -4,7 +4,7 @@ import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
   Mail, Calendar, Briefcase, Shield, Send, DollarSign, Wrench,
   CheckCircle2, Search, Crown, CheckSquare, ChevronDown,
-  Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2, Eye, ArrowUpDown
+  Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2, Eye, ArrowUpDown, User
 } from 'lucide-react';
 import { Switch } from '@mui/material';
 import useAuth from '../../hooks/useAuth';
@@ -1633,10 +1633,8 @@ export function OrganizationPage() {
                       <span className="font-pmedium text-slate-800 text-[12px]">{member.employeeId || '-'}</span>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-pmedium shadow-sm shrink-0 ${normalizedRole === 'owner' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'}`}>
-                          {getInitials(member.name)}
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <User size={14} className="shrink-0 text-slate-400" />
                         <span className="font-pmedium text-slate-800 text-[12px]">{member.name}</span>
                       </div>
                     </td>

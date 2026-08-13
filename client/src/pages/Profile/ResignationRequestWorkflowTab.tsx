@@ -495,7 +495,7 @@ export function ResignationRequestWorkflowTab() {
       {/* ── View Request Modal ── */}
       <AnimatePresence>
         {viewingRequest && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/20 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0F172A]/40 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -506,7 +506,7 @@ export function ResignationRequestWorkflowTab() {
               <div className="flex w-full justify-center py-2 sm:hidden">
                 <div className="h-1 w-10 rounded-full bg-slate-200" />
               </div>
-              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 p-4 sm:p-5">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-blue-50/30 p-4 sm:p-5">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]"><LogOut size={17} /></div>
                   <div className="min-w-0">
@@ -514,7 +514,7 @@ export function ResignationRequestWorkflowTab() {
                     <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{viewingRequest.exitCode || "-"} &bull; {formatStatusLabel(viewingRequest.status)}</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setViewingRequest(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+                <button type="button" onClick={() => setViewingRequest(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"><X size={16} /></button>
               </div>
 
               <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 [&::-webkit-scrollbar]:hidden">
@@ -596,16 +596,16 @@ export function ResignationRequestWorkflowTab() {
       {/* ── Create / Edit Popup Form ── */}
       {showForm && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="exit-request-form-title"
         >
           <form
             onSubmit={submitRequest}
-            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl"
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl"
           >
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 p-6">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-blue-50/30 p-6">
               <div>
                 <h2 id="exit-request-form-title" className="flex items-center gap-2 text-lg font-pmedium text-slate-900">
                   <LogOut size={18} className="text-[#2563EB]" />
@@ -621,9 +621,9 @@ export function ResignationRequestWorkflowTab() {
                 type="button"
                 onClick={closeForm}
                 aria-label="Close resignation request form"
-                className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"
+                className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110 hover:bg-slate-50"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
@@ -634,10 +634,10 @@ export function ResignationRequestWorkflowTab() {
                     <Clock size={17} />
                     <span className="text-xs font-pmedium uppercase tracking-wider">Your notice period</span>
                   </div>
-                  <p className="mt-2 text-2xl font-pmedium text-blue-950">
+                  <p className="mt-1.5 text-1xl font-pmedium text-blue-950">
                     {noticePeriodDays} {noticePeriodDays === 1 ? "day" : "days"}
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-blue-700">
+                  <p className="mt-1 text-xs font-pmedium leading-5 text-blue-700">
                     Choose when you want your notice period to start. Your last working day is calculated automatically.
                   </p>
                 </div>
@@ -645,8 +645,9 @@ export function ResignationRequestWorkflowTab() {
                   <div className="flex items-center gap-2 text-amber-800">
                     <ShieldAlert size={17} />
                     <span className="text-xs font-pmedium uppercase tracking-wider">Important</span>
+                    
                   </div>
-                  <p className="mt-2 text-xs leading-5 text-amber-800">
+                  <p className="mt-2 text-xs font-pmedium leading-5 text-amber-800">
                     Submitting this form does not immediately end employment. Continue attendance, handover, and assigned work until HR completes the resignation.
                   </p>
                 </div>
@@ -656,21 +657,28 @@ export function ResignationRequestWorkflowTab() {
                 <label htmlFor="exit-effective-date" className="text-xs font-pmedium uppercase tracking-wider text-slate-700">
                   Effective date <span className="text-red-500">*</span>
                 </label>
-                <p className="mt-1 text-xs text-slate-500">The date from which you want your notice period to begin.</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div className="relative">
-                    <Calendar size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      id="exit-effective-date"
-                      type="date"
-                      required
-                      min={todayDateString()}
-                      value={effectiveDate}
-                      onChange={(event) => setEffectiveDate(event.target.value)}
-                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                    />
+                <p className="mt-1 text-xs font-pmedium text-slate-500">
+                  The date from which you want your notice period to begin.
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-stretch">
+                  <div className="flex flex-col justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+                    <label htmlFor="exit-effective-date" className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
+                      Select date
+                    </label>
+                    <div className="relative mt-0.5">
+                      <Calendar size={13} className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        id="exit-effective-date"
+                        type="date"
+                        required
+                        min={todayDateString()}
+                        value={effectiveDate}
+                        onChange={(event) => setEffectiveDate(event.target.value)}
+                        className="w-full border-0 bg-transparent p-0 pl-5 text-sm font-pmedium text-slate-900 outline-none"
+                      />
+                    </div>
                   </div>
-                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-2 flex flex-col justify-center">
+                  <div className="flex flex-col justify-center rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-2">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Expected last working date</p>
                     <p className="mt-0.5 text-sm font-pmedium text-blue-900">
                       {effectiveDate ? addDaysLabel(effectiveDate, noticePeriodDays) : "Choose an effective date"}
@@ -693,12 +701,12 @@ export function ResignationRequestWorkflowTab() {
                             {item.label}
                             {item.required !== false && <span className="ml-1 text-red-500">*</span>}
                           </p>
-                          {item.description && <p className="mt-1 text-xs leading-5 text-slate-500">{item.description}</p>}
+                          {item.description && <p className="mt-1 text-xs font-pmedium leading-5 text-slate-500">{item.description}</p>}
                         </div>
                       </div>
                     </div>
                   )) : (
-                    <p className="text-xs text-slate-500">HR has not added return requirements.</p>
+                    <p className="text-xs font-pmedium text-slate-500">HR has not added return requirements.</p>
                   )}
                 </div>
               </fieldset>
@@ -709,14 +717,14 @@ export function ResignationRequestWorkflowTab() {
                 </h2>
                 <ol className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   {settings.instructions.length ? settings.instructions.map((instruction, index) => (
-                    <li key={instruction + index} className="flex gap-3 text-xs leading-5 text-slate-700">
+                    <li key={instruction + index} className="flex gap-3 text-xs font-pmedium leading-5 text-slate-700">
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-pmedium text-slate-600">
                         {index + 1}
                       </span>
                       {instruction}
                     </li>
                   )) : (
-                    <li className="text-xs text-slate-500">No additional instructions have been configured.</li>
+                    <li className="text-xs font-pmedium text-slate-500">No additional instructions have been configured.</li>
                   )}
                 </ol>
               </div>
@@ -741,12 +749,12 @@ export function ResignationRequestWorkflowTab() {
                 <legend className="text-xs font-pmedium uppercase tracking-wider text-slate-700">
                   Documents you want HR to issue
                 </legend>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs font-pmedium text-slate-500">
                   Select available documents or add a custom document request.
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {settings.requestedDocumentTemplates.map((document) => (
-                    <label key={document.label} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 hover:border-blue-300">
+                    <label key={document.label} className="flex cursor-pointer items-start gap-3 rounded-xl font-pmedium border border-slate-200 bg-white p-3 hover:border-blue-300">
                       <input
                         type="checkbox"
                         checked={requestedDocuments.includes(document.label)}
@@ -754,8 +762,8 @@ export function ResignationRequestWorkflowTab() {
                         className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span>
-                        <span className="block text-sm font-medium text-slate-800">{document.label}</span>
-                        {document.description && <span className="mt-0.5 block text-xs text-slate-500">{document.description}</span>}
+                        <span className="block text-sm font-pmedium text-slate-800">{document.label}</span>
+                        {document.description && <span className="mt-0.5 block text-xs font-pmedium text-slate-500">{document.description}</span>}
                       </span>
                     </label>
                   ))}

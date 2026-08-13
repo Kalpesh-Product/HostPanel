@@ -1276,7 +1276,14 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   return (
     <PageFrame>
       <div className="p-4 md:p-6">
-        <div className="mb-6">
+        <div
+          className="mb-6"
+          data-tour={
+            sectionId === "add-ons" && isCardsHydrated
+              ? "addons-overview"
+              : undefined
+          }
+        >
           <h2 className="text-title font-pmedium uppercase text-primary">{pageTitle}</h2>
           {sectionId === "add-ons" ? (
             <p className="mt-1 text-sm text-slate-500">
@@ -1308,7 +1315,10 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
               Nothing here — every module available to you is already unlocked.
             </p>
           ) : (
-            <div className="space-y-5">
+            <div
+              className="space-y-5"
+              data-tour={isCardsHydrated ? "addons-groups" : undefined}
+            >
               {addOnGroups.map((group) => {
                 const isDeptGroup = group.key === "department-accesses";
                 const enabledCards = [...group.cards].filter((card) => card.unlocked).sort((a, b) => a.title.localeCompare(b.title));
@@ -1320,7 +1330,15 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                 const lockedDepartmentCount = departments.length - enabledDepartmentCount;
 
                 return (
-                  <div key={group.key} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                  <div
+                    key={group.key}
+                    className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+                    data-tour={
+                      isCardsHydrated
+                        ? `addons-group-${group.key}`
+                        : undefined
+                    }
+                  >
                     <button
                       type="button"
                       onClick={() => {

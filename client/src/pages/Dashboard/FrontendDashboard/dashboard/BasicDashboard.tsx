@@ -283,7 +283,7 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
       </div>
 
       {/* Monthly visitor bar chart */}
-      <div data-tour="dashboard-visitor-trend" className="border-default border-borderGray rounded-xl overflow-hidden">
+      <div data-tour="dashboard-visitor-trend" className="border-default rounded-xl overflow-hidden">
         <div className="p-4 border-b-2 border-borderGray uppercase">
           <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Monthly Visitor Trend (FY)</span>
         </div>

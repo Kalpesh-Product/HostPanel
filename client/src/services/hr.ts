@@ -10,6 +10,14 @@ export const getEmployeeManagementOverview = async () => {
   return axiosPrivate.get("/api/hr/company-management/overview");
 };
 
+export const getEmployeeBanks = async (params: { countryCode: string; state?: string; city?: string }) => {
+  return axiosPrivate.get("/api/hr/employees/banks", { params });
+};
+
+export const verifyEmployeeBankAccount = async (payload: Record<string, unknown>) => {
+  return axiosPrivate.post("/api/hr/employees/bank-account/verify", payload);
+};
+
 export const createEmployeeRecord = async (payload: Record<string, any>) => {
   return axiosPrivate.post("/api/hr/employees", payload);
 };

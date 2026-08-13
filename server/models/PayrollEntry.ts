@@ -55,6 +55,8 @@ export interface IPayrollEntry extends Document {
         monthlyGrossSalary: number;
         hrBonus: number;
         hrDeductions: number;
+        bonusReason?: string;
+        deductionReason?: string;
         netSalary: number;
         currency: string;
         prorationFactor: number;
@@ -213,6 +215,8 @@ const payrollEntrySchema = new Schema<IPayrollEntry>(
             monthlyGrossSalary: { type: Number, required: true, min: 0, default: 0 },
             hrBonus: { type: Number, required: true, min: 0, default: 0 },
             hrDeductions: { type: Number, required: true, min: 0, default: 0 },
+            bonusReason: { type: String, trim: true, default: "", maxlength: 1200 },
+            deductionReason: { type: String, trim: true, default: "", maxlength: 1200 },
             netSalary: { type: Number, required: true, min: 0, default: 0 },
             currency: { type: String, trim: true, default: "INR" },
             prorationFactor: { type: Number, required: true, min: 0, default: 0 },

@@ -55,8 +55,11 @@ export const getWorkspaceCount = (value: unknown): number => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
+// Unit Management is reachable even with a single unit (founders can review
+// their own unit's operational health before adding more). Plan gating is
+// handled separately through the module catalog / hard-lock sets.
 export const canAccessWorkspaceManagement = (workspaceCount: number) =>
-  getWorkspaceCount(workspaceCount) > 1;
+  getWorkspaceCount(workspaceCount) >= 1;
 
 export const getEnabledModuleIdsForPlan = (
   plan: PlanType,

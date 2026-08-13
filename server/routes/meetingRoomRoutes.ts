@@ -17,6 +17,7 @@ import {
     cancelBooking,
     updateBooking,
     respondToInvite,
+    addBookingInvites,
     getExternalClients,
     createExternalClient,
     sendExternalBookingConfirmation,
@@ -48,6 +49,7 @@ router.get("/bookings/tenant-company/:tenantCompanyId", getBookingsByTenantCompa
 router.get("/bookings/:id", getBookingById);                // Single booking details
 router.patch("/bookings/:id", updateBooking);                  // Reschedule or extend booking
 router.patch("/bookings/:id/cancel", cancelBooking);           // Cancel booking
+router.post("/bookings/:id/invites", addBookingInvites);       // Add invitees after booking
 router.post("/bookings/:id/respond", respondToInvite);         // Accept or reject invite
 router.post("/bookings/:id/send-confirmation", sendExternalBookingConfirmation); // Email confirmation to external client
 

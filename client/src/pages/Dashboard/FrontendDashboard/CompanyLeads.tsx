@@ -175,7 +175,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
         <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
           {/* HEADER */}
-          <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5" data-tour="wb-leads-header">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 {pageTitle}
@@ -231,7 +231,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {/* STATUS FILTER PILLS */}
-              <div className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
+              <div className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden" data-tour="wb-leads-status-filter">
                 <div className="flex items-center gap-1.5 overflow-x-auto">
                   <button onClick={() => setStageFilter("All")}
                     className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${stageFilter === "All" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
@@ -249,7 +249,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                  <input type="text" placeholder="Search"
+                  <input type="text" placeholder="Search" data-tour="wb-leads-search"
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-100/70 border-0 rounded-lg text-[12px] font-pmedium text-slate-500 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all placeholder:text-slate-500" />
                 </div>
@@ -263,7 +263,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left min-w-[900px]">
+                <table className="w-full text-left min-w-[900px]" data-tour="wb-leads-table">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Lead Names</th>
@@ -323,7 +323,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
-                              <button type="button" onClick={() => setSelectedLeadId(lead._id)}
+                              <button type="button" onClick={() => setSelectedLeadId(lead._id)} data-tour="wb-leads-view"
                                 title="View details" aria-label={`View details for ${lead.fullName}`}
                                 className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} aria-hidden="true" /></button>
                             </div>

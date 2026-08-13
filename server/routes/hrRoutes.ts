@@ -4,6 +4,8 @@ import {
   createEmployeeRecord,
   getEmployeeDocumentsVault,
   getEmployeeManagementOverview,
+  getEmployeeBankDirectory,
+  verifyEmployeeBankAccount,
   uploadEmployeeDocuments,
   toggleEmployeeStatus,
   updateEmployeeRecord,
@@ -21,6 +23,8 @@ import upload from "../config/multerConfig.js";
 const router = Router();
 
 router.get("/company-management/overview", getEmployeeManagementOverview);
+router.get("/employees/banks", getEmployeeBankDirectory);
+router.post("/employees/bank-account/verify", verifyEmployeeBankAccount);
 router.patch("/my-profile", updateMyEmployeeProfile);
 router.patch("/my-profile/avatar", upload.single("avatar"), updateMyProfilePicture);
 router.get("/documents/vault", getEmployeeDocumentsVault);

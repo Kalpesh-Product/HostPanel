@@ -9,6 +9,7 @@ import { TenantCompany } from "../models/TenantCompany.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import { Client } from "../models/Client.js";
 import Workspace from "../models/Workspace.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import { createNotification } from "../utils/notify.js";
 import {
@@ -991,7 +992,24 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
                 // ...MEETING_ROOM_RESOURCE_FILTER,
             }).sort({ sortOrder: 1, name: 1 }).lean().exec(),
         ]);
-        const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user, workspaceLocalization.timezone));
+        const bookingOwnerIds = [...new Set(bookings
+            .map((booking: any) => String(booking.ownerId?._id || booking.ownerId || ""))
+            .filter(Boolean))];
+        const bookingOwners = bookingOwnerIds.length > 0
+            ? await WorkspaceMember.find({
+                workspace: workspaceId,
+                user: { $in: bookingOwnerIds },
+                isActive: true,
+            }).select("user role").populate("role", "name").lean().exec()
+            : [];
+        const roleByUserId = new Map(bookingOwners.map((member: any) => [
+            String(member.user || ""),
+            String(member.role?.name || ""),
+        ]));
+        const transformedBookings = bookings.map((booking: any) => ({
+            ...transformBooking(booking, req.user, workspaceLocalization.timezone),
+            bookedByRole: roleByUserId.get(String(booking.ownerId?._id || booking.ownerId || "")) || "",
+        }));
         const receivedInvites = transformedBookings.flatMap((booking: any) => (booking.invites || [])
             .filter((invite: any) => String(invite.invitedUserId || "") === String(req.user || ""))
             .map((invite: any) => ({ ...invite, bookingId: booking.recordId, roomName: booking.roomName, bookedByName: booking.bookedByName, date: booking.date, startTime: booking.startTime, endTime: booking.endTime })));
@@ -1281,6 +1299,125 @@ export const cancelBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
 
         return res.status(200).json({ message: "Booking cancelled successfully", data: { booking: transformBooking(booking.toObject(), String(req.user || ""), workspaceLocalization.timezone) } });
+    } catch (error: any) { next(error); }
+};
+
+export const addBookingInvites = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+        const id = getValidObjectId(req.params.id);
+        if (!id) return res.status(400).json({ message: "Invalid booking ID" });
+        if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+
+        const workspaceId = workspaceIdFor(req);
+        const booking: any = await MeetingRoomBooking.findOne({ _id: id, workspaceId });
+        if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+        const requesterId = String(req.user);
+        const ownerId = String(booking.ownerId || "");
+        const bookedByUserId = String(booking.bookedByUserId || "");
+        if (requesterId !== ownerId && requesterId !== bookedByUserId) {
+            return res.status(403).json({ message: "Only the booking host or creator can add invitees" });
+        }
+
+        if (["cancelled", "completed"].includes(String(booking.status || "").toLowerCase()) || new Date(booking.end).getTime() <= Date.now()) {
+            return res.status(400).json({ message: "Invites can only be added to active or upcoming bookings" });
+        }
+
+        const requestedIds = [...new Set((Array.isArray(req.body.inviteeUserIds) ? req.body.inviteeUserIds : [])
+            .map((value: any) => String(value || "").trim())
+            .filter((value: string) => getValidObjectId(value) && value !== ownerId && value !== requesterId))];
+        if (requestedIds.length === 0) {
+            return res.status(400).json({ message: "Select at least one eligible member" });
+        }
+
+        const eligibleMemberships = await WorkspaceMember.find({
+            workspace: workspaceId,
+            user: { $in: requestedIds },
+            isActive: true,
+        }).select("user").lean().exec();
+        const eligibleIds = new Set(eligibleMemberships.map((member: any) => String(member.user || "")));
+        const workspaceInviteeIds = requestedIds.filter((userId: string) => eligibleIds.has(userId));
+        if (workspaceInviteeIds.length === 0) {
+            return res.status(400).json({ message: "No eligible workspace members were selected" });
+        }
+
+        const room: any = await Resource.findById(booking.roomId).lean().exec();
+        if (!room) return res.status(404).json({ message: "Meeting room not found" });
+        const roomCapacity = Math.max(1, Number(room.capacity || 0));
+        const existingActiveCount = (booking.invites || []).filter((invite: any) =>
+            ["pending", "accepted"].includes(String(invite.status || "").toLowerCase())
+        ).length;
+
+        const existingByUserId = new Map((booking.invites || []).map((invite: any) => [
+            String(invite.invitedUserId || ""),
+            invite,
+        ]));
+        const idsToActivate = workspaceInviteeIds.filter((userId: string) => {
+            const existing: any = existingByUserId.get(userId);
+            return !existing || !["pending", "accepted"].includes(String(existing.status || "").toLowerCase());
+        });
+        if (idsToActivate.length === 0) {
+            return res.status(400).json({ message: "The selected members are already invited" });
+        }
+        if (existingActiveCount + idsToActivate.length + 1 > roomCapacity) {
+            const remaining = Math.max(0, roomCapacity - existingActiveCount - 1);
+            return res.status(400).json({ message: `Only ${remaining} invite slot(s) remain for this room` });
+        }
+
+        const resolvedInvites = await resolveInvites(idsToActivate);
+        const resolvedByUserId = new Map(resolvedInvites.map((invite: any) => [String(invite.invitedUserId || ""), invite]));
+        const activatedInvites: any[] = [];
+        for (const userId of idsToActivate) {
+            const resolved: any = resolvedByUserId.get(userId);
+            if (!resolved) continue;
+            const existing: any = existingByUserId.get(userId);
+            if (existing) {
+                existing.invitedName = resolved.invitedName;
+                existing.invitedEmail = resolved.invitedEmail;
+                existing.status = "pending";
+                existing.respondedAt = undefined;
+                existing.responseReason = "";
+                activatedInvites.push(existing);
+            } else {
+                booking.invites.push(resolved);
+                activatedInvites.push(resolved);
+            }
+        }
+        if (activatedInvites.length === 0) {
+            return res.status(400).json({ message: "The selected members could not be invited" });
+        }
+
+        booking.attendees = Math.max(Number(booking.attendees || 1), existingActiveCount + activatedInvites.length + 1);
+        await booking.save();
+
+        const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
+        const startParts = dateTimeParts(booking.start, workspaceLocalization.timezone);
+        const endParts = dateTimeParts(booking.end, workspaceLocalization.timezone);
+        const actor = await HostUser.findById(req.user).select("name email").lean().exec();
+        for (const invite of activatedInvites) {
+            createNotification({
+                workspaceId,
+                recipientUserId: String(invite.invitedUserId),
+                actorUserId: req.user,
+                type: "meeting_invitation",
+                category: "meeting",
+                title: "Meeting Room Invitation",
+                description: `${actor?.name || actor?.email || "Someone"} invited you to ${booking.roomName} on ${startParts.date} from ${startParts.time} to ${endParts.time}.`,
+                entityType: "meeting_booking",
+                entityId: String(booking._id),
+                entityCode: booking.bookingCode,
+                targetUrl: bookingTargetUrlFor(booking.bookingType),
+                data: { roomName: booking.roomName, date: startParts.date, startTime: startParts.time, endTime: endParts.time, purpose: booking.purpose },
+                priority: "normal",
+                isActionRequired: true,
+                dedupeKey: `meeting-invite:${booking._id}:${invite.invitedUserId}:${Date.now()}`,
+            });
+        }
+
+        return res.status(200).json({
+            message: `${activatedInvites.length} member(s) invited successfully`,
+            data: { booking: { ...transformBooking(booking.toObject(), requesterId, workspaceLocalization.timezone), roomCapacity } },
+        });
     } catch (error: any) { next(error); }
 };
 

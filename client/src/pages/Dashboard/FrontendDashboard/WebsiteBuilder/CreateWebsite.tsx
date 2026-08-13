@@ -33,6 +33,7 @@ import PackagesSection from "./PackagesSection";
 import DormsSection from "./DormsSection";
 import MenuSection from "./MenuSection";
 import Skeleton from "../../../../components/ui/Skeleton";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const defaultProduct = {
   type: "",
@@ -910,6 +911,66 @@ const SectionToggle = ({
   />
 );
 
+// Prominent banner controlling whether an entire page (and its nav link) shows
+// on the live site. Deliberately louder than SectionToggle above: hiding a
+// whole page is a bigger-consequence action than hiding one section within a
+// page, so it gets a colored banner + a one-line consequence note instead of
+// a small inline switch.
+const PageVisibilityBanner = ({
+  name,
+  control,
+  pageLabel,
+}: {
+  name: string;
+  control: any;
+  pageLabel: string;
+}) => (
+  <Controller
+    name={name}
+    control={control}
+    render={({ field }) => {
+      const isVisible = field.value !== false;
+      return (
+        <div
+          className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${
+            isVisible ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"
+          }`}
+        >
+          <div>
+            <p className={`text-sm font-pmedium ${isVisible ? "text-emerald-800" : "text-amber-900"}`}>
+              {isVisible ? "This page is visible on your website" : "This page is hidden from your website"}
+            </p>
+            <p className={`mt-0.5 text-xs ${isVisible ? "text-emerald-700" : "text-amber-800"}`}>
+              {isVisible
+                ? `Shown in your website preview, and will go live when you publish.`
+                : `Hidden from your website preview — visitors won't see this page, even after you publish.`}
+            </p>
+          </div>
+          <label className="flex shrink-0 cursor-pointer items-center gap-2">
+            <span className={`text-xs font-pmedium ${isVisible ? "text-emerald-700" : "text-amber-800"}`}>
+              {isVisible ? "Enabled" : "Disabled"}
+            </span>
+            <span
+              role="switch"
+              aria-checked={isVisible}
+              onClick={() => field.onChange(!isVisible)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                isVisible ? "bg-emerald-500" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                  isVisible ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </span>
+          </label>
+        </div>
+      );
+    }}
+  />
+);
+
 // Products belonging to one specific product page. Rendered with
 // `key={<that page's stable id>}` by the caller so switching the active
 // page tab forces a full remount — a fresh, correctly-scoped useFieldArray
@@ -1046,6 +1107,27 @@ const CreateWebsite = () => {
   const [creditsLimit, setCreditsLimit] = useState(5);
   const [creditsResetDate, setCreditsResetDate] = useState(null);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [showHiddenPagesWarning, setShowHiddenPagesWarning] = useState(false);
+  // "hidden" = not scrolled / idle for 3s; "down" = scrolled a bit from the top
+  // (jumps to bottom); "up" = at/near the bottom (jumps to top).
+  const [scrollFabState, setScrollFabState] = useState<"hidden" | "down" | "up">("hidden");
+  useEffect(() => {
+    const container = document.getElementById("scrollable-content");
+    if (!container) return;
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleScroll = () => {
+      const nearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 40;
+      const scrolledDown = container.scrollTop > 150;
+      setScrollFabState(nearBottom ? "up" : scrolledDown ? "down" : "hidden");
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => setScrollFabState("hidden"), 3000);
+    };
+    container.addEventListener("scroll", handleScroll);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      if (hideTimer) clearTimeout(hideTimer);
+    };
+  }, []);
   const [showResetConfirmPopup, setShowResetConfirmPopup] = useState(false);
   const [isRedirectingAfterCreate, setIsRedirectingAfterCreate] = useState(false);
   const [publishedWebsiteUrl, setPublishedWebsiteUrl] = useState("");
@@ -1317,6 +1399,15 @@ const CreateWebsite = () => {
   const contactPageNavIndex = pageNavItemsForVisibility.findIndex(
     (item: any) => String(item?.slug || "").trim().toLowerCase() === "contact-us",
   );
+  // Pages currently toggled off via PageVisibilityBanner; surfaced in a warning
+  // before publish so a hidden page isn't a silent surprise.
+  const hiddenPageNavEntries = pageNavItemsForVisibility
+    .map((item: any, index: number) => ({
+      index,
+      name: String(item?.name || `Page ${index + 1}`),
+      enabled: item?.enabled !== false,
+    }))
+    .filter((entry: any) => !entry.enabled);
   const CHAR_LIMITS = {
     heroTitle: 100,
     heroSubTitle: 200,
@@ -2151,6 +2242,17 @@ const CreateWebsite = () => {
     fd.delete("gallery");
     (values.gallery || []).forEach((file) => appendFileIfPresent("gallery", file));
 
+    // Ids of already-saved images the user kept (didn't remove) — without this
+    // the server has no way to know an image was deleted in the UI, so removed
+    // images never actually get deleted server-side; they'd just keep
+    // reappearing on reload. Mirrors the same fix applied to logoCarouselImageIds below.
+    const keptImageIds = (items: any) =>
+      (Array.isArray(items) ? items : [])
+        .filter((item: any) => !(item instanceof File) && item?.id)
+        .map((item: any) => item.id);
+    fd.set("heroImageIds", JSON.stringify(keptImageIds(values.heroImages)));
+    fd.set("galleryImageIds", JSON.stringify(keptImageIds(values.gallery)));
+
     fd.delete("productImages");
     (values.menuItems || []).forEach((item, i) => {
       if (item?.image instanceof File) {
@@ -2293,6 +2395,7 @@ const CreateWebsite = () => {
     (values.aboutPageImageCards || []).forEach((card) => {
       appendFileIfPresent("aboutPageImages", card?.image);
     });
+    fd.set("aboutPageImageIds", JSON.stringify(keptImageIds(values.aboutPageImages)));
     fd.set(
       "aboutPageImageCards",
       JSON.stringify(
@@ -2626,6 +2729,37 @@ const CreateWebsite = () => {
   // "uploaded 12, now showing 24" after saving more than once.
   const syncSavedMediaIntoForm = (savedTemplate: any) => {
     if (!savedTemplate) return;
+    // Hero images
+    if (Array.isArray(savedTemplate.heroImages)) {
+      const currentHero = getValues("heroImages") || [];
+      const mergedHero = savedTemplate.heroImages.map((saved: any, idx: number) => {
+        const current = currentHero[idx];
+        // Keep File objects if they're newer than saved; otherwise use saved S3 object
+        if (current instanceof File) return current;
+        return saved;
+      });
+      setValue("heroImages", mergedHero, { shouldDirty: false });
+    }
+    // Gallery images
+    if (Array.isArray(savedTemplate.gallery)) {
+      const currentGallery = getValues("gallery") || [];
+      const mergedGallery = savedTemplate.gallery.map((saved: any, idx: number) => {
+        const current = currentGallery[idx];
+        if (current instanceof File) return current;
+        return saved;
+      });
+      setValue("gallery", mergedGallery, { shouldDirty: false });
+    }
+    // About page images
+    if (Array.isArray(savedTemplate.aboutPageImages)) {
+      const currentAboutImages = getValues("aboutPageImages") || [];
+      const mergedAboutImages = savedTemplate.aboutPageImages.map((saved: any, idx: number) => {
+        const current = currentAboutImages[idx];
+        if (current instanceof File) return current;
+        return saved;
+      });
+      setValue("aboutPageImages", mergedAboutImages, { shouldDirty: false });
+    }
     // Founder images
     if (Array.isArray(savedTemplate.founders) && savedTemplate.founders.length) {
       const currentFounders = getValues("founders") || [];
@@ -2639,7 +2773,7 @@ const CreateWebsite = () => {
       setValue("founders", mergedFounders, { shouldDirty: false });
     }
     // Logo carousel logos
-    if (Array.isArray(savedTemplate.logoCarousel?.logos) && savedTemplate.logoCarousel.logos.length) {
+    if (Array.isArray(savedTemplate.logoCarousel?.logos)) {
       const currentLogos = getValues("logoCarousel.logos") || [];
       const mergedLogos = savedTemplate.logoCarousel.logos.map((saved: any, idx: number) => {
         const current = currentLogos[idx];
@@ -2747,14 +2881,30 @@ const CreateWebsite = () => {
       };
 
       appendDraftFileOnce("companyLogo", values?.companyLogo as File | null);
-      (values?.heroImages || []).forEach((file: File) =>
-        appendDraftFileOnce("heroImages", file),
-      );
-      (values?.gallery || []).forEach((file: File) =>
-        appendDraftFileOnce("gallery", file),
-      );
-      (values?.aboutPageImages || []).forEach((file: File) =>
-        appendDraftFileOnce("aboutPageImages", file),
+      (values?.heroImages || [])
+        .filter((item: any) => item instanceof File)
+        .forEach((file: File) => appendDraftFileOnce("heroImages", file));
+      (values?.gallery || [])
+        .filter((item: any) => item instanceof File)
+        .forEach((file: File) => appendDraftFileOnce("gallery", file));
+      (values?.aboutPageImages || [])
+        .filter((item: any) => item instanceof File)
+        .forEach((file: File) => appendDraftFileOnce("aboutPageImages", file));
+
+      // Ids of already-saved images the user kept (didn't remove) for each
+      // media array. Without this the server has no way to know an image was
+      // deleted in the builder, so removed images never actually get deleted —
+      // they just keep reappearing on the next load.
+      const keptIds = (items: any) =>
+        (Array.isArray(items) ? items : [])
+          .filter((item: any) => !(item instanceof File) && item?.id)
+          .map((item: any) => item.id);
+      fd.set("heroImageIds", JSON.stringify(keptIds(values?.heroImages)));
+      fd.set("galleryImageIds", JSON.stringify(keptIds(values?.gallery)));
+      fd.set("aboutPageImageIds", JSON.stringify(keptIds(values?.aboutPageImages)));
+      fd.set(
+        "logoCarouselImageIds",
+        JSON.stringify(keptIds(values?.logoCarousel?.logos)),
       );
       (values?.aboutPageImageCards || []).forEach((card: any, index: number) =>
         appendDraftFileOnce(`aboutPageImageCardImage_${index}`, card?.image as File | null),
@@ -3206,8 +3356,32 @@ const CreateWebsite = () => {
     );
   }
 
+  const scrollBuilderTo = (position: "top" | "bottom") => {
+    const container = document.getElementById("scrollable-content");
+    if (!container) return;
+    container.scrollTo({
+      top: position === "top" ? 0 : container.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <div className="pb-2 min-w-0 overflow-x-hidden">
+      {scrollFabState !== "hidden" ? (
+        <button
+          type="button"
+          onClick={() => scrollBuilderTo(scrollFabState === "up" ? "top" : "bottom")}
+          aria-label={scrollFabState === "up" ? "Scroll to top" : "Scroll to bottom"}
+          title={scrollFabState === "up" ? "Scroll to top" : "Scroll to bottom"}
+          className="fixed bottom-24 right-8 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-md transition-all hover:bg-blue-700"
+        >
+          {scrollFabState === "up" ? (
+            <ChevronUp size={18} strokeWidth={2.25} />
+          ) : (
+            <ChevronDown size={18} strokeWidth={2.25} />
+          )}
+        </button>
+      ) : null}
       <div className="p-4 flex flex-col gap-4 min-w-0">
         <PageFrame>
           <div className="flex flex-col gap-5 min-w-0">
@@ -3251,7 +3425,7 @@ const CreateWebsite = () => {
             <div className="border-b-default border-borderGray py-4">
               <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Website Pages <SectionPreviewInfo section="pages" /></span>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm" data-tour="wb-editor-page-tabs">
+            <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm" data-tour="wb-editor-page-tabs" data-editor-page={activeMainPageSlug}>
               {pageNavFields.map((item, index) => {
                 const tabSlug = String(watch(`pageNavItems.${index}.slug`) || "").trim().toLowerCase();
                 const isCareersTab = tabSlug === "careers";
@@ -3294,9 +3468,9 @@ const CreateWebsite = () => {
               .trim()
               .toLowerCase() === "products" ? (
               <div className="mt-4 min-w-0 overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b-default border-borderGray py-4">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Products Page Settings <SectionPreviewInfo section="productsPage" /></span>
-                  <div className="flex flex-shrink-0 items-center gap-3 flex-wrap">
+                <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-products-page-settings">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Products Page Settings <SectionPreviewInfo section="productsPage" /></span>
                     <div className="min-w-[200px]">
                       <WebsiteFormField
                         select
@@ -3323,32 +3497,23 @@ const CreateWebsite = () => {
                         <option value="__new__">+ Add New Page</option>
                       </WebsiteFormField>
                     </div>
-                    {productsPageNavIndex >= 0 ? (
-                      <div>
-                        <Controller
-                          name={`pageNavItems.${productsPageNavIndex}.enabled`}
-                          control={control}
-                          render={({ field }) => (
-                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                              <input
-                                type="checkbox"
-                                checked={field.value !== false}
-                                onChange={(event) => field.onChange(event.target.checked)}
-                              />
-                              Show Products page on website
-                            </label>
-                          )}
-                        />
-                      </div>
-                    ) : null}
                   </div>
+                  {productsPageNavIndex >= 0 ? (
+                    <div className="mt-3">
+                      <PageVisibilityBanner
+                        name={`pageNavItems.${productsPageNavIndex}.enabled`}
+                        control={control}
+                        pageLabel="Products"
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <p className="mb-3 border-b border-slate-200 pb-2 text-xs text-slate-500">
                   Pick a preset from the dropdown to add it instantly, or choose "+ Add New Page" for a custom one. Use the × on a tab to remove a page.
                 </p>
                 {productPageFields.length > 0 ? (
                   <>
-                    <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+                    <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm" data-tour="wb-editor-products-page-tabs">
                       {productPageFields.map((item, index) => (
                         <div
                           key={item.id}
@@ -3425,7 +3590,7 @@ const CreateWebsite = () => {
                     {productPageFields[activeProductPageTab] ? (
                       <div className="mt-3 grid grid-cols-1 gap-3">
                         <div>
-                          <div className="border-b-default border-borderGray py-4 flex items-center justify-between">
+                          <div className="border-b-default border-borderGray py-4 flex items-center justify-between" data-tour="wb-editor-products-page-details">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Product Page Details <SectionPreviewInfo section="productDetails" /></span>
                             <SectionToggle name={`productDropdownPages.${activeProductPageTab}.enabled`} control={control} />
                           </div>
@@ -3448,7 +3613,7 @@ const CreateWebsite = () => {
                         </div>
 
                         <div>
-                          <div className="py-2 border-b-default border-borderGray flex items-center justify-between">
+                          <div className="py-2 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-products-page-hero">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Product Page Hero <SectionPreviewInfo section="heroBanner" /></span>
                             <SectionToggle name={`productDropdownPages.${activeProductPageTab}.heroEnabled`} control={control} />
                           </div>
@@ -3524,7 +3689,7 @@ const CreateWebsite = () => {
                         </div>
 
                         <div>
-                          <div className="py-2 border-b-default border-borderGray">
+                          <div className="py-2 border-b-default border-borderGray" data-tour="wb-editor-products-page-lead-form">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Lead Form Behavior <SectionPreviewInfo section="leadForm" /></span>
                           </div>
                           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -3569,7 +3734,7 @@ const CreateWebsite = () => {
                           </div>
                         </div>
 
-                        <div>
+                        <div data-tour="wb-editor-products-page-content">
                           <div className="py-2 border-b-default border-borderGray">
                             <span className="text-subtitle font-pmedium">
                               Page Content Template (Synced with Home)
@@ -3656,7 +3821,7 @@ const CreateWebsite = () => {
 
                         {/* FAQ content is global — edit from the Home/Products section — but each
                             product page decides for itself whether to show that shared FAQ list. */}
-                        <div>
+                        <div data-tour="wb-editor-products-page-faq">
                           <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">FAQ Section <SectionPreviewInfo section="faq" /></span>
                             <SectionToggle name={`productDropdownPages.${activeProductPageTab}.faqEnabled`} control={control} />
@@ -3672,7 +3837,7 @@ const CreateWebsite = () => {
                         </div>
 
                         {/* Inclusions for this product page */}
-                        <div>
+                        <div data-tour="wb-editor-products-page-inclusions">
                           <div className="py-4 border-b-default border-borderGray flex items-center justify-between mb-3">
                             <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Inclusions Section <SectionPreviewInfo section="inclusions" /></span>
                             <div className="flex items-center gap-3">
@@ -3756,23 +3921,14 @@ const CreateWebsite = () => {
               .trim()
               .toLowerCase() === "about-us" ? (
               <div className="mt-4">
-                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-about-page-hero">
                   <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Us Hero Section <SectionPreviewInfo section="aboutPage" /></span>
                 {aboutPageNavIndex >= 0 ? (
-                  <div>
-                    <Controller
+                  <div className="mt-3">
+                    <PageVisibilityBanner
                       name={`pageNavItems.${aboutPageNavIndex}.enabled`}
                       control={control}
-                      render={({ field }) => (
-                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={field.value !== false}
-                            onChange={(event) => field.onChange(event.target.checked)}
-                          />
-                          Show About Us page on website
-                        </label>
-                      )}
+                      pageLabel="About Us"
                     />
                   </div>
                 ) : null}
@@ -3793,7 +3949,7 @@ const CreateWebsite = () => {
                   </div>
 
                   <div>
-                    <div className="border-b-default border-borderGray py-4">
+                    <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-about-page-shared">
                     <span className="text-subtitle font-pmedium">
                       About Us (Synced From Home About)
                     </span>
@@ -3827,19 +3983,21 @@ const CreateWebsite = () => {
                       </button>
                     </div>
                   </div>
-                  <Controller
-                    name="aboutPageStory"
-                    control={control}
-                    render={({ field }) => (
-                      <WebsiteFormField
-                        field={field}
-                        label="Our Story"
-                        multiline
-                        minRows={4}
-                      />
-                    )}
-                  />
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div data-tour="wb-editor-about-page-story">
+                    <Controller
+                      name="aboutPageStory"
+                      control={control}
+                      render={({ field }) => (
+                        <WebsiteFormField
+                          field={field}
+                          label="Our Story"
+                          multiline
+                          minRows={4}
+                        />
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-tour="wb-editor-about-page-mission-vision">
                     <Controller
                       name="aboutPageMission"
                       control={control}
@@ -3865,19 +4023,21 @@ const CreateWebsite = () => {
                       )}
                     />
                   </div>
-                  <Controller
-                    name="aboutPageValues"
-                    control={control}
-                    render={({ field }) => (
-                      <WebsiteFormField
-                        field={field}
-                        label="Values (comma separated)"
-                        placeholder="Community, Trust, Transparency"
-                      />
-                    )}
-                  />
+                  <div data-tour="wb-editor-about-page-values">
+                    <Controller
+                      name="aboutPageValues"
+                      control={control}
+                      render={({ field }) => (
+                        <WebsiteFormField
+                          field={field}
+                          label="Values (comma separated)"
+                          placeholder="Community, Trust, Transparency"
+                        />
+                      )}
+                    />
+                  </div>
                   <div>
-                    <div className="py-2 border-b-default border-borderGray flex items-center justify-between">
+                    <div className="py-2 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-about-page-founders">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Founders Section <SectionPreviewInfo section="founders" /></span>
                       <SectionToggle sectionKey="about_founders" control={control} />
                     </div>
@@ -3967,7 +4127,7 @@ const CreateWebsite = () => {
                   </div>
 
                   <div>
-                    <div className="py-2 border-b-default border-borderGray flex items-center justify-between">
+                    <div className="py-2 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-about-page-team">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Our Team Section <SectionPreviewInfo section="team" /></span>
                       <SectionToggle sectionKey="about_team" control={control} />
                     </div>
@@ -4050,23 +4210,14 @@ const CreateWebsite = () => {
               .trim()
               .toLowerCase() === "gallery" ? (
               <div className="mt-4">
-                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-gallery-page-hero">
                   <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Hero Section <SectionPreviewInfo section="galleryPage" /></span>
                 {galleryPageNavIndex >= 0 ? (
-                  <div>
-                    <Controller
+                  <div className="mt-3">
+                    <PageVisibilityBanner
                       name={`pageNavItems.${galleryPageNavIndex}.enabled`}
                       control={control}
-                      render={({ field }) => (
-                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={field.value !== false}
-                            onChange={(event) => field.onChange(event.target.checked)}
-                          />
-                          Show Gallery page on website
-                        </label>
-                      )}
+                      pageLabel="Gallery"
                     />
                   </div>
                 ) : null}
@@ -4083,7 +4234,7 @@ const CreateWebsite = () => {
                       />
                     )}
                   />
-                  <div>
+                  <div data-tour="wb-editor-gallery-page-images">
                     <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Images (Synced)</span>
                     </div>
@@ -4116,28 +4267,19 @@ const CreateWebsite = () => {
               .trim()
               .toLowerCase() === "partner" ? (
               <div className="mt-4">
-                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-partner-page-header">
                   <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Partner Page Section <SectionPreviewInfo section="partnerPage" /></span>
                 {partnerPageNavIndex >= 0 ? (
-                  <div>
-                    <Controller
+                  <div className="mt-3">
+                    <PageVisibilityBanner
                       name={`pageNavItems.${partnerPageNavIndex}.enabled`}
                       control={control}
-                      render={({ field }) => (
-                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={field.value !== false}
-                            onChange={(event) => field.onChange(event.target.checked)}
-                          />
-                          Show Partner page on website
-                        </label>
-                      )}
+                      pageLabel="Partner"
                     />
                   </div>
                 ) : null}
                 </div>
-                <div className="mt-3 grid grid-cols-1 gap-3">
+                <div className="mt-3 grid grid-cols-1 gap-3" data-tour="wb-editor-partner-page-content">
                   <Controller
                     name="partnerPageHeading"
                     control={control}
@@ -4184,23 +4326,14 @@ const CreateWebsite = () => {
               .trim()
               .toLowerCase() === "careers" ? (
               <div className="mt-4">
-                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-careers-page-hero">
                   <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Careers Hero Section <SectionPreviewInfo section="careersPage" /></span>
                 {careersPageNavIndex >= 0 ? (
-                  <div>
-                    <Controller
+                  <div className="mt-3">
+                    <PageVisibilityBanner
                       name={`pageNavItems.${careersPageNavIndex}.enabled`}
                       control={control}
-                      render={({ field }) => (
-                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={field.value !== false}
-                            onChange={(event) => field.onChange(event.target.checked)}
-                          />
-                          Show Careers page on website
-                        </label>
-                      )}
+                      pageLabel="Careers"
                     />
                   </div>
                 ) : null}
@@ -4233,7 +4366,7 @@ const CreateWebsite = () => {
                       />
                     )}
                   />
-                  <div>
+                  <div data-tour="wb-editor-careers-page-form-layout">
                     <div className="border-b-default border-borderGray py-4">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Apply Now Form Layout <SectionPreviewInfo section="applyForm" /></span>
                     </div>
@@ -4266,7 +4399,7 @@ const CreateWebsite = () => {
                       </div>
                     </div>
                   </div>
-                  <div>
+                  <div data-tour="wb-editor-careers-page-custom-fields">
                     <div className="border-b-default border-borderGray py-4">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Additional Form Fields</span>
                     </div>
@@ -4374,25 +4507,18 @@ const CreateWebsite = () => {
               <div className="mt-4">
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <div>
-                    <div className="flex items-center justify-between gap-3 py-2 border-b-default border-borderGray">
+                    <div className="py-2 border-b-default border-borderGray" data-tour="wb-editor-contact-page-details">
                       <span className="text-subtitle font-pmedium">
                         Contact Details (Synced with Home)
                       </span>
                       {contactPageNavIndex >= 0 ? (
-                        <Controller
-                          name={`pageNavItems.${contactPageNavIndex}.enabled`}
-                          control={control}
-                          render={({ field }) => (
-                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                              <input
-                                type="checkbox"
-                                checked={field.value !== false}
-                                onChange={(event) => field.onChange(event.target.checked)}
-                              />
-                              Show Contact Us page on website
-                            </label>
-                          )}
-                        />
+                        <div className="mt-3">
+                          <PageVisibilityBanner
+                            name={`pageNavItems.${contactPageNavIndex}.enabled`}
+                            control={control}
+                            pageLabel="Contact Us"
+                          />
+                        </div>
                       ) : null}
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -4432,7 +4558,7 @@ const CreateWebsite = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-tour="wb-editor-contact-page-inquiry">
                     <Controller
                       name="contactBusinessHours"
                       control={control}
@@ -4485,8 +4611,8 @@ const CreateWebsite = () => {
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4" data-tour="wb-editor-home-content">
             {/* HERO / COMPANY */}
             {activeSections.includes("hero") && (
-            <div data-tour="wb-editor-hero-section">
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+            <div>
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-hero-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Hero Section <SectionPreviewInfo section="hero" /></span>
                 <SectionToggle sectionKey="home_hero" control={control} />
               </div>
@@ -4626,7 +4752,7 @@ const CreateWebsite = () => {
             {/* ABOUT */}
             {activeSections.includes("about") && (
             <div>
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-about-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Section <SectionPreviewInfo section="about" /></span>
                 <SectionToggle sectionKey="home_about" control={control} />
               </div>
@@ -4695,7 +4821,7 @@ const CreateWebsite = () => {
             {/* PRODUCTS */}
             {activeSections.includes("products") && (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-products-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Our Products Section <SectionPreviewInfo section="products" /></span>
                 <div className="flex items-center gap-3">
                   <button
@@ -4808,7 +4934,7 @@ const CreateWebsite = () => {
             {/* Home Inclusions â€" toggle amenities shown below Our Products on home page */}
             {productPageFields.length > 0 ? (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-inclusions-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Home Inclusions Section <SectionPreviewInfo section="inclusions" /></span>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-slate-400">Shown below Our Products on home page</span>
@@ -4866,7 +4992,7 @@ const CreateWebsite = () => {
             {/* Global FAQ â€" shown on all product pages and product detail pages */}
             {productPageFields.length > 0 ? (
             <div className="col-span-2" id="home-faq-section">
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-faq-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">FAQ Section <SectionPreviewInfo section="faq" /></span>
                 <span className="text-xs text-slate-400">Shared list — each product page decides for itself whether to show it. Max 10</span>
               </div>
@@ -5108,7 +5234,7 @@ const CreateWebsite = () => {
             {/* GALLERY */}
             {activeSections.includes("gallery") && (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-gallery-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Section <SectionPreviewInfo section="gallery" /></span>
                 <SectionToggle sectionKey="home_gallery" control={control} />
               </div>
@@ -5152,7 +5278,7 @@ const CreateWebsite = () => {
             {/* TESTIMONIALS */}
             {activeSections.includes("testimonials") && (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-testimonials-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Testimonials Section <SectionPreviewInfo section="testimonials" /></span>
                 <SectionToggle sectionKey="home_testimonials" control={control} />
               </div>
@@ -5269,7 +5395,7 @@ const CreateWebsite = () => {
             {/* Logo Carousel — shown just before Contact & Footer on home page */}
             {activeSections.includes("contact") && (
             <div className="col-span-2">
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-trusted-by-section">
                 <div className="flex items-center gap-3">
                   <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Trusted By Section <SectionPreviewInfo section="logoCarousel" /></span>
                   <span className="text-xs text-slate-400">Shown just before Contact &amp; Footer on home page</span>
@@ -5325,7 +5451,7 @@ const CreateWebsite = () => {
             {/* CONTACT */}
             {activeSections.includes("contact") && (
             <div>
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-contact-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Contact Section <SectionPreviewInfo section="contact" /></span>
                 <SectionToggle sectionKey="home_contact" control={control} />
               </div>
@@ -5456,7 +5582,7 @@ const CreateWebsite = () => {
             {/* FOOTER */}
             {activeSections.includes("footer") && (
             <div>
-              <div className="py-4 border-b-default border-borderGray flex items-center justify-between">
+              <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-footer-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Footer Section <SectionPreviewInfo section="footer" /></span>
                 <SectionToggle sectionKey="home_footer" control={control} />
               </div>
@@ -5596,7 +5722,13 @@ const CreateWebsite = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPopup(true)}
+                  onClick={() => {
+                    if (hiddenPageNavEntries.length > 0) {
+                      setShowHiddenPagesWarning(true);
+                    } else {
+                      setShowConfirmPopup(true);
+                    }
+                  }}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
                   data-tour="wb-editor-publish"
                   className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
@@ -5622,6 +5754,77 @@ const CreateWebsite = () => {
                 </div>
               ) : null}
             </form>
+
+              <Dialog
+              open={showHiddenPagesWarning}
+              onClose={() => setShowHiddenPagesWarning(false)}
+              fullWidth
+              maxWidth="sm"
+              PaperProps={{
+                sx: { borderRadius: 3, overflow: "hidden" },
+              }}
+            >
+              <DialogTitle sx={{ pb: 1 }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-slate-900">Some pages are hidden</span>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                    {hiddenPageNavEntries.length} Hidden
+                  </span>
+                </div>
+              </DialogTitle>
+              <DialogContent>
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                  <p className="text-sm font-pmedium text-amber-900">
+                    These pages won&apos;t appear on your published website:
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {hiddenPageNavEntries.map((entry) => (
+                      <span
+                        key={entry.index}
+                        className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-pmedium text-amber-800"
+                      >
+                        {entry.name}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs text-amber-800">
+                    Enable them now so visitors can see them, or continue and publish without them — you can turn them back on anytime.
+                  </p>
+                </div>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowHiddenPagesWarning(false)}
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowHiddenPagesWarning(false);
+                    setShowConfirmPopup(true);
+                  }}
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                >
+                  Continue Anyway
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    hiddenPageNavEntries.forEach((entry) => {
+                      setValue(`pageNavItems.${entry.index}.enabled`, true, { shouldDirty: true });
+                    });
+                    setShowHiddenPagesWarning(false);
+                    setShowConfirmPopup(true);
+                  }}
+                  className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
+                >
+                  Enable All &amp; Continue
+                </button>
+              </DialogActions>
+            </Dialog>
 
               <Dialog
               open={showConfirmPopup}

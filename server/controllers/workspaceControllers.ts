@@ -6,6 +6,7 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
+import { Ticket } from "../models/Ticket.js";
 import {
   buildWorkspaceModuleCatalog,
   buildWorkspaceModulesStructure,
@@ -51,10 +52,65 @@ const _getRoleBand = (role: any) => {
   return "employee";
 };
 
-const normalizeStringArray = (value: unknown) =>
-  Array.isArray(value)
-    ? value.map((item) => String(item).trim()).filter(Boolean)
-    : [];
+// Performance is derived from what the plan actually operates on. Professional
+// plan units run Tickets and Meeting Room Bookings, so their score is a blend
+// of ticket resolution and booking completion. Resolved = Resolved + Closed;
+// "completed" bookings only count when they were NOT rescheduled or cancelled.
+const RESOLVED_TICKET_STATUSES = new Set(["Resolved", "Closed"]);
+const PENDING_TICKET_STATUSES = new Set(["Open", "In Progress"]);
+
+const computePerformanceMetrics = (tickets: any[] = [], bookings: any[] = []) => {
+  const totalTickets = tickets.length;
+  const resolvedTickets = tickets.filter((ticket: any) =>
+    RESOLVED_TICKET_STATUSES.has(String(ticket?.status || "")),
+  ).length;
+  const pendingTickets = tickets.filter((ticket: any) =>
+    PENDING_TICKET_STATUSES.has(String(ticket?.status || "")),
+  ).length;
+
+  const totalBookings = bookings.length;
+  const completedBookings = bookings.filter(
+    (booking: any) =>
+      String(booking?.status || "") === "completed" &&
+      String(booking?.scheduleChangeType || "") !== "rescheduled",
+  ).length;
+
+  const ticketResolutionRate = totalTickets > 0 ? Math.round((resolvedTickets / totalTickets) * 100) : 0;
+  const bookingCompletionRate = totalBookings > 0 ? Math.round((completedBookings / totalBookings) * 100) : 0;
+
+  // Blend the two rates, but only over the modules that actually have data —
+  // a unit that has tickets but no bookings (or vice versa) shouldn't be
+  // penalized by the other module sitting at 0%.
+  const overallScore =
+    totalTickets > 0 && totalBookings > 0
+      ? Math.round((ticketResolutionRate + bookingCompletionRate) / 2)
+      : totalTickets > 0
+        ? ticketResolutionRate
+        : totalBookings > 0
+          ? bookingCompletionRate
+          : 0;
+
+  return {
+    totalTickets,
+    resolvedTickets,
+    pendingTickets,
+    totalBookings,
+    completedBookings,
+    ticketResolutionRate,
+    bookingCompletionRate,
+    overallScore,
+  };
+};
+
+const normalizeStringArray = (value: unknown) => {
+  const input = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+  return input.map((item) => String(item).trim()).filter(Boolean);
+};
 
 const derivePrimaryVertical = (businessTypes: string[] = []) => {
   const normalized = businessTypes.map((item) => String(item || "").trim().toLowerCase());
@@ -511,6 +567,22 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       bookingsByWorkspace.set(wId, current);
     }
 
+    const allTickets = await Ticket.find({
+      workspaceId: { $in: workspaceIds },
+    })
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean()
+      .exec();
+
+    const ticketsByWorkspace = new Map<string, any[]>();
+    for (const ticket of allTickets) {
+      const wId = String(ticket.workspaceId);
+      const current = ticketsByWorkspace.get(wId) || [];
+      current.push(ticket);
+      ticketsByWorkspace.set(wId, current);
+    }
+
     const activeMemberships = await WorkspaceMember.find({
       workspace: { $in: workspaceIds },
       isActive: true,
@@ -614,6 +686,27 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         bookedByName: booking.bookedByName || "",
       }));
 
+      const workspaceTickets = ticketsByWorkspace.get(workspaceId) || [];
+      const ticketStatusCounts = new Map<string, number>();
+      workspaceTickets.forEach((ticket: any) => {
+        const status = String(ticket?.status || "Open");
+        ticketStatusCounts.set(status, Number(ticketStatusCounts.get(status) || 0) + 1);
+      });
+      const ticketsByStatus = Array.from(ticketStatusCounts.entries()).map(([status, count]) => ({
+        status,
+        count,
+      }));
+      const recentTickets = workspaceTickets.slice(0, 10).map((ticket: any) => ({
+        id: toId(ticket._id),
+        code: ticket.ticketCode || "",
+        title: ticket.title || "",
+        status: ticket.status || "Open",
+        department: ticket.department || "",
+        assignedTo: ticket.assignedTo || "",
+        priority: ticket.priority || "Medium",
+      }));
+      const performance = computePerformanceMetrics(workspaceTickets, workspaceBookings);
+
       const departmentEmployeeCounts = new Map<string, number>();
       employees.forEach((employee) => {
         (employee.departments || []).forEach((departmentName: string) => {
@@ -628,6 +721,12 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         if (!key) return;
         departmentBookingCounts.set(key, Number(departmentBookingCounts.get(key) || 0) + 1);
       });
+      const departmentTicketCounts = new Map<string, number>();
+      workspaceTickets.forEach((ticket: any) => {
+        const key = String(ticket?.department || "").trim().toLowerCase();
+        if (!key) return;
+        departmentTicketCounts.set(key, Number(departmentTicketCounts.get(key) || 0) + 1);
+      });
 
       return {
         id: workspaceId,
@@ -636,10 +735,14 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         city: item.city || "",
         state: item.state || "",
         country: item.country || "",
+        countryCode: item.countryCode || "",
         address: item.address || "",
         location: [item.city, item.state, item.country].filter(Boolean).join(", "),
         industry: "",
         businessType: Array.isArray(item.businessTypes) ? item.businessTypes.join(", ") : "",
+        businessTypes: Array.isArray(item.businessTypes) ? item.businessTypes : [],
+        timezone: item.preferences?.timezone || "",
+        currency: item.preferences?.currency || "",
         selectedPlan: String(item.selectedPlan || "basic").trim().toLowerCase(),
         status: item.isDeleted === true ? "deleted" : item.isActive === false ? "inactive" : "active",
         isActiveWorkspace:
@@ -660,15 +763,25 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         metrics: {
           totalEmployees: memberMap.get(workspaceId) || 0,
           totalDepartments: departments.length,
-          totalTickets: 0,
+          totalTickets: performance.totalTickets,
           totalTasks: 0,
           totalAssets: 0,
           totalInventory: 0,
-          totalMeetingBookings: workspaceBookings.length,
+          totalMeetingBookings: performance.totalBookings,
           performance: {
             taskCompletionRate: 0,
-            ticketResolutionRate: 0,
-            overallScore: 0,
+            ticketResolutionRate: performance.ticketResolutionRate,
+            bookingCompletionRate: performance.bookingCompletionRate,
+            overallScore: performance.overallScore,
+            tickets: {
+              total: performance.totalTickets,
+              resolved: performance.resolvedTickets,
+              pending: performance.pendingTickets,
+            },
+            bookings: {
+              total: performance.totalBookings,
+              completed: performance.completedBookings,
+            },
           },
         },
         details: {
@@ -679,23 +792,30 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
             return {
               name: department?.name || "",
               totalEmployees: departmentEmployeeCounts.get(key) || 0,
-              totalTickets: 0,
+              totalTickets: departmentTicketCounts.get(key) || 0,
               totalTasks: 0,
               totalMeetingBookings: departmentBookingCounts.get(key) || 0,
             };
           }),
-          tickets: { byStatus: [], recent: [] },
+          tickets: { byStatus: ticketsByStatus, recent: recentTickets },
           tasks: { byStatus: [], recent: [] },
           bookings: { byStatus: bookingsByStatus, recent: recentBookings },
         },
       };
     });
 
-    const summary = list.reduce(
+    const summaryAgg = list.reduce(
       (acc, item) => {
         acc.totalEmployees += Number(item.metrics.totalEmployees || 0);
         acc.totalDepartments += Number(item.metrics.totalDepartments || 0);
+        acc.totalTickets += Number(item.metrics.totalTickets || 0);
+        acc.totalTasks += Number(item.metrics.totalTasks || 0);
+        acc.totalAssets += Number(item.metrics.totalAssets || 0);
+        acc.totalInventory += Number(item.metrics.totalInventory || 0);
         acc.totalMeetingBookings += Number(item.metrics.totalMeetingBookings || 0);
+        acc.resolvedTickets += Number(item.metrics.performance?.tickets?.resolved || 0);
+        acc.pendingTickets += Number(item.metrics.performance?.tickets?.pending || 0);
+        acc.completedBookings += Number(item.metrics.performance?.bookings?.completed || 0);
         return acc;
       },
       {
@@ -706,9 +826,55 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         totalAssets: 0,
         totalInventory: 0,
         totalMeetingBookings: 0,
-        performance: { taskCompletionRate: 0, ticketResolutionRate: 0, overallScore: 0 },
+        resolvedTickets: 0,
+        pendingTickets: 0,
+        completedBookings: 0,
       },
     );
+
+    // Merged (across all linked units) performance, weighted by the actual
+    // resolved/completed counts so one busy unit can't be skewed by a quiet one.
+    const mergedTicketResolutionRate =
+      summaryAgg.totalTickets > 0
+        ? Math.round((summaryAgg.resolvedTickets / summaryAgg.totalTickets) * 100)
+        : 0;
+    const mergedBookingCompletionRate =
+      summaryAgg.totalMeetingBookings > 0
+        ? Math.round((summaryAgg.completedBookings / summaryAgg.totalMeetingBookings) * 100)
+        : 0;
+    const mergedOverallScore =
+      summaryAgg.totalTickets > 0 && summaryAgg.totalMeetingBookings > 0
+        ? Math.round((mergedTicketResolutionRate + mergedBookingCompletionRate) / 2)
+        : summaryAgg.totalTickets > 0
+          ? mergedTicketResolutionRate
+          : summaryAgg.totalMeetingBookings > 0
+            ? mergedBookingCompletionRate
+            : 0;
+
+    const summary = {
+      totalEmployees: summaryAgg.totalEmployees,
+      totalDepartments: summaryAgg.totalDepartments,
+      totalTickets: summaryAgg.totalTickets,
+      totalTasks: summaryAgg.totalTasks,
+      totalAssets: summaryAgg.totalAssets,
+      totalInventory: summaryAgg.totalInventory,
+      totalMeetingBookings: summaryAgg.totalMeetingBookings,
+      performance: {
+        taskCompletionRate: 0,
+        ticketResolutionRate: mergedTicketResolutionRate,
+        bookingCompletionRate: mergedBookingCompletionRate,
+        overallScore: mergedOverallScore,
+        tickets: {
+          total: summaryAgg.totalTickets,
+          resolved: summaryAgg.resolvedTickets,
+          pending: summaryAgg.pendingTickets,
+        },
+        bookings: {
+          total: summaryAgg.totalMeetingBookings,
+          completed: summaryAgg.completedBookings,
+        },
+      },
+    };
 
     return res.status(200).json({
       message: "Workspace management loaded successfully.",
@@ -790,6 +956,36 @@ export const updateManagedWorkspace = async (req, res, next) => {
     if (profile.address !== undefined) {
       target.address = String(profile.address || "").trim();
     }
+    // Verticals (businessTypes) are edited per-unit, so only this workspace's
+    // list changes — the account-level company record is shared across units
+    // and is intentionally left untouched.
+    if (profile.businessTypes !== undefined) {
+      target.businessTypes = normalizeStringArray(profile.businessTypes);
+    }
+    if (profile.timezone !== undefined) {
+      const nextTimezone = String(profile.timezone || "").trim();
+      if (!nextTimezone || !isValidTimeZone(nextTimezone)) {
+        return res.status(400).json({
+          message: "Select a valid timezone for this business location.",
+        });
+      }
+      target.preferences = {
+        ...(target.preferences?.toObject?.() || target.preferences || {}),
+        timezone: normalizeTimeZone(nextTimezone),
+      };
+    }
+    if (profile.currency !== undefined) {
+      const nextCurrency = String(profile.currency || "").trim().toUpperCase();
+      if (!nextCurrency || !isValidCurrency(nextCurrency)) {
+        return res.status(400).json({
+          message: "Select a valid ISO currency for this business location.",
+        });
+      }
+      target.preferences = {
+        ...(target.preferences?.toObject?.() || target.preferences || {}),
+        currency: normalizeCurrency(nextCurrency),
+      };
+    }
     await target.save();
 
     return res.status(200).json({
@@ -801,7 +997,11 @@ export const updateManagedWorkspace = async (req, res, next) => {
           city: target.city || "",
           state: target.state || "",
           country: target.country || "",
+          countryCode: target.countryCode || "",
           location: [target.city, target.state, target.country].filter(Boolean).join(", "),
+          timezone: target.preferences?.timezone || "",
+          currency: target.preferences?.currency || "",
+          businessTypes: Array.isArray(target.businessTypes) ? target.businessTypes : [],
         },
       },
     });

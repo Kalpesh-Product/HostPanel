@@ -89,7 +89,7 @@ const HrExpenseGraph = ({ utilisedData, maxBudget, route }) => {
               <div style="display: flex; align-items: center; justify-content: space-between; background-color: #d0f0dc; color: #1b5e20; padding: 6px 8px; border-radius: 4px; margin-bottom: 4px;">
                 <div><strong>Utilised Budget</strong></div>
                 <div style="width: 20px;"></div>
-                <div style="text-align: right;">${utilised.toLocaleString()} INR</div>
+                <div style="text-align: right;">${utilised.toLocaleString("en-IN")} INR</div>
               </div>
        
             </div>

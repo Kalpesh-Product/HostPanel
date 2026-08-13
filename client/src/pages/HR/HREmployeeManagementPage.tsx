@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+﻿import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import MonthWiseBirthdaysTab from "./MonthWiseBirthdaysTab";
 import CompanyDocumentTab from "./CompanyDocumentTab";
+import EmployeeBankAccountFields, { type BankVerificationState } from "./EmployeeBankAccountFields";
 import { toast } from "sonner";
 import PageFrame from "@/components/Pages/PageFrame";
 import { HREmployeeManagementSkeleton } from "@/components/ui/Skeleton";
@@ -36,6 +37,8 @@ import useDashboardAccess from "@/hooks/useDashboardAccess";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
+interface EmployeeIdProof { type: string; value: string; }
+
 interface EmployeeFormState {
   fullName: string; dateOfBirth: string; email: string; phone: string; gender: string;
   currentAddress: string; permanentAddress: string; country: string; state: string; city: string;
@@ -44,9 +47,11 @@ interface EmployeeFormState {
   managerUserId: string; workLocation: string; workMode: string; employmentType: string;
   internshipIsUnpaid: boolean; internshipDurationMonths: string; internshipEndDate: string;
   noticePeriodDays: string; probationDays: string; joiningDate: string; salaryAmount: string;
+  allowancesAmount: string; deductionsAmount: string;
   bankNameSelection: string; bankNameCustom: string; bankName: string;
   accountHolderName: string; accountNumber: string; ifscCode: string;
   nationalIdType: string; nationalIdNumber: string; taxId: string; providentFundNumber: string;
+  idProofs: EmployeeIdProof[];
   identityProof: File | null; addressProof: File | null; bankProof: File | null;
   otherDocuments: File[];
 }
@@ -65,7 +70,8 @@ interface Employee {
   noticePeriodDays: number; probationDays: number; bankName: string;
   accountHolderName: string; accountNumber: string; ifscCode: string;
   nationalIdType: string; nationalIdNumber: string; taxId: string; providentFundNumber: string;
-  salaryPackage: { amount: number; grossAnnual: number; currency: string; payFrequency: string };
+  idProofs: EmployeeIdProof[];
+  salaryPackage: { amount: number; grossAnnual: number; currency: string; payFrequency: string; allowances?: number; deductions?: number };
   salaryLabel: string; salaryMonthlyLabel: string;
   permissions: { modules: string[]; features: string[] };
   documents: Array<{ name: string; type: string; uploadedAt: string }>;
@@ -85,8 +91,6 @@ interface JobTitleOption {
   remainingVacancies: number; internshipDurationMonths?: number; isPaid?: boolean;
   designation?: string; label?: string;
 }
-
-interface BankBranchOption { bankName: string; branchName: string; ifscCode: string; }
 
 interface BulkImportSummary {
   processedRows: number; createdCount: number; skippedCount: number;
@@ -162,8 +166,11 @@ const WORK_MODE_OPTIONS = ["remote", "office", "hybrid"];
 const EMPLOYMENT_TYPE_OPTIONS = [
   "full-time", "part-time", "contract", "intern", "trainee", "consultant",
 ];
-const NATIONAL_ID_TYPES = [
-  "Aadhaar", "PAN Card", "Passport", "Voter ID", "Driving License", "Other",
+// Suggested checklist only — not an enforced enum. HR can add any custom
+// type via "+ Add" so this works for employees outside India too; it just
+// saves a click for the common Indian ID/document types most customers use today.
+const ID_PROOF_PRESETS = [
+  "Aadhaar", "PAN Card", "Passport", "Voter ID", "Driving License", "Provident Fund (UAN)",
 ];
 const BANK_NAME_CUSTOM_OPTION = "__custom__";
 const INTERNSHIP_EMPLOYMENT_TYPES = new Set(["intern", "trainee"]);
@@ -268,48 +275,6 @@ function formatDateForInput(value: unknown): string {
   return `${year}-${month}-${day}`;
 }
 
-function mergeBankNameOptions(options: string[] = []): string[] {
-  const defaults = ["State Bank of India", "HDFC Bank", "ICICI Bank", "Axis Bank", "Kotak Mahindra", "Yes Bank", "Bank of Baroda", "Punjab National Bank", "Canara Bank", "Union Bank of India"];
-  const combined = new Set([...defaults, ...options.filter(Boolean)]);
-  return Array.from(combined);
-}
-
-function mergeBankBranchOptions(options: (string | Record<string, string>)[] = []): BankBranchOption[] {
-  const baseBranches: BankBranchOption[] = [];
-  const seenIfsc = new Set<string>();
-  [...(options || [])].forEach((entry) => {
-    if (typeof entry === "string") {
-      const ifsc = entry.trim();
-      if (ifsc && !seenIfsc.has(ifsc)) { seenIfsc.add(ifsc); baseBranches.push({ bankName: "", branchName: "", ifscCode: ifsc }); }
-    } else if (entry && typeof entry === "object") {
-      const ifsc = String(entry.ifscCode || "").trim();
-      if (ifsc && !seenIfsc.has(ifsc)) { seenIfsc.add(ifsc); baseBranches.push({ bankName: String(entry.bankName || ""), branchName: String(entry.branchName || ""), ifscCode: ifsc }); }
-    }
-  });
-  return baseBranches;
-}
-
-async function fetchIfscBranchDetails(ifscCode: string = ""): Promise<BankBranchOption | null> {
-  try {
-    const code = ifscCode.trim().toUpperCase();
-    if (!code || code.length < 8) return null;
-    const response = await fetch(`https://ifsc.razorpay.com/${code}`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (!data || !data.BRANCH) return null;
-    return { bankName: String(data.BANK || ""), branchName: String(data.BRANCH || ""), ifscCode: code };
-  } catch { return null; }
-}
-
-function findBankBranchByIfsc(branches: BankBranchOption[], bankName: string = "", ifscCode: string = ""): BankBranchOption | undefined {
-  const code = ifscCode.trim().toUpperCase();
-  return branches.find((b) => b.ifscCode === code && (!bankName || b.bankName === bankName));
-}
-
-function normalizeBankNameOption(value: string): string {
-  return String(value || "").replace(" (NEFT/IFSC enabled)", "").trim();
-}
-
 function createEmployeeFormState(): EmployeeFormState {
   return {
     fullName: "", dateOfBirth: "", email: "", phone: "", gender: "",
@@ -318,9 +283,11 @@ function createEmployeeFormState(): EmployeeFormState {
     managerUserId: "", workLocation: "", workMode: "hybrid", employmentType: "full-time",
     internshipIsUnpaid: false, internshipDurationMonths: "6", internshipEndDate: "",
     noticePeriodDays: "30", probationDays: "none", joiningDate: "", salaryAmount: "",
+    allowancesAmount: "", deductionsAmount: "",
     bankNameSelection: "", bankNameCustom: "", bankName: "",
     accountHolderName: "", accountNumber: "", ifscCode: "",
     nationalIdType: "", nationalIdNumber: "", taxId: "", providentFundNumber: "",
+    idProofs: [],
     identityProof: null, addressProof: null, bankProof: null, otherDocuments: [],
   };
 }
@@ -336,6 +303,25 @@ function normalizeEmployeeStatusKey(value: string = ""): string {
 
 function mapRoleLabelToValue(role: string): string {
   return ROLE_LABEL_TO_VALUE[role] || String(role || "").toLowerCase().replace(/\s+/g, "_");
+}
+
+// Existing employees saved before idProofs existed only have the old
+// nationalIdType/taxId/providentFundNumber fields — synthesize idProofs
+// entries from those so nothing is lost when this loads into the new editor.
+function normalizeIdProofs(employee: Record<string, unknown>): EmployeeIdProof[] {
+  const existing = Array.isArray(employee.idProofs)
+    ? (employee.idProofs as EmployeeIdProof[]).filter((entry) => entry?.type)
+    : [];
+  if (existing.length > 0) return existing;
+  const legacy: EmployeeIdProof[] = [];
+  const nationalIdType = String(employee.nationalIdType || "").trim();
+  const nationalIdNumber = String(employee.nationalIdNumber || "").trim();
+  if (nationalIdType && nationalIdNumber) legacy.push({ type: nationalIdType, value: nationalIdNumber });
+  const taxId = String(employee.taxId || "").trim();
+  if (taxId) legacy.push({ type: "PAN Card", value: taxId });
+  const providentFundNumber = String(employee.providentFundNumber || "").trim();
+  if (providentFundNumber) legacy.push({ type: "Provident Fund (UAN)", value: providentFundNumber });
+  return legacy;
 }
 
 function mapEmployeeToUi(employee: Record<string, unknown> = {}): Employee {
@@ -397,7 +383,12 @@ function mapEmployeeToUi(employee: Record<string, unknown> = {}): Employee {
     nationalIdNumber: String(employee.nationalIdNumber || ""),
     taxId: String(employee.taxId || ""),
     providentFundNumber: String(employee.providentFundNumber || ""),
-    salaryPackage: { amount: salaryAmount, grossAnnual: salaryAmount, currency: salaryCurrency, payFrequency: String(salary.payFrequency || "annual") },
+    idProofs: normalizeIdProofs(employee),
+    salaryPackage: {
+      amount: salaryAmount, grossAnnual: salaryAmount, currency: salaryCurrency,
+      payFrequency: String(salary.payFrequency || "annual"),
+      allowances: Number(salary.allowances || 0), deductions: Number(salary.deductions || 0),
+    },
     salaryLabel: salaryAmount ? formatEmployeeCurrency(salaryAmount, salaryCurrency) : "-",
     salaryMonthlyLabel: salaryAmount ? `${formatEmployeeCurrency(salaryAmount / 12, salaryCurrency)}/mo` : "-",
     permissions: (employee.permissions as { modules: string[]; features: string[] }) || { modules: [], features: [] },
@@ -469,6 +460,8 @@ function buildEmployeeReportRows(employee: Record<string, unknown>): Array<{ lab
   const departments = Array.isArray(departmentsRaw) ? departmentsRaw.filter(Boolean).map(String) : [String(departmentsRaw)];
   const roleKey = normalizeUserRole(rawRole);
   const roleLabel = ROLE_VALUE_TO_LABEL[roleKey] || roleKey;
+  const salary = (employee.salaryPackage as Record<string, unknown>) || {};
+  const idProofRows = normalizeIdProofs(employee).map((entry) => ({ label: entry.type, value: entry.value || "-" }));
   return [
     { label: "Employee ID", value: String(employee.employeeId || employee.employeeNumber || "-") },
     { label: "Full Name", value: String((employee.fullName || employee.name || "") as string) },
@@ -493,14 +486,13 @@ function buildEmployeeReportRows(employee: Record<string, unknown>): Array<{ lab
     { label: "City", value: String(employee.city || "-") },
     { label: "Manager", value: String(employee.managerName || "-") },
     { label: "Salary Package", value: String(employee.salaryLabel || "-") },
+    { label: "Monthly Allowances", value: salary.allowances ? String(salary.allowances) : "-" },
+    { label: "Monthly Deductions (Tax/PF)", value: salary.deductions ? String(salary.deductions) : "-" },
     { label: "Bank Name", value: String(employee.bankName || "-") },
     { label: "Account Holder Name", value: String(employee.accountHolderName || "-") },
     { label: "Account Number", value: String(employee.accountNumber || "-") },
     { label: "IFSC Code", value: String(employee.ifscCode || "-") },
-    { label: "National ID Type", value: String(employee.nationalIdType || "-") },
-    { label: "National ID Number", value: String(employee.nationalIdNumber || employee.taxId || "-") },
-    { label: "Tax ID (PAN)", value: String(employee.taxId || "-") },
-    { label: "Provident Fund / UAN", value: String(employee.providentFundNumber || "-") },
+    ...idProofRows,
     { label: "Status", value: String(employee.status || "-") },
     { label: "Last Login", value: String(employee.lastLogin || "-") },
   ];
@@ -597,6 +589,148 @@ function CompensationCtcFields({
   );
 }
 
+function AllowanceDeductionFields({
+  allowances,
+  deductions,
+  currency,
+  onChangeAllowances,
+  onChangeDeductions,
+}: {
+  allowances: string;
+  deductions: string;
+  currency: string;
+  onChangeAllowances: (value: string) => void;
+  onChangeDeductions: (value: string) => void;
+}): React.ReactElement {
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Allowances ({currency})</label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={allowances}
+          onChange={(event) => onChangeAllowances(event.target.value)}
+          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+          placeholder="e.g. 5000"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Deductions — Tax/PF ({currency})</label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={deductions}
+          onChange={(event) => onChangeDeductions(event.target.value)}
+          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+          placeholder="e.g. 3000"
+        />
+      </div>
+    </>
+  );
+}
+
+// Checklist + custom-add editor for national IDs / tax IDs / social insurance
+// numbers. Not a fixed enum — ID_PROOF_PRESETS is just a suggested checklist,
+// HR can add any type via "+ Add" for employees in any country.
+function IdProofsEditor({
+  value,
+  onChange,
+}: {
+  value: EmployeeIdProof[];
+  onChange: (next: EmployeeIdProof[]) => void;
+}): React.ReactElement {
+  const [customType, setCustomType] = useState("");
+  const selectedTypes = new Set(value.map((entry) => entry.type));
+
+  const togglePreset = (type: string) => {
+    if (selectedTypes.has(type)) {
+      onChange(value.filter((entry) => entry.type !== type));
+    } else {
+      onChange([...value, { type, value: "" }]);
+    }
+  };
+
+  const updateValue = (type: string, nextValue: string) => {
+    onChange(value.map((entry) => (entry.type === type ? { ...entry, value: nextValue } : entry)));
+  };
+
+  const removeEntry = (type: string) => {
+    onChange(value.filter((entry) => entry.type !== type));
+  };
+
+  const addCustom = () => {
+    const trimmed = customType.trim();
+    if (!trimmed || selectedTypes.has(trimmed)) return;
+    onChange([...value, { type: trimmed, value: "" }]);
+    setCustomType("");
+  };
+
+  return (
+    <div className="col-span-full flex flex-col gap-3">
+      <div>
+        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">ID / Tax Proofs Needed</label>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {ID_PROOF_PRESETS.map((type) => (
+            <button
+              type="button"
+              key={type}
+              onClick={() => togglePreset(type)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-pmedium border transition-all ${
+                selectedTypes.has(type)
+                  ? "bg-[#2563EB] text-white border-[#2563EB]"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={customType}
+          onChange={(e) => setCustomType(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }}
+          placeholder="Not in the list? Type a name and add it..."
+          className="flex-1 px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+        />
+        <button
+          type="button"
+          onClick={addCustom}
+          className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-[11px] font-pmedium uppercase tracking-wider hover:bg-slate-200 whitespace-nowrap"
+        >
+          + Add
+        </button>
+      </div>
+      {value.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {value.map((entry) => (
+            <div key={entry.type} className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{entry.type}</label>
+                <button type="button" onClick={() => removeEntry(entry.type)} className="text-slate-400 hover:text-red-500">
+                  <X size={12} />
+                </button>
+              </div>
+              <input
+                type="text"
+                value={entry.value}
+                onChange={(e) => updateValue(entry.type, e.target.value)}
+                placeholder={`${entry.type} number / value`}
+                className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DepartmentCheckboxDropdown({
   departments,
   selectedDepartments,
@@ -677,8 +811,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [transferredEmployees, setTransferredEmployees] = useState<Employee[]>([]);
   const [availableDepartments, setAvailableDepartments] = useState<string[]>(DEFAULT_DEPARTMENT_OPTIONS);
-  const [bankNameOptions, setBankNameOptions] = useState<string[]>(() => mergeBankNameOptions());
-  const [bankBranchOptions, setBankBranchOptions] = useState<BankBranchOption[]>(() => mergeBankBranchOptions());
   const [workspaceCurrency, setWorkspaceCurrency] = useState(DEFAULT_WORKSPACE_CURRENCY);
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [stateOptions, setStateOptions] = useState<string[]>([]);
@@ -714,6 +846,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [editForm, setEditForm] = useState<EmployeeFormState>(() => createEmployeeFormState());
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
   const [editFormSubmitting, setEditFormSubmitting] = useState(false);
+  const [addBankVerification, setAddBankVerification] = useState<BankVerificationState>({ status: "idle" });
+  const [editBankVerification, setEditBankVerification] = useState<BankVerificationState>({ status: "idle" });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   /* ───────────────────── Company Management Tabs ───────────────────── */
@@ -783,8 +917,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
           .filter(Boolean);
         setAvailableDepartments(filterValidDepartments([...DEFAULT_DEPARTMENT_OPTIONS, ...nextDepts]));
       }
-      setBankNameOptions(mergeBankNameOptions((overview.bankNameOptions as string[]) || []));
-      setBankBranchOptions(mergeBankBranchOptions((overview.bankBranchOptions as BankBranchOption[]) || []));
       if (!silent) setErrorMessage("");
     } catch (error: unknown) {
       if (!isMountedRef.current) return;
@@ -1012,9 +1144,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const resetAddForm = () => {
     setAddForm(createEmployeeFormState());
     setAddFormErrors({});
+    setAddBankVerification({ status: "idle" });
   };
 
-  const buildEmployeeFormErrors = (form: EmployeeFormState, selectedDepartments: string[] = []): Record<string, string> => {
+  const buildEmployeeFormErrors = (form: EmployeeFormState, selectedDepartments: string[] = [], bankVerification: BankVerificationState = { status: "idle" }): Record<string, string> => {
     const errors: Record<string, string> = {};
     const normalizedPhone = String(form.phone || "").replace(/[^\d+]/g, "");
     if (!form.fullName.trim()) errors.fullName = "Full name is required";
@@ -1039,12 +1172,25 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     if (requiresCompensation && (!Number.isFinite(annualCtc) || annualCtc <= 0)) {
       errors.salaryAmount = "Annual CTC must be greater than zero";
     }
-    if (form.ifscCode.trim() && !isValidIfscCode(form.ifscCode)) errors.ifscCode = "Invalid IFSC code";
+    const selectedBankName = String(form.bankNameSelection === BANK_NAME_CUSTOM_OPTION ? form.bankNameCustom : form.bankNameSelection || form.bankName || "").trim();
+    const hasAnyBankDetail = Boolean(selectedBankName || form.accountHolderName.trim() || form.accountNumber.trim() || form.ifscCode.trim());
+    const isIndianAccount = form.country.trim().toLowerCase() === "india";
+    if (hasAnyBankDetail) {
+      if (!selectedBankName || !form.accountHolderName.trim() || !form.accountNumber.trim()) {
+        errors.ifscCode = "Complete the bank, account holder, and account number fields";
+      } else if (isIndianAccount && !isValidIfscCode(form.ifscCode)) {
+        errors.ifscCode = "Enter a valid 11-character IFSC code";
+      } else if (isIndianAccount && ["idle", "checking", "error"].includes(bankVerification.status)) {
+        errors.ifscCode = bankVerification.status === "error"
+          ? (bankVerification.message || "IFSC validation failed")
+          : "Validate the IFSC and branch before saving";
+      }
+    }
     return errors;
   };
 
   const validateAddForm = (): boolean => {
-    const errors = buildEmployeeFormErrors(addForm, addForm.departments);
+    const errors = buildEmployeeFormErrors(addForm, addForm.departments, addBankVerification);
     setAddFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -1211,56 +1357,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     return normalizeDepartmentSelection(role, previousDepartments.length > 0 ? previousDepartments : allDepartments.slice(0, 1));
   };
 
-  /* ───────────────────── IFSC Auto-lookup (Invite & Edit) ───────────────────── */
-
-  useEffect(() => {
-    const ifscCode = normalizeBankNameOption(addForm.ifscCode).toUpperCase();
-    const timeoutId = window.setTimeout(async () => {
-      if (!ifscCode) { setAddForm((prev) => (prev.workLocation ? { ...prev, workLocation: "" } : prev)); return; }
-      const liveBranch = await fetchIfscBranchDetails(ifscCode);
-      if (!isMountedRef.current) return;
-      setAddForm((prev) => {
-        if (normalizeBankNameOption(prev.ifscCode).toUpperCase() !== ifscCode) return prev;
-        const cachedBranch = findBankBranchByIfsc(bankBranchOptions, "", ifscCode);
-        const nextLocation = liveBranch?.branchName || cachedBranch?.branchName || "";
-        return prev.workLocation === nextLocation ? prev : { ...prev, workLocation: nextLocation };
-      });
-    }, 450);
-    return () => window.clearTimeout(timeoutId);
-  }, [addForm.ifscCode, bankBranchOptions]);
-
-  useEffect(() => {
-    const ifscCode = normalizeBankNameOption(inviteForm.ifscCode).toUpperCase();
-    const timeoutId = window.setTimeout(async () => {
-      if (!ifscCode) { setInviteForm((prev) => (prev.workLocation ? { ...prev, workLocation: "" } : prev)); return; }
-      const liveBranch = await fetchIfscBranchDetails(ifscCode);
-      if (!isMountedRef.current) return;
-      setInviteForm((prev) => {
-        if (normalizeBankNameOption(prev.ifscCode).toUpperCase() !== ifscCode) return prev;
-        const cachedBranch = findBankBranchByIfsc(bankBranchOptions, "", ifscCode);
-        const nextLocation = liveBranch?.branchName || cachedBranch?.branchName || "";
-        return prev.workLocation === nextLocation ? prev : { ...prev, workLocation: nextLocation };
-      });
-    }, 450);
-    return () => window.clearTimeout(timeoutId);
-  }, [inviteForm.ifscCode, bankBranchOptions]);
-
-  useEffect(() => {
-    const ifscCode = normalizeBankNameOption(editForm.ifscCode).toUpperCase();
-    const timeoutId = window.setTimeout(async () => {
-      if (!ifscCode) { setEditForm((prev) => (prev.workLocation ? { ...prev, workLocation: "" } : prev)); return; }
-      const liveBranch = await fetchIfscBranchDetails(ifscCode);
-      if (!isMountedRef.current) return;
-      setEditForm((prev) => {
-        if (normalizeBankNameOption(prev.ifscCode).toUpperCase() !== ifscCode) return prev;
-        const cachedBranch = findBankBranchByIfsc(bankBranchOptions, "", ifscCode);
-        const nextLocation = liveBranch?.branchName || cachedBranch?.branchName || "";
-        return prev.workLocation === nextLocation ? prev : { ...prev, workLocation: nextLocation };
-      });
-    }, 450);
-    return () => window.clearTimeout(timeoutId);
-  }, [editForm.ifscCode, bankBranchOptions]);
-
   /* ───────────────────── Invite Modal Handlers ───────────────────── */
 
   const handleInviteRoleChange = (newRole: string) => {
@@ -1328,6 +1424,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     setEditingEmployee(employee);
     setEditFormErrors({});
     setEditFormSubmitting(false);
+    setEditBankVerification({ status: "idle" });
     setEditForm({
       fullName: employee.fullName || employee.name, dateOfBirth: employee.dateOfBirthValue,
       email: employee.email, phone: employee.phone, gender: employee.gender || "",
@@ -1350,6 +1447,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       probationDays: String(employee.probationDays || "none"),
       joiningDate: employee.joiningDateValue,
       salaryAmount: String(employee.salaryPackage?.grossAnnual || employee.salaryPackage?.amount || ""),
+      allowancesAmount: String(employee.salaryPackage?.allowances || ""),
+      deductionsAmount: String(employee.salaryPackage?.deductions || ""),
       bankNameSelection: employee.bankName || "",
       bankNameCustom: "", bankName: employee.bankName || "",
       accountHolderName: employee.accountHolderName,
@@ -1357,6 +1456,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       ifscCode: employee.ifscCode,
       nationalIdType: employee.nationalIdType, nationalIdNumber: employee.nationalIdNumber,
       taxId: employee.taxId, providentFundNumber: employee.providentFundNumber,
+      idProofs: Array.isArray(employee.idProofs) ? employee.idProofs : [],
       identityProof: null, addressProof: null, bankProof: null, otherDocuments: [],
     });
     setIsEditModalOpen(true);
@@ -1394,7 +1494,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const selectedDepartments = getDepartmentSelectionMode(editForm.role) === "all"
       ? [...allDepartments]
       : editForm.departments;
-    const validationErrors = buildEmployeeFormErrors(editForm, selectedDepartments);
+    const validationErrors = buildEmployeeFormErrors(editForm, selectedDepartments, editBankVerification);
     if (Object.keys(validationErrors).length > 0) {
       setEditFormErrors(validationErrors);
       const firstError = Object.values(validationErrors)[0];
@@ -1551,11 +1651,54 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const managerOptions = useMemo(
     () =>
       employees
-        .filter((e) => e?.userId && e?.source !== "tenant-company")
-        .map((e) => ({ value: String(e.userId), label: e.name || e.fullName || "Unnamed Employee", role: e.role || "Employee" })),
+        .filter(
+          (employee) =>
+            employee?.userId &&
+            employee?.source !== "tenant-company" &&
+            getNormalizedRoleKey(employee.role || employee.rawRole) === "manager",
+        )
+        .map((employee) => ({
+          value: String(employee.userId),
+          label: employee.name || employee.fullName || "Unnamed Employee",
+          role: employee.role || "Manager",
+          departments: filterValidDepartments(
+            employee.departments?.length ? employee.departments : [employee.department],
+          ),
+        })),
     [employees],
   );
 
+  const addManagerOptions = useMemo(() => {
+    const selectedDepartments = new Set(
+      filterValidDepartments(addForm.departments).map((department) => department.trim().toLowerCase()),
+    );
+    if (selectedDepartments.size === 0) return [];
+    return managerOptions.filter((manager) =>
+      manager.departments.some((department) => selectedDepartments.has(department.trim().toLowerCase())),
+    );
+  }, [addForm.departments, managerOptions]);
+
+  const editManagerOptions = useMemo(() => {
+    const selectedDepartments = new Set(
+      filterValidDepartments(editForm.departments).map((department) => department.trim().toLowerCase()),
+    );
+    if (selectedDepartments.size === 0) return [];
+    return managerOptions.filter((manager) =>
+      manager.departments.some((department) => selectedDepartments.has(department.trim().toLowerCase())),
+    );
+  }, [editForm.departments, managerOptions]);
+
+  useEffect(() => {
+    if (!addForm.managerUserId) return;
+    if (addManagerOptions.some((manager) => manager.value === addForm.managerUserId)) return;
+    setAddForm((previous) => ({ ...previous, managerUserId: "" }));
+  }, [addForm.managerUserId, addManagerOptions]);
+
+  useEffect(() => {
+    if (!editForm.managerUserId) return;
+    if (editManagerOptions.some((manager) => manager.value === editForm.managerUserId)) return;
+    setEditForm((previous) => ({ ...previous, managerUserId: "" }));
+  }, [editForm.managerUserId, editManagerOptions]);
   const managerNameById = useMemo(() => {
     const next = new Map<string, string>();
     managerOptions.forEach((o) => next.set(o.value, o.label));
@@ -1763,14 +1906,20 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       probationDays: form.probationDays && form.probationDays !== "none" ? Number(form.probationDays) : 0,
       joiningDate: form.joiningDate || null,
       salaryPackage: requiresCompensation
-        ? { amount: form.salaryAmount ? Number(form.salaryAmount) : 0, grossAnnual: form.salaryAmount ? Number(form.salaryAmount) : 0, currency: workspaceCurrency, payFrequency: "annual" }
-        : { amount: 0, grossAnnual: 0, currency: workspaceCurrency, payFrequency: "annual" },
+        ? {
+          amount: form.salaryAmount ? Number(form.salaryAmount) : 0, grossAnnual: form.salaryAmount ? Number(form.salaryAmount) : 0,
+          currency: workspaceCurrency, payFrequency: "annual",
+          allowances: form.allowancesAmount ? Number(form.allowancesAmount) : 0,
+          deductions: form.deductionsAmount ? Number(form.deductionsAmount) : 0,
+        }
+        : { amount: 0, grossAnnual: 0, currency: workspaceCurrency, payFrequency: "annual", allowances: 0, deductions: 0 },
       bankName: requiresCompensation
         ? String(form.bankNameSelection === BANK_NAME_CUSTOM_OPTION ? form.bankNameCustom : form.bankName || form.bankNameSelection || "").trim()
         : "",
       accountHolderName: requiresCompensation ? form.accountHolderName : "",
       accountNumber: requiresCompensation ? form.accountNumber : "",
       ifscCode: requiresCompensation ? form.ifscCode.toUpperCase() : "",
+      idProofs: form.idProofs.filter((entry) => entry.type),
       documents: Array.isArray(options.documents) ? options.documents : [],
       sendInvite: Boolean(options.sendInvite),
       status,
@@ -2110,11 +2259,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <select
                         value={addForm.managerUserId}
                         onChange={(e) => handleAddFieldChange("managerUserId", e.target.value)}
-                        disabled={String(addForm.role || "").trim().toLowerCase() !== "employee"}
+                        disabled={String(addForm.role || "").trim().toLowerCase() !== "employee" || addForm.departments.length === 0}
                         className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                       >
                         <option value="">No Manager</option>
-                        {managerOptions.map((mgr) => (
+                        {addManagerOptions.map((mgr) => (
                           <option key={mgr.value} value={mgr.value}>{mgr.label} ({mgr.role})</option>
                         ))}
                       </select>
@@ -2220,65 +2369,20 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                           placeholder="e.g. 600000"
                         />
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
-                        <select
-                          value={addForm.bankNameSelection}
-                          onChange={(e) => handleAddFieldChange("bankNameSelection", e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                        >
-                          <option value="">Select Bank</option>
-                          {bankNameOptions.map((bank) => (
-                            <option key={bank} value={bank}>{bank}</option>
-                          ))}
-                          <option value={BANK_NAME_CUSTOM_OPTION}>Other (type below)</option>
-                        </select>
-                      </div>
-                      {addForm.bankNameSelection === BANK_NAME_CUSTOM_OPTION && (
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
-                          <input
-                            type="text"
-                            value={addForm.bankNameCustom}
-                            onChange={(e) => handleAddFieldChange("bankNameCustom", e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                            placeholder="Enter bank name"
-                          />
-                        </div>
-                      )}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Holder Name</label>
-                        <input
-                          type="text"
-                          value={addForm.accountHolderName}
-                          onChange={(e) => handleAddFieldChange("accountHolderName", e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                          placeholder="As on bank account"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Number</label>
-                        <input
-                          type="text"
-                          value={addForm.accountNumber}
-                          onChange={(e) => handleAddFieldChange("accountNumber", e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                          placeholder="Enter account number"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">IFSC Code</label>
-                        <input
-                          type="text"
-                          value={addForm.ifscCode}
-                          onChange={(e) => handleAddFieldChange("ifscCode", e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                          placeholder="e.g. HDFC0001234"
-                        />
-                        {addForm.workLocation && (
-                          <span className="text-[9px] font-medium text-emerald-600 mt-0.5">Branch: {addForm.workLocation}</span>
-                        )}
-                      </div>
+                      <EmployeeBankAccountFields
+                        form={addForm}
+                        onChange={(field, value) => handleAddFieldChange(field, value)}
+                        verification={addBankVerification}
+                        onVerificationChange={setAddBankVerification}
+                        ifscError={addFormErrors.ifscCode}
+                      />
+                      <AllowanceDeductionFields
+                        allowances={addForm.allowancesAmount}
+                        deductions={addForm.deductionsAmount}
+                        currency={workspaceCurrency}
+                        onChangeAllowances={(value) => handleAddFieldChange("allowancesAmount", value)}
+                        onChangeDeductions={(value) => handleAddFieldChange("deductionsAmount", value)}
+                      />
                     </div>
                   ) : (
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center">
@@ -2289,50 +2393,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
                 {/* Section 4: IDs & Documents */}
                 <FormSection title="IDs & Documents" icon={FileSpreadsheet}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Type</label>
-                      <select
-                        value={addForm.nationalIdType}
-                        onChange={(e) => handleAddFieldChange("nationalIdType", e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      >
-                        <option value="">Select Type</option>
-                        {NATIONAL_ID_TYPES.map((type) => (
-                          <option key={type} value={type}>{type}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Number</label>
-                      <input
-                        type="text"
-                        value={addForm.nationalIdNumber}
-                        onChange={(e) => handleAddFieldChange("nationalIdNumber", e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                        placeholder="ID number"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
-                      <input
-                        type="text"
-                        value={addForm.taxId}
-                        onChange={(e) => handleAddFieldChange("taxId", e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                        placeholder="PAN number"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
-                      <input
-                        type="text"
-                        value={addForm.providentFundNumber}
-                        onChange={(e) => handleAddFieldChange("providentFundNumber", e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                        placeholder="UAN number"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <IdProofsEditor
+                      value={addForm.idProofs}
+                      onChange={(next) => handleAddFieldChange("idProofs", next)}
+                    />
                   </div>
                 </FormSection>
 
@@ -2800,7 +2865,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
       {/* ─── MODAL: Edit Employee ─── */}
       {isEditModalOpen && editingEmployee && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }}>
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }}>
           <div className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between border-b border-blue-100 bg-blue-50/30 px-6 py-5">
               <div className="flex items-center gap-3">
@@ -2812,29 +2877,29 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-blue-600">{editingEmployee.name}</p>
                 </div>
               </div>
-              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-blue-100/60 hover:text-slate-600">
+              <button type="button" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-blue-100/60 hover:text-slate-600">
                 <X size={16} />
               </button>
             </div>
-            <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
+            <form onSubmit={(event) => { event.preventDefault(); void handleSaveEdit(); }} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
               <FormSection title="Personal Info" icon={Users}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="flex flex-col gap-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
                     <input type="text" value={editForm.fullName} onChange={(e) => setEditForm((p) => ({ ...p, fullName: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.fullName && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.fullName}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                     <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.email && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.email}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                     <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.phone && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.phone}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender</label>
                     <select value={editForm.gender} onChange={(e) => setEditForm((p) => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                       <option value="">Select Gender</option>
@@ -2843,19 +2908,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <option value="Other">Other</option>
                     </select>
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                     <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((p) => ({ ...p, dateOfBirth: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
-                    <input type="text" value={editForm.currentAddress} onChange={(e) => setEditForm((p) => ({ ...p, currentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                  </div>
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
-                    <input type="text" value={editForm.permanentAddress} onChange={(e) => setEditForm((p) => ({ ...p, permanentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                  </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2 lg:col-start-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
                     <select value={editForm.country} onChange={(e) => setEditForm((p) => ({ ...p, country: e.target.value, state: "", city: "" }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.country ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select Country</option>
@@ -2863,7 +2920,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {editFormErrors.country && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.country}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
                     <select value={editForm.state} onChange={(e) => setEditForm((p) => ({ ...p, state: e.target.value, city: "" }))} disabled={!editForm.country} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.state ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select State</option>
@@ -2871,7 +2928,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {editFormErrors.state && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.state}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
                     <select value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))} disabled={!editForm.state} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.city ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}>
                       <option value="">Select City</option>
@@ -2879,11 +2936,19 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {editFormErrors.city && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.city}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-6">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
+                    <input type="text" value={editForm.currentAddress} onChange={(e) => setEditForm((p) => ({ ...p, currentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  </div>
+                  <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-6">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
+                    <input type="text" value={editForm.permanentAddress} onChange={(e) => setEditForm((p) => ({ ...p, permanentAddress: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  </div>
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
                     <input type="text" value={editForm.emergencyContactName} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
                     <input type="tel" value={editForm.emergencyContactPhone} onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                   </div>
@@ -2967,7 +3032,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role / Code</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role</label>
                     <select
                       value={editForm.jobCode}
                       onChange={(e) => {
@@ -2990,10 +3055,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
-                    <input type="text" value={editForm.jobTitle} onChange={(e) => setEditForm((p) => ({ ...p, jobTitle: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                  </div>
-                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Code</label>
                     <input
                       type="text"
@@ -3004,10 +3065,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
+                    <input type="text" value={editForm.jobTitle} onChange={(e) => setEditForm((p) => ({ ...p, jobTitle: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                  </div>
+                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Manager</label>
-                    <select value={editForm.managerUserId} onChange={(e) => setEditForm((p) => ({ ...p, managerUserId: e.target.value }))} disabled={String(editForm.role || "").trim().toLowerCase() !== "employee"} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed">
+                    <select value={editForm.managerUserId} onChange={(e) => setEditForm((p) => ({ ...p, managerUserId: e.target.value }))} disabled={String(editForm.role || "").trim().toLowerCase() !== "employee" || editForm.departments.length === 0} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed">
                       <option value="">No Manager</option>
-                      {managerOptions.map((mgr) => (
+                      {editManagerOptions.map((mgr) => (
                         <option key={mgr.value} value={mgr.value}>{mgr.label} ({mgr.role})</option>
                       ))}
                     </select>
@@ -3026,63 +3091,28 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   error={editFormErrors.salaryAmount}
                   onChange={(value) => setEditForm((previous) => ({ ...previous, salaryAmount: value }))}
                 />
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Location</label>
-                  <input type="text" value={editForm.workLocation} onChange={(e) => setEditForm((p) => ({ ...p, workLocation: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
-                  <select value={editForm.bankNameSelection} onChange={(e) => setEditForm((p) => ({ ...p, bankNameSelection: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
-                    <option value="">Select Bank</option>
-                    {bankNameOptions.map((bank) => (
-                      <option key={bank} value={bank}>{bank}</option>
-                    ))}
-                    <option value={BANK_NAME_CUSTOM_OPTION}>Other (type below)</option>
-                  </select>
-                </div>
-                {editForm.bankNameSelection === BANK_NAME_CUSTOM_OPTION && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
-                    <input type="text" value={editForm.bankNameCustom} onChange={(e) => setEditForm((p) => ({ ...p, bankNameCustom: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                  </div>
-                )}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Holder Name</label>
-                  <input type="text" value={editForm.accountHolderName} onChange={(e) => setEditForm((p) => ({ ...p, accountHolderName: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Number</label>
-                  <input type="text" value={editForm.accountNumber} onChange={(e) => setEditForm((p) => ({ ...p, accountNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">IFSC Code</label>
-                  <input type="text" value={editForm.ifscCode} onChange={(e) => setEditForm((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                </div>
+                <EmployeeBankAccountFields
+                  form={editForm}
+                  onChange={(field, value) => setEditForm((previous) => ({ ...previous, [field]: value }))}
+                  verification={editBankVerification}
+                  onVerificationChange={setEditBankVerification}
+                  ifscError={editFormErrors.ifscCode}
+                />
+                <AllowanceDeductionFields
+                  allowances={editForm.allowancesAmount}
+                  deductions={editForm.deductionsAmount}
+                  currency={workspaceCurrency}
+                  onChangeAllowances={(value) => setEditForm((p) => ({ ...p, allowancesAmount: value }))}
+                  onChangeDeductions={(value) => setEditForm((p) => ({ ...p, deductionsAmount: value }))}
+                />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Type</label>
-                  <select value={editForm.nationalIdType} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdType: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
-                    <option value="">Select Type</option>
-                    {NATIONAL_ID_TYPES.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Number</label>
-                  <input type="text" value={editForm.nationalIdNumber} onChange={(e) => setEditForm((p) => ({ ...p, nationalIdNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
-                  <input type="text" value={editForm.taxId} onChange={(e) => setEditForm((p) => ({ ...p, taxId: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
-                  <input type="text" value={editForm.providentFundNumber} onChange={(e) => setEditForm((p) => ({ ...p, providentFundNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                </div>
-                </div>
+              <div className="grid grid-cols-1 gap-4">
+                <IdProofsEditor
+                  value={editForm.idProofs}
+                  onChange={(next) => setEditForm((p) => ({ ...p, idProofs: next }))}
+                />
+              </div>
               </FormSection>
 
               <FormSection title="Documents" icon={FileSpreadsheet}>
@@ -3106,14 +3136,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 </div>
               </FormSection>
 
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
-              <button onClick={handleSaveEdit} disabled={editFormSubmitting} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                {editFormSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                {editFormSubmitting ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                <button type="button" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
+                <button type="submit" disabled={editFormSubmitting} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                  {editFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {editFormSubmitting ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>,
         document.body,
@@ -3149,8 +3179,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             </div>
             <form onSubmit={handleAddFormSubmit} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
               <FormSection title="Personal Info" icon={Users}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="flex flex-col gap-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
                     <input
                       type="text"
@@ -3160,7 +3190,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                     {addFormErrors.fullName && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.fullName}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                     <input
                       type="email"
@@ -3170,7 +3200,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                     {addFormErrors.email && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.email}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                     <input
                       type="tel"
@@ -3180,7 +3210,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                     {addFormErrors.phone && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.phone}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender</label>
                     <select
                       value={addForm.gender}
@@ -3193,7 +3223,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <option value="Other">Other</option>
                     </select>
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Date of Birth</label>
                     <input
                       type="date"
@@ -3202,27 +3232,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     />
                   </div>
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
-                    <input
-                      type="text"
-                      value={addForm.currentAddress}
-                      onChange={(e) => handleAddFieldChange("currentAddress", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      placeholder="Enter current address"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
-                    <input
-                      type="text"
-                      value={addForm.permanentAddress}
-                      onChange={(e) => handleAddFieldChange("permanentAddress", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      placeholder="Enter permanent address"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2 lg:col-start-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.country}
@@ -3234,7 +3244,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {addFormErrors.country && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.country}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.state}
@@ -3247,7 +3257,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {addFormErrors.state && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.state}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
                     <select
                       value={addForm.city}
@@ -3260,7 +3270,27 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {addFormErrors.city && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.city}</span>}
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-6">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Current Address</label>
+                    <input
+                      type="text"
+                      value={addForm.currentAddress}
+                      onChange={(e) => handleAddFieldChange("currentAddress", e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      placeholder="Enter current address"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-6">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Permanent Address</label>
+                    <input
+                      type="text"
+                      value={addForm.permanentAddress}
+                      onChange={(e) => handleAddFieldChange("permanentAddress", e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                      placeholder="Enter permanent address"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
                     <input
                       type="text"
@@ -3269,7 +3299,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
                     <input
                       type="tel"
@@ -3427,11 +3457,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     <select
                       value={addForm.managerUserId}
                       onChange={(e) => handleAddFieldChange("managerUserId", e.target.value)}
-                      disabled={String(addForm.role || "").trim().toLowerCase() !== "employee"}
+                      disabled={String(addForm.role || "").trim().toLowerCase() !== "employee" || addForm.departments.length === 0}
                       className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                     >
                       <option value="">No Manager</option>
-                      {managerOptions.map((mgr) => (
+                      {addManagerOptions.map((mgr) => (
                         <option key={mgr.value} value={mgr.value}>{mgr.label} ({mgr.role})</option>
                       ))}
                     </select>
@@ -3449,103 +3479,26 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   error={addFormErrors.salaryAmount}
                   onChange={(value) => handleAddFieldChange("salaryAmount", value)}
                 />
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Bank Name</label>
-                  <select
-                    value={addForm.bankNameSelection}
-                    onChange={(e) => handleAddFieldChange("bankNameSelection", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                  >
-                    <option value="">Select Bank</option>
-                    {bankNameOptions.map((bank) => (
-                      <option key={bank} value={bank}>{bank}</option>
-                    ))}
-                    <option value={BANK_NAME_CUSTOM_OPTION}>Other (type below)</option>
-                  </select>
-                </div>
-                {addForm.bankNameSelection === BANK_NAME_CUSTOM_OPTION && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Bank Name</label>
-                    <input
-                      type="text"
-                      value={addForm.bankNameCustom}
-                      onChange={(e) => handleAddFieldChange("bankNameCustom", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      placeholder="Enter bank name"
-                    />
-                  </div>
-                )}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Holder Name</label>
-                  <input
-                    type="text"
-                    value={addForm.accountHolderName}
-                    onChange={(e) => handleAddFieldChange("accountHolderName", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Account Number</label>
-                  <input
-                    type="text"
-                    value={addForm.accountNumber}
-                    onChange={(e) => handleAddFieldChange("accountNumber", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">IFSC Code</label>
-                  <input
-                    type="text"
-                    value={addForm.ifscCode}
-                    onChange={(e) => handleAddFieldChange("ifscCode", e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                    placeholder="HDFC0XXXXXX"
-                  />
-                  {addFormErrors.ifscCode && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.ifscCode}</span>}
-                </div>
+                <EmployeeBankAccountFields
+                  form={addForm}
+                  onChange={(field, value) => handleAddFieldChange(field, value)}
+                  verification={addBankVerification}
+                  onVerificationChange={setAddBankVerification}
+                  ifscError={addFormErrors.ifscCode}
+                />
+                <AllowanceDeductionFields
+                  allowances={addForm.allowancesAmount}
+                  deductions={addForm.deductionsAmount}
+                  currency={workspaceCurrency}
+                  onChangeAllowances={(value) => handleAddFieldChange("allowancesAmount", value)}
+                  onChangeDeductions={(value) => handleAddFieldChange("deductionsAmount", value)}
+                />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Type</label>
-                  <select
-                    value={addForm.nationalIdType}
-                    onChange={(e) => handleAddFieldChange("nationalIdType", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                  >
-                    <option value="">Select Type</option>
-                    {NATIONAL_ID_TYPES.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">National ID Number</label>
-                  <input
-                    type="text"
-                    value={addForm.nationalIdNumber}
-                    onChange={(e) => handleAddFieldChange("nationalIdNumber", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax ID (PAN)</label>
-                  <input
-                    type="text"
-                    value={addForm.taxId}
-                    onChange={(e) => handleAddFieldChange("taxId", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Provident Fund / UAN</label>
-                  <input
-                    type="text"
-                    value={addForm.providentFundNumber}
-                    onChange={(e) => handleAddFieldChange("providentFundNumber", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4">
+                <IdProofsEditor
+                  value={addForm.idProofs}
+                  onChange={(next) => handleAddFieldChange("idProofs", next)}
+                />
               </div>
               </FormSection>
 

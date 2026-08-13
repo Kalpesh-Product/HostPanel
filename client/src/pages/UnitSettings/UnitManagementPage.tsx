@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Country } from "country-state-city";
+import { getCities, getCountryIsoCode, getStates } from "../../utils/locationApi";
+import { inferWorkspaceTimeZone } from "../../lib/workspaceLocalization";
 import {
   ArrowLeftRight,
   ChevronDown,
@@ -28,7 +31,6 @@ import {
 
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
-import { getWorkspaceCount } from "../../utils/workspacePlanAccess";
 import {
   getWorkspaceManagementOverview,
   updateManagedWorkspace,
@@ -62,6 +64,10 @@ interface Summary {
   totalMeetingBookings: number;
   performance: {
     overallScore: number;
+    ticketResolutionRate?: number;
+    bookingCompletionRate?: number;
+    tickets?: { total: number; resolved: number; pending: number };
+    bookings?: { total: number; completed: number };
   };
 }
 
@@ -86,12 +92,48 @@ const updateStoredUser = (user) => {
   localStorage.setItem("user", JSON.stringify(user));
 };
 
-const EMPTY_EDIT_FORM = {
+interface EditUnitForm {
+  workspaceName: string;
+  city: string;
+  state: string;
+  country: string;
+  countryCode: string;
+  timezone: string;
+  currency: string;
+  businessTypes: string[];
+}
+
+const EMPTY_EDIT_FORM: EditUnitForm = {
   workspaceName: "",
   city: "",
   state: "",
   country: "",
+  countryCode: "",
+  timezone: "",
+  currency: "",
+  businessTypes: [],
 };
+
+const ALL_BUSINESS_TYPES = [
+  "Co-Working",
+  "Co-Living",
+  "Workation",
+  "Cafe",
+  "Hostels",
+  "Meeting Rooms",
+];
+
+interface CountryTimeZoneOption {
+  zoneName: string;
+  gmtOffsetName?: string;
+}
+
+interface CountryOption {
+  name: string;
+  isoCode: string;
+  currency: string;
+  timezones: CountryTimeZoneOption[];
+}
 
 const COMBINED_RECENT_LIMIT = 12;
 
@@ -197,14 +239,195 @@ function WorkspaceEditModal({
   onClose,
   onSubmit,
 }) {
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [states, setStates] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+  const [isCountriesLoading, setIsCountriesLoading] = useState(false);
+  const [isStatesLoading, setIsStatesLoading] = useState(false);
+  const [isCitiesLoading, setIsCitiesLoading] = useState(false);
+  const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
+  const businessTypeDropdownRef = useRef<HTMLDivElement | null>(null);
+  const timezoneTouchedRef = useRef(false);
+
+  const selectedCountryOption =
+    countries.find((item) => item.name === form.country) || null;
+  const timezoneOptions = Array.from(
+    new Map(
+      (selectedCountryOption?.timezones || [])
+        .filter((item) => item?.zoneName)
+        .map((item) => [item.zoneName, item]),
+    ).values(),
+  );
+  const currencyOptions = Array.from(
+    new Set(countries.map((item) => item.currency).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b));
+
+  const selectClassName =
+    "h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-10 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50 disabled:opacity-60";
+
+  const labelClassName =
+    "text-[10px] font-pmedium text-slate-500 uppercase tracking-widest";
+
+  const inferNextTimezone = (
+    record: CountryOption,
+    stateName: string,
+    cityName: string,
+  ) => {
+    const availableZones = record.timezones
+      .map((item) => item.zoneName)
+      .filter(Boolean);
+    const inferred = inferWorkspaceTimeZone({
+      countryCode: record.isoCode,
+      countryName: record.name,
+      stateName,
+      cityName,
+      availableTimeZones: availableZones,
+    });
+    return availableZones.includes(inferred)
+      ? inferred
+      : availableZones[0] || "UTC";
+  };
+
+  useEffect(() => {
+    let active = true;
+    const loadCountries = async () => {
+      try {
+        setIsCountriesLoading(true);
+        const result = Country.getAllCountries()
+          .map((item) => ({
+            name: item.name,
+            isoCode: item.isoCode,
+            currency: String(item.currency || "").trim().toUpperCase(),
+            timezones: Array.isArray(item.timezones)
+              ? item.timezones.map((entry) => ({
+                  zoneName: String(entry.zoneName || "").trim(),
+                  gmtOffsetName: String(entry.gmtOffsetName || "").trim(),
+                }))
+              : [],
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        if (active) setCountries(result);
+      } catch {
+        if (active) setCountries([]);
+      } finally {
+        if (active) setIsCountriesLoading(false);
+      }
+    };
+    loadCountries();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadStates = async () => {
+      if (!form.country) {
+        setStates([]);
+        return;
+      }
+      try {
+        setIsStatesLoading(true);
+        const result = await getStates(form.country);
+        if (active) setStates(result);
+      } catch {
+        if (active) setStates([]);
+      } finally {
+        if (active) setIsStatesLoading(false);
+      }
+    };
+    loadStates();
+    return () => {
+      active = false;
+    };
+  }, [form.country]);
+
+  useEffect(() => {
+    let active = true;
+    const loadCities = async () => {
+      if (!form.country || !form.state) {
+        setCities([]);
+        return;
+      }
+      try {
+        setIsCitiesLoading(true);
+        const result = await getCities(form.country, form.state);
+        if (active) setCities(result);
+      } catch {
+        if (active) setCities([]);
+      } finally {
+        if (active) setIsCitiesLoading(false);
+      }
+    };
+    loadCities();
+    return () => {
+      active = false;
+    };
+  }, [form.country, form.state]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        businessTypeDropdownRef.current &&
+        !businessTypeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsBusinessTypeOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleCountryChange = (countryName: string) => {
+    onChange("country", countryName);
+    onChange("state", "");
+    onChange("city", "");
+    const record = countries.find((item) => item.name === countryName);
+    onChange("countryCode", record?.isoCode || "");
+    onChange("currency", record?.currency || "");
+    timezoneTouchedRef.current = false;
+    onChange("timezone", record ? inferNextTimezone(record, "", "") : "");
+  };
+
+  const handleStateChange = (nextState: string) => {
+    onChange("state", nextState);
+    onChange("city", "");
+    const record = countries.find((item) => item.name === form.country);
+    if (record && !timezoneTouchedRef.current) {
+      onChange("timezone", inferNextTimezone(record, nextState, ""));
+    }
+  };
+
+  const handleCityChange = (nextCity: string) => {
+    onChange("city", nextCity);
+    const record = countries.find((item) => item.name === form.country);
+    if (record && !timezoneTouchedRef.current) {
+      onChange("timezone", inferNextTimezone(record, form.state, nextCity));
+    }
+  };
+
+  const toggleBusinessType = (type: string) => {
+    onChange(
+      "businessTypes",
+      form.businessTypes.includes(type)
+        ? form.businessTypes.filter((item) => item !== type)
+        : [...form.businessTypes, type],
+    );
+  };
+
+  const businessTypeLabel =
+    form.businessTypes.length > 0
+      ? form.businessTypes.join(", ")
+      : "Select your Business Types";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-      <div className="w-full max-w-xl rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6">
+      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Edit Unit</p>
             <p className="mt-1 text-[12px] font-pmedium text-slate-500">
-              Update the unit name (as you entered it) and its location. Dropdowns show "unit name - city, state, country".
+              Update the unit name, location, timezone, currency, and business verticals. Timezone and currency follow the selected country automatically.
             </p>
           </div>
           <button
@@ -219,7 +442,7 @@ function WorkspaceEditModal({
 
         <form onSubmit={onSubmit} className="mt-5 grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 md:col-span-2">
-            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+            <span className={labelClassName}>
               Unit Name
             </span>
             <input
@@ -231,41 +454,168 @@ function WorkspaceEditModal({
             />
           </label>
 
-          <label className="grid gap-2">
-            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-              City
-            </span>
-            <input
-              value={form.city || ""}
-              onChange={(event) => onChange("city", event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-              maxLength={120}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-              State
-            </span>
-            <input
-              value={form.state || ""}
-              onChange={(event) => onChange("state", event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-              maxLength={120}
-            />
-          </label>
-
           <label className="grid gap-2 md:col-span-2">
-            <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+            <span className={labelClassName}>
               Country
             </span>
-            <input
-              value={form.country || ""}
-              onChange={(event) => onChange("country", event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-              maxLength={120}
-            />
+            <div className="relative">
+              <select
+                value={form.country}
+                onChange={(event) => handleCountryChange(event.target.value)}
+                disabled={isSaving}
+                className={selectClassName}
+              >
+                <option value="">
+                  {isCountriesLoading ? "Loading countries..." : "Select country"}
+                </option>
+                {countries.map((item) => (
+                  <option key={item.isoCode} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </label>
+
+          <label className="grid gap-2">
+            <span className={labelClassName}>
+              State
+            </span>
+            <div className="relative">
+              <select
+                value={form.state}
+                onChange={(event) => handleStateChange(event.target.value)}
+                disabled={!form.country || isStatesLoading || isSaving}
+                className={selectClassName}
+              >
+                <option value="">
+                  {!form.country
+                    ? "Select country first"
+                    : isStatesLoading
+                    ? "Loading states..."
+                    : "Select state"}
+                </option>
+                {states.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </label>
+
+          <label className="grid gap-2">
+            <span className={labelClassName}>
+              City
+            </span>
+            <div className="relative">
+              <select
+                value={form.city}
+                onChange={(event) => handleCityChange(event.target.value)}
+                disabled={!form.country || !form.state || isCitiesLoading || isSaving}
+                className={selectClassName}
+              >
+                <option value="">
+                  {!form.country || !form.state
+                    ? "Select country and state first"
+                    : isCitiesLoading
+                    ? "Loading cities..."
+                    : "Select city"}
+                </option>
+                {cities.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </label>
+
+          <label className="grid gap-2">
+            <span className={labelClassName}>
+              Timezone
+            </span>
+            <div className="relative">
+              <select
+                value={form.timezone}
+                onChange={(event) => {
+                  timezoneTouchedRef.current = true;
+                  onChange("timezone", event.target.value);
+                }}
+                disabled={!form.country || isSaving}
+                className={selectClassName}
+              >
+                <option value="">Select timezone</option>
+                {timezoneOptions.map((item) => (
+                  <option key={item.zoneName} value={item.zoneName}>
+                    {item.zoneName}
+                    {item.gmtOffsetName ? ` (${item.gmtOffsetName})` : ""}
+                  </option>
+                ))}
+                {!timezoneOptions.length && form.country ? (
+                  <option value="UTC">UTC</option>
+                ) : null}
+              </select>
+            </div>
+          </label>
+
+          <label className="grid gap-2">
+            <span className={labelClassName}>
+              Currency
+            </span>
+            <div className="relative">
+              <select
+                value={form.currency}
+                onChange={(event) => onChange("currency", event.target.value)}
+                disabled={!form.country || isSaving}
+                className={selectClassName}
+              >
+                <option value="">Select currency</option>
+                {currencyOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </label>
+
+          <div ref={businessTypeDropdownRef} className="grid gap-2 md:col-span-2">
+            <span className={labelClassName}>
+              Type of Vertical
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsBusinessTypeOpen((prev) => !prev)}
+              disabled={isSaving}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-left text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50 disabled:opacity-60"
+            >
+              <span className="truncate">{businessTypeLabel}</span>
+            </button>
+            {isBusinessTypeOpen ? (
+              <div className="mt-1 rounded-xl border border-slate-200 bg-white p-3 shadow-lg max-h-52 overflow-auto">
+                <div className="grid grid-cols-1 gap-y-2">
+                  {ALL_BUSINESS_TYPES.map((type) => (
+                    <label
+                      key={type}
+                      className="inline-flex cursor-pointer select-none items-center gap-2 text-[13px] text-[#334155]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.businessTypes.includes(type)}
+                        onChange={() => toggleBusinessType(type)}
+                        className="h-3.5 w-3.5 accent-[#7d9de8]"
+                      />
+                      <span>{type}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <p className="text-[11px] text-slate-400">
+              Business verticals can only be changed by the founder.
+            </p>
+          </div>
 
           <div className="md:col-span-2 flex justify-end">
             <button
@@ -347,6 +697,28 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData, isProfessio
             <MetricCard icon={CalendarDays} label="Meeting Room Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
             <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
           </div>
+
+          {isProfessional ? (
+            <div className="mt-4 rounded-2xl border border-slate-100 bg-white/80 backdrop-blur-md p-3.5">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-indigo-600" />
+                <h4 className="text-sm font-pmedium text-slate-950">Overall Performance</h4>
+              </div>
+              <p className="mt-1 text-xs font-pmedium text-slate-500">
+                Merged across units — ticket resolution plus bookings completed without a reschedule or cancellation.
+              </p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <StatusPill label="Tickets Raised" value={summary.performance?.tickets?.total || 0} tone="amber" />
+                <StatusPill label="Tickets Resolved" value={summary.performance?.tickets?.resolved || 0} tone="emerald" />
+                <StatusPill label="Tickets Pending" value={summary.performance?.tickets?.pending || 0} tone="amber" />
+                <StatusPill label="Ticket Resolution" value={`${summary.performance?.ticketResolutionRate || 0}%`} tone="violet" />
+                <StatusPill label="Bookings Booked" value={summary.performance?.bookings?.total || 0} tone="amber" />
+                <StatusPill label="Bookings Completed" value={summary.performance?.bookings?.completed || 0} tone="emerald" />
+                <StatusPill label="Booking Completion" value={`${summary.performance?.bookingCompletionRate || 0}%`} tone="violet" />
+                <StatusPill label="Overall Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-5 rounded-2xl border border-slate-100 bg-white/80 backdrop-blur-md p-3.5">
             <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 flex-wrap">
@@ -507,11 +879,6 @@ export default function WorkspaceManagementPage() {
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
   const currentUser = getStoredUser();
-  const workspaceCount = getWorkspaceCount(
-    (auth?.user as { workspaceCount?: number } | null)?.workspaceCount ??
-    (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
-  );
-  const isWorkspaceManagementLocked = !(workspaceCount > 1);
   const [departmentFilter, setDepartmentFilter] = useState("All departments");
   const [workspaceFilter, setWorkspaceFilter] = useState("all");
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -519,21 +886,13 @@ export default function WorkspaceManagementPage() {
   const [activeTabs, setActiveTabs] = useState({});
   const [expandedWorkspaceId, setExpandedWorkspaceId] = useState("");
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
-  const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
+  const [editForm, setEditForm] = useState<EditUnitForm>(EMPTY_EDIT_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isCombinedModalOpen, setIsCombinedModalOpen] = useState(false);
   const [switchingWorkspaceId, setSwitchingWorkspaceId] = useState("");
   const [mutatingWorkspaceId, setMutatingWorkspaceId] = useState("");
   const [deletingWorkspace, setDeletingWorkspace] = useState<Workspace | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    if (isWorkspaceManagementLocked) {
-      toast.error("Add one More Units from Unit Settings to access Unit Management.");
-      navigate("/company-settings/workspace-settings", { replace: true });
-      return;
-    }
-  }, [isWorkspaceManagementLocked, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -562,18 +921,17 @@ export default function WorkspaceManagementPage() {
       }
     }
 
-    if (!isWorkspaceManagementLocked) {
-      loadOverview();
-    } else {
-      setIsLoading(false);
-    }
+    loadOverview();
 
     return () => {
       isMounted = false;
     };
-  }, [axiosPrivate, departmentFilter, isWorkspaceManagementLocked]);
+  }, [axiosPrivate, departmentFilter]);
 
   const workspaceList = Array.isArray(overview?.workspaces) ? overview.workspaces : [];
+  // The combined "overall" cards only make sense with more than one unit. With
+  // a single unit we show just that unit's data instead.
+  const isMultiUnit = workspaceList.length > 1;
   const displayedWorkspaces =
     workspaceFilter === "all"
       ? workspaceList
@@ -591,6 +949,10 @@ export default function WorkspaceManagementPage() {
     totalMeetingBookings: 0,
     performance: {
       overallScore: 0,
+      ticketResolutionRate: 0,
+      bookingCompletionRate: 0,
+      tickets: { total: 0, resolved: 0, pending: 0 },
+      bookings: { total: 0, completed: 0 },
     },
   };
 
@@ -706,6 +1068,15 @@ export default function WorkspaceManagementPage() {
       city: workspace.city || "",
       state: workspace.state || "",
       country: workspace.country || "",
+      countryCode: workspace.countryCode || getCountryIsoCode(workspace.country || ""),
+      timezone: workspace.timezone || "",
+      currency: workspace.currency || "",
+      businessTypes: Array.isArray(workspace.businessTypes)
+        ? workspace.businessTypes.map((item) => String(item || "").trim()).filter(Boolean)
+        : String(workspace.businessType || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
     });
   }
 
@@ -760,6 +1131,10 @@ export default function WorkspaceManagementPage() {
             city: editForm.city,
             state: editForm.state,
             country: editForm.country,
+            countryCode: editForm.countryCode,
+            timezone: editForm.timezone,
+            currency: editForm.currency,
+            businessTypes: editForm.businessTypes,
           },
         },
       );
@@ -897,7 +1272,9 @@ export default function WorkspaceManagementPage() {
                     Unit Management
                   </h2>
                   <p className="text-xs font-pmedium text-slate-500 mt-1">
-                    Review every unit linked to this founder account and compare operational health from one place.
+                    {isMultiUnit
+                      ? "Review every unit linked to this founder account and compare operational health from one place."
+                      : "Review the operational health of this unit — tickets, meeting room bookings and performance."}
                   </p>
                 </div>
                 <div className="h-9 inline-flex items-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500 shadow-sm whitespace-nowrap">
@@ -905,33 +1282,42 @@ export default function WorkspaceManagementPage() {
                 </div>
               </div>
 
-              {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md) */}
-              <div data-tour="unit-management-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-                <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
-                {!isActiveWorkspaceProfessional ? (
-                  <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
-                ) : null}
-                <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
-                {!isActiveWorkspaceProfessional ? (
-                  <>
-                    <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks} tone="violet" />
-                    <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
-                    <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
-                  </>
-                ) : null}
-                <MetricCard icon={CalendarDays} label="Meeting Room Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
-                <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
-              </div>
+              {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md).
+                  Only shown when more than one unit exists — the combined
+                  overview is meaningless for a single unit, where the unit card
+                  below already carries all of its own data. */}
+              {isMultiUnit ? (
+                <div data-tour="unit-management-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+                  <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
+                  {!isActiveWorkspaceProfessional ? (
+                    <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
+                  ) : null}
+                  <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
+                  {!isActiveWorkspaceProfessional ? (
+                    <>
+                      <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks} tone="violet" />
+                      <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="rose" />
+                      <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="cyan" />
+                    </>
+                  ) : null}
+                  <MetricCard icon={CalendarDays} label="Meeting Room Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
+                  <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
+                </div>
+              ) : null}
 
               {/* 3. DATA PANEL */}
               <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                 {/* Header row: inner title + filters + action */}
                 <div data-tour="unit-management-controls" className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">All Units</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                      {isMultiUnit ? "All Units" : "Current Unit"}
+                    </p>
                     <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
                       {departmentFilter === "All departments"
-                        ? "Founder-level combined view across every active unit."
+                        ? isMultiUnit
+                          ? "Founder-level combined view across every active unit."
+                          : "Review the data for this unit."
                         : `Metrics filtered to ${departmentFilter}.`}
                     </p>
                   </div>
@@ -971,16 +1357,19 @@ export default function WorkspaceManagementPage() {
                       </select>
                       <RefreshCcw size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2563EB]" />
                     </div> */}
-                    {/* Action button */}
-                    <button
-                      data-tour="unit-management-view-data"
-                      type="button"
-                      onClick={() => setIsCombinedModalOpen(true)}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                    >
-                      <BarChart3 size={13} strokeWidth={3} />
-                      VIEW DATA
-                    </button>
+                    {/* Action button — the combined data view only matters with
+                        multiple units; a single unit's data is on the card. */}
+                    {isMultiUnit ? (
+                      <button
+                        data-tour="unit-management-view-data"
+                        type="button"
+                        onClick={() => setIsCombinedModalOpen(true)}
+                        className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      >
+                        <BarChart3 size={13} strokeWidth={3} />
+                        VIEW DATA
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -1301,6 +1690,28 @@ export default function WorkspaceManagementPage() {
                                       </div>
                                     )}
                                   </div>
+
+                                  {isWorkspaceProfessional ? (
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                      <div className="flex items-center gap-2">
+                                        <BarChart3 className="h-4 w-4 text-indigo-600" />
+                                        <h4 className="text-sm font-pmedium text-slate-950">Unit Performance</h4>
+                                      </div>
+                                      <p className="mt-1 text-xs font-pmedium text-slate-500">
+                                        Score combines ticket resolution with meeting room bookings completed without a reschedule or cancellation.
+                                      </p>
+                                      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                        <StatusPill label="Tickets Raised" value={workspace.metrics?.performance?.tickets?.total || 0} tone="amber" />
+                                        <StatusPill label="Tickets Resolved" value={workspace.metrics?.performance?.tickets?.resolved || 0} tone="emerald" />
+                                        <StatusPill label="Tickets Pending" value={workspace.metrics?.performance?.tickets?.pending || 0} tone="amber" />
+                                        <StatusPill label="Ticket Resolution" value={`${workspace.metrics?.performance?.ticketResolutionRate || 0}%`} tone="violet" />
+                                        <StatusPill label="Bookings Booked" value={workspace.metrics?.performance?.bookings?.total || 0} tone="amber" />
+                                        <StatusPill label="Bookings Completed" value={workspace.metrics?.performance?.bookings?.completed || 0} tone="emerald" />
+                                        <StatusPill label="Booking Completion" value={`${workspace.metrics?.performance?.bookingCompletionRate || 0}%`} tone="violet" />
+                                        <StatusPill label="Overall Performance" value={`${workspace.metrics?.performance?.overallScore || 0}%`} tone="indigo" />
+                                      </div>
+                                    </div>
+                                  ) : null}
 
                                   <div className="grid gap-4 xl:grid-cols-2">
                                     <div className="rounded-2xl border border-slate-200 bg-white p-4">

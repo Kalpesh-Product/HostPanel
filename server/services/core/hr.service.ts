@@ -354,6 +354,8 @@ const mapEmployeeProfileToResponse = async (profileDoc: any) => {
       grossAnnual: Number(profile?.salaryPackage?.grossAnnual || profile?.salaryPackage?.amount || 0),
       currency: String(profile?.salaryPackage?.currency || "INR"),
       payFrequency: String(profile?.salaryPackage?.payFrequency || "annual"),
+      allowances: Number(profile?.salaryPackage?.allowances || 0),
+      deductions: Number(profile?.salaryPackage?.deductions || 0),
     },
     bankName: String(profile.bankName || ""),
     accountHolderName: String(profile.accountHolderName || ""),
@@ -363,6 +365,9 @@ const mapEmployeeProfileToResponse = async (profileDoc: any) => {
     nationalIdNumber: String(profile.nationalIdNumber || ""),
     taxId: String(profile.taxId || ""),
     providentFundNumber: String(profile.providentFundNumber || ""),
+    idProofs: Array.isArray(profile.idProofs)
+      ? profile.idProofs.map((entry: any) => ({ type: String(entry?.type || ""), value: String(entry?.value || "") })).filter((entry: any) => entry.type)
+      : [],
     permissions: {
       modules: Array.from(new Set([
         ...(Array.isArray(profile.accessModules) ? profile.accessModules : []),
@@ -547,6 +552,7 @@ const ensureEmployeeProfileForMember = async ({
     nationalIdNumber: String(profile?.nationalIdNumber || ""),
     taxId: String(profile?.taxId || ""),
     providentFundNumber: String(profile?.providentFundNumber || ""),
+    idProofs: Array.isArray(profile?.idProofs) ? profile.idProofs : [],
     accessModules: member?.grantedModules !== undefined && Array.isArray(member.grantedModules)
       ? member.grantedModules
       : Array.isArray(profile?.accessModules)
@@ -834,6 +840,11 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     nationalIdNumber: normalizeText(payload?.nationalIdNumber || profile?.nationalIdNumber || ""),
     taxId: normalizeText(payload?.taxId || profile?.taxId || ""),
     providentFundNumber: normalizeText(payload?.providentFundNumber || profile?.providentFundNumber || ""),
+    idProofs: Array.isArray(payload?.idProofs)
+      ? payload.idProofs
+        .map((entry: any) => ({ type: normalizeText(entry?.type || ""), value: normalizeText(entry?.value || "") }))
+        .filter((entry: any) => entry.type)
+      : (Array.isArray(profile?.idProofs) ? profile.idProofs : []),
     accessModules: Array.isArray(payload?.accessModules) ? payload.accessModules : Array.isArray(profile?.accessModules) ? profile.accessModules : [],
     accessFeatures: Array.isArray(payload?.accessFeatures) ? payload.accessFeatures : Array.isArray(profile?.accessFeatures) ? profile.accessFeatures : [],
     documents: nextDocuments,
@@ -958,6 +969,7 @@ const TRANSFERABLE_PERSONAL_FIELDS = [
   "nationalIdNumber",
   "taxId",
   "providentFundNumber",
+  "idProofs",
 ];
 
 export const copyPersonalDetailsAcrossUnits = async (sourceProfile: any, targetProfile: any) => {

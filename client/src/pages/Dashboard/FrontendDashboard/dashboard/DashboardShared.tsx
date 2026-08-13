@@ -130,7 +130,7 @@ export interface SectionCardProps {
 export const SectionCard = ({ title, linkLabel, linkRoute, children }: SectionCardProps) => {
   const navigate = useNavigate();
   return (
-    <div className="h-full border-default border-borderGray rounded-xl overflow-hidden flex flex-col">
+    <div className="h-full border-default rounded-xl overflow-hidden flex flex-col">
       <div className="p-4 border-b-2 border-borderGray flex items-center justify-between">
         <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium uppercase">
           {title}
@@ -170,7 +170,7 @@ export const DonutWidget = ({
 }: DonutWidgetProps) => {
   const hasData = series.some((v) => v > 0);
   return (
-    <div className="h-full flex flex-col border-default border-borderGray rounded-xl overflow-hidden">
+    <div className="h-full flex flex-col border-default rounded-xl overflow-hidden">
       <div className="p-4 border-b-2 border-borderGray uppercase">
         <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">{title}</span>
       </div>
@@ -204,7 +204,7 @@ export interface BarWidgetProps {
 }
 
 export const BarWidget = ({ title, chartId, series, options, height = 260 }: BarWidgetProps) => (
-  <div className="border-default border-borderGray rounded-xl overflow-hidden">
+  <div className="border-default rounded-xl overflow-hidden">
     <div className="p-4 border-b-2 border-borderGray uppercase">
       <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">{title}</span>
     </div>

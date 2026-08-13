@@ -55,8 +55,17 @@ interface FinancialData {
   netSalary?: number;
   hrBonus?: number;
   hrDeductions?: number;
+  bonusReason?: string;
+  deductionReason?: string;
   paymentStatus?: string;
   currency?: string;
+}
+
+interface ManualAdjustmentRecord {
+  type?: "bonus" | "deduction";
+  amount?: number;
+  reason?: string;
+  createdAt?: string;
 }
 
 interface EmployeePayrollData {
@@ -76,6 +85,7 @@ interface EmployeePayrollData {
   financials?: FinancialData;
   payment?: { status?: string };
   adjustmentReason?: string;
+  manualAdjustments?: ManualAdjustmentRecord[];
   hasSalaryPackage?: boolean;
 }
 
@@ -470,11 +480,11 @@ function EmployeeDetailModal({
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <div>
-                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-10 flex items-center gap-2">
+              <div className="flex flex-col h-full">
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
                   <FileText size={14} /> Salary Breakdown
                 </h3>
-                <div className="bg-slate-50/60 border border-slate-100 p-4 rounded-2xl space-y-2">
+                <div className="flex-1 flex flex-col bg-slate-50/60 border border-slate-100 p-4 rounded-2xl space-y-2">
                   <Row label="Monthly Base Salary" value={formatCurrency(fin.baseSalary, currency)} />
                   <Row label="Attendance Earned" value={formatCurrency(fin.attendanceGrossPay, currency)} valueClass="text-blue-600" />
                   <Row label="Benefits / Allowances" value={`+${formatCurrency(fin.benefits, currency)}`} valueClass="text-emerald-600" />
@@ -488,23 +498,36 @@ function EmployeeDetailModal({
                     <Row label="Attendance Loss" value={`-${formatCurrency(fin.attendanceDeductions, currency)}`} valueClass="text-red-500" />
                   )}
                   {(fin.hrBonus ?? 0) > 0 && (
-                    <div className="flex justify-between items-center text-xs bg-green-50 p-2 rounded-lg -mx-2">
-                      <span className="font-pmedium text-green-700">Manual Bonus</span>
-                      <span className="font-pmedium text-green-600">+{formatCurrency(fin.hrBonus, currency)}</span>
+                    <div className="bg-green-50 p-2 rounded-lg -mx-2 space-y-1">
+                      <span className="text-[9px] font-pmedium text-green-700 uppercase tracking-widest">Manual Bonus</span>
+                      {(employee.manualAdjustments || []).filter((a) => a.type === "bonus").map((a, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-xs">
+                          <span className="font-pmedium text-green-700/80">{a.reason || "Bonus"}</span>
+                          <span className="font-pmedium text-green-600">+{formatCurrency(a.amount, currency)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center text-xs border-t border-green-200 pt-1">
+                        <span className="font-pmedium text-green-800">Total Bonus</span>
+                        <span className="font-pmedium text-green-700">+{formatCurrency(fin.hrBonus, currency)}</span>
+                      </div>
                     </div>
                   )}
                   {(fin.hrDeductions ?? 0) > 0 && (
-                    <div className="flex justify-between items-center text-xs bg-red-50 p-2 rounded-lg -mx-2">
-                      <span className="font-pmedium text-red-700">Manual Deduction</span>
-                      <span className="font-pmedium text-red-600">-{formatCurrency(fin.hrDeductions, currency)}</span>
+                    <div className="bg-red-50 p-2 rounded-lg -mx-2 space-y-1">
+                      <span className="text-[9px] font-pmedium text-red-700 uppercase tracking-widest">Manual Deduction</span>
+                      {(employee.manualAdjustments || []).filter((a) => a.type === "deduction").map((a, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-xs">
+                          <span className="font-pmedium text-red-700/80">{a.reason || "Deduction"}</span>
+                          <span className="font-pmedium text-red-600">-{formatCurrency(a.amount, currency)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center text-xs border-t border-red-200 pt-1">
+                        <span className="font-pmedium text-red-800">Total Deduction</span>
+                        <span className="font-pmedium text-red-700">-{formatCurrency(fin.hrDeductions, currency)}</span>
+                      </div>
                     </div>
                   )}
-                  {employee.adjustmentReason && (
-                    <p className="text-[10px] font-pmedium text-slate-500 italic mt-1 bg-white border border-slate-200 p-2 rounded">
-                      Note: {employee.adjustmentReason}
-                    </p>
-                  )}
-                  <div className="border-t-2 border-slate-300 pt-2 flex justify-between items-center">
+                  <div className="border-t-2 border-slate-300 pt-2 flex justify-between items-center mt-auto">
                     <span className="font-pmedium text-slate-900 text-xs">NET PAYABLE</span>
                     <span className="font-pmedium text-blue-600 text-lg">{formatCurrency(fin.netSalary, currency)}</span>
                   </div>
@@ -561,9 +584,11 @@ function EmployeeDetailModal({
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Reason / Description</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                          Type of {adjustment.type === "bonus" ? "Bonus" : "Deduction"}
+                        </label>
                         <textarea
-                          placeholder="e.g. Performance Bonus Q1"
+                          placeholder={adjustment.type === "bonus" ? "e.g. Performance Bonus Q1" : "e.g. Late Attendance Penalty"}
                           rows={3}
                           className="w-full px-4 py-2.5 bg-white border-2 border-transparent rounded-xl font-pmedium text-slate-700 outline-none resize-none"
                           value={adjustment.reason}
@@ -703,16 +728,19 @@ export default function HRPayrollPage() {
       const envelope = response?.data || {};
       const payload = envelope?.data || envelope;
 
-      setPayrollData({
+      const nextPayrollData = {
         currentCycle: payload.currentCycle || null,
         history: Array.isArray(payload.history) ? payload.history : [],
         filters: payload.filters || { departments: [], roles: [] },
         settings: payload.settings || { currency: DEFAULT_WORKSPACE_CURRENCY, timezone: PAYROLL_TIME_ZONE },
-      });
+      };
+      setPayrollData(nextPayrollData);
       setErrorMessage("");
+      return nextPayrollData;
     } catch (error: any) {
       setPayrollData({ currentCycle: null, history: [], filters: { departments: [], roles: [] } });
       setErrorMessage(error?.message || "Failed to load payroll data.");
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -787,7 +815,9 @@ export default function HRPayrollPage() {
     if (!adj.amount || !adj.reason || !payrollCycle?.id) return;
     try {
       await addPayrollAdjustment(payrollCycle.id, profileId, adj);
-      await loadPayrollData(selectedMonth, selectedYear);
+      const refreshed = await loadPayrollData(selectedMonth, selectedYear);
+      const updatedEmployee = refreshed?.currentCycle?.employees?.find((emp: EmployeePayrollData) => emp.profileId === profileId);
+      if (updatedEmployee) setViewingEmployee({ ...updatedEmployee, isHistory: false });
       setAdjustment({ type: "bonus", amount: "", reason: "" });
     } catch (error: any) {
       alert(error?.message || "Failed to save payroll adjustment.");

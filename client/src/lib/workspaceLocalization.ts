@@ -213,7 +213,7 @@ export function formatWorkspaceCurrency(
   options: Intl.NumberFormatOptions = {},
 ): string {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: normalizeWorkspaceCurrency(currency),
     ...options,

@@ -17,9 +17,13 @@ export const updateManagedWorkspace = (
       city?: string;
       state?: string;
       country?: string;
+      countryCode?: string;
       address?: string;
       industry?: string;
       businessType?: string;
+      timezone?: string;
+      currency?: string;
+      businessTypes?: string[];
     };
   },
 ) => axiosPrivate.patch(`/api/workspaces/management/${workspaceId}`, payload);

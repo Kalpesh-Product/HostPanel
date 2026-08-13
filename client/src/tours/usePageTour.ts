@@ -59,6 +59,10 @@ const findStepTarget = (step: BasicPageTourStep): Element | null => {
 };
 
 const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): TourDriveStep[] => {
+  const activeEditorPage = document
+    .querySelector('[data-tour="wb-editor-page-tabs"]')
+    ?.getAttribute("data-editor-page") || "";
+  const isEditorTour = tour.id === "basic-website-builder-editor";
   const pageContent = findVisible('[data-tour="page-content"]');
   const pageHeading = findVisible(
     '[data-tour="page-content"] h1, [data-tour="page-content"] h2, [data-tour="page-content"] [role="heading"]',
@@ -69,7 +73,7 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
   );
   const guideButton = findVisible('[data-tour="page-guide-button"]');
 
-  const steps: TourDriveStep[] = [
+  const steps: TourDriveStep[] = isEditorTour && activeEditorPage !== "home" ? [] : [
     {
       element: pageHeading || pageContent || undefined,
       popover: {
@@ -82,19 +86,21 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
   ];
 
   if (tour.steps?.length) {
-    tour.steps.forEach((tourStep) => {
-      const target = findStepTarget(tourStep);
-      if (!target) return;
-      steps.push({
-        element: target,
-        popover: {
-          title: tourStep.title,
-          description: tourStep.description,
-          side: tourStep.side || "bottom",
-          align: tourStep.align || "start",
-        },
+    tour.steps
+      .filter((tourStep) => !tourStep.editorPage || tourStep.editorPage === activeEditorPage)
+      .forEach((tourStep) => {
+        const target = findStepTarget(tourStep);
+        if (!target) return;
+        steps.push({
+          element: target,
+          popover: {
+            title: tourStep.title,
+            description: tourStep.description,
+            side: tourStep.side || "bottom",
+            align: tourStep.align || "start",
+          },
+        });
       });
-    });
 
     if (
       (tour.id === "basic-dashboard" || tour.id === "professional-dashboard") &&
@@ -251,7 +257,10 @@ export default function usePageTour() {
         popoverClass: "hostpanel-page-tour",
         overlayColor: "#0f172a",
         overlayOpacity: 0.58,
-        smoothScroll: true,
+        // The app scrolls inside #scrollable-content. Animated scrolling lets
+        // Driver position the next popover before that nested scroll settles,
+        // which leaves distant steps misplaced until they are revisited.
+        smoothScroll: false,
         allowClose: true,
         disableActiveInteraction: true,
         onNextClick: (_element, _step, { driver: activeDriver }) => {

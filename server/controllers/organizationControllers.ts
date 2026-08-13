@@ -601,9 +601,10 @@ const getWorkspaceDepartmentModuleIds = (workspace: any) => {
 const buildLinkedWorkspaceOptions = async (workspace) => {
   if (!workspace?.owner) return [];
   const mainWorkspaceId = await resolveMainWorkspaceId(workspace.owner);
+  // Include disabled and deleted units too so ownership transfer covers the
+  // whole account and the new founder/super admin can still see them.
   const workspaces = await Workspace.find({
     owner: workspace.owner,
-    isActive: true,
   })
     .lean()
     .exec();
@@ -630,6 +631,10 @@ const buildLinkedWorkspaceOptions = async (workspace) => {
     location: [item.city, item.state, item.country].filter(Boolean).join(", "),
     isCurrentWorkspace: toId(item._id) === toId(workspace._id),
     isMain: toId(item._id) === toId(mainWorkspaceId),
+    isActive: item.isActive !== false,
+    isDisabled: item.isDeleted !== true && item.isActive === false,
+    isDeleted: item.isDeleted === true,
+    status: item.isDeleted === true ? "deleted" : item.isActive === false ? "disabled" : "active",
     selectedPlan: item.selectedPlan || "basic",
     departments: (deptsByWorkspace.get(toId(item._id)) || []).map((department) => ({
       id: toId(department?._id),
@@ -3210,7 +3215,6 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     const selectedWorkspaces = await Workspace.find({
       _id: { $in: requestedWorkspaceIds },
       owner: user._id,
-      isActive: true,
     }).exec();
     if (selectedWorkspaces.length !== requestedWorkspaceIds.length) {
       return res.status(400).json({
@@ -3218,11 +3222,11 @@ export const transferOrganizationOwnership = async (req, res, next) => {
       });
     }
 
-    // Ownership handover covers the whole account: every linked unit must be
-    // included, otherwise the former founder would keep ownership somewhere.
+    // Ownership handover covers the whole account: every linked unit (enabled,
+    // disabled, or deleted) must be included, otherwise the former founder
+    // would keep ownership somewhere.
     const allLinkedWorkspaces = await Workspace.find({
       owner: user._id,
-      isActive: true,
     })
       .select("_id")
       .lean()
@@ -3263,6 +3267,15 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     }
 
     for (const selectedWorkspace of selectedWorkspaces) {
+      // Disabled/deleted units stay locked after the handover: the new founder
+      // and former founder are linked there, but their memberships remain
+      // inactive until the unit is enabled/recovered — matching how the unit
+      // behaves for every other member.
+      const workspaceUnavailable =
+        selectedWorkspace.isDeleted === true || selectedWorkspace.isActive === false;
+      const membershipActive = !workspaceUnavailable;
+      const membershipStatus = workspaceUnavailable ? "disabled" : "joined";
+
       await Department.updateMany(
         { workspaceId: selectedWorkspace._id, managerUser: nextOwner._id },
         { $set: { managerUser: null } },
@@ -3289,9 +3302,9 @@ export const transferOrganizationOwnership = async (req, res, next) => {
               role: superAdminRole._id,
               departments: [],
               grantedModules: formerFounderGrants,
-              isPrimary: previousOwnerWasPrimary,
-              isActive: true,
-              status: "joined",
+              isPrimary: workspaceUnavailable ? false : previousOwnerWasPrimary,
+              isActive: membershipActive,
+              status: membershipStatus,
             },
           },
           { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -3316,9 +3329,9 @@ export const transferOrganizationOwnership = async (req, res, next) => {
           $set: {
             role: ownerRole._id,
             departments: [],
-            isPrimary: Boolean(existingNextOwnerMembership?.isPrimary),
-            isActive: true,
-            status: "joined",
+            isPrimary: workspaceUnavailable ? false : Boolean(existingNextOwnerMembership?.isPrimary),
+            isActive: membershipActive,
+            status: membershipStatus,
           },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true },

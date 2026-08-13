@@ -24,6 +24,14 @@ export async function getCountries() {
   return normalizeOptions(countries);
 }
 
+export function getCountryIsoCode(country: string) {
+  const normalizedCountry = String(country || "").trim().toLowerCase();
+  if (!normalizedCountry) return "";
+  return Country.getAllCountries().find(
+    (item) => item.name.toLowerCase() === normalizedCountry || item.isoCode.toLowerCase() === normalizedCountry,
+  )?.isoCode || "";
+}
+
 export async function getStates(country: string) {
   const normalizedCountry = String(country || "").trim();
   if (!normalizedCountry) return [];

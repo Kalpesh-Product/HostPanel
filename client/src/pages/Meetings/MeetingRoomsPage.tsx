@@ -30,6 +30,7 @@ import {
   getMeetingRoomBookings,
   getMyBookings,
   respondToMeetingRoomInvite,
+  addMeetingRoomBookingInvites,
   updateMeetingRoomBooking,
   cancelBooking,
   getExternalClients,
@@ -2239,7 +2240,8 @@ export function MeetingRoomsPage() {
     isTechManagerProfile ||
     isITManagerProfile ||
     isMaintenanceManagerProfile;
-  // Owner/Super-admin see company_bookings, not assigned_dept. Only pure admins get assigned_dept.
+  const canViewCompanyBookings = isOwnerProfile || isSuperAdminProfile;
+  // Founder/Super Admin see the company scope. Pure admins keep their assigned-department scope.
   const isAssignedDeptProfile = isAdminProfile && !isOwnerProfile && !isSuperAdminProfile;
   const currentUserId = String(
     storedUser?.workspaceMembership?.userId ||
@@ -2349,15 +2351,7 @@ export function MeetingRoomsPage() {
   ]);
 
   // --- CORE STATE ---
-  const [activeTab, setActiveTab] = useState<string>(
-    isEmployeeProfile
-      ? 'my_bookings'
-      : isAssignedDeptProfile
-        ? 'assigned_dept_bookings'
-        : (isOwnerProfile || isSuperAdminProfile)
-          ? 'company_bookings'
-          : 'dept_bookings',
-  );
+  const [activeTab, setActiveTab] = useState<string>('my_bookings');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoadingBookings, setIsLoadingBookings] = useState<boolean>(false);
@@ -2389,8 +2383,10 @@ export function MeetingRoomsPage() {
       } else {
         setActiveTab('my_bookings');
       }
-    } else if (tab === 'dept_bookings' || tab === 'company_bookings') {
-      setActiveTab(isAssignedDeptProfile ? 'assigned_dept_bookings' : tab);
+    } else if (tab === 'company_bookings') {
+      setActiveTab(canViewCompanyBookings ? 'company_bookings' : 'my_bookings');
+    } else if (tab === 'dept_bookings') {
+      setActiveTab(isAssignedDeptProfile ? 'assigned_dept_bookings' : 'dept_bookings');
     } else if (tab === 'invites' || tab === 'my_bookings' || tab === 'assigned_dept_bookings') {
       setActiveTab(tab);
     }
@@ -2400,7 +2396,7 @@ export function MeetingRoomsPage() {
     } else if (tab === 'invites') {
       setStatusFilter('pending');
     }
-  }, [location.search, isEmployeeProfile, isAssignedDeptProfile]);
+  }, [location.search, isEmployeeProfile, isAssignedDeptProfile, canViewCompanyBookings]);
 
   // Modal States
   const [showBookingDialog, setShowBookingDialog] = useState<boolean>(false);
@@ -2408,6 +2404,17 @@ export function MeetingRoomsPage() {
   const [showExtendDialog, setShowExtendDialog] = useState<boolean>(false);
   const [showCancelDialog, setShowCancelDialog] = useState<boolean>(false);
   const [viewingBooking, setViewingBooking] = useState<Booking | null>(null);
+  const [showViewInvitePicker, setShowViewInvitePicker] = useState(false);
+  const [viewInviteeIds, setViewInviteeIds] = useState<string[]>([]);
+  const [viewInviteError, setViewInviteError] = useState('');
+  const [isAddingBookingInvites, setIsAddingBookingInvites] = useState(false);
+  useEffect(() => {
+    setShowViewInvitePicker(false);
+    setViewInviteeIds([]);
+    setViewInviteError('');
+    setIsAddingBookingInvites(false);
+  }, [viewingBooking?.recordId, viewingBooking?.id]);
+
 
   const [availableRooms, setAvailableRooms] = useState<string[]>([
     'Conference Room A',
@@ -2561,28 +2568,20 @@ export function MeetingRoomsPage() {
   }, [isDepartmentManagerProfile, isMyBooking, hasCurrentUserInvite, matchesDepartmentScope]);
 
   const isCompanyBooking = useCallback((booking: any) => {
-    if (!booking) {
+    if (!canViewCompanyBookings || !booking) {
       return false;
     }
 
-    if (normalize(booking.bookingType) === 'external') {
+    if (normalize(booking.bookingType) !== 'internal') {
       return false;
     }
-
-    if (isMyBooking(booking)) {
-      return false;
-    }
-
-    if (isAcceptedCurrentUserInvite(booking) || isPendingCurrentUserInvite(booking)) {
-      return false;
-    }
-
-    if (isDepartmentManagerProfile) {
-      return isRejectedCurrentUserInvite(booking) || !matchesDepartmentScope(booking.department);
-    }
-
-    return !hasCurrentUserInvite(booking);
-  }, [isMyBooking, isDepartmentManagerProfile, matchesDepartmentScope, hasCurrentUserInvite]);
+    const bookedByUserId = String(booking.bookedByUserId || '');
+    const isOnBehalfBooking = Boolean(booking.bookedForName);
+    const isOwnedByCurrentUser = Boolean(
+      booking.isMe || (!isOnBehalfBooking && bookedByUserId && currentUserId && bookedByUserId === currentUserId)
+    );
+    return !isOwnedByCurrentUser;
+  }, [canViewCompanyBookings, currentUserId]);
 
   const isBookingInActiveTab = useCallback((booking: any, tab: string = activeTab) => {
     if (mainBookingTab !== 'my_bookings') {
@@ -2810,9 +2809,10 @@ export function MeetingRoomsPage() {
     
     // Default tabs (my_bookings, company_bookings, dept_bookings) — never show external or tenant
     if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking) && normalize(booking.bookingType) !== 'tenant' && normalize(booking.bookingType) !== 'external');
+    if (canViewCompanyBookings) return allBookings.filter((b) => normalize(b.bookingType) === 'internal');
     if (!isAdminProfile) return allBookings.filter((b) => normalize(b.bookingType) !== 'tenant' && normalize(b.bookingType) !== 'external');
     return allBookings.filter((booking) => (isAssignedDeptBooking(booking) || isMyBooking(booking)) && normalize(booking.bookingType) !== 'tenant' && normalize(booking.bookingType) !== 'external');
-  }, [allBookings, isAdminProfile, isAssignedDeptBooking, isMyBooking, isEmployeeProfile, mainBookingTab]);
+  }, [allBookings, isAdminProfile, isAssignedDeptBooking, isMyBooking, isEmployeeProfile, canViewCompanyBookings, mainBookingTab]);
 
   const displayedBookings = useMemo(() => {
     if (activeTab === 'invites') return [];
@@ -2903,17 +2903,19 @@ export function MeetingRoomsPage() {
   }, [visibleBookings, todayStr, isBookingInActiveTab]);
 
   const reloadBookings = async () => {
-    if (!workspaceId) return;
+    if (!workspaceId) return [];
     const response = await getMeetingRoomBookings(workspaceId);
     const data = response?.data?.data || response?.data || response || {};
     const details = (data.roomDetails || data.rooms || []).map((room: any) => normalizeRoomEntry(room));
     const bookings = data.bookings || data.data?.bookings || [];
+    const normalizedBookings = bookings.map((booking: any) => normalizeBooking(booking, currentUserId, workspacePreferences.timezone));
     setRoomDetails(details);
-    setAllBookings(bookings.map((booking: any) => normalizeBooking(booking, currentUserId, workspacePreferences.timezone)));
+    setAllBookings(normalizedBookings);
     setReceivedInvites(data.receivedInvites || []);
     const roomNames = details.filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room)).map((room: any) => room.name);
     setAvailableRooms(roomNames);
     setCalendarRoomFilter((current) => roomNames.includes(current) ? current : (roomNames[0] || ''));
+    return normalizedBookings;
   };
 
   // --------- MISSING FORM STATES ---------
@@ -3633,6 +3635,53 @@ export function MeetingRoomsPage() {
 
     return result;
   }, [workspaceMembers, currentUserId]);
+  const viewingInviteState = useMemo(() => {
+    if (!viewingBooking) {
+      return { capacity: 0, activeInviteIds: new Set<string>(), remainingSlots: 0, ownerId: '', bookedByUserId: '' };
+    }
+    const room = roomCatalog.find((entry) => entry.name === viewingBooking.roomName);
+    const capacity = Math.max(1, Number(viewingBooking.roomCapacity || room?.capacity || 0));
+    const activeInviteIds = new Set<string>(
+      (Array.isArray(viewingBooking.invites) ? viewingBooking.invites : [])
+        .filter((invite: any) => ['pending', 'accepted'].includes(normalize(invite.status)))
+        .map((invite: any) => String(invite.invitedUserId || ''))
+        .filter(Boolean),
+    );
+    return {
+      capacity,
+      activeInviteIds,
+      remainingSlots: Math.max(0, capacity - 1 - activeInviteIds.size),
+      ownerId: stringifyId((viewingBooking as any).ownerId),
+      bookedByUserId: stringifyId((viewingBooking as any).bookedByUserId),
+    };
+  }, [viewingBooking, roomCatalog]);
+
+  const canManageViewingInvites = useMemo(() => {
+    if (!viewingBooking || !currentUserId) return false;
+    const status = getBookingDisplayStatus(viewingBooking);
+    const ownsBooking = currentUserId === viewingInviteState.ownerId || currentUserId === viewingInviteState.bookedByUserId;
+    return ownsBooking && (status === 'booked' || status === 'in progress');
+  }, [viewingBooking, currentUserId, viewingInviteState.ownerId, viewingInviteState.bookedByUserId]);
+
+  const viewInviteGroups = useMemo(() => inviteDepartments
+    .map((group) => ({
+      ...group,
+      members: group.members.filter((member: any) => {
+        const memberId = resolveMemberUserId(member);
+        if (!memberId || memberId === viewingInviteState.ownerId || memberId === viewingInviteState.bookedByUserId) return false;
+        return !viewingInviteState.activeInviteIds.has(memberId);
+      }),
+    }))
+    .filter((group) => group.members.length > 0), [inviteDepartments, viewingInviteState]);
+
+  const toggleViewInvitee = (memberId: string) => {
+    setViewInviteError('');
+    setViewInviteeIds((current) => {
+      if (current.includes(memberId)) return current.filter((id) => id !== memberId);
+      if (current.length >= viewingInviteState.remainingSlots) return current;
+      return [...current, memberId];
+    });
+  };
 
   const internalBookingEligibleParticipants = useMemo(() => {
     const hostId = internalBookingForm.bookedForUserId;
@@ -3881,6 +3930,40 @@ export function MeetingRoomsPage() {
     }
     if (status === 'rejected') closeRejectInviteDialog();
     setIsSavingBooking(false);
+  };
+
+  const handleAddBookingInvites = async () => {
+    if (!viewingBooking?.recordId || viewInviteeIds.length === 0) {
+      setViewInviteError('Select at least one member to invite.');
+      return;
+    }
+    if (viewInviteeIds.length > viewingInviteState.remainingSlots) {
+      setViewInviteError(`Only ${viewingInviteState.remainingSlots} invite slot(s) remain.`);
+      return;
+    }
+
+    setIsAddingBookingInvites(true);
+    setViewInviteError('');
+    try {
+      const response = await addMeetingRoomBookingInvites(viewingBooking.recordId, viewInviteeIds);
+      const responseBooking = response?.booking
+        ? normalizeBooking(response.booking, currentUserId, workspacePreferences.timezone)
+        : null;
+      setViewingBooking(responseBooking || viewingBooking);
+      setViewInviteeIds([]);
+      setShowViewInvitePicker(false);
+      try {
+        const refreshedBookings = await reloadBookings();
+        const refreshedBooking = refreshedBookings.find((booking: Booking) => String(booking.recordId) === String(viewingBooking.recordId));
+        if (refreshedBooking) setViewingBooking(refreshedBooking);
+      } catch {
+        // The invite request succeeded; keep its response if refresh is unavailable.
+      }
+    } catch (error: any) {
+      setViewInviteError(error?.response?.data?.message || error?.message || 'Failed to send meeting invites.');
+    } finally {
+      setIsAddingBookingInvites(false);
+    }
   };
 
   const handleInviteResponse = async (invite: any, status: string) => {
@@ -4505,28 +4588,31 @@ export function MeetingRoomsPage() {
                       </>
                     ) : (
                       <>
-                        {/* First tab: Company / Dept / Assigned - role-based */}
+                        {(canViewCompanyBookings || isAssignedDeptProfile || isDepartmentManagerProfile) && (
+                        <>
                         <button
                           data-tour="meetings-scope-dept"
                           onClick={() => {
-                            const tab = isAdminProfile
-                              ? 'assigned_dept_bookings'
-                              : (isOwnerProfile || isSuperAdminProfile)
-                                ? 'company_bookings'
+                            const tab = canViewCompanyBookings
+                              ? 'company_bookings'
+                              : isAssignedDeptProfile
+                                ? 'assigned_dept_bookings'
                                 : 'dept_bookings';
                             setActiveTab(tab);
                             setStatusFilter('all');
                           }}
-                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                          className={`order-2 flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
                         >
                           {(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
-                          COMPANY
+                          {canViewCompanyBookings ? 'COMPANY' : 'DEPARTMENT'}
                         </button>
+                        </>
+                        )}
                         <button
                           data-tour="meetings-scope-my-bookings"
                           onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                          className={`order-1 flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
                         >
                           {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
@@ -4535,7 +4621,7 @@ export function MeetingRoomsPage() {
                         <button
                           data-tour="meetings-scope-invites"
                           onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                          className={`order-3 flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
                         >
                           {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
@@ -4718,7 +4804,7 @@ export function MeetingRoomsPage() {
                           <tr>
                             <th className="px-5 py-4">Meeting Room</th>
                             <th className="px-5 py-4">Type</th>
-                            <th className="px-5 py-4">Department</th>
+                            <th className="px-5 py-4">Role</th>
                             <th className="px-5 py-4">Host</th>
                             <th className="px-5 py-4">Date</th>
                             <th className="px-5 py-4">Start &amp; End Time</th>
@@ -4753,7 +4839,9 @@ export function MeetingRoomsPage() {
                                   {b.roomType || roomCatalog.find((room) => room.name === b.roomName)?.type || getMeetingRoomTypeFromName(b.roomName)}
                                 </td>
                                 <td className="px-5 py-4 text-[12px] text-slate-600">
+                                  {b.bookedByRole ? b.bookedByRole.replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase()) : (<>
                                   {b.department || '—'}
+                                  </>)}
                                 </td>
                                 <td className="px-5 py-4">
                                   <p className="text-[13px] font-pmedium text-[#0F172A]">
@@ -5887,6 +5975,111 @@ export function MeetingRoomsPage() {
                             );
                           })}
                         </div>
+                      </div>
+                    )}
+
+                    {canManageViewingInvites && (
+                      <div>
+                        <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
+                          <h3 className="flex items-center gap-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                            <UserPlus size={14} /> Add Invites
+                          </h3>
+                          <span className="text-[10px] font-pmedium text-slate-500">
+                            {viewingInviteState.activeInviteIds.size + 1} / {viewingInviteState.capacity} seats reserved
+                          </span>
+                        </div>
+
+                        {viewingInviteState.remainingSlots === 0 ? (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-pmedium text-amber-800">
+                            Room capacity is full. No invite slots remain.
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[12px] font-pmedium text-slate-900">Invite more workspace members</p>
+                                <p className="mt-1 text-[10px] font-pmedium text-slate-500">
+                                  {viewingInviteState.remainingSlots} slot(s) available
+                                </p>
+                              </div>
+                              {!showViewInvitePicker && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setShowViewInvitePicker(true); setViewInviteError(''); }}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700"
+                                >
+                                  <UserPlus size={13} /> Select Members
+                                </button>
+                              )}
+                            </div>
+
+                            {showViewInvitePicker && (
+                              <div className="mt-4 space-y-3">
+                                <div className="flex items-center justify-between text-[10px] font-pmedium">
+                                  <span className="uppercase tracking-widest text-slate-500">Members</span>
+                                  <span className={viewInviteeIds.length >= viewingInviteState.remainingSlots ? 'text-rose-600' : 'text-blue-700'}>
+                                    {viewInviteeIds.length} / {viewingInviteState.remainingSlots} selected
+                                  </span>
+                                </div>
+                                <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+                                  {viewInviteGroups.map((group) => (
+                                    <div key={group.department} className="rounded-xl border border-slate-200 bg-white p-3">
+                                      <p className="mb-2 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{group.label}</p>
+                                      <div className="space-y-2">
+                                        {group.members.map((member: any) => {
+                                          const memberId = resolveMemberUserId(member);
+                                          const checked = viewInviteeIds.includes(memberId);
+                                          const disabled = !checked && viewInviteeIds.length >= viewingInviteState.remainingSlots;
+                                          return (
+                                            <label key={memberId} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors ${checked ? 'border-blue-200 bg-blue-50' : 'border-slate-100 bg-slate-50/60'} ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                                              <div className="min-w-0">
+                                                <p className="truncate text-[11px] font-pmedium text-slate-900">{resolveMemberName(member)}</p>
+                                                <p className="text-[9px] font-pmedium text-slate-400">{formatInviteGroupLabel((member as any).role || group.label)}</p>
+                                              </div>
+                                              <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                disabled={disabled}
+                                                onChange={() => toggleViewInvitee(memberId)}
+                                                className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                                              />
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {viewInviteGroups.length === 0 && (
+                                    <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-[11px] font-pmedium text-slate-400">
+                                      No additional workspace members are available.
+                                    </div>
+                                  )}
+                                </div>
+                                {viewInviteError && (
+                                  <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-pmedium text-red-600">{viewInviteError}</p>
+                                )}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={isAddingBookingInvites}
+                                    onClick={() => { setShowViewInvitePicker(false); setViewInviteeIds([]); setViewInviteError(''); }}
+                                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isAddingBookingInvites || viewInviteeIds.length === 0}
+                                    onClick={handleAddBookingInvites}
+                                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <UserPlus size={13} /> {isAddingBookingInvites ? 'Sending...' : 'Send Invites'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
