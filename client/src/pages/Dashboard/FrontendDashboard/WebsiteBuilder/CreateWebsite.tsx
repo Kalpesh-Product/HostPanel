@@ -1108,17 +1108,30 @@ const CreateWebsite = () => {
   const [creditsResetDate, setCreditsResetDate] = useState(null);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [showHiddenPagesWarning, setShowHiddenPagesWarning] = useState(false);
-  // "hidden" = not scrolled / idle for 3s; "down" = scrolled a bit from the top
-  // (jumps to bottom); "up" = at/near the bottom (jumps to top).
+  // Follows the direction the user is actively scrolling, not just their
+  // absolute position: scrolling up shows an up arrow (jump to top), scrolling
+  // down shows a down arrow (jump to bottom). Pinned to "up" at the very
+  // bottom (nowhere further down to go) and hidden at the very top.
   const [scrollFabState, setScrollFabState] = useState<"hidden" | "down" | "up">("hidden");
   useEffect(() => {
     const container = document.getElementById("scrollable-content");
     if (!container) return;
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastScrollTop = container.scrollTop;
     const handleScroll = () => {
-      const nearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 40;
-      const scrolledDown = container.scrollTop > 150;
-      setScrollFabState(nearBottom ? "up" : scrolledDown ? "down" : "hidden");
+      const current = container.scrollTop;
+      const atTop = current <= 0;
+      const atBottom = current + container.clientHeight >= container.scrollHeight - 2;
+
+      if (atTop) {
+        setScrollFabState("hidden");
+      } else if (atBottom) {
+        setScrollFabState("up");
+      } else {
+        setScrollFabState(current < lastScrollTop ? "up" : "down");
+      }
+      lastScrollTop = current;
+
       if (hideTimer) clearTimeout(hideTimer);
       hideTimer = setTimeout(() => setScrollFabState("hidden"), 3000);
     };
