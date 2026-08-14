@@ -205,6 +205,17 @@ const formatRequest = (document: any, now = new Date()) => {
     noticeEndAt: noticeEndAt || null,
     noticeStartDate: dateOnly(request?.noticeStartAt),
     noticeEndDate: dateOnly(request?.noticeEndAt),
+    noticeExtensions: (Array.isArray(request?.noticeExtensions)
+      ? request.noticeExtensions
+      : []).map((extension: any) => ({
+        previousNoticeEndAt: extension?.previousNoticeEndAt || null,
+        newNoticeEndAt: extension?.newNoticeEndAt || null,
+        extendedBy: extension?.extendedBy || "",
+        extendedByUserId: extension?.extendedByUserId
+          ? String(extension.extendedByUserId)
+          : null,
+        extendedAt: extension?.extendedAt || null,
+      })),
     daysRemaining,
     approvedAt: request?.approvedAt || null,
     approvedBy: request?.approvedBy || "",
@@ -1004,56 +1015,90 @@ export const updateResignationChecklistForCurrentUser = async (
       403,
     );
   }
-  if (typeof input?.completed !== "boolean") {
+  const request = await findRequest(requestId, access);
+  if (request.status !== "approved") {
     throw new ResignationManagementError(
-      "Checklist completion must be true or false.",
-      400,
+      "Checklist items can only be updated after approval.",
+      409,
     );
   }
-  const itemKey = clean(input?.itemKey, 80);
-  if (!itemKey) {
-    throw new ResignationManagementError("Checklist item is required.", 400);
+
+  const changes = (Array.isArray(input?.checklist) ? input.checklist : [])
+    .map((change: any) => {
+      if (typeof change?.completed !== "boolean") {
+        throw new ResignationManagementError(
+          "Checklist completion must be true or false.",
+          400,
+        );
+      }
+      const itemKey = clean(change?.itemKey, 80);
+      if (!itemKey) {
+        throw new ResignationManagementError("Checklist item is required.", 400);
+      }
+      return {
+        itemKey,
+        completed: change.completed,
+        notes: clean(change?.notes, 1000),
+      };
+    })
+    .filter((change: any) => Boolean(change.itemKey));
+
+  if (!changes.length) {
+    if (typeof input?.completed !== "boolean") {
+      throw new ResignationManagementError(
+        "Checklist completion must be true or false.",
+        400,
+      );
+    }
+    const itemKey = clean(input?.itemKey, 80);
+    if (!itemKey) {
+      throw new ResignationManagementError("Checklist item is required.", 400);
+    }
+    changes.push({
+      itemKey,
+      completed: input.completed,
+      notes: clean(input?.notes, 1000),
+    });
   }
 
-  const completed = input.completed;
+  const currentItems = Array.isArray(request.checklist) ? request.checklist : [];
+  const unknownKeys = changes.filter(
+    (change: any) => !currentItems.some((item: any) => item.key === change.itemKey),
+  );
+  if (unknownKeys.length) {
+    throw new ResignationManagementError("Checklist item not found.", 404);
+  }
+
+  const now = new Date();
+  const reviewer = actorName(access);
+  const checklist = currentItems.map((item: any) => {
+    const change = changes.find((candidate: any) => candidate.itemKey === item.key);
+    if (!change) return item;
+    return {
+      ...item,
+      completed: change.completed,
+      completedAt: change.completed ? now : null,
+      completedBy: change.completed ? reviewer : "",
+      completedByUserId: change.completed ? access.actor._id : null,
+      notes: change.notes,
+    };
+  });
+
   const updated = await ResignationRequest.findOneAndUpdate(
     {
-      _id: mongoose.isValidObjectId(requestId) ? requestId : null,
+      _id: requestId,
       workspaceId: access.workspace._id,
       status: "approved",
-      "checklist.key": itemKey,
     },
-    {
-      $set: {
-        "checklist.$.completed": completed,
-        "checklist.$.completedAt": completed ? new Date() : null,
-        "checklist.$.completedBy": completed ? actorName(access) : "",
-        "checklist.$.completedByUserId": completed
-          ? access.actor._id
-          : null,
-        "checklist.$.notes": clean(input?.notes, 1000),
-      },
-    },
+    { $set: { checklist } },
     { new: true, runValidators: true },
   ).populate("departments", "name").lean().exec();
 
   if (!updated) {
-    const request = mongoose.isValidObjectId(requestId)
-      ? await ResignationRequest.findOne({
-          _id: requestId,
-          workspaceId: access.workspace._id,
-        }).lean().exec()
-      : null;
-    if (!request) {
-      throw new ResignationManagementError("Resignation request not found.", 404);
-    }
-    if (request.status !== "approved") {
-      throw new ResignationManagementError(
-        "Checklist items can only be updated after approval.",
-        409,
-      );
-    }
-    throw new ResignationManagementError("Checklist item not found.", 404);
+    throw new ResignationManagementError(
+      "Resignation request changed before saving. Refresh and try again.",
+      409,
+    );
   }
 
   return { exitRequest: formatRequest(updated) };
@@ -1189,4 +1234,113 @@ export const completeResignationRequestForCurrentUser = async (
   });
 
   return { exitRequest: formatRequest(updated, now) };
+};
+
+export const extendResignationNoticePeriodForCurrentUser = async (
+  userId: string,
+  workspaceId: string,
+  requestId: string,
+  input: any,
+) => {
+  const access = await resolveAccess(userId, workspaceId);
+  if (!access.canManage) {
+    throw new ResignationManagementError(
+      "You do not have permission to extend notice periods.",
+      403,
+    );
+  }
+  const request = await findRequest(requestId, access);
+  if (request.status !== "approved") {
+    throw new ResignationManagementError(
+      "Notice period can only be extended while the resignation is active.",
+      409,
+    );
+  }
+  const currentNoticeEndAt = request.noticeEndAt
+    ? new Date(request.noticeEndAt)
+    : null;
+  if (!currentNoticeEndAt || Number.isNaN(currentNoticeEndAt.getTime())) {
+    throw new ResignationManagementError(
+      "The notice period has not started yet.",
+      409,
+    );
+  }
+
+  const raw = String(input?.newNoticeEndDate || "").trim();
+  if (!raw) {
+    throw new ResignationManagementError(
+      "Extended notice end date is required.",
+      400,
+    );
+  }
+  const newNoticeEndAt = new Date(raw.length <= 10 ? `${raw}T00:00:00.000Z` : raw);
+  if (Number.isNaN(newNoticeEndAt.getTime())) {
+    throw new ResignationManagementError(
+      "Extended notice end date is invalid.",
+      400,
+    );
+  }
+  if (
+    startOfDay(newNoticeEndAt).getTime() <=
+    startOfDay(currentNoticeEndAt).getTime()
+  ) {
+    throw new ResignationManagementError(
+      "The extended notice end date must be after the current last working date.",
+      400,
+    );
+  }
+
+  const reviewer = actorName(access);
+  const now = new Date();
+  const updated = await ResignationRequest.findOneAndUpdate(
+    {
+      _id: requestId,
+      workspaceId: access.workspace._id,
+      status: "approved",
+    },
+    {
+      $set: {
+        noticeEndAt: newNoticeEndAt,
+        updatedByUserId: access.actor._id,
+      },
+      $push: {
+        noticeExtensions: {
+          previousNoticeEndAt: currentNoticeEndAt,
+          newNoticeEndAt,
+          extendedByUserId: access.actor._id,
+          extendedBy: reviewer,
+          extendedAt: now,
+        },
+      },
+    },
+    { new: true, runValidators: true },
+  ).populate("departments", "name").lean().exec();
+  if (!updated) {
+    throw new ResignationManagementError(
+      "Resignation request changed before saving. Refresh and try again.",
+      409,
+    );
+  }
+
+  await notify(access, request.requesterUserId, {
+    type: "exit_notice_extended",
+    title: "Notice period extended: " + request.exitCode,
+    description:
+      reviewer +
+      " extended your notice period. Your new last working date is " +
+      dateOnly(newNoticeEndAt) +
+      ".",
+    entityId: String(request._id),
+    entityCode: request.exitCode,
+    targetUrl: "/profile/resignation-request",
+    priority: "high",
+    isActionRequired: false,
+    data: {
+      status: "approved",
+      previousNoticeEndAt: dateOnly(currentNoticeEndAt),
+      newNoticeEndAt: dateOnly(newNoticeEndAt),
+    },
+  });
+
+  return { exitRequest: formatRequest(updated) };
 };

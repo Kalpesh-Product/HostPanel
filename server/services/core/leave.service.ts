@@ -8,6 +8,7 @@ import WorkspaceMember from "../../models/WorkspaceMember.js";
 import Department from "../../models/Department.js";
 import EmployeeProfile from "../../models/EmployeeProfile.js";
 import { getCurrentWorkspace } from "./hr.service.js";
+import { findAttendanceShift, getShiftDurationMinutes } from "../../utils/attendanceShifts.js";
 import { resolveMembershipByWorkspace } from "../../utils/resolveMembership.js";
 import { uploadFileToS3 } from "../../config/s3config.js";
 import { createNotification, notifyMultipleRecipients } from "../../utils/notify.js";
@@ -97,12 +98,23 @@ const countWorkingLeaveDays = (startDate: Date, endDate: Date, holidayDateKeys: 
   return count;
 };
 
-const getDailyWorkingHours = (workspace: any): number => {
-  const weekly = Number(workspace?.attendanceSettings?.weeklyWorkingHours);
-  if (Number.isFinite(weekly) && weekly > 0) {
-    return Math.max(1, weekly / 5);
+const getDailyWorkingHours = (workspace: any, assignedShift: any = null): number => {
+  if (assignedShift) {
+    const durationMinutes = getShiftDurationMinutes(assignedShift);
+    const netMinutes = Math.max(0, durationMinutes - Number(assignedShift.breakDurationMinutes || 0));
+    if (netMinutes > 0) return netMinutes / 60;
   }
-  return 8;
+  const weekly = Number(workspace?.attendanceSettings?.weeklyWorkingHours);
+  return Number.isFinite(weekly) && weekly > 0 ? Math.max(1, weekly / 5) : 8;
+};
+
+const resolveUserAttendanceShift = async (workspace: any, userId: any) => {
+  const profile: any = await EmployeeProfile.findOne({ workspaceId: workspace?._id, linkedUserId: userId })
+    .select("shiftId")
+    .lean()
+    .exec();
+  const shiftId = String(profile?.shiftId || "").trim();
+  return { shiftId, shift: findAttendanceShift(workspace, shiftId) };
 };
 
 const httpError = (message: string, statusCode: number) => Object.assign(new Error(message), { statusCode });
@@ -365,6 +377,7 @@ export async function getLeaveBalancesForUser(userId: string, workspaceId?: stri
   const { workspace, user } = await resolveLeaveWorkspaceContext(userId, workspaceId);
   const resolvedUserId = user?._id || userId;
   const year = Number(quotaYear) || await resolveQuotaYearForDate(workspace._id, resolvedUserId, new Date());
+  const shiftAssignment = await resolveUserAttendanceShift(workspace, resolvedUserId);
   const allLeaveTypes = await getWorkspaceLeaveTypes(workspace._id);
   const quota: any = await ensureQuotaForYear(workspace._id, resolvedUserId, year, allLeaveTypes);
   const leaveTypes = getAssignedLeaveTypes(quota, allLeaveTypes);
@@ -386,10 +399,13 @@ export async function getLeaveBalancesForUser(userId: string, workspaceId?: stri
 
   return {
     year,
-    dailyWorkingHours: getDailyWorkingHours(workspace),
-    workingHoursStart: workspace?.attendanceSettings?.workingHoursStart || null,
-    workingHoursEnd: workspace?.attendanceSettings?.workingHoursEnd || null,
-    breakDurationMinutes: Number(workspace?.attendanceSettings?.breakDurationMinutes || 0),
+    dailyWorkingHours: getDailyWorkingHours(workspace, shiftAssignment.shift),
+    workingHoursStart: shiftAssignment.shift?.startTime || workspace?.attendanceSettings?.workingHoursStart || null,
+    workingHoursEnd: shiftAssignment.shift?.endTime || workspace?.attendanceSettings?.workingHoursEnd || null,
+    breakDurationMinutes: Number(shiftAssignment.shift?.breakDurationMinutes ?? workspace?.attendanceSettings?.breakDurationMinutes ?? 0),
+    shift: shiftAssignment.shift,
+    shiftAssignmentRequired: !shiftAssignment.shift,
+    shiftMessage: shiftAssignment.shift ? "" : "Your attendance shift is not assigned. Contact your HR manager to add your shift data.",
     timezone: normalizeTimeZone(workspace?.preferences?.timezone),
     cycleType: quota?.cycleType || "calendar_year",
     carryForward: Boolean(quota?.carryForward),
@@ -664,6 +680,11 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
   const context = await resolveLeaveWorkspaceContext(userId, workspaceId);
   const { workspace, membership, actor } = context;
 
+  const shiftAssignment = await resolveUserAttendanceShift(workspace, actor.userId);
+  if (!shiftAssignment.shift) {
+    throw httpError("Your attendance shift is not assigned. Contact your HR manager to add your shift data before requesting leave.", 409);
+  }
+  const dailyWorkingHours = getDailyWorkingHours(workspace, shiftAssignment.shift);
   const requestedLeaveTypeId = String(input?.leaveTypeId || "").trim();
   const requestedLeaveTypeName = String(input?.leaveType || "").trim();
   const leaveTypeRecord = await LeaveType.findOne({
@@ -727,7 +748,7 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
       throw httpError("Leave cannot be requested on a Sunday or company holiday.", 400);
     }
     days = 0.5;
-    leaveHours = roundDays(getDailyWorkingHours(workspace) / 2);
+    leaveHours = roundDays(dailyWorkingHours / 2);
   } else if (leaveMode === "hours") {
     if (!isSameCalendarDay(startDate, endDate)) {
       throw httpError("Hour-based leave must use the same start and end date.", 400);
@@ -736,7 +757,7 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
       throw httpError("Leave cannot be requested on a Sunday or company holiday.", 400);
     }
     if (leaveHours <= 0) {
-      leaveHours = Math.max(0, Number(input?.days) || 0) * getDailyWorkingHours(workspace);
+      leaveHours = Math.max(0, Number(input?.days) || 0) * dailyWorkingHours;
     }
     if (leaveHours <= 0 || leaveHours > 24) {
       throw httpError("Partial leave requires hours between 0 and 24.", 400);
@@ -748,7 +769,7 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
     if (days <= 0) {
       throw httpError("The selected range contains no working days. Sundays and company holidays are excluded.", 400);
     }
-    leaveHours = roundDays(days * getDailyWorkingHours(workspace));
+    leaveHours = roundDays(days * dailyWorkingHours);
   }
 
   const reason = String(input?.reason || "").trim();

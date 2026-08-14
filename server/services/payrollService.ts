@@ -8,6 +8,12 @@ import PayrollCycle from "../models/PayrollCycle.js";
 import PayrollEntry from "../models/PayrollEntry.js";
 import PayrollPayment from "../models/PayrollPayment.js";
 import PayrollPayslip from "../models/PayrollPayslip.js";
+import Workspace from "../models/Workspace.js";
+import HostUser from "../models/HostUser.js";
+import HostCompany from "../models/Company.js";
+import { buildPayslipPdfBuffer } from "../utils/payslipGenerator.js";
+import { uploadFileToS3, getFileFromS3ByUrl } from "../config/s3config.js";
+import { getLeaveBalancesForUser } from "./core/leave.service.js";
 
 function asObjectId(value: any): mongoose.Types.ObjectId | null {
   try {
@@ -31,6 +37,17 @@ const PAYROLL_MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+export const PAYSLIP_TEMPLATE_IDS = [
+  "classic-mono",
+  "modern-blue",
+  "aqua-wave",
+  "indigo-banner",
+] as const;
+
+function isPayslipTemplateId(value: any) {
+  return PAYSLIP_TEMPLATE_IDS.includes(safeString(value) as (typeof PAYSLIP_TEMPLATE_IDS)[number]);
+}
 
 function payrollError(message: string, statusCode = 400) {
   return Object.assign(new Error(message), { statusCode });
@@ -58,6 +75,192 @@ function normalizeTimeZone(value: any, fallback = "Asia/Kolkata") {
   } catch {
     return fallback;
   }
+}
+
+// The "Company Logo" upload (Profile > Company Profile) writes to
+// HostCompany.logo.url, not Workspace.branding.logoUrl — which is the only
+// field the payslip PDF reads. This resolves the gap for logos uploaded
+// before that write-through existed, and self-heals workspace.branding so
+// future lookups skip straight to it.
+async function resolveCompanyLogoUrl(workspace: any) {
+  try {
+    const existing = safeString(workspace?.branding?.logoUrl);
+    if (existing) return existing;
+
+    let company: any = null;
+    const owner = workspace?.owner
+      ? await HostUser.findById(workspace.owner).select("company companyId").lean()
+      : null;
+    if (owner?.companyId) {
+      company = await HostCompany.findOne({ companyId: owner.companyId }).select("logo").lean();
+    }
+    if (!company && owner?.company) {
+      company = await HostCompany.findById(owner.company).select("logo").lean();
+    }
+    if (!company && workspace?.businessName) {
+      const name = safeString(workspace.businessName);
+      company = await HostCompany.findOne({
+        companyName: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      }).select("logo").lean();
+    }
+
+    const logoUrl = safeString(company?.logo?.url);
+    if (logoUrl && workspace?._id) {
+      Workspace.findByIdAndUpdate(workspace._id, { "branding.logoUrl": logoUrl }).exec().catch(() => {});
+    }
+    return logoUrl;
+  } catch {
+    return "";
+  }
+}
+
+async function buildPayslipLeaveSummary(input: {
+  workspaceId: mongoose.Types.ObjectId;
+  linkedUserId: any;
+  year: number;
+  monthLabel: string;
+}) {
+  try {
+    if (!input.linkedUserId) return [];
+    const balances = await getLeaveBalancesForUser(
+      String(input.linkedUserId),
+      String(input.workspaceId),
+      input.year,
+    );
+    if (!balances?.leaveTypes?.length) return [];
+
+    const monthIndex = PAYROLL_MONTHS.indexOf(input.monthLabel);
+    const availedThisMonth: Record<string, number> = {};
+    if (monthIndex >= 0) {
+      const monthStart = new Date(Date.UTC(input.year, monthIndex, 1));
+      const monthEnd = new Date(Date.UTC(input.year, monthIndex + 1, 1));
+      const byId = new Set(balances.leaveTypes.map((type: any) => String(type.id)));
+      const byCode = new Map(balances.leaveTypes.map((type: any) => [type.code, String(type.id)]));
+      const approved = await LeaveRequest.find({
+        workspaceId: input.workspaceId,
+        requesterUserId: input.linkedUserId,
+        status: "approved",
+        startDate: { $gte: monthStart, $lt: monthEnd },
+      })
+        .select("leaveType leaveTypeId days")
+        .lean()
+        .exec();
+      approved.forEach((request: any) => {
+        const requestTypeId = safeString(request.leaveTypeId);
+        const typeId = byId.has(requestTypeId) ? requestTypeId : byCode.get(safeString(request.leaveType));
+        if (typeId) availedThisMonth[typeId] = normalizeMoney((availedThisMonth[typeId] || 0) + safeNumber(request.days));
+      });
+    }
+
+    return balances.leaveTypes.map((type: any) => {
+      const bucket = balances.balances?.[type.id] || { total: 0, used: 0, remaining: 0 };
+      return {
+        name: safeString(type.name, "Leave"),
+        total: normalizeMoney(bucket.total),
+        availedThisMonth: normalizeMoney(availedThisMonth[type.id] || 0),
+        remaining: normalizeMoney(bucket.remaining),
+      };
+    });
+  } catch (error) {
+    console.error("[payroll] Leave summary build failed:", error);
+    return [];
+  }
+}
+
+export async function lockWorkspacePayslipTemplate(input: {
+  workspaceId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  templateId: string;
+}) {
+  const templateId = safeString(input.templateId);
+  if (!isPayslipTemplateId(templateId)) {
+    throw payrollError("Please select a valid payslip template.", 400);
+  }
+
+  const lockedAt = new Date();
+  const workspace = await Workspace.findOneAndUpdate(
+    {
+      _id: input.workspaceId,
+      $or: [
+        { "payrollSettings.payslipTemplateId": { $exists: false } },
+        { "payrollSettings.payslipTemplateId": "" },
+        { "payrollSettings.payslipTemplateId": null },
+      ],
+    },
+    {
+      $set: {
+        "payrollSettings.payslipTemplateId": templateId,
+        "payrollSettings.payslipTemplateLockedAt": lockedAt,
+        "payrollSettings.payslipTemplateLockedBy": input.userId,
+      },
+    },
+    { new: true },
+  ).lean();
+
+  if (!workspace) {
+    const existing = await Workspace.findById(input.workspaceId).select("payrollSettings").lean();
+    if (!existing) throw payrollError("Workspace not found.", 404);
+    throw payrollError("A payroll template has already been selected and cannot be changed.", 409);
+  }
+
+  return {
+    id: safeString(workspace.payrollSettings?.payslipTemplateId),
+    locked: true,
+    lockedAt: workspace.payrollSettings?.payslipTemplateLockedAt || lockedAt,
+  };
+}
+
+export async function buildWorkspacePayslipTemplatePreview(input: {
+  workspace: any;
+  templateId: string;
+}) {
+  const templateId = safeString(input.templateId);
+  if (!isPayslipTemplateId(templateId)) {
+    throw payrollError("Please select a valid payslip template.", 400);
+  }
+
+  const workspace = input.workspace || {};
+  const resolvedLogoUrl = await resolveCompanyLogoUrl(workspace);
+  const now = new Date();
+  return buildPayslipPdfBuffer({
+    workspace: { ...workspace, branding: { ...(workspace.branding || {}), logoUrl: resolvedLogoUrl } },
+    employee: {
+      name: "Aarav Sharma",
+      employeeId: "EMP-1042",
+      designation: "Senior Product Designer",
+      department: "Product",
+      joiningDate: new Date(Date.UTC(now.getUTCFullYear() - 2, 3, 17)),
+    },
+    payPeriod: {
+      monthLabel: PAYROLL_MONTHS[now.getUTCMonth()],
+      year: now.getUTCFullYear(),
+      generatedAt: now,
+    },
+    currency: normalizeCurrency(workspace?.preferences?.currency),
+    summary: {
+      baseSalary: 72000,
+      benefits: 12500,
+      standardDeductions: 3200,
+      attendanceDeductions: 0,
+      hrBonus: 4500,
+      hrDeductions: 800,
+      netPayable: 85000,
+    },
+    attendance: {
+      workingDays: 23,
+      present: 21,
+      paidLeaves: 1,
+      holidayDays: 1,
+      halfDays: 0,
+      unpaidLeaves: 0,
+    },
+    leaveSummary: [
+      { name: "Casual Leave", total: 12, availedThisMonth: 1, remaining: 8 },
+      { name: "Sick Leave", total: 8, availedThisMonth: 0, remaining: 6 },
+      { name: "Vacation", total: 15, availedThisMonth: 2, remaining: 9 },
+    ],
+    templateId,
+  });
 }
 
 function payrollDateParts(date: Date, timeZone: string) {
@@ -138,8 +341,10 @@ function isUnpaidLeave(leave: any) {
 }
 
 function applyPayrollAdjustments(entry: any, adjustments: any[] = []) {
-  const bonuses = normalizeMoney(adjustments.filter((item) => item.type === "bonus").reduce((sum, item) => sum + normalizeMoney(item.amount), 0));
-  const deductions = normalizeMoney(adjustments.filter((item) => item.type === "deduction").reduce((sum, item) => sum + normalizeMoney(item.amount), 0));
+  const bonusAdjustments = adjustments.filter((item) => item.type === "bonus");
+  const deductionAdjustments = adjustments.filter((item) => item.type === "deduction");
+  const bonuses = normalizeMoney(bonusAdjustments.reduce((sum, item) => sum + normalizeMoney(item.amount), 0));
+  const deductions = normalizeMoney(deductionAdjustments.reduce((sum, item) => sum + normalizeMoney(item.amount), 0));
   const gross = normalizeMoney(entry.financials?.attendanceGrossPay ?? entry.financials?.baseSalary);
   const benefits = normalizeMoney(entry.financials?.benefits);
   const standard = normalizeMoney(entry.financials?.standardDeductions);
@@ -149,6 +354,8 @@ function applyPayrollAdjustments(entry: any, adjustments: any[] = []) {
       ...entry.financials,
       hrBonus: bonuses,
       hrDeductions: deductions,
+      bonusReason: bonusAdjustments.map((item) => safeString(item.reason)).filter(Boolean).join(" | "),
+      deductionReason: deductionAdjustments.map((item) => safeString(item.reason)).filter(Boolean).join(" | "),
       netSalary: normalizeMoney(Math.max(0, gross + benefits + bonuses - standard - deductions)),
     },
     manualAdjustments: adjustments,
@@ -197,6 +404,7 @@ function normalizePayrollEntry(entry: any) {
       fileName: safeString(item.financials?.payslipFileName),
       generatedAt: item.financials?.payslipGeneratedAt || null,
       sentAt: item.financials?.payslipSentAt || null,
+      templateId: safeString(item.financials?.payslipTemplateId, "modern-blue"),
     },
   };
 }
@@ -398,6 +606,7 @@ async function calculateWorkspacePayrollEntries(workspace: any, period: any, exi
         payslipFileName: existing?.financials?.payslipFileName || "",
         payslipGeneratedAt: existing?.financials?.payslipGeneratedAt || null,
         payslipSentAt: existing?.financials?.payslipSentAt || null,
+        payslipTemplateId: existing?.financials?.payslipTemplateId || "",
       },
       manualAdjustments: existing?.manualAdjustments || [],
       hasSalaryPackage: annualCtc > 0,
@@ -468,6 +677,9 @@ async function buildPayrollSnapshot(workspace: any, query: any = {}, financeOnly
     settings: {
       currency: normalizeCurrency(workspace?.preferences?.currency),
       timezone: zone,
+      payslipTemplateId: safeString(workspace?.payrollSettings?.payslipTemplateId),
+      payslipTemplateLocked: isPayslipTemplateId(workspace?.payrollSettings?.payslipTemplateId),
+      payslipTemplateLockedAt: workspace?.payrollSettings?.payslipTemplateLockedAt || null,
     },
   };
 }
@@ -685,7 +897,83 @@ export async function generatePayslipForCurrentUser(input: {
     return existingPayslip;
   }
 
-  const cycle = await PayrollCycle.findById(cycleObjectId).lean();
+  const [cycle, workspace, profile] = await Promise.all([
+    PayrollCycle.findById(cycleObjectId).lean(),
+    Workspace.findById(workspaceId).lean(),
+    EmployeeProfile.findById(profileObjectId).lean(),
+  ]);
+  const templateId = safeString(workspace?.payrollSettings?.payslipTemplateId);
+  if (!isPayslipTemplateId(templateId)) {
+    throw payrollError("Choose and confirm the workspace payroll template before generating payslips.", 409);
+  }
+
+  const summary = {
+    baseSalary: safeNumber(entry.financials.baseSalary),
+    benefits: safeNumber(entry.financials.benefits),
+    standardDeductions: safeNumber(entry.financials.standardDeductions),
+    attendanceDeductions: safeNumber(entry.financials.attendanceDeductions),
+    hrBonus: safeNumber(entry.financials.hrBonus),
+    hrDeductions: safeNumber(entry.financials.hrDeductions),
+    netPayable: safeNumber(entry.financials.netSalary),
+    currency: normalizeCurrency(entry.financials.currency),
+  };
+
+  const sanitizedEmployeeName = safeString(entry.employeeName, "Employee").trim().replace(/[^a-zA-Z0-9 ]/g, "") || "Employee";
+  const fileName = `Payslip-${sanitizedEmployeeName}-${cycle?.monthLabel || "Unknown"}-${cycle?.year || new Date().getFullYear()}.pdf`;
+
+  const leaveSummary = await buildPayslipLeaveSummary({
+    workspaceId,
+    linkedUserId: profile?.linkedUserId,
+    year: cycle?.year || new Date().getFullYear(),
+    monthLabel: safeString(cycle?.monthLabel),
+  });
+  const resolvedLogoUrl = await resolveCompanyLogoUrl(workspace);
+
+  let pdfBuffer = null;
+  try {
+    pdfBuffer = await buildPayslipPdfBuffer({
+      workspace: { ...(workspace || {}), branding: { ...(workspace?.branding || {}), logoUrl: resolvedLogoUrl } },
+      employee: {
+        name: safeString(entry.employeeName, "Employee"),
+        employeeId: safeString(entry.employeeId),
+        designation: safeString(entry.role),
+        department: safeString(entry.department),
+        joiningDate: profile?.joiningDate || null,
+      },
+      payPeriod: {
+        monthLabel: safeString(cycle?.monthLabel),
+        year: cycle?.year || null,
+        cycleKey: safeString(cycle?.cycleKey),
+        generatedAt: new Date(),
+      },
+      currency: summary.currency,
+      summary,
+      attendance: entry.attendance
+        ? {
+            workingDays: safeNumber(entry.attendance.workingDays),
+            present: safeNumber(entry.attendance.present),
+            paidLeaves: safeNumber(entry.attendance.paidLeaves),
+            holidayDays: safeNumber(entry.attendance.holidayDays),
+            halfDays: safeNumber(entry.attendance.halfDays),
+            unpaidLeaves: safeNumber(entry.attendance.unpaidLeaves),
+          }
+        : undefined,
+      leaveSummary,
+      templateId,
+    });
+  } catch (error) {
+    console.error("[payroll] Payslip PDF generation failed:", error);
+  }
+
+  let fileUrl = "";
+  let filePublicId = "";
+  if (pdfBuffer) {
+    const s3Route = `finance/payslips/${workspaceId}/${cycle?.cycleKey || "unknown"}/${Date.now()}-${safeString(fileName).replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+    const uploaded = await uploadFileToS3(s3Route, { buffer: pdfBuffer, mimetype: "application/pdf" });
+    fileUrl = uploaded.url;
+    filePublicId = uploaded.id;
+  }
+
   const payslip = await PayrollPayslip.create({
     workspaceId,
     payrollCycleId: cycleObjectId,
@@ -700,26 +988,22 @@ export async function generatePayslipForCurrentUser(input: {
     year: cycle?.year || new Date().getFullYear(),
     amount: safeNumber(entry.financials.netSalary),
     currency: normalizeCurrency(entry.financials.currency),
-    fileName: `payslip-${entry.employeeId}-${cycle?.cycleKey || "unknown"}.pdf`,
-    fileUrl: "",
+    fileName,
+    fileUrl,
+    filePublicId,
     fileFormat: "pdf",
-    summary: {
-      baseSalary: safeNumber(entry.financials.baseSalary),
-      benefits: safeNumber(entry.financials.benefits),
-      standardDeductions: safeNumber(entry.financials.standardDeductions),
-      attendanceDeductions: safeNumber(entry.financials.attendanceDeductions),
-      hrBonus: safeNumber(entry.financials.hrBonus),
-      hrDeductions: safeNumber(entry.financials.hrDeductions),
-      netPayable: safeNumber(entry.financials.netSalary),
-      currency: normalizeCurrency(entry.financials.currency),
-    },
+    templateId,
+    summary,
     generatedBy: userId,
     generatedAt: new Date(),
+    metadata: { templateId },
   });
 
   entry.financials.payslipId = payslip._id as mongoose.Types.ObjectId;
+  entry.financials.payslipUrl = fileUrl;
   entry.financials.payslipFileName = payslip.fileName;
   entry.financials.payslipGeneratedAt = new Date();
+  entry.financials.payslipTemplateId = templateId;
   await entry.save();
 
   return payslip;
@@ -746,9 +1030,74 @@ export async function sendPayslipToEmployeeForCurrentUser(input: {
     throw Object.assign(new Error("Payslip not found."), { statusCode: 404 });
   }
 
+  const [workspace, profile] = await Promise.all([
+    Workspace.findById(workspaceId).lean(),
+    EmployeeProfile.findById(payslip.employeeProfileId).lean(),
+  ]);
+  const companyName = safeString(workspace?.businessName || workspace?.brandName, "Company");
+  const employeeEmail = await resolveEmployeeEmail(workspaceId, profile);
+
+  let delivered = false;
+  let deliveryError = "";
+  if (employeeEmail) {
+    try {
+      const { sendMail } = await import("../config/mailer.js");
+      const { renderNotificationEmail } = await import("../utils/emailTemplates.js");
+
+      let pdfBuffer = null;
+      if (payslip.fileUrl) {
+        try {
+          const file = await getFileFromS3ByUrl(payslip.fileUrl);
+          pdfBuffer = file.data;
+        } catch (error) {
+          console.error("[payroll] Payslip file read failed:", error);
+        }
+      }
+
+      const periodLabel = safeString(payslip.monthLabel) || safeString(payslip.cycleKey);
+      const netPayLabel = formatEmailMoney(payslip.amount, payslip.currency);
+
+      await sendMail({
+        to: employeeEmail,
+        subject: `Your Pay Slip for ${periodLabel} - ${companyName}`,
+        text: `Hi ${payslip.employeeName},\n\nPlease find attached your pay slip for ${periodLabel}.\n\nNet Pay: ${netPayLabel}\nStatus: Paid\n\nRegards,\n${companyName}`,
+        html: renderNotificationEmail({
+          heroTitle: "Your Pay Slip is Ready",
+          heroSubtitle: `${companyName} · ${periodLabel}`,
+          greetingHtml: `<p>Hi ${payslip.employeeName},</p><p>Your pay slip for <b class="email-heading">${periodLabel}</b> has been generated and the PDF is attached to this email.</p>`,
+          detailsTitle: "Pay Slip Summary",
+          detailRows: [
+            ["Employee ID", payslip.employeeId || "—"],
+            ["Department", safeString(payslip.department, "—")],
+            ["Net Pay", netPayLabel],
+            ["Status", "Paid"],
+          ],
+          whatNextItems: [
+            "Download and review the attached PDF pay slip.",
+            "Contact your HR or finance team if you spot any discrepancy.",
+          ],
+          noteHtml: `<b>Note:</b> This is a computer-generated pay slip and does not require a signature. If you did not expect this email, please contact support at response@wono.co.`,
+          signOffHtml: `<b>${companyName}</b><br/>Powered by WONO`,
+        }),
+        attachments: pdfBuffer
+          ? [{ filename: payslip.fileName || "payslip.pdf", content: pdfBuffer, contentType: "application/pdf" }]
+          : [],
+      });
+      delivered = true;
+    } catch (error) {
+      deliveryError = error instanceof Error ? error.message : String(error);
+      console.error("[payroll] Payslip email delivery failed:", deliveryError);
+    }
+  }
+
   payslip.sentToEmployeeAt = new Date();
   payslip.sentToEmployeeBy = userId;
-  payslip.emailDeliveryStatus = "Sent";
+  payslip.emailDeliveryStatus = delivered
+    ? "Sent"
+    : employeeEmail
+      ? "Failed"
+      : "Pending";
+  payslip.emailDeliveryErrorMessage = deliveryError || (employeeEmail ? "" : "No employee email on file for this payslip.");
   await payslip.save();
 
   const entry = await PayrollEntry.findOne({
@@ -763,4 +1112,27 @@ export async function sendPayslipToEmployeeForCurrentUser(input: {
   }
 
   return payslip;
+}
+
+async function resolveEmployeeEmail(workspaceId: mongoose.Types.ObjectId, profile: any) {
+  if (safeString(profile?.email)) return profile.email;
+  if (profile?.linkedUserId) {
+    const user = await HostUser.findById(profile.linkedUserId).lean();
+    if (safeString(user?.email)) return user.email;
+  }
+  return "";
+}
+
+function formatEmailMoney(value: any, currency: any) {
+  const amount = safeNumber(value);
+  const resolved = normalizeCurrency(currency);
+  try {
+    return new Intl.NumberFormat(resolved === "INR" ? "en-IN" : "en-US", {
+      style: "currency",
+      currency: resolved,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${resolved} ${amount.toLocaleString("en-US")}`;
+  }
 }

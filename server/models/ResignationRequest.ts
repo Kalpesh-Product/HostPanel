@@ -1,5 +1,13 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+export interface INoticeExtension {
+    previousNoticeEndAt?: Date | null;
+    newNoticeEndAt?: Date | null;
+    extendedByUserId?: mongoose.Types.ObjectId | null;
+    extendedBy?: string;
+    extendedAt?: Date | null;
+}
+
 export interface IResignationChecklistItem {
     key: string;
     label: string;
@@ -44,6 +52,7 @@ export interface IResignationRequest extends Document {
     status: "pending" | "approved" | "rejected" | "completed";
     noticeStartAt?: Date | null;
     noticeEndAt?: Date | null;
+    noticeExtensions: INoticeExtension[];
     approvedAt?: Date | null;
     approvedByUserId?: mongoose.Types.ObjectId | null;
     approvedBy?: string;
@@ -59,6 +68,17 @@ export interface IResignationRequest extends Document {
     createdAt?: Date;
     updatedAt?: Date;
 }
+
+const noticeExtensionSchema = new Schema<INoticeExtension>(
+    {
+        previousNoticeEndAt: { type: Date, default: null },
+        newNoticeEndAt: { type: Date, default: null },
+        extendedByUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+        extendedBy: { type: String, default: "", trim: true, maxlength: 140 },
+        extendedAt: { type: Date, default: null },
+    },
+    { _id: false }
+);
 
 const exitChecklistItemSchema = new Schema<IResignationChecklistItem>(
     {
@@ -247,6 +267,10 @@ const resignationRequestSchema = new Schema<IResignationRequest>(
             type: Date,
             default: null,
             index: true,
+        },
+        noticeExtensions: {
+            type: [noticeExtensionSchema],
+            default: [],
         },
         approvedAt: {
             type: Date,

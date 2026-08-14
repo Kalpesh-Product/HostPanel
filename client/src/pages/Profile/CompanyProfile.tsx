@@ -133,6 +133,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
   const [isSavingUnit, setIsSavingUnit] = useState(false);
   const [editForm, setEditForm] = useState({
     workspaceName: "",
+    address: "",
     country: "",
     state: "",
     city: "",
@@ -217,6 +218,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
   const handleOpenEditModal = () => {
     setEditForm({
       workspaceName: String(workspace?.workspaceName || ""),
+      address: String(workspace?.address || ""),
       country: String(workspace?.country || ""),
       state: String(workspace?.state || ""),
       city: String(workspace?.city || ""),
@@ -245,6 +247,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
       await updateWorkspaceSettings(axios, {
         profile: {
           workspaceName: unitName,
+          address: editForm.address.trim(),
           country: editForm.country.trim(),
           state: editForm.state.trim(),
           city: editForm.city.trim(),
@@ -309,6 +312,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
         { name: "workspaceName", label: "Unit Name", value: workspace?.workspaceName || "-" },
         { name: "businessName", label: "Company Name", value: workspace?.businessName || "-" },
         { name: "brandName", label: "Brand Name", value: workspace?.brandName || "-" },
+        { name: "address", label: "Address", value: workspace?.address || "-" },
         { name: "country", label: "Country", value: workspace?.country || "-" },
         { name: "state", label: "State", value: workspace?.state || "-" },
         { name: "city", label: "City", value: workspace?.city || "-" },
@@ -787,6 +791,22 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
               placeholder="Unit name"
               className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black placeholder:text-[#9aa8bc] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
             />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              Address
+            </label>
+            <input
+              type="text"
+              value={editForm.address}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, address: event.target.value }))}
+              placeholder="Building, street, area"
+              className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-black placeholder:text-[#9aa8bc] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+            />
+            <p className="mt-1.5 text-[11px] text-[#7c8aa0]">
+              Just the building/street/area — city, state and country are set separately below. Separate parts with commas; each one shows on its own line on documents like payslips.
+            </p>
           </div>
 
           <div className="flex flex-col">

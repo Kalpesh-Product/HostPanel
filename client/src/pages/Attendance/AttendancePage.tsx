@@ -188,6 +188,37 @@ const formatDateDMY = (value?: string): string => {
 
 const getLocalMonthKey = (date: Date = new Date(), timeZone?: string) =>
   getWorkspaceDateKey(date, timeZone).slice(0, 7);
+const parseClockMinutes = (value?: string): number | null => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || "").trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59 ? hours * 60 + minutes : null;
+};
+
+const getZonedClockMinutes = (date: Date, timeZone?: string): number => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timeZone || undefined, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(date);
+    const hours = Number(parts.find((part) => part.type === 'hour')?.value || 0);
+    const minutes = Number(parts.find((part) => part.type === 'minute')?.value || 0);
+    return hours * 60 + minutes;
+  } catch {
+    return date.getHours() * 60 + date.getMinutes();
+  }
+};
+
+const getClockInWindow = (startTime: string, endTime: string, now: Date, timeZone?: string) => {
+  const startMinutes = parseClockMinutes(startTime);
+  const endMinutes = parseClockMinutes(endTime);
+  if (startMinutes == null) return { isOpen: true, opensAt: '' };
+  let currentMinutes = getZonedClockMinutes(now, timeZone);
+  if (endMinutes != null && endMinutes < startMinutes && currentMinutes <= endMinutes) currentMinutes += 24 * 60;
+  const opensMinutes = (startMinutes - 60 + 24 * 60) % (24 * 60);
+  const opensAt = `${String(Math.floor(opensMinutes / 60)).padStart(2, '0')}:${String(opensMinutes % 60).padStart(2, '0')}`;
+  return { isOpen: currentMinutes >= startMinutes - 60, opensAt };
+};
 
 const monthOptions = () => {
   const options: { label: string; value: string }[] = [];
@@ -368,6 +399,7 @@ export function AttendancePage() {
 
   /* ── Clock State ── */
   const [todayDate, setTodayDate] = useState(() => getLocalDateString(new Date(), workspacePreferences.timezone));
+  const [clockWindowNow, setClockWindowNow] = useState(() => new Date());
   const [captureOpenedAt, setCaptureOpenedAt] = useState<Date | null>(null);
   const [isClockLoading, setIsClockLoading] = useState(false);
   const [showClockModal, setShowClockModal] = useState(false);
@@ -406,6 +438,8 @@ export function AttendancePage() {
     breakDurationMinutes: number | null;
   }>({ weeklyWorkingHours: null, workingHoursStart: '', workingHoursEnd: '', breakDurationMinutes: null });
 
+  const [assignedShiftName, setAssignedShiftName] = useState("");
+  const [attendanceLockMessage, setAttendanceLockMessage] = useState("Attendance is not configured yet. Contact your HR manager.");
   /* ── Modal State ── */
   const [viewingEmployee, setViewingEmployee] = useState<any>(null);
   const [employeeHistory, setEmployeeHistory] = useState<AttendanceRecord[]>([]);
@@ -515,6 +549,11 @@ export function AttendancePage() {
     assignedDepartmentNames.some((d) => normalizeRole(d) === 'hr' || normalizeRole(d).includes('human-resources'));
   const canManageAttendance = isAdminProfile || isSuperAdminProfile || isOwnerProfile || isDeptManager || isHrProfile;
   const isClockDisabledByConfig = isConfigLoaded && !isAttendanceConfigured;
+  const clockInWindow = useMemo(
+    () => getClockInWindow(attendanceSettings.workingHoursStart, attendanceSettings.workingHoursEnd, clockWindowNow, workspacePreferences.timezone),
+    [attendanceSettings.workingHoursStart, attendanceSettings.workingHoursEnd, clockWindowNow, workspacePreferences.timezone],
+  );
+  const isClockInTooEarly = isConfigLoaded && isAttendanceConfigured && !clockInWindow.isOpen;
   const isOnLeaveToday = todayRecord?.status === 'on_leave';
   const isHolidayToday = todayRecord?.status === 'holiday';
   const holidayLabel = todayRecord?.activeHoliday?.type === 'public' ? 'Public Holiday' : 'Company Holiday';
@@ -558,12 +597,16 @@ export function AttendancePage() {
         if (!mounted) return;
         const geofence = geofenceRes?.geofence || null;
         const settings = settingsRes?.settings || null;
+        const shiftAssignment = settingsRes?.shiftAssignment || null;
+        const effectiveSettings = shiftAssignment?.shift || settings;
+        setAssignedShiftName(String(shiftAssignment?.shift?.name || ""));
+        setAttendanceLockMessage(String(shiftAssignment?.message || "Attendance is not configured yet. Contact your HR manager."));
         if (settings) {
           setAttendanceSettings({
-            weeklyWorkingHours: settings?.weeklyWorkingHours ?? null,
-            workingHoursStart: settings?.workingHoursStart || '',
-            workingHoursEnd: settings?.workingHoursEnd || '',
-            breakDurationMinutes: settings?.breakDurationMinutes ?? null,
+            weeklyWorkingHours: effectiveSettings?.weeklyWorkingHours ?? null,
+            workingHoursStart: effectiveSettings?.startTime || effectiveSettings?.workingHoursStart || '',
+            workingHoursEnd: effectiveSettings?.endTime || effectiveSettings?.workingHoursEnd || '',
+            breakDurationMinutes: effectiveSettings?.breakDurationMinutes ?? null,
           });
         }
         const geofenceReady = Boolean(geofence?.enabled) && geofence?.latitude != null && geofence?.longitude != null;
@@ -573,9 +616,12 @@ export function AttendancePage() {
           settings?.workingHoursEnd &&
           settings?.breakDurationMinutes != null,
         );
-        setIsAttendanceConfigured(geofenceReady && settingsReady);
+        setIsAttendanceConfigured(settingsRes?.isConfigured != null ? Boolean(settingsRes.isConfigured) : geofenceReady && settingsReady);
       } catch {
-        if (mounted) setIsAttendanceConfigured(true);
+        if (mounted) {
+          setIsAttendanceConfigured(false);
+          setAttendanceLockMessage("Attendance settings could not be loaded. Contact your HR manager.");
+        }
       } finally {
         if (mounted) setIsConfigLoaded(true);
       }
@@ -586,8 +632,10 @@ export function AttendancePage() {
 
   useEffect(() => {
     const syncWorkspaceCalendar = () => {
-      const nextDate = getLocalDateString(new Date(), workspacePreferences.timezone);
+      const now = new Date();
+      const nextDate = getLocalDateString(now, workspacePreferences.timezone);
       setTodayDate(nextDate);
+      setClockWindowNow(now);
     };
     syncWorkspaceCalendar();
     const intervalId = window.setInterval(syncWorkspaceCalendar, 60_000);
@@ -620,6 +668,10 @@ export function AttendancePage() {
   const handleClockAction = async (mode: 'in' | 'out') => {
     if (isClockDisabledByConfig) {
       setClockErrorMessage('Attendance is not configured for this workspace yet. Ask HR to set working hours and the geofence.');
+      return;
+    }
+    if (mode === 'in' && isClockInTooEarly) {
+      setClockErrorMessage(`Clock-in opens at ${formatTime12h(clockInWindow.opensAt)}, one hour before your assigned shift.`);
       return;
     }
     if (mode === 'in' && isOnLeaveToday) {
@@ -1071,7 +1123,7 @@ export function AttendancePage() {
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-pmedium text-amber-700 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={14} />
-                Attendance isn't configured for this workspace yet. Working hours, break duration, and the geofence must be set by HR before clock in/out will work.
+                {attendanceLockMessage}
               </div>
               {canManageAttendance && (
                 <button
@@ -1141,6 +1193,11 @@ export function AttendancePage() {
           {/* CLOCK IN/OUT CARD — my attendance only; team/corrections don't clock anyone in */}
           {activeTab === 'my-attendance' && (
           <div className="bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 border border-blue-100 rounded-2xl p-4 lg:p-5 shadow-sm">
+            {isClockInTooEarly && clockStatus === 'checked_out' && (
+              <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-pmedium text-amber-700">
+                <Clock size={13} /> Clock-in opens at {formatTime12h(clockInWindow.opensAt)}, one hour before {assignedShiftName || 'your shift'}.
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="flex items-center gap-4">
                 <div className="relative shrink-0">
@@ -1166,7 +1223,7 @@ export function AttendancePage() {
                 {clockStatus === 'checked_out' && (
                   <button
                     onClick={() => handleClockAction('in')}
-                    disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig || isOnLeaveToday || isHolidayToday}
+                    disabled={isClockLoading || isCapturing || isTodayCompleted || isClockDisabledByConfig || isClockInTooEarly || isOnLeaveToday || isHolidayToday}
                     className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                   >
                   {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : isOnLeaveToday ? <><LogIn size={14} /> On Leave</> : isHolidayToday ? <><LogIn size={14} /> Holiday</> : <><LogIn size={14} /> Clock In</>}
@@ -1244,6 +1301,7 @@ export function AttendancePage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     Daily Target <span className="text-slate-700 font-pbold normal-case tracking-normal">{formatSeconds(dailyTargetSeconds)}</span>
+                    {assignedShiftName && <span className="ml-2 text-blue-600">• {assignedShiftName} ({attendanceSettings.workingHoursStart}–{attendanceSettings.workingHoursEnd})</span>}
                   </p>
                   <p className={`text-[10px] font-pmedium uppercase tracking-widest ${targetReached ? 'text-emerald-600' : 'text-blue-600'}`}>
                     {targetReached ? 'Target completed' : `${targetPercentage}% complete`}

@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Shield, UserCheck, Users, UserX } from "lucide-react";
+import { Clock3, Loader2, Search, Shield, UserCheck, Users, UserX, X } from "lucide-react";
+import { toast } from "sonner";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import { TeamManagementContentSkeleton } from "@/components/ui/Skeleton";
+import { formatTime12h } from "@/utils/time";
 import { getOrganizationOverview } from "@/services/organization";
 import ManageSidebarAccessDialog, {
   type ManageSidebarAccessMember,
@@ -41,6 +43,9 @@ const STATUS_PILLS = [
   { key: "inactive", label: "Inactive" },
 ];
 
+type TeamShiftOption = { id: string; name: string; startTime: string; endTime: string };
+type ShiftMember = { id: string; name: string; shiftId: string };
+
 const formatRoleLabel = (role?: string): string => {
   const raw = String(role || "").trim();
   if (!raw) return "Employee";
@@ -60,6 +65,9 @@ const TeamManagementTab = () => {
   const { moduleMap, enabledModuleIds, grantedModuleIds } = useDashboardAccess();
   const queryClient = useQueryClient();
   const [selectedMember, setSelectedMember] = useState<ManageSidebarAccessMember | null>(null);
+  const [shiftMember, setShiftMember] = useState<ShiftMember | null>(null);
+  const [selectedShiftId, setSelectedShiftId] = useState("");
+  const [isShiftSaving, setIsShiftSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -71,6 +79,14 @@ const TeamManagementTab = () => {
     },
     staleTime: 60 * 1000,
   });
+  const attendanceShifts = useMemo<TeamShiftOption[]>(() => (
+    Array.isArray(data?.attendanceShifts)
+      ? data.attendanceShifts.map((shift: any) => ({
+          id: String(shift?.id || ""), name: String(shift?.name || ""),
+          startTime: String(shift?.startTime || ""), endTime: String(shift?.endTime || ""),
+        })).filter((shift: TeamShiftOption) => shift.id && shift.name)
+      : []
+  ), [data]);
 
   const {
     labelById: moduleLabelById,
@@ -170,6 +186,21 @@ const TeamManagementTab = () => {
     });
   }, [employees, statusFilter, searchQuery]);
 
+  const saveEmployeeShift = async () => {
+    if (!shiftMember || !selectedShiftId || isShiftSaving) return;
+    setIsShiftSaving(true);
+    try {
+      await axiosPrivate.patch(`/api/organization/members/${shiftMember.id}/shift`, { shiftId: selectedShiftId });
+      toast.success(`${shiftMember.name}'s shift was updated and they were notified.`);
+      setShiftMember(null);
+      setSelectedShiftId("");
+      await queryClient.invalidateQueries({ queryKey: ["team-management-overview"] });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || "Failed to update employee shift.");
+    } finally {
+      setIsShiftSaving(false);
+    }
+  };
   if (isLoading) {
     return <TeamManagementContentSkeleton />;
   }
@@ -244,6 +275,7 @@ const TeamManagementTab = () => {
                 <th className="px-5 py-4">Employee</th>
                 <th className="px-5 py-4">Role</th>
                 <th className="px-5 py-4">Department</th>
+                <th className="px-5 py-4">Shift</th>
                 <th className="px-5 py-4 text-center">Status</th>
                 <th className="px-5 py-4 text-center">Action</th>
               </tr>
@@ -251,7 +283,7 @@ const TeamManagementTab = () => {
             <tbody className="divide-y divide-slate-100/60">
               {visible.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium">
+                  <td colSpan={7} className="text-center py-16 text-slate-400 font-pmedium">
                     No employees found.
                   </td>
                 </tr>
@@ -278,6 +310,11 @@ const TeamManagementTab = () => {
                       <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">
                         {formatDepartmentLabel(member.departmentNames)}
                       </td>
+                      <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">
+                        <span className="inline-flex rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-[10px] text-blue-700 whitespace-nowrap">
+                          {member.shiftName || "Not assigned"}
+                        </span>
+                      </td>
                       <td className="px-5 py-4 text-center">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${
@@ -290,21 +327,35 @@ const TeamManagementTab = () => {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedMember({
-                              id: member.id,
-                              name: member.name,
-                              grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
-                            })
-                          }
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-blue-100 hover:text-blue-700"
-                          aria-label={`Manage sidebar access for ${member.name}`}
-                          title="Manage Sidebar Access"
-                        >
-                          <Shield size={15} strokeWidth={2.5} />
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedMember({
+                                id: member.id,
+                                name: member.name,
+                                grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+                              })
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-blue-100 hover:text-blue-700"
+                            aria-label={`Manage sidebar access for ${member.name}`}
+                            title="Manage Sidebar Access"
+                          >
+                            <Shield size={15} strokeWidth={2.5} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShiftMember({ id: member.id, name: member.name, shiftId: String(member.shiftId || "") });
+                              setSelectedShiftId(String(member.shiftId || ""));
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-amber-100 hover:text-amber-700"
+                            aria-label={`Change shift for ${member.name}`}
+                            title="Change Shift"
+                          >
+                            <Clock3 size={15} strokeWidth={2.5} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -326,6 +377,44 @@ const TeamManagementTab = () => {
           queryClient.invalidateQueries({ queryKey: ["team-management-overview"] });
         }}
       />
+
+      {shiftMember && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onClick={() => !isShiftSaving && setShiftMember(null)}>
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <p className="text-[10px] font-pmedium uppercase tracking-[0.2em] text-amber-600">Change Shift</p>
+                <h3 className="mt-1 text-sm font-pmedium text-slate-900">{shiftMember.name}</h3>
+              </div>
+              <button type="button" disabled={isShiftSaving} onClick={() => setShiftMember(null)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"><X size={16} /></button>
+            </div>
+            <div className="space-y-4 p-5">
+              <div>
+                <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Assigned Shift</label>
+                <select
+                  value={selectedShiftId}
+                  onChange={(event) => setSelectedShiftId(event.target.value)}
+                  disabled={attendanceShifts.length === 0 || isShiftSaving}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  <option value="">Select Shift</option>
+                  {attendanceShifts.map((shift) => (
+                    <option key={shift.id} value={shift.id}>{shift.name} ({formatTime12h(shift.startTime)} - {formatTime12h(shift.endTime)})</option>
+                  ))}
+                </select>
+                {attendanceShifts.length === 0 && <p className="mt-2 text-[10px] font-pmedium text-amber-600">HR must configure shifts in Attendance Settings first.</p>}
+              </div>
+              <p className="rounded-xl bg-blue-50 px-3 py-2 text-[10px] font-pmedium leading-relaxed text-blue-700">The employee will receive a notification. Attendance, clock-in eligibility, and leave hours will immediately follow the new shift.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+              <button type="button" disabled={isShiftSaving} onClick={() => setShiftMember(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-[11px] font-pmedium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+              <button type="button" disabled={!selectedShiftId || isShiftSaving} onClick={saveEmployeeShift} className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-[11px] font-pmedium text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">
+                {isShiftSaving && <Loader2 size={13} className="animate-spin" />} Save Shift
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

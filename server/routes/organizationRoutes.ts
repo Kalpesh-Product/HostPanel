@@ -16,6 +16,7 @@ import {
   transferOrganizationOwnership,
   toggleOrganizationMemberStatus,
   updateOrganizationMemberAccess,
+  updateOrganizationMemberShift,
   updateOrganizationMemberRole,
 } from "../controllers/organizationControllers.js";
 
@@ -37,6 +38,7 @@ router.delete("/members/:memberId/invite", cancelOrganizationInvite);
 router.patch("/members/:memberId/status", toggleOrganizationMemberStatus);
 router.patch("/members/:memberId/role", updateOrganizationMemberRole);
 router.patch("/members/:memberId/access", updateOrganizationMemberAccess);
+router.patch("/members/:memberId/shift", updateOrganizationMemberShift);
 router.post("/members/:memberId/transfer", transferOrganizationMember);
 router.post("/members/:memberId/link-workspace", linkOrganizationMember);
 router.delete("/members/:memberId/workspace-access", removeOrganizationMemberWorkspaceAccess);

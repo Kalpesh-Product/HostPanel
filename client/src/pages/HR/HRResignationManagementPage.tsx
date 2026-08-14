@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Archive,
   Calendar,
+  CalendarPlus,
   Check,
   CheckCircle2,
   CheckSquare,
@@ -25,6 +26,7 @@ import { HRResignationManagementSkeleton } from "@/components/ui/Skeleton";
 import { getStoredUser, normalizeUserRole } from "@/lib/auth-session";
 import {
   completeResignationRequest,
+  extendResignationNotice,
   getResignationRequests,
   reviewResignationRequest,
   updateResignationChecklist,
@@ -44,6 +46,13 @@ interface ChecklistItem {
   completedAt?: string;
   completedBy?: string;
   notes?: string;
+}
+
+interface NoticeExtension {
+  previousNoticeEndAt?: string;
+  newNoticeEndAt?: string;
+  extendedBy?: string;
+  extendedAt?: string;
 }
 
 interface ResignationRequest {
@@ -76,6 +85,7 @@ interface ResignationRequest {
   noticeStartDate?: string;
   noticeEndDate?: string;
   noticeEndAt?: string;
+  noticeExtensions?: NoticeExtension[];
   approvedBy?: string;
   rejectedBy?: string;
   completedBy?: string;
@@ -144,6 +154,17 @@ function formatDateLabel(value?: string | Date | null): string {
   const date = value instanceof Date ? value : new Date(String(value).slice(0, 10));
   if (isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function nextDayDateString(value?: string | Date | null): string {
+  const raw = value ? String(value).slice(0, 10) : "";
+  const date = raw && !isNaN(new Date(`${raw}T00:00:00`).getTime())
+    ? new Date(`${raw}T00:00:00`)
+    : new Date();
+  const next = new Date(date);
+  next.setDate(next.getDate() + 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
 }
 
 function formatStatusLabel(value?: string): string {
@@ -284,6 +305,9 @@ export function HRResignationManagementPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewingRequest, setViewingRequest] = useState<ResignationRequest | null>(null);
   const [managingResignation, setManagingResignation] = useState<ResignationRequest | null>(null);
+  const [draftChecklist, setDraftChecklist] = useState<ChecklistItem[]>([]);
+  const [extendNoticeDate, setExtendNoticeDate] = useState("");
+  const [isExtendingNotice, setIsExtendingNotice] = useState(false);
   const [rejectingRequest, setRejectingRequest] = useState<ResignationRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [isSavingDecision, setIsSavingDecision] = useState(false);
@@ -360,6 +384,8 @@ export function HRResignationManagementPage() {
   }
 
   function openManageChecklist(request: ResignationRequest) {
+    setDraftChecklist((request.checklist || []).map((item) => ({ ...item })));
+    setExtendNoticeDate(nextDayDateString(request.noticeEndAt));
     setManagingResignation(request);
     setViewingRequest(null);
   }
@@ -452,10 +478,16 @@ export function HRResignationManagementPage() {
     setIsSavingDecision(true);
     try {
       const response = await reviewResignationRequest(request.id || "", { status: "approved" });
-      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
-      if (updatedRequest) setViewingRequest(updatedRequest);
+      const updatedRequest: ResignationRequest | null = response?.exitRequest || null;
+      setViewingRequest(null);
+      if (updatedRequest) {
+        setActiveTab("notice");
+        setDraftChecklist((updatedRequest.checklist || []).map((item) => ({ ...item })));
+        setExtendNoticeDate(nextDayDateString(updatedRequest.noticeEndAt));
+        setManagingResignation(updatedRequest);
+      }
       await loadOverview();
-      toast.success("Resignation request approved.");
+      toast.success("Resignation request approved. Notice period started.");
     } catch (error: any) {
       toast.error(error.message || "Unable to approve resignation request.");
     } finally {
@@ -471,7 +503,7 @@ export function HRResignationManagementPage() {
         status: "rejected",
         rejectionReason: rejectReason,
       });
-      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
+      const updatedRequest: ResignationRequest | null = response?.exitRequest || null;
       if (updatedRequest) setViewingRequest(updatedRequest);
       setRejectingRequest(null);
       setRejectReason("");
@@ -484,18 +516,67 @@ export function HRResignationManagementPage() {
     }
   }
 
-  async function handleToggleChecklist(itemKey: string) {
+  function handleToggleChecklist(itemKey: string) {
+    setDraftChecklist((current) =>
+      current.map((item) =>
+        item.key === itemKey ? { ...item, completed: !item.completed } : item,
+      ),
+    );
+  }
+
+  async function handleSaveChecklist() {
     if (!managingResignation) return;
-    const checklistItem = (managingResignation.checklist || []).find((item) => item.key === itemKey);
-    const nextCompleted = !checklistItem?.completed;
+    const committedItems = managingResignation.checklist || [];
+    const changes = draftChecklist
+      .map((draft) => {
+        const committed = committedItems.find((item) => item.key === draft.key);
+        if (!committed) return null;
+        const completedChanged = Boolean(committed.completed) !== Boolean(draft.completed);
+        const notesChanged = String(committed.notes || "") !== String(draft.notes || "");
+        if (!completedChanged && !notesChanged) return null;
+        return { itemKey: draft.key || "", completed: Boolean(draft.completed), notes: draft.notes || "" };
+      })
+      .filter((change): change is { itemKey: string; completed: boolean; notes: string } => Boolean(change));
+    if (!changes.length) {
+      setManagingResignation(null);
+      setDraftChecklist([]);
+      setExtendNoticeDate("");
+      return;
+    }
+    setIsSavingDecision(true);
     try {
-      const response = await updateResignationChecklist(managingResignation.id || "", { itemKey, completed: nextCompleted });
-      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
+      const response = await updateResignationChecklist(managingResignation.id || "", { checklist: changes });
+      const updatedRequest: ResignationRequest | null = response?.exitRequest || null;
       if (updatedRequest) setManagingResignation(updatedRequest);
       await loadOverview();
-      toast.success(nextCompleted ? "Checklist item marked complete." : "Checklist item reopened.");
+      setDraftChecklist([]);
+      setExtendNoticeDate("");
+      setManagingResignation(null);
+      toast.success("Checklist progress saved.");
     } catch (error: any) {
-      toast.error(error.message || "Unable to update checklist item.");
+      toast.error(error.message || "Unable to save checklist changes.");
+    } finally {
+      setIsSavingDecision(false);
+    }
+  }
+
+  async function handleExtendNotice() {
+    if (!managingResignation || !extendNoticeDate) return;
+    setIsExtendingNotice(true);
+    try {
+      const response = await extendResignationNotice(managingResignation.id || "", { newNoticeEndDate: extendNoticeDate });
+      const updatedRequest: ResignationRequest | null = response?.exitRequest || null;
+      if (updatedRequest) {
+        setManagingResignation(updatedRequest);
+        setDraftChecklist((updatedRequest.checklist || []).map((item) => ({ ...item })));
+        setExtendNoticeDate(nextDayDateString(updatedRequest.noticeEndAt));
+      }
+      await loadOverview();
+      toast.success("Notice period extended. Employee notified.");
+    } catch (error: any) {
+      toast.error(error.message || "Unable to extend notice period.");
+    } finally {
+      setIsExtendingNotice(false);
     }
   }
 
@@ -504,9 +585,11 @@ export function HRResignationManagementPage() {
     setIsSavingDecision(true);
     try {
       const response = await completeResignationRequest(managingResignation.id || "", {});
-      const updatedRequest: ResignationRequest | null = response?.data?.exitRequest || response?.data?.data?.exitRequest || null;
+      const updatedRequest: ResignationRequest | null = response?.exitRequest || null;
       if (updatedRequest) setManagingResignation(updatedRequest);
       setManagingResignation(null);
+      setDraftChecklist([]);
+      setExtendNoticeDate("");
       await loadOverview();
       toast.success("Resignation request completed.");
     } catch (error: any) {
@@ -1028,17 +1111,56 @@ export function HRResignationManagementPage() {
                     <p className="mt-0.5 truncate text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{managingResignation.employeeName} &bull; {managingResignation.exitCode || "-"}</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setManagingResignation(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
+                <button type="button" onClick={() => { setManagingResignation(null); setDraftChecklist([]); setExtendNoticeDate(""); }} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700"><X size={15} /></button>
               </div>
 
               <div className="flex-1 space-y-4 overflow-y-auto bg-white p-4 sm:p-6 [&::-webkit-scrollbar]:hidden">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                   <p className="text-[11px] font-pmedium leading-relaxed text-amber-800">
-                    Mark each clearance step as complete. The final resignation can be closed only after every checklist item is done and the notice period has finished.
+                    Select the clearance steps to mark complete. Changes are only counted and saved when you click &quot;Save Progress &amp; Close&quot;. The final resignation can be closed only after every checklist item is done and the notice period has finished.
                   </p>
                 </div>
+
+                {/* ── Extend Notice Period ── */}
+                <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
+                      <CalendarPlus size={13} /> Extend Notice Period
+                    </p>
+                    <span className="text-[11px] font-pmedium text-slate-600">
+                      Current last working date: <span className="text-slate-900">{formatDateLabel(managingResignation.noticeEndAt)}</span>
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="flex flex-1 flex-col gap-1">
+                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">New last working date</label>
+                      <input
+                        type="date"
+                        value={extendNoticeDate}
+                        min={nextDayDateString(managingResignation.noticeEndAt)}
+                        onChange={(event) => setExtendNoticeDate(event.target.value)}
+                        className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExtendNotice}
+                      disabled={!extendNoticeDate || isExtendingNotice}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                    >
+                      {isExtendingNotice ? <Loader2 size={13} className="animate-spin" /> : <CalendarPlus size={13} />}
+                      {isExtendingNotice ? "EXTENDING..." : "Extend Notice Period"}
+                    </button>
+                  </div>
+                  {Array.isArray(managingResignation.noticeExtensions) && managingResignation.noticeExtensions.length > 0 && (
+                    <p className="mt-2 text-[10px] font-pmedium text-blue-600">
+                      Extended {managingResignation.noticeExtensions.length} time(s). Latest end date: {formatDateLabel(managingResignation.noticeExtensions[managingResignation.noticeExtensions.length - 1]?.newNoticeEndAt)} by {managingResignation.noticeExtensions[managingResignation.noticeExtensions.length - 1]?.extendedBy || "-"}.
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
-                  {(managingResignation.checklist || []).map((item) => (
+                  {draftChecklist.map((item) => (
                     <button
                       key={item.key}
                       type="button"
@@ -1073,8 +1195,14 @@ export function HRResignationManagementPage() {
 
               <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                  <button type="button" onClick={() => setManagingResignation(null)} className="w-full sm:flex-1 py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
-                    Save Progress & Close
+                  <button
+                    type="button"
+                    onClick={handleSaveChecklist}
+                    disabled={isSavingDecision}
+                    className="w-full sm:flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium hover:bg-blue-700 transition-all text-[11px] uppercase tracking-wider disabled:opacity-50"
+                  >
+                    {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                    {isSavingDecision ? "SAVING..." : "Save Progress & Close"}
                   </button>
                   <button
                     type="button"

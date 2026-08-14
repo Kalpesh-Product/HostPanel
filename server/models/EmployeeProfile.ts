@@ -64,6 +64,7 @@ export interface IEmployeeProfile extends Document {
     workMode: "office" | "remote" | "hybrid";
     managerName?: string;
     managerUserId?: mongoose.Types.ObjectId | null;
+    shiftId?: string;
     workspaceRole: mongoose.Types.ObjectId;
     isHousekeepingStaff: boolean;
     employmentType: "full_time" | "part_time" | "intern" | "contractor" | "trainee";
@@ -285,6 +286,13 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
             ref: "HostUser",
             default: null,
             index: true,
+        },
+        shiftId: {
+            type: String,
+            trim: true,
+            default: "",
+            index: true,
+            maxlength: 64,
         },
         workspaceRole: {
             type: Schema.Types.ObjectId,

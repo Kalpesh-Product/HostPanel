@@ -30,6 +30,13 @@ interface ResignationRuleItem {
   required?: boolean;
 }
 
+interface NoticeExtension {
+  previousNoticeEndAt?: string;
+  newNoticeEndAt?: string;
+  extendedBy?: string;
+  extendedAt?: string;
+}
+
 interface DocumentOption {
   id?: string;
   label: string;
@@ -54,6 +61,7 @@ interface ResignationRequest {
   requestedNoticeStartDate?: string;
   expectedLastWorkingDate?: string;
   noticeEndAt?: string;
+  noticeExtensions?: NoticeExtension[];
   completedAt?: string;
   rejectedAt?: string;
   updatedAt?: string;
@@ -543,6 +551,20 @@ export function ResignationRequestWorkflowTab() {
                     <p className="flex items-center gap-2 text-[13px] font-pmedium text-[#0F172A]"><Calendar size={13} className="text-[#2563EB]" /> {formatDate(viewingRequest.noticeEndAt || viewingRequest.expectedLastWorkingDate)}</p>
                   </div>
                 </div>
+
+                {Array.isArray(viewingRequest.noticeExtensions) && viewingRequest.noticeExtensions.length > 0 && (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3.5">
+                    <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
+                      <AlertTriangle size={13} /> Notice Period Extended
+                    </p>
+                    <p className="mt-1.5 text-[12px] font-pmedium leading-relaxed text-slate-700">
+                      Your notice period was extended {viewingRequest.noticeExtensions.length} time(s) by HR. Your latest last working date is{" "}
+                      <span className="font-pmedium text-[#2563EB]">
+                        {formatDate(viewingRequest.noticeEndAt || viewingRequest.noticeExtensions[viewingRequest.noticeExtensions.length - 1]?.newNoticeEndAt)}
+                      </span>.
+                    </p>
+                  </div>
+                )}
 
                 {Array.isArray(viewingRequest.requestedDocuments) && viewingRequest.requestedDocuments.length > 0 && (
                   <div>

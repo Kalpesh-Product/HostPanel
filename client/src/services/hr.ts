@@ -67,3 +67,13 @@ export const updatePayrollCycleStatus = async (cycleId: string, payload: Record<
 export const addPayrollAdjustment = async (cycleId: string, profileId: string, payload: Record<string, any>) => {
   return axiosPrivate.post(`/api/hr/payroll/cycles/${cycleId}/employees/${profileId}/adjustments`, payload);
 };
+
+export const getPayrollPayslipTemplatePreview = async (templateId: string) => {
+  return axiosPrivate.get('/api/hr/payroll/payslip-template-preview/' + encodeURIComponent(templateId), {
+    responseType: 'blob',
+  });
+};
+
+export const selectPayrollPayslipTemplate = async (templateId: string) => {
+  return axiosPrivate.post('/api/hr/payroll/payslip-template', { templateId });
+};

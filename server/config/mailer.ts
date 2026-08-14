@@ -11,13 +11,14 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendMail = async ({ to, subject, text, html }) => {
+export const sendMail = async ({ to, subject, text, html, attachments = [] }) => {
   await transporter.sendMail({
     from: `"WONO Nomads" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     text,
     html,
+    ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
   });
 };
 

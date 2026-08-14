@@ -18,6 +18,14 @@ import {
   normalizeTimeZone,
   parseWorkspaceDateTime,
 } from "../utils/workspaceLocalization.js";
+import {
+  findAttendanceShift,
+  getConfiguredAttendanceShifts,
+  getShiftDurationMinutes,
+  isOvernightShift,
+  parseShiftTimeMinutes,
+  toShiftTimelineMinutes,
+} from "../utils/attendanceShifts.js";
 
 // Fallback thresholds used only for records created before per-workspace
 // attendance settings existed (record.workStartMinutes/halfDayThresholdSeconds
@@ -326,6 +334,7 @@ const sanitizeGeofenceInput = (input = {}) => {
 
 const formatAttendanceSettings = (workspace) => {
   const source = workspace?.attendanceSettings || {};
+  const shifts = getConfiguredAttendanceShifts(source);
   return {
     weeklyWorkingHours: Number.isFinite(Number(source.weeklyWorkingHours)) ? Number(source.weeklyWorkingHours) : null,
     workingHoursStart: source.workingHoursStart || null,
@@ -337,75 +346,58 @@ const formatAttendanceSettings = (workspace) => {
     // HR opts into configuring these explicitly.
     lateMarkAfter: source.lateMarkAfter || null,
     halfDayMarkAfter: source.halfDayMarkAfter || null,
+    shifts,
     updatedAt: source.updatedAt || null,
     updatedBy: source.updatedBy || null,
   };
 };
 
 const sanitizeAttendanceSettingsInput = (input = {}) => {
-  const weeklyWorkingHours = input.weeklyWorkingHours === "" || input.weeklyWorkingHours == null
-    ? NaN
-    : Number(input.weeklyWorkingHours);
-  const workingHoursStart = String(input.workingHoursStart || "").trim();
-  const workingHoursEnd = String(input.workingHoursEnd || "").trim();
-  const breakDurationMinutes = input.breakDurationMinutes === "" || input.breakDurationMinutes == null
-    ? NaN
-    : Number(input.breakDurationMinutes);
-  const lateMarkAfter = String(input.lateMarkAfter || "").trim();
-  const halfDayMarkAfter = String(input.halfDayMarkAfter || "").trim();
-
-  if (!Number.isFinite(weeklyWorkingHours) || weeklyWorkingHours < 1 || weeklyWorkingHours > 168) {
-    throw Object.assign(new Error("Weekly working hours must be between 1 and 168."), { statusCode: 400 });
-  }
-
-  const startMinutes = parseHHMM(workingHoursStart);
-  const endMinutes = parseHHMM(workingHoursEnd);
-  if (startMinutes == null || endMinutes == null) {
-    throw Object.assign(new Error("Working hours start/end must be valid times in HH:mm format."), { statusCode: 400 });
-  }
-  if (endMinutes <= startMinutes) {
-    throw Object.assign(new Error("Working hours end time must be after the start time."), { statusCode: 400 });
-  }
-
-  if (!Number.isFinite(breakDurationMinutes) || breakDurationMinutes < 0 || breakDurationMinutes > 480) {
-    throw Object.assign(new Error("Break duration must be between 0 and 480 minutes."), { statusCode: 400 });
-  }
-
-  // Both are optional (HR can leave either blank to keep the default
-  // behavior), but if provided they must be valid times that fall inside the
-  // work day — after clock-in (start) and before clock-out (end).
-  let lateMarkAfterMinutes = null;
-  if (lateMarkAfter) {
-    lateMarkAfterMinutes = parseHHMM(lateMarkAfter);
-    if (lateMarkAfterMinutes == null) {
-      throw Object.assign(new Error("Late mark-after time must be a valid time in HH:mm format."), { statusCode: 400 });
-    }
-    if (lateMarkAfterMinutes <= startMinutes || lateMarkAfterMinutes >= endMinutes) {
-      throw Object.assign(new Error("Late mark-after time must be after clock-in and before clock-out."), { statusCode: 400 });
-    }
-  }
-
-  let halfDayMarkAfterMinutes = null;
-  if (halfDayMarkAfter) {
-    halfDayMarkAfterMinutes = parseHHMM(halfDayMarkAfter);
-    if (halfDayMarkAfterMinutes == null) {
-      throw Object.assign(new Error("Half-day mark-after time must be a valid time in HH:mm format."), { statusCode: 400 });
-    }
-    if (halfDayMarkAfterMinutes <= startMinutes || halfDayMarkAfterMinutes >= endMinutes) {
-      throw Object.assign(new Error("Half-day mark-after time must be after clock-in and before clock-out."), { statusCode: 400 });
-    }
-    if (lateMarkAfterMinutes != null && halfDayMarkAfterMinutes < lateMarkAfterMinutes) {
-      throw Object.assign(new Error("Half-day mark-after time must be at or after the late mark-after time."), { statusCode: 400 });
-    }
-  }
-
+  const sourceShifts = Array.isArray(input?.shifts) && input.shifts.length > 0 ? input.shifts : [{
+    id: "day-shift", name: "Day Shift", startTime: input.workingHoursStart, endTime: input.workingHoursEnd,
+    breakDurationMinutes: input.breakDurationMinutes, weeklyWorkingHours: input.weeklyWorkingHours,
+    lateMarkAfter: input.lateMarkAfter, halfDayMarkAfter: input.halfDayMarkAfter,
+  }];
+  const seenIds = new Set();
+  const seenNames = new Set();
+  const shifts = sourceShifts.map((rawShift, index) => {
+    const id = String(rawShift?.id || `shift-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+    const name = String(rawShift?.name || "").trim();
+    const startTime = String(rawShift?.startTime || "").trim();
+    const endTime = String(rawShift?.endTime || "").trim();
+    const breakDurationMinutes = Number(rawShift?.breakDurationMinutes);
+    const weeklyWorkingHours = Number(rawShift?.weeklyWorkingHours);
+    const lateMarkAfter = String(rawShift?.lateMarkAfter ?? (index === 0 ? input?.lateMarkAfter : "") ?? "").trim();
+    const halfDayMarkAfter = String(rawShift?.halfDayMarkAfter ?? (index === 0 ? input?.halfDayMarkAfter : "") ?? "").trim();
+    const startMinutes = parseShiftTimeMinutes(startTime);
+    const endMinutes = parseShiftTimeMinutes(endTime);
+    const durationMinutes = getShiftDurationMinutes({ startTime, endTime });
+    if (!id || !name) throw Object.assign(new Error(`Shift ${index + 1} requires a name.`), { statusCode: 400 });
+    if (seenIds.has(id) || seenNames.has(name.toLowerCase())) throw Object.assign(new Error("Shift names must be unique."), { statusCode: 400 });
+    seenIds.add(id);
+    seenNames.add(name.toLowerCase());
+    if (startMinutes == null || endMinutes == null || durationMinutes <= 0) throw Object.assign(new Error(`${name} requires valid, different start and end times.`), { statusCode: 400 });
+    if (!Number.isFinite(breakDurationMinutes) || breakDurationMinutes < 0 || breakDurationMinutes > 480 || breakDurationMinutes >= durationMinutes) throw Object.assign(new Error(`${name} break duration must be shorter than the shift.`), { statusCode: 400 });
+    if (!Number.isFinite(weeklyWorkingHours) || weeklyWorkingHours < 1 || weeklyWorkingHours > 168) throw Object.assign(new Error(`${name} weekly working hours must be between 1 and 168.`), { statusCode: 400 });
+    const endTimeline = toShiftTimelineMinutes(endMinutes, startMinutes);
+    const validateCutoff = (value, label) => {
+      if (!value) return null;
+      const minutes = parseShiftTimeMinutes(value);
+      const timeline = minutes == null ? null : toShiftTimelineMinutes(minutes, startMinutes);
+      if (timeline == null || timeline <= startMinutes || timeline >= endTimeline) throw Object.assign(new Error(`${name} ${label} must fall inside the shift.`), { statusCode: 400 });
+      return timeline;
+    };
+    const lateTimeline = validateCutoff(lateMarkAfter, "late cutoff");
+    const halfDayTimeline = validateCutoff(halfDayMarkAfter, "half-day cutoff");
+    if (lateTimeline != null && halfDayTimeline != null && halfDayTimeline < lateTimeline) throw Object.assign(new Error(`${name} half-day cutoff must be after its late cutoff.`), { statusCode: 400 });
+    return { id, name, startTime, endTime, breakDurationMinutes, weeklyWorkingHours, lateMarkAfter: lateMarkAfter || null, halfDayMarkAfter: halfDayMarkAfter || null };
+  });
+  if (shifts.length === 0) throw Object.assign(new Error("Add at least one attendance shift."), { statusCode: 400 });
+  const primary = shifts[0];
   return {
-    weeklyWorkingHours,
-    workingHoursStart,
-    workingHoursEnd,
-    breakDurationMinutes,
-    lateMarkAfter: lateMarkAfter || null,
-    halfDayMarkAfter: halfDayMarkAfter || null,
+    weeklyWorkingHours: primary.weeklyWorkingHours, workingHoursStart: primary.startTime, workingHoursEnd: primary.endTime,
+    breakDurationMinutes: primary.breakDurationMinutes, lateMarkAfter: primary.lateMarkAfter, halfDayMarkAfter: primary.halfDayMarkAfter,
+    shifts,
   };
 };
 
@@ -416,31 +408,36 @@ const isAttendanceConfigured = (workspace) => {
     && toFiniteNumber(geofence.longitude) != null;
 
   const settings = formatAttendanceSettings(workspace);
-  const settingsReady = settings.weeklyWorkingHours != null
-    && settings.workingHoursStart != null
-    && settings.workingHoursEnd != null
-    && settings.breakDurationMinutes != null;
+  const settingsReady = settings.shifts.length > 0;
 
   return geofenceReady && settingsReady;
 };
 
-const computeAttendanceThresholds = (workspace) => {
+const computeAttendanceThresholds = (workspace, assignedShift = null) => {
   const settings = formatAttendanceSettings(workspace);
-  const workStartMinutes = parseHHMM(settings.workingHoursStart);
-  const workEndMinutes = parseHHMM(settings.workingHoursEnd);
-  const breakMinutes = Number.isFinite(settings.breakDurationMinutes) ? settings.breakDurationMinutes : 0;
-
+  const shift = assignedShift || settings.shifts[0] || null;
+  const workStartMinutes = parseHHMM(shift?.startTime || settings.workingHoursStart);
+  const rawWorkEndMinutes = parseHHMM(shift?.endTime || settings.workingHoursEnd);
+  const workEndMinutes = workStartMinutes != null && rawWorkEndMinutes != null
+    ? toShiftTimelineMinutes(rawWorkEndMinutes, workStartMinutes)
+    : null;
+  const breakMinutes = Number.isFinite(Number(shift?.breakDurationMinutes)) ? Number(shift.breakDurationMinutes) : 0;
   let halfDayThresholdSeconds = null;
   if (workStartMinutes != null && workEndMinutes != null && workEndMinutes > workStartMinutes) {
     const expectedDailyMinutes = Math.max(0, (workEndMinutes - workStartMinutes) - breakMinutes);
     halfDayThresholdSeconds = Math.round((expectedDailyMinutes * 60) / 2);
   }
-
-  const lateThresholdMinutes = parseHHMM(settings.lateMarkAfter)
-    ?? (workStartMinutes != null ? workStartMinutes + DEFAULT_LATE_MINUTES : null);
-  const halfDayCutoffMinutes = parseHHMM(settings.halfDayMarkAfter) ?? HALF_DAY_CHECKIN_CUTOFF_MINUTES;
-
-  return { workStartMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes };
+  const rawLateMinutes = parseHHMM(shift?.lateMarkAfter || settings.lateMarkAfter);
+  const lateThresholdMinutes = rawLateMinutes != null && workStartMinutes != null
+    ? toShiftTimelineMinutes(rawLateMinutes, workStartMinutes)
+    : (workStartMinutes != null ? workStartMinutes + DEFAULT_LATE_MINUTES : null);
+  const rawHalfDayMinutes = parseHHMM(shift?.halfDayMarkAfter || settings.halfDayMarkAfter);
+  const halfDayCutoffMinutes = rawHalfDayMinutes != null && workStartMinutes != null
+    ? toShiftTimelineMinutes(rawHalfDayMinutes, workStartMinutes)
+    : (workStartMinutes != null && workEndMinutes != null
+      ? workStartMinutes + Math.round((workEndMinutes - workStartMinutes) / 2)
+      : HALF_DAY_CHECKIN_CUTOFF_MINUTES);
+  return { workStartMinutes, workEndMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes };
 };
 
 // Single source of truth for the present/late/half-day decision, used at
@@ -480,17 +477,78 @@ const deriveAttendanceStatus = ({
 // nobody was in the office to take a break, so there's no real break time to
 // subtract. Total Time and Working Hours are the same figure here — the full
 // configured window (e.g. 9:30-6:30 = 9h) — for both fields.
-const computeDailyWorkingSeconds = (workspace) => {
+const computeDailyWorkingSeconds = (workspace, assignedShift = null) => {
   const settings = formatAttendanceSettings(workspace);
-  const startMinutes = parseHHMM(settings.workingHoursStart);
-  const endMinutes = parseHHMM(settings.workingHoursEnd);
-  if (startMinutes != null && endMinutes != null && endMinutes > startMinutes) {
-    return (endMinutes - startMinutes) * 60;
-  }
-  const weeklyHours = Number(settings.weeklyWorkingHours);
+  const shift = assignedShift || settings.shifts[0] || null;
+  const durationMinutes = getShiftDurationMinutes(shift || {});
+  if (durationMinutes > 0) return durationMinutes * 60;
+  const weeklyHours = Number(shift?.weeklyWorkingHours ?? settings.weeklyWorkingHours);
   return Math.round((Number.isFinite(weeklyHours) && weeklyHours > 0 ? weeklyHours / 5 : 8) * 3600);
 };
 
+
+const resolveEmployeeShiftAssignment = async (workspace, userId) => {
+  const profile = await EmployeeProfile.findOne({ workspaceId: workspace?._id, linkedUserId: userId })
+    .select("shiftId")
+    .lean()
+    .exec();
+  const shiftId = String(profile?.shiftId || "").trim();
+  const shift = findAttendanceShift(workspace, shiftId);
+  return { shiftId, shift, isAssigned: Boolean(shift) };
+};
+
+const requireEmployeeShift = async (workspace, userId) => {
+  const assignment = await resolveEmployeeShiftAssignment(workspace, userId);
+  if (!assignment.shift) {
+    throw Object.assign(
+      new Error("Your attendance shift is not assigned or is no longer available. Contact your HR manager to add your shift data."),
+      { statusCode: 409, code: "ATTENDANCE_SHIFT_REQUIRED" },
+    );
+  }
+  return assignment.shift;
+};
+
+const getShiftAttendanceDateKey = (now, timezone, shift) => {
+  const todayKey = toDateKey(now, timezone);
+  if (!isOvernightShift(shift)) return todayKey;
+  const localNow = getZonedDateTimeParts(now, timezone);
+  const currentMinutes = localNow.hour * 60 + localNow.minute;
+  const endMinutes = parseShiftTimeMinutes(shift?.endTime);
+  return endMinutes != null && currentMinutes < endMinutes ? addDaysToDateKey(todayKey, -1) : todayKey;
+};
+
+const getShiftTimelineClockMinutes = (value, timezone, shiftStartMinutes, shiftEndMinutes = null, overnight = false) => {
+  const local = getZonedDateTimeParts(value, timezone);
+  const clockMinutes = local.hour * 60 + local.minute;
+  if (!overnight || !Number.isFinite(shiftStartMinutes) || !Number.isFinite(shiftEndMinutes)) return clockMinutes;
+  const endClockMinutes = Number(shiftEndMinutes) % (24 * 60);
+  return clockMinutes <= endClockMinutes ? clockMinutes + 24 * 60 : clockMinutes;
+};
+
+const assertClockInWindow = (workspace, assignedShift, now = new Date()) => {
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const thresholds = computeAttendanceThresholds(workspace, assignedShift);
+  const currentMinutes = getShiftTimelineClockMinutes(
+    now,
+    timezone,
+    thresholds.workStartMinutes,
+    thresholds.workEndMinutes,
+    isOvernightShift(assignedShift),
+  );
+  const earliestClockInMinutes = Number(thresholds.workStartMinutes) - 60;
+  if (!Number.isFinite(currentMinutes) || !Number.isFinite(earliestClockInMinutes) || currentMinutes < earliestClockInMinutes) {
+    throw Object.assign(
+      new Error(`Clock-in opens one hour before your assigned ${assignedShift.name} at ${assignedShift.startTime}.`),
+      { statusCode: 409, code: "ATTENDANCE_CLOCK_IN_TOO_EARLY" },
+    );
+  }
+};
+const findOpenAttendanceRecord = (workspaceId, userId) => Attendance.findOne({
+  workspaceId,
+  employeeUserId: userId,
+  checkInAt: { $ne: null },
+  checkOutAt: null,
+}).sort({ checkInAt: -1 }).exec();
 const decodeGeofenceValue = (value = "") => {
   try {
     return decodeURIComponent(String(value || "").replace(/\+/g, " "));
@@ -833,6 +891,8 @@ const formatRecordForFrontend = async (record, membership = null) => {
     userId: toId(plain?.employeeUserId),
     employeeName: plain?.employeeName || "",
     employeeId: plain?.employeeId || (membership?.employeeId || ""),
+    shiftId: plain?.shiftId || "",
+    shiftName: plain?.shiftName || "",
     employeeRole,
     department: resolveDepartmentDisplayLabel(
       employeeRole,
@@ -856,7 +916,7 @@ const formatRecordForFrontend = async (record, membership = null) => {
       : [],
     workingHours: formatDuration(computedWorkedSeconds),
     totalHours: Number((computedWorkedSeconds / 3600).toFixed(2)),
-    overtime: Number((Math.max(0, computedWorkedSeconds - 8 * 3600) / 3600).toFixed(2)),
+    overtime: Number((Math.max(0, computedWorkedSeconds - Math.max(0, Number(plain?.expectedWorkSeconds) || 8 * 3600)) / 3600).toFixed(2)),
     checkInAt: effectiveCheckIn ? new Date(effectiveCheckIn).toISOString() : null,
     checkOutAt: effectiveCheckOut ? new Date(effectiveCheckOut).toISOString() : null,
     isInProgress,
@@ -1093,60 +1153,33 @@ const saveSelfie = async (workspaceId, userId, action, file, dateKey) => {
   };
 };
 
-const getTodayRecord = async (workspace, user) => {
+const getTodayRecord = async (workspace, user, assignedShift) => {
   const workspaceId = workspace?._id;
   const userId = user?._id;
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
-  const dateKey = toDateKey(new Date(), timezone);
-  const attendanceDate = getLocalDate(new Date(), timezone);
-  let record = await Attendance.findOne({
-    workspaceId,
-    employeeUserId: userId,
-    dateKey,
-  }).exec();
-
+  const now = new Date();
+  const dateKey = getShiftAttendanceDateKey(now, timezone, assignedShift);
+  const attendanceDate = parseWorkspaceDateTime(`${dateKey}T00:00:00`, timezone);
+  let record = await Attendance.findOne({ workspaceId, employeeUserId: userId, dateKey }).exec();
   if (!record) {
     const member = await resolveMembershipByWorkspace(workspaceId, userId, "role departments");
-    const departmentId = Array.isArray(member?.departments) && member.departments.length > 0
-      ? member.departments[0]?._id || member.departments[0]
-      : null;
-    const departmentName = Array.isArray(member?.departments) && member.departments.length > 0
-      ? String(member.departments[0]?.name || "")
-      : "";
+    const departmentId = Array.isArray(member?.departments) && member.departments.length > 0 ? member.departments[0]?._id || member.departments[0] : null;
+    const departmentName = Array.isArray(member?.departments) && member.departments.length > 0 ? String(member.departments[0]?.name || "") : "";
     const roleName = getRoleName(member?.role || "");
-    const { workStartMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes } = computeAttendanceThresholds(workspace);
+    const { workStartMinutes, workEndMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes } = computeAttendanceThresholds(workspace, assignedShift);
+    const durationMinutes = getShiftDurationMinutes(assignedShift);
+    const expectedWorkSeconds = Math.max(0, durationMinutes - Number(assignedShift?.breakDurationMinutes || 0)) * 60;
     const employeeName = String(user?.name || user?.email || "Employee").trim();
     record = await Attendance.create({
-      workspaceId,
-      ownerId: workspace.owner,
-      employeeUserId: userId,
-      employeeName,
-      employeeRole: member?.role || "",
-      department: departmentId || null,
-      attendanceDate,
-      dateKey,
-      timezone,
-      mode: "office",
-      status: "absent",
-      checkInAt: null,
-      checkOutAt: null,
-      workStartMinutes,
-      halfDayThresholdSeconds,
-      lateThresholdMinutes,
-      halfDayCutoffMinutes,
-      punchSelfies: [],
-      isActiveBreak: false,
-      activeBreakStartedAt: null,
-      breakSeconds: 0,
-      workedSeconds: 0,
-      breakLogs: [],
-      correctionRequest: null,
-      reviewedReason: "",
-      departmentLabel: departmentName,
-      roleLabel: roleName,
+      workspaceId, ownerId: workspace.owner, employeeUserId: userId, employeeName, employeeRole: member?.role || "",
+      department: departmentId || null, attendanceDate, dateKey, timezone, mode: "office", status: "absent",
+      checkInAt: null, checkOutAt: null, workStartMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes,
+      shiftId: assignedShift.id, shiftName: assignedShift.name, shiftStartMinutes: workStartMinutes, shiftEndMinutes: workEndMinutes,
+      expectedWorkSeconds, isOvernightShift: isOvernightShift(assignedShift),
+      punchSelfies: [], isActiveBreak: false, activeBreakStartedAt: null, breakSeconds: 0, workedSeconds: 0, breakLogs: [],
+      correctionRequest: null, reviewedReason: "", departmentLabel: departmentName, roleLabel: roleName,
     });
   }
-
   return record;
 };
 
@@ -1158,8 +1191,7 @@ const recalculateAfterCorrection = (record) => {
   const breakSeconds = Math.max(0, Number(record.breakSeconds) || 0);
   record.workedSeconds = Math.max(0, grossSeconds - breakSeconds);
 
-  const localCheckIn = getZonedDateTimeParts(checkInAt, normalizeTimeZone(record.timezone));
-  const checkInMinutes = localCheckIn.hour * 60 + localCheckIn.minute;
+  const checkInMinutes = getShiftTimelineClockMinutes(checkInAt, normalizeTimeZone(record.timezone), record.workStartMinutes, record.shiftEndMinutes, record.isOvernightShift);
   record.status = deriveAttendanceStatus({
     workedSeconds: record.workedSeconds,
     checkInMinutes,
@@ -1177,9 +1209,11 @@ const canManageTeamAttendance = async (membership) => {
 // Block clock-in when the user has an approved leave covering today. Full-day
 // leaves block all day; half-day leaves block only during the affected
 // session so the user can still clock in for the other half.
-const assertNotOnHoliday = async (workspace) => {
+const assertNotOnHoliday = async (workspace, assignedShift = null) => {
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
-  const todayKey = toDateKey(new Date(), timezone);
+  const todayKey = assignedShift
+    ? getShiftAttendanceDateKey(new Date(), timezone, assignedShift)
+    : toDateKey(new Date(), timezone);
   const holiday = await Holiday.findOne({
     workspaceId: workspace._id,
     dateKey: todayKey,
@@ -1196,15 +1230,14 @@ const assertNotOnHoliday = async (workspace) => {
     { statusCode: 409 },
   );
 };
-const assertNotOnLeave = async (workspace, user) => {
+const assertNotOnLeave = async (workspace, user, assignedShift) => {
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
-  const todayKey = toDateKey(new Date(), timezone);
+  const todayKey = getShiftAttendanceDateKey(new Date(), timezone, assignedShift);
   const approvedLeave = await findApprovedLeaveOnDate(workspace._id, user._id, todayKey);
   if (!approvedLeave) return;
 
   const mode = String(approvedLeave.leaveMode || "full_day");
-  const weeklyHours = Number(workspace?.attendanceSettings?.weeklyWorkingHours);
-  const dailyHours = Number.isFinite(weeklyHours) && weeklyHours > 0 ? weeklyHours / 5 : 8;
+  const dailyHours = computeDailyWorkingSeconds(workspace, assignedShift) / 3600;
   const leaveHours = Number(approvedLeave.leaveHours || 0);
 
   const isFullDayLeave = mode === "full_day" || (mode === "hours" && leaveHours >= dailyHours - 0.001);
@@ -1219,9 +1252,9 @@ const assertNotOnLeave = async (workspace, user) => {
   }
 
   if (mode === "half_day" && approvedLeave.halfDaySession) {
-    const localNow = getZonedDateTimeParts(new Date(), timezone);
-    const minutes = localNow.hour * 60 + localNow.minute;
-    const currentSession = minutes < HALF_DAY_CHECKIN_CUTOFF_MINUTES ? "morning" : "evening";
+    const thresholds = computeAttendanceThresholds(workspace, assignedShift);
+    const minutes = getShiftTimelineClockMinutes(new Date(), timezone, thresholds.workStartMinutes, thresholds.workEndMinutes, isOvernightShift(assignedShift));
+    const currentSession = minutes < thresholds.halfDayCutoffMinutes ? "morning" : "evening";
     if (approvedLeave.halfDaySession === currentSession) {
       throw Object.assign(
         new Error(
@@ -1235,16 +1268,18 @@ const assertNotOnLeave = async (workspace, user) => {
 
 export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
-  await assertNotOnHoliday(workspace);
-  await assertNotOnLeave(workspace, user);
   if (!isAttendanceConfigured(workspace)) {
     throw Object.assign(
       new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
       { statusCode: 400 },
     );
   }
+  const assignedShift = await requireEmployeeShift(workspace, user._id);
+  assertClockInWindow(workspace, assignedShift);
+  await assertNotOnHoliday(workspace, assignedShift);
+  await assertNotOnLeave(workspace, user, assignedShift);
   const geofenceResult = assertWithinAttendanceGeofence(workspace, input, "check-in");
-  const record = await getTodayRecord(workspace, user);
+  const record = await getTodayRecord(workspace, user, assignedShift);
 
   if (record.checkInAt && !record.checkOutAt) {
     const error = new Error("You are already checked in.");
@@ -1256,7 +1291,6 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
   // Vercel; workspace-local calendar calculations use the saved IANA timezone.
   const now = new Date();
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
-  const localNow = getZonedDateTimeParts(now, timezone);
   const selfie = await saveSelfie(workspace._id, user._id, "check_in", selfieFile, record.dateKey);
 
   record.employeeName = user.name || record.employeeName || user.email || "Employee";
@@ -1287,13 +1321,13 @@ export async function checkInAttendance(userId, input = {}, selfieFile = null) {
     || !Number.isFinite(record.lateThresholdMinutes)
     || !Number.isFinite(record.halfDayCutoffMinutes)
   ) {
-    const thresholds = computeAttendanceThresholds(workspace);
+    const thresholds = computeAttendanceThresholds(workspace, assignedShift);
     record.workStartMinutes = thresholds.workStartMinutes;
     record.halfDayThresholdSeconds = thresholds.halfDayThresholdSeconds;
     record.lateThresholdMinutes = thresholds.lateThresholdMinutes;
     record.halfDayCutoffMinutes = thresholds.halfDayCutoffMinutes;
   }
-  const checkInMinutes = localNow.hour * 60 + localNow.minute;
+  const checkInMinutes = getShiftTimelineClockMinutes(now, timezone, record.workStartMinutes, record.shiftEndMinutes, record.isOvernightShift);
   record.status = deriveAttendanceStatus({
     checkInMinutes,
     halfDayThresholdSeconds: record.halfDayThresholdSeconds,
@@ -1345,11 +1379,21 @@ export async function updateAttendanceGeofence(userId, input = {}) {
 }
 
 export async function getAttendanceSettings(userId) {
-  const { workspace, membership } = await getWorkspaceIdFromUser(userId);
+  const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
+  const assignment = await resolveEmployeeShiftAssignment(workspace, user._id);
+  const workspaceConfigured = isAttendanceConfigured(workspace);
   return {
     settings: formatAttendanceSettings(workspace),
     canEdit: canManageAttendanceGeofence(membership),
-    isConfigured: isAttendanceConfigured(workspace),
+    workspaceConfigured,
+    isConfigured: workspaceConfigured && assignment.isAssigned,
+    shiftAssignment: {
+      shiftId: assignment.shiftId,
+      shift: assignment.shift,
+      isAssigned: assignment.isAssigned,
+      isLocked: !assignment.isAssigned,
+      message: assignment.isAssigned ? "" : "Your attendance shift is not assigned. Contact your HR manager to add your shift data.",
+    },
   };
 }
 
@@ -1383,16 +1427,10 @@ export async function updateAttendanceSettings(userId, input = {}) {
 
 export async function checkOutAttendance(userId, input = {}, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
-  if (!isAttendanceConfigured(workspace)) {
-    throw Object.assign(
-      new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
-      { statusCode: 400 },
-    );
-  }
   const geofenceResult = assertWithinAttendanceGeofence(workspace, input, "check-out");
-  const record = await getTodayRecord(workspace, user);
+  const record = await findOpenAttendanceRecord(workspace._id, user._id);
 
-  if (!record.checkInAt) {
+  if (!record?.checkInAt) {
     const error = new Error("You must check in before checking out.");
     error.statusCode = 400;
     throw error;
@@ -1433,8 +1471,7 @@ export async function checkOutAttendance(userId, input = {}, selfieFile = null) 
   const workedSeconds = computeWorkedSeconds(record, now);
   record.workedSeconds = workedSeconds;
 
-  const checkInLocalParts = getZonedDateTimeParts(record.checkInAt, normalizeTimeZone(record.timezone));
-  const checkInMinutes = checkInLocalParts.hour * 60 + checkInLocalParts.minute;
+  const checkInMinutes = getShiftTimelineClockMinutes(record.checkInAt, normalizeTimeZone(record.timezone), record.workStartMinutes, record.shiftEndMinutes, record.isOvernightShift);
 
   record.status = deriveAttendanceStatus({
     workedSeconds,
@@ -1472,12 +1509,19 @@ export async function runAttendanceAutoCheckoutSweep() {
 
   for (const record of openRecords) {
     const timezone = normalizeTimeZone(record.timezone);
-    const currentDateKey = toDateKey(now, timezone);
-    if (currentDateKey <= record.dateKey) continue;
-
-    const nextDateKey = addDaysToDateKey(record.dateKey, 1);
-    const autoCheckoutMoment = parseWorkspaceDateTime(`${nextDateKey}T00:00:00`, timezone);
-    if (Number.isNaN(autoCheckoutMoment.getTime())) continue;
+    const snapshotEndMinutes = Number(record.shiftEndMinutes);
+    let autoCheckoutMoment;
+    if (Number.isFinite(snapshotEndMinutes)) {
+      const dayOffset = Math.floor(snapshotEndMinutes / (24 * 60));
+      const endClockMinutes = ((snapshotEndMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const endDateKey = addDaysToDateKey(record.dateKey, dayOffset);
+      const endTime = `${String(Math.floor(endClockMinutes / 60)).padStart(2, "0")}:${String(endClockMinutes % 60).padStart(2, "0")}:00`;
+      autoCheckoutMoment = parseWorkspaceDateTime(`${endDateKey}T${endTime}`, timezone);
+    } else {
+      const nextDateKey = addDaysToDateKey(record.dateKey, 1);
+      autoCheckoutMoment = parseWorkspaceDateTime(`${nextDateKey}T00:00:00`, timezone);
+    }
+    if (Number.isNaN(autoCheckoutMoment.getTime()) || now < autoCheckoutMoment) continue;
 
     if (record.isActiveBreak && record.activeBreakStartedAt) {
       const seconds = Math.max(0, Math.floor((autoCheckoutMoment.getTime() - new Date(record.activeBreakStartedAt).getTime()) / 1000));
@@ -1497,8 +1541,7 @@ export async function runAttendanceAutoCheckoutSweep() {
     const workedSeconds = computeWorkedSeconds(record, autoCheckoutMoment);
     record.workedSeconds = workedSeconds;
 
-    const checkInLocalParts = getZonedDateTimeParts(record.checkInAt, timezone);
-    const checkInMinutes = checkInLocalParts.hour * 60 + checkInLocalParts.minute;
+    const checkInMinutes = getShiftTimelineClockMinutes(record.checkInAt, timezone, record.workStartMinutes, record.shiftEndMinutes, record.isOvernightShift);
 
     record.status = deriveAttendanceStatus({
       workedSeconds,
@@ -1538,15 +1581,9 @@ export const startAttendanceAutoCheckoutScheduler = () => {
 
 export async function startBreakAttendance(userId, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
-  if (!isAttendanceConfigured(workspace)) {
-    throw Object.assign(
-      new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
-      { statusCode: 400 },
-    );
-  }
-  const record = await getTodayRecord(workspace, user);
+  const record = await findOpenAttendanceRecord(workspace._id, user._id);
 
-  if (!record.checkInAt || record.checkOutAt) {
+  if (!record?.checkInAt || record.checkOutAt) {
     const error = new Error("You must be checked in to start break.");
     error.statusCode = 400;
     throw error;
@@ -1584,15 +1621,9 @@ export async function startBreakAttendance(userId, selfieFile = null) {
 
 export async function endBreakAttendance(userId, selfieFile = null) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
-  if (!isAttendanceConfigured(workspace)) {
-    throw Object.assign(
-      new Error("Attendance is not set up for this workspace yet. Ask HR to configure working hours and the geofence in Attendance Settings."),
-      { statusCode: 400 },
-    );
-  }
-  const record = await getTodayRecord(workspace, user);
+  const record = await findOpenAttendanceRecord(workspace._id, user._id);
 
-  if (!record.isActiveBreak || !record.activeBreakStartedAt) {
+  if (!record?.isActiveBreak || !record.activeBreakStartedAt) {
     const error = new Error("No active break found.");
     error.statusCode = 400;
     throw error;
@@ -1640,6 +1671,7 @@ const getWeekDateKeys = (referenceDate, timezone, weekStartsOn = "monday") => {
 };
 
 const getWeeklyHoursSummary = async (workspace, userId, timezone) => {
+  const assignment = await resolveEmployeeShiftAssignment(workspace, userId);
   const weekStartsOn = workspace?.preferences?.weekStartsOn === "sunday" ? "sunday" : "monday";
   const { keys, todayKey } = getWeekDateKeys(new Date(), timezone, weekStartsOn);
   const records = await Attendance.find({
@@ -1667,13 +1699,14 @@ const getWeeklyHoursSummary = async (workspace, userId, timezone) => {
   const settings = formatAttendanceSettings(workspace);
   return {
     workedHours: Number((workedSeconds / 3600).toFixed(1)),
-    targetHours: settings.weeklyWorkingHours,
+    targetHours: assignment.shift?.weeklyWorkingHours ?? settings.weeklyWorkingHours,
   };
 };
 
 export async function getMyAttendanceHistory(userId, query = {}) {
   const { workspace, membership, user } = await getWorkspaceIdFromUser(userId);
   const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const assignment = await resolveEmployeeShiftAssignment(workspace, user._id);
   const todayKey = toDateKey(new Date(), timezone);
   const { keys } = getMonthDateKeys(query.month);
   const records = await Attendance.find({
@@ -1712,7 +1745,7 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     .lean()
     .exec();
   const holidayByDateKey = new Map(holidays.map((holiday) => [holiday.dateKey, holiday]));
-  const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace);
+  const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace, assignment.shift);
   const leaveByDateKey = new Map();
   for (const leave of approvedLeaves) {
     const startKey = (leave.startDate ? new Date(leave.startDate) : new Date()).toISOString().slice(0, 10);
@@ -1964,7 +1997,7 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     workspaceId: workspace._id,
     linkedWorkspaceMemberId: { $in: memberIds },
   })
-    .select("employeeId linkedWorkspaceMemberId linkedUserId")
+    .select("employeeId linkedWorkspaceMemberId linkedUserId shiftId")
     .lean()
     .exec();
   const employeeIdByMemberId = new Map(
@@ -1978,6 +2011,12 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
       .map((ep) => [toId(ep.linkedUserId), ep.employeeId || ""]),
   );
 
+  const shiftIdByUserId = new Map(
+    employeeProfiles.filter((ep) => ep.linkedUserId).map((ep) => [toId(ep.linkedUserId), String(ep.shiftId || "")]),
+  );
+  const shiftIdByMemberId = new Map(
+    employeeProfiles.filter((ep) => ep.linkedWorkspaceMemberId).map((ep) => [toId(ep.linkedWorkspaceMemberId), String(ep.shiftId || "")]),
+  );
   const memberUserIds = uniqueVisibleMembers.map((m) => m.user._id);
   const memberByUserId = new Map(uniqueVisibleMembers.map((m) => [toId(m.user._id), m]));
 
@@ -2035,7 +2074,6 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     .lean()
     .exec();
   const holidayByDateKey = new Map(holidays.map((holiday) => [holiday.dateKey, holiday]));
-  const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace);
 
   const rows = [];
   for (const member of uniqueVisibleMembers) {
@@ -2045,6 +2083,9 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     );
     const empId = employeeIdByMemberId.get(toId(member._id)) || employeeIdByUserId.get(toId(member.user?._id)) || "";
     const memberUserId = toId(member.user._id);
+    const memberShiftId = shiftIdByUserId.get(memberUserId) || shiftIdByMemberId.get(toId(member._id)) || "";
+    const memberShift = findAttendanceShift(workspace, memberShiftId);
+    const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace, memberShift);
 
     for (const dateKey of dateKeysInRange) {
       const dateIsSunday = new Date(`${dateKey}T12:00:00.000Z`).getUTCDay() === 0;
@@ -2060,7 +2101,10 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
           id: `${creditedStatus}-${member.user._id}-${dateKey}`,
           userId: memberUserId,
           employeeName: member.user.name || member.user.email || "Unknown",
+          employeeEmail: member.user.email || "",
           employeeId: empId,
+          shiftId: memberShift?.id || "",
+          shiftName: memberShift?.name || "Not assigned",
           employeeRole: getRoleName(member?.role || ""),
           department: memberDepartmentName,
           date: dateKey,
@@ -2094,6 +2138,9 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
           // department lookup since its result gets overwritten below anyway.
           ...(await formatRecordForFrontend(existing, { ...member, employeeId: empId, departments: [] })),
           employeeName: member.user.name || member.user.email || "Unknown",
+          employeeEmail: member.user.email || "",
+          shiftId: existing.shiftId || memberShift?.id || "",
+          shiftName: existing.shiftName || memberShift?.name || "Not assigned",
           department: memberDepartmentName,
           activeLeave,
         });
@@ -2105,7 +2152,10 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
         id: leavePlaceholder ? `leave-${member.user._id}-${dateKey}` : `absent-${member.user._id}-${dateKey}`,
         userId: memberUserId,
         employeeName: member.user.name || member.user.email || "Unknown",
+        employeeEmail: member.user.email || "",
         employeeId: empId,
+        shiftId: memberShift?.id || "",
+        shiftName: memberShift?.name || "Not assigned",
         employeeRole: getRoleName(member?.role || ""),
         department: memberDepartmentName,
         date: dateKey,

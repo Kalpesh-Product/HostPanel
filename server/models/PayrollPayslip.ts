@@ -29,6 +29,7 @@ export interface IPayrollPayslip extends Document {
     fileUrl: string;
     filePublicId?: string;
     fileFormat: string;
+    templateId: string;
     summary: IPayslipSummary;
     generatedBy?: mongoose.Types.ObjectId | null;
     generatedAt: Date;
@@ -155,6 +156,13 @@ const payrollPayslipSchema = new Schema<IPayrollPayslip>(
             type: String,
             trim: true,
             default: "pdf",
+        },
+        templateId: {
+            type: String,
+            enum: ["classic-mono", "modern-blue", "aqua-wave", "indigo-banner"],
+            default: "modern-blue",
+            required: true,
+            index: true,
         },
         summary: {
             type: payslipSummarySchema,

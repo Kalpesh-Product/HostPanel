@@ -65,6 +65,7 @@ export interface IPayrollEmployee {
         payslipFileName?: string;
         payslipGeneratedAt?: Date | null;
         payslipSentAt?: Date | null;
+        payslipTemplateId?: string;
     };
     manualAdjustments: IPayrollAdjustment[];
     adjustmentReason?: string;
@@ -244,6 +245,11 @@ const payrollEmployeeSchema = new Schema<IPayrollEmployee>(
             payslipFileName: { type: String, trim: true, default: "" },
             payslipGeneratedAt: { type: Date, default: null },
             payslipSentAt: { type: Date, default: null },
+            payslipTemplateId: {
+                type: String,
+                enum: ["", "classic-mono", "modern-blue", "aqua-wave", "indigo-banner"],
+                default: "",
+            },
         },
         manualAdjustments: { type: [payrollAdjustmentSchema], default: [] },
         adjustmentReason: { type: String, trim: true, default: "", maxlength: 1200 },

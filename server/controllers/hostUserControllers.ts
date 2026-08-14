@@ -482,6 +482,12 @@ export const updateCompanyLogo = async (req, res) => {
     company.logo = uploadedLogo;
     await company.save();
 
+    if (workspace?._id) {
+      await Workspace.findByIdAndUpdate(workspace._id, {
+        "branding.logoUrl": uploadedLogo.url,
+      }).exec();
+    }
+
     if (previousLogoUrl) {
       try {
         await deleteFileFromS3ByUrl(previousLogoUrl);
