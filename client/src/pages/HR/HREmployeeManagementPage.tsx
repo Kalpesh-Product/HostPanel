@@ -2506,10 +2506,72 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <>
               {/* ─── Data Panel ─── */}
               <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-                {/* Header Row: Search + Filters */}
-                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                  {/* Search */}
-                  <div className="relative flex-1 min-w-[180px] w-full xl:w-auto">
+                {/* Header: status sub-tabs + filters + search + add button, all in one line */}
+                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex items-center gap-3 bg-slate-50/50 overflow-x-auto">
+                  {/* Status Sub-Tabs (Pill Filters) */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setStatusFilter("all")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                        statusFilter === "all"
+                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {statusFilterOptions.filter((o) => o.key !== "probation" && o.key !== "terminated").map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setStatusFilter(opt.key)}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                          statusFilter === opt.key
+                            ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                            : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Spacer */}
+                  <div className="flex-1 shrink-0" />
+
+                  {/* Department filter */}
+                  <div className="relative shrink-0">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      value={deptFilter}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
+                      className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                    >
+                      <option>All Departments</option>
+                      {availableDepartments.map((department) => (
+                        <option key={department} value={department}>{department}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={13} />
+                  </div>
+
+                  {/* Role filter */}
+                  <div className="relative shrink-0">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      value={roleFilter}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
+                      className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                    >
+                      <option>All Roles</option>
+                      {roleFilterOptions.map((role) => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={13} />
+                  </div>
+
+                  {/* Search (compact width) */}
+                  <div className="relative w-44 sm:w-52 shrink-0">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text"
@@ -2520,73 +2582,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
 
-                  {/* Right: Filters */}
-                  <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                    {/* Department filter */}
-                    <div className="relative">
-                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                      <select
-                        value={deptFilter}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                      >
-                        <option>All Departments</option>
-                        {availableDepartments.map((department) => (
-                          <option key={department} value={department}>{department}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Role filter */}
-                    <div className="relative">
-                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                      <select
-                        value={roleFilter}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                      >
-                        <option>All Roles</option>
-                        {roleFilterOptions.map((role) => (
-                          <option key={role} value={role}>{role}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Add Employee button */}
-                    <button
-                      onClick={() => { setIsAddModalOpen(true); resetAddForm(); }}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                    >
-                      <UserPlus size={13} strokeWidth={2.5} /> ADD EMPLOYEE
-                    </button>
-                  </div>
-                </div>
-
-                {/* Status Sub-Tabs (Pill Filters) */}
-                <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
+                  {/* Add Employee button */}
                   <button
-                    onClick={() => setStatusFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                      statusFilter === "all"
-                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                    }`}
+                    onClick={() => { setIsAddModalOpen(true); resetAddForm(); }}
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap shrink-0"
                   >
-                    All
+                    <UserPlus size={13} strokeWidth={2.5} /> ADD EMPLOYEE
                   </button>
-                  {statusFilterOptions.filter((o) => o.key !== "probation" && o.key !== "terminated").map((opt) => (
-                    <button
-                      key={opt.key}
-                      onClick={() => setStatusFilter(opt.key)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                        statusFilter === opt.key
-                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
                 </div>
 
                 {/* Table */}

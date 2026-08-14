@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
   Calendar, User, FileText, X, AlertTriangle, Paperclip,
-  MessageSquare, Building2, Filter, Reply, CheckSquare, Shield, Wrench,
+  MessageSquare, Building2, Filter, Reply, CheckSquare, Shield, Wrench, ChevronDown,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import {
@@ -2180,6 +2180,17 @@ export function TicketsPage() {
                 </div>
 
                 <div data-tour="tickets-search-filter" className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                  <div className="relative">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                      value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                    >
+                      <option value="All">All Tickets</option>
+                      {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={13} />
+                  </div>
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
@@ -2187,16 +2198,6 @@ export function TicketsPage() {
                       className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
-                  </div>
-                  <div className="relative">
-                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                    <select
-                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                      value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
-                    >
-                      <option value="All">All Tickets</option>
-                      {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                    </select>
                   </div>
                   <button
                     data-tour="tickets-raise-btn"

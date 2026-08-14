@@ -467,11 +467,12 @@ const EditNomadListing = () => {
         </div>
         <form
           ref={formRef}
+          data-tour="nomad-listing-form"
           encType="multipart/form-data"
           onSubmit={handleSubmit(onSubmit)}
           className="md:grid grid-cols-2 gap-4"
         >
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-identity">
             {/* Company Title */}
             <Controller
               name="companyTitle"
@@ -500,7 +501,7 @@ const EditNomadListing = () => {
               )}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-company-type">
             {/* Company Type */}
             <Controller
               name="companyType"
@@ -544,7 +545,7 @@ const EditNomadListing = () => {
               )}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-inclusions">
             {/* Inclusions — fixed list per company type, curated on Nomads;
                 can be picked but not added to. */}
             <Controller
@@ -709,7 +710,7 @@ const EditNomadListing = () => {
           </div>
           */}
 
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-address">
             {/* Address */}
             <Controller
               name="address"
@@ -794,7 +795,7 @@ const EditNomadListing = () => {
               )}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-country">
             {/* Country — each listing has its own location, independent of
                 the host's registered company address. */}
             <Controller
@@ -911,7 +912,7 @@ const EditNomadListing = () => {
             />
           </div>
 
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-map">
             {/* Google Map URL */}
             <Controller
               name="googleMap"
@@ -994,7 +995,7 @@ const EditNomadListing = () => {
           </div>
 
           {/* Images */}
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-images">
             {fetchedListing?.images?.length > 0 && (
               <div className="flex gap-3 flex-wrap mb-3">
                 {fetchedListing.images.map((img) => (
@@ -1062,7 +1063,7 @@ const EditNomadListing = () => {
           </div>
 
           {/* Reviews */}
-          <div className="col-span-2">
+          <div className="col-span-2" data-tour="nomad-listing-reviews">
             <div className="py-4 border-b border-gray-300">
               <span className="text-lg font-pmedium text-primary">Reviews</span>
             </div>
@@ -1157,6 +1158,7 @@ const EditNomadListing = () => {
             {isViewMode ? (
               <button
                 type="button"
+                data-tour="nomad-listing-back"
                 onClick={() => navigate(-1)}
                 className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
               >
@@ -1166,6 +1168,7 @@ const EditNomadListing = () => {
               <>
                 <button
                   type="submit"
+                  data-tour="nomad-listing-submit"
                   disabled={isSaving}
                   className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
@@ -1173,6 +1176,7 @@ const EditNomadListing = () => {
                 </button>
                 <button
                   type="button"
+                  data-tour="nomad-listing-reset"
                   onClick={() => {
                     if (window.confirm("All entered data will be reset. Are you sure you want to continue?")) {
                       resetFormToEmpty();

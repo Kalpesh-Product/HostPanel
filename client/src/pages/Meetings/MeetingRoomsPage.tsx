@@ -4440,17 +4440,6 @@ export function MeetingRoomsPage() {
                   ))}
                   </div>
 
-                  <div data-tour="meetings-search" className="relative w-full xl:w-64 shrink-0">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      value={mainBookingTab === 'external_booking' ? externalSearchQuery : searchQuery}
-                      placeholder={mainBookingTab === 'external_booking' ? 'Search clients, rooms, purpose, or booking codes...' : 'Search rooms, hosts, or purpose...'}
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
-                      onChange={(e) => mainBookingTab === 'external_booking' ? setExternalSearchQuery(e.target.value) : setSearchQuery(e.target.value)}
-                    />
-                  </div>
-
                   {activeTab !== 'invites' && (
                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center shrink-0">
                       <label className="relative flex min-w-0 items-center rounded-xl border border-slate-200/60 bg-white shadow-sm focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/20 sm:w-[168px]">
@@ -4499,6 +4488,17 @@ export function MeetingRoomsPage() {
                       )}
                     </div>
                   )}
+
+                  <div data-tour="meetings-search" className="relative w-full xl:w-64 shrink-0">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      value={mainBookingTab === 'external_booking' ? externalSearchQuery : searchQuery}
+                      placeholder={mainBookingTab === 'external_booking' ? 'Search clients, rooms, purpose, or booking codes...' : 'Search rooms, hosts, or purpose...'}
+                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                      onChange={(e) => mainBookingTab === 'external_booking' ? setExternalSearchQuery(e.target.value) : setSearchQuery(e.target.value)}
+                    />
+                  </div>
 
                   <div data-tour="meetings-action-btn" className="flex items-center shrink-0">
                     {mainBookingTab === 'my_bookings' && (

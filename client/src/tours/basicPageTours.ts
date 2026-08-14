@@ -32,21 +32,67 @@ const exact = (path: string) => (pathname: string) =>
   pathname === path || pathname === `${path}/`;
 const startsWith = (path: string) => (pathname: string) =>
   pathname === path || pathname.startsWith(`${path}/`);
+const nomadListingAction = (action: "add" | "edit" | "view") => (pathname: string) => {
+  const routeSuffix = "/nomad-listings/" + action;
+  return pathname === "/company-settings" + routeSuffix || pathname === "/dashboard" + routeSuffix;
+};
 
 const BASIC_PAGE_TOURS: TourRoute[] = [
   {
-    id: "basic-nomad-listing-form",
-    version: 1,
-    title: "Nomad listing form",
-    description: "Add or update the listing details that visitors will use to understand your workspace offering.",
-    formDescription: "Complete the required listing information, check the preview details, and save only when everything is accurate.",
+    id: "basic-nomad-listing-add",
+    version: 2,
+    title: "Add a Nomads listing",
+    description: "Create a complete listing for one workspace location. This guide walks through the details visitors will see and the checks applied before submission.",
     steps: [
-      { selector: '[data-tour="page-content"] form', title: "Listing information", description: "Enter the workspace identity, location, amenities, contact information, images, and map details that should appear in the Nomads listing." },
-      { text: "+ Add Review", exactText: true, title: "Add a review", description: "Adds another review block to this listing. Each added review can include the reviewer name, rating, and review text." },
-      { text: "Submit", exactText: true, title: "Submit listing", description: "Validates the form and creates or updates the listing. While submission is running, the button is disabled to prevent duplicates." },
-      { text: "Reset", exactText: true, title: "Reset the form", description: "Clears the values currently entered in the form. Use it only when you want to start the listing again." },
+      { selector: '[data-tour="nomad-listing-identity"]', title: "Name this listing", description: "Enter the public-facing title for this workspace. You can leave it blank to use your registered company name automatically." },
+      { selector: '[data-tour="nomad-listing-company-type"]', title: "Choose the product type", description: "Select Coworking, Meeting Room, Cafe, Workation, Coliving, or Hostel. Your plan limits how many different product types and total listings you can publish." },
+      { selector: '[data-tour="nomad-listing-inclusions"]', title: "Select the inclusions", description: "Choose the amenities and facilities available at this location. The options change with the selected product type, so confirm the type first." },
+      { selector: '[data-tour="nomad-listing-address"]', title: "Explain the workspace", description: "Enter the visitor-facing street address and use About to describe the workspace, experience, and important selling points." },
+      { selector: '[data-tour="nomad-listing-country"]', title: "Set this listing's location", description: "Select Country first, then State and City. The location belongs to this individual listing and can differ from your registered company address." },
+      { selector: '[data-tour="nomad-listing-map"]', title: "Pin the location", description: "Paste a valid Google Maps URL. If coordinates are present in the URL, Latitude and Longitude are filled automatically; otherwise they can be entered manually." },
+      { selector: '[data-tour="nomad-listing-images"]', title: "Add listing media", description: "Upload up to 10 clear workspace images. You can also provide one optional logo; without one, HostPanel uses the company profile logo." },
+      { selector: '[data-tour="nomad-listing-reviews"]', title: "Add optional reviews", description: "Each review can include a reviewer name, 1-5 rating, and review text. Add more review blocks as needed or remove ones that should not be submitted." },
+      { selector: '[data-tour="nomad-listing-submit"]', title: "Submit the new listing", description: "Submit validates the form and creates the listing. The button stays disabled while the request is running to prevent duplicate listings." },
+      { selector: '[data-tour="nomad-listing-reset"]', title: "Reset or leave", description: "Reset clears the form after confirmation. Cancel returns to Listings without creating this listing." },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/nomad-listings\/(add|[^/]+)\/?$/.test(path),
+    matches: nomadListingAction("add"),
+  },
+  {
+    id: "basic-nomad-listing-edit",
+    version: 2,
+    title: "Edit a Nomads listing",
+    description: "Review the saved listing and update exactly what Nomads visitors should see for this workspace location.",
+    steps: [
+      { selector: '[data-tour="nomad-listing-identity"]', title: "Check the listing title", description: "Review the public-facing title saved for this workspace and update it when visitors should see a different name." },
+      { selector: '[data-tour="nomad-listing-company-type"]', title: "Confirm the product type", description: "Changing the type also changes which inclusions are available. A new type can only be selected when your plan still has product-type capacity." },
+      { selector: '[data-tour="nomad-listing-inclusions"]', title: "Update inclusions", description: "Keep only the amenities and facilities that are currently available at this location. Options are tied to the selected product type." },
+      { selector: '[data-tour="nomad-listing-address"]', title: "Update address and description", description: "Correct the visitor-facing address and revise About whenever the workspace offering or important details change." },
+      { selector: '[data-tour="nomad-listing-country"]', title: "Update the listing location", description: "Country, State, and City belong to this listing. Changing Country clears State and City; changing State clears City so the combination remains valid." },
+      { selector: '[data-tour="nomad-listing-map"]', title: "Check the map pin", description: "Use the current Google Maps URL or paste a replacement. Coordinates are extracted when possible and can also be corrected manually." },
+      { selector: '[data-tour="nomad-listing-images"]', title: "Review and add media", description: "Existing listing images appear first. Upload new images only when needed, and optionally replace the current logo; leaving logo upload empty preserves the existing logo." },
+      { selector: '[data-tour="nomad-listing-reviews"]', title: "Maintain reviews", description: "Correct existing review details, remove outdated review blocks, or add another reviewer name, rating, and review." },
+      { selector: '[data-tour="nomad-listing-submit"]', title: "Save the changes", description: "Submit validates the edited values and updates this listing. It is disabled while saving to prevent repeated updates." },
+      { selector: '[data-tour="nomad-listing-reset"]', title: "Reset or cancel", description: "Reset clears the editable form after confirmation. Cancel returns to Listings without submitting the current changes." },
+    ],
+    matches: nomadListingAction("edit"),
+  },
+  {
+    id: "basic-nomad-listing-view",
+    version: 2,
+    title: "View a Nomads listing",
+    description: "Inspect the complete saved listing in read-only mode before deciding whether any information needs to be edited.",
+    steps: [
+      { selector: '[data-tour="nomad-listing-identity"]', title: "Listing title", description: "This is the public-facing workspace title saved for the listing. The field is locked because View mode is read-only." },
+      { selector: '[data-tour="nomad-listing-company-type"]', title: "Product type", description: "Shows whether this listing is Coworking, Meeting Room, Cafe, Workation, Coliving, or Hostel." },
+      { selector: '[data-tour="nomad-listing-inclusions"]', title: "Published inclusions", description: "Review the amenities and facilities associated with the saved product type." },
+      { selector: '[data-tour="nomad-listing-address"]', title: "Address and description", description: "Check the street address visitors use and the About content that explains the workspace offering." },
+      { selector: '[data-tour="nomad-listing-country"]', title: "Saved location", description: "Confirm the Country, State, and City assigned to this individual listing." },
+      { selector: '[data-tour="nomad-listing-map"]', title: "Map information", description: "Review the Google Maps URL and its saved Latitude and Longitude values." },
+      { selector: '[data-tour="nomad-listing-images"]', title: "Listing media", description: "Review the images currently saved for the listing. The logo shown below is the listing logo or the company profile fallback." },
+      { selector: '[data-tour="nomad-listing-reviews"]', title: "Saved reviews", description: "Review the visitor name, rating, and text for every review attached to this listing." },
+      { selector: '[data-tour="nomad-listing-back"]', title: "Return to Listings", description: "Select Back when you have finished reviewing this listing. Use the pencil action from the Listings table when changes are required.", side: "top", align: "center" },
+    ],
+    matches: nomadListingAction("view"),
   },
   {
     id: "basic-wono-nomad",
@@ -62,12 +108,12 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-nomad-listings",
-    version: 1,
+    version: 2,
     title: "Listings",
     description: "Manage your co-working and co-living space listings across Nomads Listings. Create listings, track their status, and keep your workspace presence up to date.",
     recordsDescription: "Each listing shows your workspace name, type, city, publication status, and creation date.",
     steps: [
-      { selector: '[data-tour="nomad-summary"]', title: "Listing counts at a glance", description: "These four cards show Total Listings, Active (live on Nomads), Inactive (hidden or paused), and Listings Left (how many more you can create under your plan limit)." },
+      { selector: '[data-tour="nomad-summary"]', title: "Listing counts at a glance", description: "These five cards show Total Listings, Active (live on Nomads), Inactive (hidden or paused), Product Types used against your plan, and Listings Left (how many more you can create under your plan limit)." },
       { selector: '[data-tour="nomad-status-filter"]', title: "Filter by status", description: "Switch between All, Active, or Inactive listings. Active listings are live and visible to Nomads visitors. Inactive listings are hidden but preserved." },
       { selector: '[data-tour="nomad-search"]', title: "Search listings", description: "Find a listing by company name, workspace type, or city. Results update as you type." },
       { selector: '[data-tour="nomad-add-listing"]', title: "Add a new listing", description: "Opens the listing form where you enter workspace details — name, type, location, amenities, images, and contact info. If you've reached your plan limit, this button will be disabled." },
@@ -198,15 +244,31 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-nomad-reviews",
-    version: 1,
+    version: 2,
     title: "Nomads reviews",
-    description: "Review feedback connected to the workspace’s WoNo Nomads presence.",
+    description: "Moderate visitor feedback submitted through your Nomads listings and control which reviews are displayed publicly.",
     steps: [
-      { selector: '[data-tour="page-content"] table', title: "Review records", description: "Shows the reviewer, feedback, rating or type information, date, and current review state available to this workspace." },
-      { selector: '[data-tour="page-content"] input', title: "Search reviews", description: "Filters the visible Nomads feedback so a particular reviewer or review can be found quickly." },
-      { selector: '[data-tour="page-content"] table button', title: "Open review details", description: "The row action opens the complete review and the moderation information available for it." },
+      { selector: '[data-tour="nomad-reviews-header"]', title: "Review moderation", description: "This page shows visitor-submitted reviews connected to your Nomads listings. The cards summarize Total, Pending, Approved, and Rejected reviews." },
+      { selector: '[data-tour="nomad-reviews-status-filter"]', title: "Filter review status", description: "Switch between All, Pending, Approved, and Rejected reviews. Use the rating and product-type filters next to the search box to narrow the list further." },
+      { selector: '[data-tour="nomad-reviews-search"]', title: "Search reviews", description: "Find a specific review by reviewer name, review source, product type, or the review description. Results update as you type." },
+      { selector: '[data-tour="nomad-reviews-table"]', title: "Review list", description: "Each row shows the reviewer, star rating, description, source, status, and whether an approved review is enabled for public display on your listing." },
+      { selector: '[data-tour="nomad-reviews-view"]', title: "Open review details", description: "The eye button opens the full review so you can read the feedback and approve, reject, or enable/disable it for public display." },
     ],
     matches: exact("/company-settings/reviews"),
+  },
+  {
+    id: "basic-nomad-leads",
+    version: 1,
+    title: "Nomads leads",
+    description: "Track enquiries received from your Nomads Listings, review the contact details, and follow up to convert interest into bookings.",
+    steps: [
+      { selector: '[data-tour="wb-leads-header"]', title: "Leads dashboard", description: "This page collects every enquiry submitted through your Nomads Listings. Each lead includes the visitor name, contact details, source, product, status, and the date it was received." },
+      { selector: '[data-tour="wb-leads-status-filter"]', title: "Filter by lead stage", description: "Use All to review every Nomads enquiry, Pending for leads that still need follow-up, or Closed for completed enquiries." },
+      { selector: '[data-tour="wb-leads-search"]', title: "Search leads", description: "Find a specific lead using the visible search field. Results update as you type." },
+      { selector: '[data-tour="wb-leads-table"]', title: "Nomads lead records", description: "Review each lead's contact details, source, product or service, current status, received date, and available action." },
+      { selector: '[data-tour="wb-leads-view"]', title: "Open lead details", description: "The eye button opens the full enquiry so you can read the submitted information and close the lead after following up." },
+    ],
+    matches: (path) => /^\/company-settings\/nomads-leads\/?$/.test(path),
   },
   {
     id: "basic-company-profile",

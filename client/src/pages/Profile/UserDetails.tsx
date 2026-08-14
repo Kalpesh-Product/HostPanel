@@ -1252,23 +1252,6 @@ export default function UserDetails() {
               </select>
             </FormField>
 
-            <FormField label="Emergency Contact Name">
-              <input
-                type="text"
-                value={editForm.emergencyContactName}
-                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))}
-                className={fieldInputClass}
-              />
-            </FormField>
-            <FormField label="Emergency Contact Phone">
-              <input
-                type="tel"
-                value={editForm.emergencyContactPhone}
-                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))}
-                className={fieldInputClass}
-              />
-            </FormField>
-
             <FormField label="Current Address" className="sm:col-span-2">
               <input
                 type="text"
@@ -1305,6 +1288,23 @@ export default function UserDetails() {
                 />
                 Same as current address
               </label>
+            </FormField>
+
+            <FormField label="Emergency Contact Name">
+              <input
+                type="text"
+                value={editForm.emergencyContactName}
+                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))}
+                className={fieldInputClass}
+              />
+            </FormField>
+            <FormField label="Emergency Contact Phone">
+              <input
+                type="tel"
+                value={editForm.emergencyContactPhone}
+                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))}
+                className={fieldInputClass}
+              />
             </FormField>
           </div>
         </div>
