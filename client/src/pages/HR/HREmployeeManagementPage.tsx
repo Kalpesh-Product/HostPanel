@@ -8,7 +8,7 @@ import {
   FileSpreadsheet, UploadCloud, Download, FileDown, Plus, Filter, AlertCircle,
   Eye, Edit3, Clock, UserCheck, UserX, Loader2, ChevronDown, ArrowLeft,
   ChevronRight, AlertTriangle, XCircle, Camera, Save, Ban,
-  Settings,
+  Settings, Info, Send,
 } from "lucide-react";
 import MonthWiseBirthdaysTab from "./MonthWiseBirthdaysTab";
 import CompanyDocumentTab from "./CompanyDocumentTab";
@@ -23,6 +23,7 @@ import {
   createEmployeeRecord, getEmployeeManagementOverview,
   updateEmployeeRecord as updateEmployeeRecordRequest,
   updateEmployeeAccessRequest,
+  resendEmployeeInvite as resendEmployeeInviteRequest,
 } from "@/services/hr";
 import { getRecruitmentOverview } from "@/services/recruitment";
 import { getAttendanceSettings } from "@/services/attendance";
@@ -182,6 +183,121 @@ const INTERNSHIP_EMPLOYMENT_TYPES = new Set(["intern", "trainee"]);
 
 function isInternshipEmploymentType(type: string): boolean {
   return INTERNSHIP_EMPLOYMENT_TYPES.has(String(type || "").toLowerCase());
+}
+
+/* ───────────────────── Bulk Upload: Template & Instructions ───────────────────── */
+
+const BULK_TEMPLATE_SHEET_NAME = "Employee Upload";
+const BULK_TEMPLATE_HEADERS = [
+  "Full Name", "Date of Birth", "Email", "Phone", "Current Address",
+  "Emergency Contact Name", "Emergency Contact Phone",
+  "Job Code", "Job Title", "System Role", "Departments",
+  "Reporting Manager Email", "Reporting Manager Employee ID",
+  "Work Mode", "Employment Type", "Unpaid Internship", "Internship Duration (Months)",
+  "Joining Date", "Gross Annual Salary / CTC", "Notice Period Days", "Probation Days",
+  "Bank Name", "Account Holder Name", "Account Number", "IFSC Code",
+  "National ID Type", "National ID Number", "Provident Fund / UAN Number", "Notes",
+];
+
+const BULK_ROLE_LABEL_MAP: Record<string, string> = {
+  owner: "Founder", founder: "Founder", "super admin": "Super Admin",
+  admin: "Admin", manager: "Manager", employee: "Employee",
+};
+
+const BULK_EMPLOYMENT_TYPE_MAP: Record<string, string> = {
+  "full time": "full-time", full_time: "full-time", "full-time": "full-time",
+  "part time": "part-time", part_time: "part-time", "part-time": "part-time",
+  intern: "intern", internship: "intern",
+  contractor: "contract", contract: "contract",
+  trainee: "trainee", consultant: "consultant",
+};
+
+const BULK_WORK_MODE_MAP: Record<string, string> = {
+  office: "office", remote: "remote", hybrid: "hybrid",
+};
+
+const BULK_BANK_NAME_OPTIONS = [
+  "State Bank of India", "HDFC Bank", "ICICI Bank", "Axis Bank",
+  "Punjab National Bank", "Bank of Baroda", "Kotak Mahindra Bank",
+  "Canara Bank", "Union Bank of India", "Indian Bank",
+];
+
+const BULK_ID_TYPE_OPTIONS = ["Aadhaar Card", "PAN", "Voter ID", "Driving License", "Passport"];
+
+const BULK_REQUIRED_FIELD_GUIDE: RequiredField[] = [
+  { field: "Full Name", notes: "Employee display name." },
+  { field: "Date of Birth", notes: "Use a valid Excel date or YYYY-MM-DD." },
+  { field: "Email", notes: "Used for onboarding, login and the invite link." },
+  { field: "Phone", notes: "Primary contact number." },
+  { field: "Current Address", notes: "Residential address used in the HR profile." },
+  { field: "Emergency Contact Name", notes: "Required for the employee file." },
+  { field: "Emergency Contact Phone", notes: "Required for the employee file." },
+  { field: "Job Code / Job Title", notes: "Pick a live job opening code to auto-fill the title and department, or type the title manually." },
+  { field: "System Role", notes: "Owner, Super Admin, Admin, Manager, or Employee." },
+  { field: "Departments", notes: "Owner/Super Admin get every department automatically. Admin may select one or more. Manager/Employee should specify exactly one." },
+  { field: "Work Mode", notes: "Office, Remote, or Hybrid." },
+  { field: "Employment Type", notes: "Full Time, Part Time, Intern, Contractor, Trainee, or Consultant." },
+  { field: "Joining Date", notes: "Required for payroll and access setup." },
+  { field: "Gross Annual Salary / CTC", notes: "Skip only for unpaid interns/trainees." },
+  { field: "National ID Type + Number", notes: "Aadhaar, PAN, Voter ID, Driving License, or Passport." },
+  { field: "Provident Fund / UAN Number", notes: "Optional employee PF/UAN reference." },
+  { field: "Notes", notes: "Optional internal remarks for the HR manager." },
+];
+
+const BULK_SELECTION_RULE_GUIDE: Array<{ field: string; values: string; outcome: string }> = [
+  { field: "System Role", values: "Owner | Super Admin | Admin | Manager | Employee", outcome: "Owner and Super Admin auto-assign every department. Admin can pick multiple departments. Manager and Employee use only the first department listed." },
+  { field: "Employment Type", values: "Full Time | Part Time | Intern | Contractor | Trainee | Consultant", outcome: "Intern and Trainee rows can be marked unpaid. If unpaid, salary and bank fields are skipped." },
+  { field: "Work Mode", values: "Office | Remote | Hybrid", outcome: "Stores the employee's working pattern in the HR profile." },
+  { field: "Bank Name", values: "Any listed bank name or a custom name", outcome: "If the name is not in the reference list, it is stored as a custom bank entry." },
+  { field: "National ID Type", values: "Aadhaar Card | PAN | Voter ID | Driving License | Passport", outcome: "Stored alongside the ID number in the employee's identity documents." },
+  { field: "Job Code", values: "Active job opening code", outcome: "When a job code is matched, the job title, department, and employment type are pulled from the opening." },
+];
+
+const BULK_WORKFLOW_GUIDE_STEPS: Array<{ step: number; instruction: string }> = [
+  { step: 1, instruction: "Download the template and keep the header row unchanged." },
+  { step: 2, instruction: "Fill in one row per employee using the reference sheets for valid dropdown values." },
+  { step: 3, instruction: "Upload the spreadsheet and review the row count before importing." },
+  { step: 4, instruction: "New employees are added as Pending. Use \"Send Invite\" on each row afterwards to email them a registration link — this can be resent as many times as needed until the employee registers." },
+];
+
+function excelValueToDateString(value: unknown): string {
+  if (!value) return "";
+  if (value instanceof Date) return formatDateForInput(value);
+  if (typeof value === "number") {
+    const epoch = new Date(Date.UTC(1899, 11, 30));
+    epoch.setUTCDate(epoch.getUTCDate() + Math.floor(value));
+    return formatDateForInput(epoch);
+  }
+  return formatDateForInput(String(value));
+}
+
+function mapBulkRoleLabel(raw: unknown): string {
+  const key = String(raw || "").trim().toLowerCase();
+  return BULK_ROLE_LABEL_MAP[key] || "";
+}
+
+function mapBulkEmploymentType(raw: unknown): string {
+  const key = String(raw || "").trim().toLowerCase();
+  return BULK_EMPLOYMENT_TYPE_MAP[key] || "full-time";
+}
+
+function mapBulkWorkMode(raw: unknown): string {
+  const key = String(raw || "").trim().toLowerCase();
+  return BULK_WORK_MODE_MAP[key] || "hybrid";
+}
+
+function parseBulkBoolean(raw: unknown): boolean {
+  const key = String(raw ?? "").trim().toLowerCase();
+  return ["yes", "true", "1", "unpaid", "y"].includes(key);
+}
+
+function readBulkCell(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
+      return String(row[key]).trim();
+    }
+  }
+  return "";
 }
 
 function getStatusInfo(key: string) {
@@ -1202,6 +1318,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [bulkImportSummary, setBulkImportSummary] = useState<BulkImportSummary | null>(null);
   const [bulkImportError, setBulkImportError] = useState("");
   const [isBulkImporting, setIsBulkImporting] = useState(false);
+  const [isBulkInstructionsOpen, setIsBulkInstructionsOpen] = useState(false);
+  const [resendingInviteId, setResendingInviteId] = useState("");
 
   const resetAddForm = () => {
     setAddForm(createEmployeeFormState());
@@ -1553,7 +1671,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     });
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (sendInvite: boolean = false) => {
     if (!editingEmployee) return;
     if (editFormSubmitting) return;
     const selectedDepartments = getDepartmentSelectionMode(editForm.role) === "all"
@@ -1572,12 +1690,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       const existingDocuments = Array.isArray(editingEmployee.documents) ? editingEmployee.documents : [];
       const documents = await uploadSelectedEmployeeDocuments(editForm, existingDocuments as Array<Record<string, unknown>>);
       const payload = buildEmployeeRecordPayload(editForm, selectedDepartments, {
-        status: editingEmployee.statusKey,
+        status: sendInvite ? "invite_sent" : editingEmployee.statusKey,
+        sendInvite,
         documents,
       });
       const response = await updateEmployeeRecordRequest(editingEmployee.id, payload);
       if (response?.data?.success) {
-        toast.success("Employee updated");
+        toast.success(sendInvite ? "Employee updated & invite sent" : "Employee updated");
         setIsEditModalOpen(false);
         setEditingEmployee(null);
         loadEmployees({ silent: true });
@@ -1611,13 +1730,111 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     reader.onload = (evt) => {
       try {
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+        const workbook = XLSX.read(data, { type: "array", cellDates: true });
+        const sheetName = workbook.SheetNames.includes(BULK_TEMPLATE_SHEET_NAME)
+          ? BULK_TEMPLATE_SHEET_NAME
+          : workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
         setBulkSpreadsheetRows(rows);
       } catch { setBulkImportError("Failed to parse spreadsheet. Please check the file format."); }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const findManagerUserId = (managerEmail: string, managerEmployeeId: string): string => {
+    const emailKey = managerEmail.trim().toLowerCase();
+    const idKey = managerEmployeeId.trim().toLowerCase();
+    if (!emailKey && !idKey) return "";
+    const match = employees.find((candidate) =>
+      (emailKey && candidate.email?.toLowerCase() === emailKey) ||
+      (idKey && (candidate.employeeId?.toLowerCase() === idKey || candidate.employeeNumber?.toLowerCase() === idKey)),
+    );
+    return match?.userId ? String(match.userId) : "";
+  };
+
+  const parseBulkRow = (row: Record<string, unknown>): { payload: Record<string, unknown> } | { issue: string } => {
+    const fullName = readBulkCell(row, "Full Name", "fullName", "Name");
+    const email = readBulkCell(row, "Email", "email").toLowerCase();
+    const phone = readBulkCell(row, "Phone", "phone");
+    const currentAddress = readBulkCell(row, "Current Address", "currentAddress", "Address");
+    const emergencyContactName = readBulkCell(row, "Emergency Contact Name", "emergencyContactName");
+    const emergencyContactPhone = readBulkCell(row, "Emergency Contact Phone", "emergencyContactPhone");
+    const roleLabel = mapBulkRoleLabel(readBulkCell(row, "System Role", "role", "Role"));
+    const workMode = mapBulkWorkMode(readBulkCell(row, "Work Mode", "workMode"));
+    const employmentType = mapBulkEmploymentType(readBulkCell(row, "Employment Type", "employmentType"));
+    const joiningDate = excelValueToDateString(row["Joining Date"] ?? row.joiningDate);
+    const dateOfBirth = excelValueToDateString(row["Date of Birth"] ?? row.dateOfBirth);
+
+    if (!fullName) return { issue: "Missing Full Name" };
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { issue: "Missing or invalid Email" };
+    if (!phone) return { issue: "Missing Phone" };
+    if (!currentAddress) return { issue: "Missing Current Address" };
+    if (!emergencyContactName || !emergencyContactPhone) return { issue: "Missing Emergency Contact details" };
+    if (!roleLabel) return { issue: "System Role must be Owner, Super Admin, Admin, Manager, or Employee" };
+    if (!joiningDate) return { issue: "Missing or invalid Joining Date" };
+
+    const jobCode = readBulkCell(row, "Job Code", "jobCode");
+    const jobOpening = jobCode
+      ? recruitmentJobOpenings.find((opening) => opening.jobCode.toLowerCase() === jobCode.toLowerCase())
+      : undefined;
+    const jobTitle = jobOpening?.designation || jobOpening?.title || readBulkCell(row, "Job Title", "jobTitle");
+
+    const departmentsRaw = readBulkCell(row, "Departments", "departments", "Department");
+    const selectionMode = getDepartmentSelectionMode(roleLabel);
+    let departments = selectionMode === "all"
+      ? filterValidDepartments(availableDepartments)
+      : normalizeDepartmentSelection(
+        roleLabel,
+        jobOpening?.department ? [jobOpening.department, ...departmentsRaw.split(/[,;]/)] : departmentsRaw.split(/[,;]/),
+      );
+    departments = filterValidDepartments(departments);
+    if (selectionMode !== "all" && departments.length === 0) return { issue: "Select at least one valid Department" };
+
+    const internshipTypeSelected = isInternshipEmploymentType(employmentType);
+    const internshipIsUnpaid = internshipTypeSelected && parseBulkBoolean(readBulkCell(row, "Unpaid Internship", "internshipIsUnpaid"));
+    const internshipDurationMonths = readBulkCell(row, "Internship Duration (Months)", "internshipDurationMonths") || "6";
+    const requiresCompensation = !internshipTypeSelected || !internshipIsUnpaid;
+    const salaryAmount = readBulkCell(row, "Gross Annual Salary / CTC", "salaryAmount");
+    if (requiresCompensation && (!salaryAmount || !(Number(salaryAmount) > 0))) {
+      return { issue: "Gross Annual Salary / CTC is required unless the row is an unpaid internship/trainee" };
+    }
+
+    const managerEmail = readBulkCell(row, "Reporting Manager Email", "managerEmail");
+    const managerEmployeeId = readBulkCell(row, "Reporting Manager Employee ID", "managerEmployeeId");
+    const managerUserId = findManagerUserId(managerEmail, managerEmployeeId);
+
+    const bankNameCell = readBulkCell(row, "Bank Name", "bankName");
+    const notes = readBulkCell(row, "Notes", "notes");
+
+    const form: EmployeeFormState = {
+      ...createEmployeeFormState(),
+      fullName, email, phone, currentAddress, emergencyContactName, emergencyContactPhone,
+      dateOfBirth, joiningDate,
+      role: roleLabel,
+      jobCode: jobOpening?.jobCode || jobCode,
+      jobTitle,
+      departments,
+      managerUserId,
+      workMode,
+      employmentType,
+      internshipIsUnpaid,
+      internshipDurationMonths,
+      noticePeriodDays: readBulkCell(row, "Notice Period Days", "noticePeriodDays") || "30",
+      probationDays: readBulkCell(row, "Probation Days", "probationDays") || "none",
+      salaryAmount: requiresCompensation ? salaryAmount : "",
+      bankName: requiresCompensation ? bankNameCell : "",
+      accountHolderName: requiresCompensation ? readBulkCell(row, "Account Holder Name", "accountHolderName") : "",
+      accountNumber: requiresCompensation ? readBulkCell(row, "Account Number", "accountNumber") : "",
+      ifscCode: requiresCompensation ? readBulkCell(row, "IFSC Code", "ifscCode").toUpperCase() : "",
+      nationalIdType: readBulkCell(row, "National ID Type", "nationalIdType"),
+      nationalIdNumber: readBulkCell(row, "National ID Number", "nationalIdNumber"),
+      providentFundNumber: readBulkCell(row, "Provident Fund / UAN Number", "providentFundNumber"),
+    };
+
+    const payload = buildEmployeeRecordPayload(form, departments, { status: "pending", sendInvite: false, documents: [] });
+    payload.notes = notes;
+    return { payload };
   };
 
   const handleBulkImport = async () => {
@@ -1630,30 +1847,113 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     for (let i = 0; i < bulkSpreadsheetRows.length; i++) {
       const row = bulkSpreadsheetRows[i];
       try {
-        const rowName = String(row.fullName || row.name || row.FullName || row.Name || "").trim();
-        const rowEmail = String(row.email || row.Email || "").trim().toLowerCase();
-        if (!rowName || !rowEmail) { skippedCount++; issues.push(`Row ${i + 2}: Missing name or email`); continue; }
-        const departmentsRaw = String(row.departments || row.department || row.Department || row.Departments || "");
-        const departments = departmentsRaw.split(",").map((d: string) => d.trim()).filter(Boolean);
-        const payload: Record<string, unknown> = {
-          fullName: rowName, email: rowEmail,
-          phone: String(row.phone || row.Phone || row.mobile || row.Mobile || ""),
-          departmentNames: departments,
-          workspaceRole: mapRoleLabelToValue(String(row.role || row.Role || "Employee")),
-          joiningDate: String(row.joiningDate || row.joining_date || row.JoiningDate || ""),
-          employmentType: String(row.employmentType || row.EmploymentType || "full-time"),
-          workMode: String(row.workMode || row.WorkMode || "hybrid"),
-        };
-        await createEmployeeRecord(payload);
+        const result = parseBulkRow(row);
+        if ("issue" in result) { skippedCount++; issues.push(`Row ${i + 2}: ${result.issue}`); continue; }
+        await createEmployeeRecord(result.payload);
         createdCount++;
       } catch (err) {
         skippedCount++;
-        issues.push(`Row ${i + 2}: ${(err as Error)?.message || "Creation failed"}`);
+        const responseMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        issues.push(`Row ${i + 2}: ${responseMessage || (err as Error)?.message || "Creation failed"}`);
       }
     }
     setIsBulkImporting(false);
     setBulkImportSummary({ processedRows: bulkSpreadsheetRows.length, createdCount, skippedCount, fileName: bulkSpreadsheetName, issues });
     if (createdCount > 0) loadEmployees({ silent: true });
+  };
+
+  const handleDownloadBulkTemplate = () => {
+    const workbook = XLSX.utils.book_new();
+
+    const uploadSheet = XLSX.utils.aoa_to_sheet([BULK_TEMPLATE_HEADERS]);
+    XLSX.utils.book_append_sheet(workbook, uploadSheet, BULK_TEMPLATE_SHEET_NAME);
+
+    const requiredFieldsSheet = XLSX.utils.aoa_to_sheet([
+      ["field", "notes"],
+      ...BULK_REQUIRED_FIELD_GUIDE.map((entry) => [entry.field, entry.notes]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, requiredFieldsSheet, "Required Fields");
+
+    const selectionRulesSheet = XLSX.utils.aoa_to_sheet([
+      ["field", "values", "outcome"],
+      ...BULK_SELECTION_RULE_GUIDE.map((entry) => [entry.field, entry.values, entry.outcome]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, selectionRulesSheet, "Selection Rules");
+
+    const departmentsSheet = XLSX.utils.aoa_to_sheet([
+      ["Department"],
+      ...filterValidDepartments(availableDepartments).map((department) => [department]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, departmentsSheet, "Departments");
+
+    const rolesSheet = XLSX.utils.aoa_to_sheet([
+      ["Role", "Value"],
+      ["Owner", "owner"], ["Super Admin", "super_admin"], ["Admin", "admin"],
+      ["Manager", "manager"], ["Employee", "employee"],
+    ]);
+    XLSX.utils.book_append_sheet(workbook, rolesSheet, "Roles");
+
+    const employmentTypesSheet = XLSX.utils.aoa_to_sheet([
+      ["Label", "Value"],
+      ["Full Time", "full-time"], ["Part Time", "part-time"], ["Intern", "intern"],
+      ["Contractor", "contract"], ["Trainee", "trainee"], ["Consultant", "consultant"],
+    ]);
+    XLSX.utils.book_append_sheet(workbook, employmentTypesSheet, "Employment Types");
+
+    const workModesSheet = XLSX.utils.aoa_to_sheet([
+      ["Value", "Label"],
+      ["office", "Office"], ["remote", "Remote"], ["hybrid", "Hybrid"],
+    ]);
+    XLSX.utils.book_append_sheet(workbook, workModesSheet, "Work Modes");
+
+    const bankNamesSheet = XLSX.utils.aoa_to_sheet([["BankName"], ...BULK_BANK_NAME_OPTIONS.map((name) => [name])]);
+    XLSX.utils.book_append_sheet(workbook, bankNamesSheet, "Bank Names");
+
+    const idTypesSheet = XLSX.utils.aoa_to_sheet([["IdType"], ...BULK_ID_TYPE_OPTIONS.map((name) => [name])]);
+    XLSX.utils.book_append_sheet(workbook, idTypesSheet, "ID Types");
+
+    const jobOpeningsSheet = XLSX.utils.aoa_to_sheet([
+      ["JobCode", "JobTitle", "Department", "EmploymentType", "RemainingVacancies"],
+      ...recruitmentJobOpenings.map((opening) => [
+        opening.jobCode, opening.designation || opening.title, opening.department,
+        opening.employmentType, opening.remainingVacancies,
+      ]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, jobOpeningsSheet, "Job Openings");
+
+    const managerReferenceSheet = XLSX.utils.aoa_to_sheet([
+      ["EmployeeId", "Name", "Email", "Role"],
+      ...employees.map((employee) => [
+        employee.employeeId || employee.employeeNumber || "", employee.name, employee.email, employee.role,
+      ]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, managerReferenceSheet, "Manager Reference");
+
+    const workflowSheet = XLSX.utils.aoa_to_sheet([
+      ["Step", "Instruction"],
+      ...BULK_WORKFLOW_GUIDE_STEPS.map((entry) => [entry.step, entry.instruction]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, workflowSheet, "Workflow Guide");
+
+    XLSX.writeFile(workbook, "employee-bulk-upload-template.xlsx");
+  };
+
+  const handleResendInvite = async (employee: Employee) => {
+    setResendingInviteId(employee.id);
+    try {
+      const response = await resendEmployeeInviteRequest(employee.id);
+      if (response?.data?.success) {
+        toast.success(`Invite sent to ${employee.name || employee.email}`);
+        loadEmployees({ silent: true });
+      } else {
+        toast.error(response?.data?.message || "Failed to send invite");
+      }
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(err?.response?.data?.message || err?.message || "Failed to send invite");
+    } finally {
+      setResendingInviteId("");
+    }
   };
 
   /* ───────────────────── View Employee Handlers ───────────────────── */
@@ -2663,6 +2963,16 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                                   >
                                     <Edit3 size={14} strokeWidth={2.5} />
                                   </button>
+                                  {!isTenantEmployee && ["pending", "invite_sent"].includes(emp.statusKey) && emp.email && (
+                                    <button
+                                      onClick={() => handleResendInvite(emp)}
+                                      disabled={resendingInviteId === emp.id}
+                                      className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all disabled:opacity-50"
+                                      title={emp.statusKey === "invite_sent" ? "Resend Invite" : "Send Invite"}
+                                    >
+                                      {resendingInviteId === emp.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={2.5} />}
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-5 py-4">
@@ -3224,6 +3534,17 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
               <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
                 <button type="button" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
+                {editingEmployee && ["pending", "invite_sent"].includes(editingEmployee.statusKey) && (
+                  <button
+                    type="button"
+                    disabled={editFormSubmitting}
+                    onClick={() => handleSaveEdit(true)}
+                    className="px-6 py-2.5 bg-white border border-orange-200 text-orange-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                  >
+                    {editFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    {editingEmployee.statusKey === "invite_sent" ? "Save & Resend Invite" : "Save & Send Invite"}
+                  </button>
+                )}
                 <button type="submit" disabled={editFormSubmitting} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
                   {editFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   {editFormSubmitting ? "Saving..." : "Save Changes"}
@@ -3736,10 +4057,26 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <div className="p-6 space-y-4">
               {!bulkSpreadsheetName ? (
                 <>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDownloadBulkTemplate}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all"
+                    >
+                      <FileSpreadsheet size={13} /> Download Template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsBulkInstructionsOpen(true)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all"
+                    >
+                      <Info size={13} /> Instructions
+                    </button>
+                  </div>
                   <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkSpreadsheetInputRef.current?.click()}>
                     <UploadCloud size={32} className="mx-auto text-slate-300 mb-3" />
                     <p className="text-[12px] font-bold text-slate-600 mb-1">Click to upload spreadsheet</p>
-                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv files</p>
+                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv files — download the template above for the required columns.</p>
                   </div>
                   <input ref={bulkSpreadsheetInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileChange} />
                 </>
@@ -3778,6 +4115,67 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* ─── MODAL: Bulk Upload Instructions ─── */}
+      {isBulkInstructionsOpen && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-[6vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setIsBulkInstructionsOpen(false)}>
+          <div className="relative w-full max-w-2xl mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Info size={16} /> Bulk Upload Instructions
+              </h3>
+              <button onClick={() => setIsBulkInstructionsOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors">
+                <X size={16} className="text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div>
+                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">How it works</p>
+                <ol className="space-y-1.5">
+                  {BULK_WORKFLOW_GUIDE_STEPS.map((step) => (
+                    <li key={step.step} className="flex gap-2 text-[11px] text-slate-600">
+                      <span className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold">{step.step}</span>
+                      {step.instruction}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Required Fields</p>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  {BULK_REQUIRED_FIELD_GUIDE.map((entry, i) => (
+                    <div key={entry.field} className={`px-3 py-2 flex flex-col gap-0.5 ${i % 2 === 0 ? "bg-slate-50/60" : "bg-white"}`}>
+                      <span className="text-[11px] font-bold text-slate-700">{entry.field}</span>
+                      <span className="text-[10px] text-slate-500">{entry.notes}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Selection Rules</p>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  {BULK_SELECTION_RULE_GUIDE.map((entry, i) => (
+                    <div key={entry.field} className={`px-3 py-2 flex flex-col gap-0.5 ${i % 2 === 0 ? "bg-slate-50/60" : "bg-white"}`}>
+                      <span className="text-[11px] font-bold text-slate-700">{entry.field}</span>
+                      <span className="text-[10px] text-slate-400">{entry.values}</span>
+                      <span className="text-[10px] text-slate-500">{entry.outcome}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
+              <button onClick={handleDownloadBulkTemplate} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-1.5">
+                <FileSpreadsheet size={13} /> Download Template
+              </button>
+              <button onClick={() => setIsBulkInstructionsOpen(false)} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
+                Got It
+              </button>
             </div>
           </div>
         </div>,
