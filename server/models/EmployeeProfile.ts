@@ -67,7 +67,9 @@ export interface IEmployeeProfile extends Document {
     shiftId?: string;
     workspaceRole: mongoose.Types.ObjectId;
     isHousekeepingStaff: boolean;
-    employmentType: "full_time" | "part_time" | "intern" | "contractor" | "trainee";
+    employmentType:
+        | "full_time" | "part_time" | "intern" | "contractor" | "trainee"
+        | "full-time" | "part-time" | "contract" | "consultant";
     internshipIsUnpaid: boolean;
     status: "pending" | "invite_sent" | "registered" | "joined" | "active" | "inactive" | "probation" | "terminated";
     joiningDate?: Date | null;
@@ -307,7 +309,10 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
         },
         employmentType: {
             type: String,
-            enum: ["full_time", "part_time", "intern", "contractor", "trainee"],
+            enum: [
+                "full_time", "part_time", "intern", "contractor", "trainee",
+                "full-time", "part-time", "contract", "consultant",
+            ],
             default: "full_time",
             index: true,
         },

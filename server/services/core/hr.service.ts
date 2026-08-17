@@ -49,6 +49,20 @@ const normalizeRoleForStorage = (value = "") => {
   return normalized || "employee";
 };
 
+const EMPLOYMENT_TYPE_STORAGE_MAP: Record<string, string> = {
+  full_time: "full-time", "full-time": "full-time", "full time": "full-time",
+  part_time: "part-time", "part-time": "part-time", "part time": "part-time",
+  intern: "intern", internship: "intern",
+  contractor: "contract", contract: "contract",
+  trainee: "trainee",
+  consultant: "consultant",
+};
+
+const normalizeEmploymentTypeForStorage = (value = "") => {
+  const key = String(value || "").trim().toLowerCase();
+  return EMPLOYMENT_TYPE_STORAGE_MAP[key] || "full-time";
+};
+
 const normalizeRoleForDisplay = (value = "") => {
   const normalized = String(value || "")
     .trim()
@@ -284,7 +298,7 @@ const resolveProfileStatus = ({
   if (inviteStatus === "joined") return "joined";
   if (memberStatus === "joined") return "joined";
   if (memberStatus === "invited" || inviteStatus === "invite_sent") return "invite_sent";
-  if (currentStatus && !["pending", "invite_sent"].includes(currentStatus)) return currentStatus;
+  if (currentStatus) return currentStatus;
   return "active";
 };
 
@@ -530,7 +544,7 @@ const ensureEmployeeProfileForMember = async ({
     managerUserId: profile?.managerUserId || null,
     workspaceRole: roleDoc._id,
     isHousekeepingStaff: Boolean(profile?.isHousekeepingStaff),
-    employmentType: profile?.employmentType || "full_time",
+    employmentType: normalizeEmploymentTypeForStorage(profile?.employmentType || "full_time"),
     internshipIsUnpaid: Boolean(profile?.internshipIsUnpaid),
     status,
     joiningDate: profile?.joiningDate || resolvedUser?.registeredAt || resolvedUser?.joinedAt || null,
@@ -770,13 +784,13 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
         ? payload.departments
         : []);
 
+  const profileLookupConditions: any[] = [{ email }];
+  if (payload?.linkedUserId) profileLookupConditions.push({ linkedUserId: payload.linkedUserId });
+  if (payload?.linkedWorkspaceMemberId) profileLookupConditions.push({ linkedWorkspaceMemberId: payload.linkedWorkspaceMemberId });
+
   let profile = await EmployeeProfile.findOne({
     workspaceId: workspace._id,
-    $or: [
-      { email },
-      { linkedUserId: payload?.linkedUserId || null },
-      { linkedWorkspaceMemberId: payload?.linkedWorkspaceMemberId || null },
-    ],
+    $or: profileLookupConditions,
   }).exec();
   const requestedShiftId = payload?.shiftId !== undefined
     ? normalizeText(payload.shiftId)
@@ -825,7 +839,7 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     shiftId: requestedShiftId,
     workspaceRole: roleDoc._id,
     isHousekeepingStaff: Boolean(payload?.isHousekeepingStaff || profile?.isHousekeepingStaff),
-    employmentType: String(payload?.employmentType || profile?.employmentType || "full_time"),
+    employmentType: normalizeEmploymentTypeForStorage(payload?.employmentType || profile?.employmentType || "full_time"),
     internshipIsUnpaid: Boolean(payload?.internshipIsUnpaid ?? profile?.internshipIsUnpaid),
     status: normalizeText(payload?.status || profile?.status || "pending").toLowerCase().replace(/\s+/g, "_"),
     joiningDate: payload?.joiningDate || profile?.joiningDate || null,
@@ -913,6 +927,57 @@ const updateEmployeeProfile = async (workspace: any, employeeId: string, payload
     linkedWorkspaceMemberId: payload?.linkedWorkspaceMemberId || profile.linkedWorkspaceMemberId || null,
     employeeId: profile.employeeId,
   });
+};
+
+const RESEND_INVITE_BLOCKED_STATUSES = new Set(["registered", "joined", "active", "probation", "terminated"]);
+
+const resendEmployeeInvite = async (workspace: any, employeeId: string) => {
+  if (!workspace?._id) {
+    throw Object.assign(new Error("Workspace not found."), { statusCode: 404 });
+  }
+
+  const profile = await EmployeeProfile.findOne({
+    workspaceId: workspace._id,
+    $or: [
+      { _id: employeeId },
+      { employeeId },
+      { email: normalizeEmail(employeeId) },
+    ],
+  }).exec();
+
+  if (!profile) {
+    throw Object.assign(new Error("Employee record not found."), { statusCode: 404 });
+  }
+
+  const currentStatus = String(profile.status || "").toLowerCase();
+  if (RESEND_INVITE_BLOCKED_STATUSES.has(currentStatus)) {
+    throw Object.assign(
+      new Error("This employee has already registered and no longer needs an invite."),
+      { statusCode: 409 },
+    );
+  }
+
+  if (!normalizeEmail(profile.email)) {
+    throw Object.assign(new Error("Employee has no email on file to send the invite to."), { statusCode: 400 });
+  }
+
+  profile.status = "invite_sent";
+  await profile.save();
+
+  await maybeSendEmployeeInviteEmail({
+    workspace,
+    payload: { sendInvite: true, status: "invite_sent" },
+    employee: profile,
+  });
+
+  const savedEmployee = await EmployeeProfile.findById(profile._id)
+    .populate("workspaceRole")
+    .populate("departments")
+    .populate("linkedUserId", "name email inviteStatus isActive")
+    .lean()
+    .exec();
+
+  return mapEmployeeProfileToResponse(savedEmployee);
 };
 
 const toggleEmployeeProfileStatus = async (workspace: any, employeeId: string) => {
@@ -1128,6 +1193,7 @@ export {
   updateOwnEmployeeProfile,
   updateOwnProfilePicture,
   toggleEmployeeProfileStatus,
+  resendEmployeeInvite,
   mapEmployeeProfileToResponse,
   normalizeRoleForDisplay,
   normalizeRoleForStorage,

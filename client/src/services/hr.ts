@@ -44,6 +44,10 @@ export const toggleEmployeeStatus = async (employeeId: string) => {
   return axiosPrivate.patch(`/api/hr/employees/${employeeId}/toggle-status`);
 };
 
+export const resendEmployeeInvite = async (employeeId: string) => {
+  return axiosPrivate.post(`/api/hr/employees/${employeeId}/resend-invite`);
+};
+
 export const updateEmployeeAccessRequest = async (employeeId: string, payload: Record<string, any>) => {
   return axiosPrivate.patch(`/api/organization/members/${employeeId}/access`, payload);
 };

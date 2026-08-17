@@ -5,6 +5,7 @@ import {
   createOrUpdateEmployeeProfile,
   getCurrentWorkspace,
   toggleEmployeeProfileStatus,
+  resendEmployeeInvite,
   updateEmployeeProfile,
   updateOwnEmployeeProfile,
   updateOwnProfilePicture,
@@ -216,6 +217,21 @@ export const toggleEmployeeStatus = async (req, res, next) => {
       success: true,
       data: employee,
       message: "Employee status updated successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resendInviteToEmployee = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace) return;
+    const employee = await resendEmployeeInvite(workspace, req.params.employeeId);
+    return res.status(200).json({
+      success: true,
+      data: employee,
+      message: "Invite sent successfully.",
     });
   } catch (error) {
     next(error);
