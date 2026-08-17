@@ -78,7 +78,6 @@ import AccessPages from "../pages/Access/AccessPages";
 import ModulePermissions from "../pages/Access/ModulePermissions";
 import CreateWebsite from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/CreateWebsite";
 import EditWebsite from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditWebsite";
-import SelectWebsiteTemplate from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/SelectWebsiteTemplate";
 import Websites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Websites";
 import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsitesLayout";
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
@@ -325,7 +324,6 @@ export const routes = createBrowserRouter([
                         element: <EditWebsite />,
                       }, // with param
                       { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                      { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
                       { path: "dynamic/create-website", element: <CreateWebsite /> },
                       { path: "dynamic/leads", element: <CompanyLeads /> },
                       { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
@@ -474,7 +472,6 @@ export const routes = createBrowserRouter([
                         element: <EditWebsite />,
                       }, // with param
                       { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                      { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
                       { path: "dynamic/create-website", element: <CreateWebsite /> },
                       { path: "dynamic/leads", element: <CompanyLeads /> },
                       { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
