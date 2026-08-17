@@ -8,6 +8,7 @@ import {
   verifyEmployeeBankAccount,
   uploadEmployeeDocuments,
   toggleEmployeeStatus,
+  resendInviteToEmployee,
   updateEmployeeRecord,
   updateMyEmployeeProfile,
   updateMyProfilePicture,
@@ -43,6 +44,7 @@ router.post(
 router.post("/employees", createEmployeeRecord);
 router.patch("/employees/:employeeId", updateEmployeeRecord);
 router.patch("/employees/:employeeId/toggle-status", toggleEmployeeStatus);
+router.post("/employees/:employeeId/resend-invite", resendInviteToEmployee);
 router.get("/payroll/snapshot", getPayrollSnapshot);
 router.get("/payroll/payslip-template-preview/:templateId", previewPayrollPayslipTemplate);
 router.post("/payroll/payslip-template", selectPayrollPayslipTemplate);
