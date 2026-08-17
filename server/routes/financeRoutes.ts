@@ -44,10 +44,10 @@ router.post("/department/reset-rejected", resetRejectedAnnualBudget);
 router.get("/snapshot", listFinanceSnapshot);
 
 router.get("/tenant-billing", getTenantBillingSnapshot);
-router.post("/tenant-billing/mark-deposit-paid", markTenantSecurityDepositPaid);
-router.post("/tenant-billing/generate-deposit-invoice", generateTenantSecurityDepositInvoice);
-router.post("/tenant-billing/send-deposit-invoice", sendTenantSecurityDepositInvoice);
-router.post("/tenant-billing/reset-deposit-invoice", resetTenantSecurityDepositInvoice);
+router.patch("/tenant-billing/:tenantCompanyId", markTenantSecurityDepositPaid);
+router.post("/tenant-billing/:tenantCompanyId/invoice/generate", generateTenantSecurityDepositInvoice);
+router.post("/tenant-billing/:tenantCompanyId/invoice/send", sendTenantSecurityDepositInvoice);
+router.post("/tenant-billing/:tenantCompanyId/invoice/reset", resetTenantSecurityDepositInvoice);
 
 router.post("/approval/decision", applyFinanceApprovalDecision);
 

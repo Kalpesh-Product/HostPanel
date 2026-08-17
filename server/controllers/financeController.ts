@@ -425,10 +425,7 @@ export async function getTenantBillingSnapshot(req: Request, res: Response, next
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const tenantId = String(req.query.tenantId || "").trim();
-    if (!tenantId) return res.status(400).json({ message: "tenantId is required" });
-
-    const result = await getTenantBillingSnapshotForCurrentUser({ workspaceId, userId, tenantCompanyId: tenantId });
+    const result = await getTenantBillingSnapshotForCurrentUser({ workspaceId, userId, query: req.query });
 
     return res.status(200).json({
       success: true,
@@ -447,10 +444,10 @@ export async function markTenantSecurityDepositPaid(req: Request, res: Response,
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { tenantId } = req.body || {};
+    const tenantId = String(req.params.tenantCompanyId || "").trim();
     if (!tenantId) return res.status(400).json({ message: "tenantId is required" });
 
-    const result = await markTenantSecurityDepositPaidForCurrentUser({ workspaceId, userId, tenantCompanyId: tenantId });
+    const result = await markTenantSecurityDepositPaidForCurrentUser({ workspaceId, userId, tenantCompanyId: tenantId, body: req.body });
 
     return res.status(200).json({
       success: true,
@@ -469,7 +466,7 @@ export async function generateTenantSecurityDepositInvoice(req: Request, res: Re
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { tenantId } = req.body || {};
+    const tenantId = String(req.params.tenantCompanyId || "").trim();
     if (!tenantId) return res.status(400).json({ message: "tenantId is required" });
 
     const result = await generateTenantSecurityDepositInvoiceForCurrentUser({ workspaceId, userId, tenantCompanyId: tenantId });
@@ -491,7 +488,7 @@ export async function sendTenantSecurityDepositInvoice(req: Request, res: Respon
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { tenantId } = req.body || {};
+    const tenantId = String(req.params.tenantCompanyId || "").trim();
     if (!tenantId) return res.status(400).json({ message: "tenantId is required" });
 
     const result = await sendTenantSecurityDepositInvoiceForCurrentUser({ workspaceId, userId, tenantCompanyId: tenantId });
@@ -513,7 +510,7 @@ export async function resetTenantSecurityDepositInvoice(req: Request, res: Respo
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { tenantId } = req.body || {};
+    const tenantId = String(req.params.tenantCompanyId || "").trim();
     if (!tenantId) return res.status(400).json({ message: "tenantId is required" });
 
     const result = await resetTenantSecurityDepositInvoiceForCurrentUser({ workspaceId, userId, tenantCompanyId: tenantId });
