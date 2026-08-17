@@ -228,7 +228,7 @@ export default function CompanyReviews() {
         <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
           {/* HEADER */}
-          <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div data-tour="nomad-reviews-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Reviews
@@ -275,7 +275,7 @@ export default function CompanyReviews() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {/* STATUS FILTER PILLS */}
-              <div className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
+              <div data-tour="nomad-reviews-status-filter" className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
                 <div className="flex items-center gap-1.5 overflow-x-auto">
                   <button onClick={() => setStageFilter("all")}
                     className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${stageFilter === "all" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
@@ -313,7 +313,7 @@ export default function CompanyReviews() {
                 </select>
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                  <input type="text" placeholder="Search"
+                  <input data-tour="nomad-reviews-search" type="text" placeholder="Search"
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-100/70 border-0 rounded-lg text-[12px] font-pmedium text-slate-500 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all placeholder:text-slate-500" />
                 </div>
@@ -327,7 +327,7 @@ export default function CompanyReviews() {
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left min-w-[920px]">
+                <table data-tour="nomad-reviews-table" className="w-full text-left min-w-[920px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Reviewer</th>
@@ -393,7 +393,7 @@ export default function CompanyReviews() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
-                              <button type="button" onClick={() => setSelectedReviewId(review._id)}
+                              <button data-tour="nomad-reviews-view" type="button" onClick={() => setSelectedReviewId(review._id)}
                                 className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
                             </div>
                           </td>

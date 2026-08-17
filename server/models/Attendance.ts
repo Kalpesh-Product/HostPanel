@@ -73,6 +73,12 @@ export interface IAttendance extends Document {
     halfDayThresholdSeconds?: number | null;
     lateThresholdMinutes?: number | null;
     halfDayCutoffMinutes?: number | null;
+    shiftId?: string;
+    shiftName?: string;
+    shiftStartMinutes?: number | null;
+    shiftEndMinutes?: number | null;
+    expectedWorkSeconds?: number | null;
+    isOvernightShift?: boolean;
     punchSelfies: IAttendancePunchSelfie[];
     isActiveBreak: boolean;
     activeBreakStartedAt?: Date | null;
@@ -239,6 +245,12 @@ const attendanceSchema = new Schema<IAttendance>(
         halfDayThresholdSeconds: { type: Number, default: null },
         lateThresholdMinutes: { type: Number, default: null },
         halfDayCutoffMinutes: { type: Number, default: null },
+        shiftId: { type: String, trim: true, default: "", index: true },
+        shiftName: { type: String, trim: true, default: "" },
+        shiftStartMinutes: { type: Number, default: null },
+        shiftEndMinutes: { type: Number, default: null },
+        expectedWorkSeconds: { type: Number, default: null },
+        isOvernightShift: { type: Boolean, default: false },
         punchSelfies: { type: [attendancePunchSelfieSchema], default: [] },
         isActiveBreak: { type: Boolean, default: false },
         activeBreakStartedAt: { type: Date, default: null },

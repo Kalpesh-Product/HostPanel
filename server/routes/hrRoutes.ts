@@ -12,6 +12,8 @@ import {
   updateMyEmployeeProfile,
   updateMyProfilePicture,
   getPayrollSnapshot,
+  previewPayrollPayslipTemplate,
+  selectPayrollPayslipTemplate,
   preparePayroll,
   updatePayrollStatus,
   createPayrollAdjustment,
@@ -42,6 +44,8 @@ router.post("/employees", createEmployeeRecord);
 router.patch("/employees/:employeeId", updateEmployeeRecord);
 router.patch("/employees/:employeeId/toggle-status", toggleEmployeeStatus);
 router.get("/payroll/snapshot", getPayrollSnapshot);
+router.get("/payroll/payslip-template-preview/:templateId", previewPayrollPayslipTemplate);
+router.post("/payroll/payslip-template", selectPayrollPayslipTemplate);
 router.post("/payroll/prepare", preparePayroll);
 router.patch("/payroll/cycles/:cycleId/status", updatePayrollStatus);
 router.post("/payroll/cycles/:cycleId/employees/:profileId/adjustments", createPayrollAdjustment);

@@ -13,9 +13,13 @@ import { uploadFileToS3 } from "../config/s3config.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 import TenantEmployee from "../models/TenantEmployee.js";
 import Workspace from "../models/Workspace.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
+import Department from "../models/Department.js";
 import {
   addHrPayrollAdjustment,
+  buildWorkspacePayslipTemplatePreview,
   getHrPayrollSnapshot,
+  lockWorkspacePayslipTemplate,
   prepareHrPayrollCycle,
   updateHrPayrollCycleStatus,
 } from "../services/payrollService.js";
@@ -34,6 +38,51 @@ const resolveWorkspaceOrThrow = async (req, res) => {
     return null;
   }
   return workspace;
+};
+
+const isHrDepartmentName = (name = "") => {
+  const normalized = String(name || "").trim().toLowerCase();
+  return normalized === "hr"
+    || normalized.startsWith("hr-")
+    || normalized.startsWith("hr ")
+    || normalized.includes("human resources")
+    || normalized.includes("human-resources");
+};
+
+const canConfigurePayrollTemplate = async (req, workspace) => {
+  const rawRole = req.workspaceMembership?.role?.name || req.workspaceMembership?.role || "";
+  const role = String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (["owner", "founder", "super_admin", "superadmin", "hr_manager", "hr", "human_resources"].includes(role)) {
+    return true;
+  }
+  if (role !== "manager") return false;
+
+  const actorMembership = await WorkspaceMember.findOne({
+    workspace: workspace._id,
+    user: req.user,
+    isActive: true,
+  })
+    .select("departments")
+    .lean();
+  const departmentIds = Array.isArray(actorMembership?.departments) ? actorMembership.departments : [];
+  if (departmentIds.length === 0) return false;
+
+  const departments = await Department.find({
+    _id: { $in: departmentIds },
+    workspaceId: workspace._id,
+  })
+    .select("name")
+    .lean();
+  return departments.some((department) => isHrDepartmentName(department?.name));
+};
+
+const assertPayrollTemplateAccess = async (req, res, workspace) => {
+  if (await canConfigurePayrollTemplate(req, workspace)) return true;
+  res.status(403).json({
+    success: false,
+    message: "Only the HR manager, founder, or super admin can configure the payroll template.",
+  });
+  return false;
 };
 
 export const getEmployeeManagementOverview = async (req, res, next) => {
@@ -229,7 +278,43 @@ export const getPayrollSnapshot = async (req, res, next) => {
     const workspace = await resolveWorkspaceOrThrow(req, res);
     if (!workspace) return;
     const data = await getHrPayrollSnapshot({ workspace, userId: req.user, query: req.query });
+    data.settings = {
+      ...(data.settings || {}),
+      canConfigurePayslipTemplate: await canConfigurePayrollTemplate(req, workspace),
+    };
     return res.status(200).json({ success: true, message: "Payroll snapshot loaded successfully.", data });
+  } catch (error) { next(error); }
+};
+
+export const previewPayrollPayslipTemplate = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace || !(await assertPayrollTemplateAccess(req, res, workspace))) return;
+    const pdfBuffer = await buildWorkspacePayslipTemplatePreview({
+      workspace,
+      templateId: req.params.templateId,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline; filename=payroll-template-preview.pdf");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(pdfBuffer);
+  } catch (error) { next(error); }
+};
+
+export const selectPayrollPayslipTemplate = async (req, res, next) => {
+  try {
+    const workspace = await resolveWorkspaceOrThrow(req, res);
+    if (!workspace || !(await assertPayrollTemplateAccess(req, res, workspace))) return;
+    const data = await lockWorkspacePayslipTemplate({
+      workspaceId: workspace._id,
+      userId: req.user,
+      templateId: req.body?.templateId,
+    });
+    return res.status(200).json({
+      success: true,
+      message: "Payroll template selected and locked successfully.",
+      data,
+    });
   } catch (error) { next(error); }
 };
 

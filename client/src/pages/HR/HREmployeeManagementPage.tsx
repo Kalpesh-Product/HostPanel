@@ -25,6 +25,7 @@ import {
   updateEmployeeAccessRequest,
 } from "@/services/hr";
 import { getRecruitmentOverview } from "@/services/recruitment";
+import { getAttendanceSettings } from "@/services/attendance";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
 import { getCountries, getStates, getCities } from "@/utils/locationApi";
@@ -34,17 +35,21 @@ import {
   formatWorkspaceCurrency,
 } from "@/lib/workspaceLocalization";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
+import { formatTime12h } from "@/utils/time";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
 interface EmployeeIdProof { type: string; value: string; }
+interface EmployeeShiftOption {
+  id: string; name: string; startTime: string; endTime: string;
+}
 
 interface EmployeeFormState {
   fullName: string; dateOfBirth: string; email: string; phone: string; gender: string;
   currentAddress: string; permanentAddress: string; country: string; state: string; city: string;
   emergencyContactName: string; emergencyContactPhone: string;
   jobTitle: string; jobCode: string; departments: string[]; role: string;
-  managerUserId: string; workLocation: string; workMode: string; employmentType: string;
+  managerUserId: string; shiftId: string; workLocation: string; workMode: string; employmentType: string;
   internshipIsUnpaid: boolean; internshipDurationMonths: string; internshipEndDate: string;
   noticePeriodDays: string; probationDays: string; joiningDate: string; salaryAmount: string;
   allowancesAmount: string; deductionsAmount: string;
@@ -66,7 +71,7 @@ interface Employee {
   jobTitle: string; jobCode: string; employmentType: string; internshipDurationMonths: string;
   internshipEndDate: string; internshipIsUnpaid: boolean; workMode: string;
   workModeLabel: string; employmentTypeLabel: string; workLocation: string;
-  workLocationLabel: string; managerName: string; managerUserId: string;
+  workLocationLabel: string; managerName: string; managerUserId: string; shiftId: string;
   noticePeriodDays: number; probationDays: number; bankName: string;
   accountHolderName: string; accountNumber: string; ifscCode: string;
   nationalIdType: string; nationalIdNumber: string; taxId: string; providentFundNumber: string;
@@ -280,7 +285,7 @@ function createEmployeeFormState(): EmployeeFormState {
     fullName: "", dateOfBirth: "", email: "", phone: "", gender: "",
     currentAddress: "", permanentAddress: "", country: "", state: "", city: "", emergencyContactName: "", emergencyContactPhone: "",
     jobTitle: "", jobCode: "", departments: [], role: "",
-    managerUserId: "", workLocation: "", workMode: "hybrid", employmentType: "full-time",
+    managerUserId: "", shiftId: "", workLocation: "", workMode: "hybrid", employmentType: "full-time",
     internshipIsUnpaid: false, internshipDurationMonths: "6", internshipEndDate: "",
     noticePeriodDays: "30", probationDays: "none", joiningDate: "", salaryAmount: "",
     allowancesAmount: "", deductionsAmount: "",
@@ -373,6 +378,7 @@ function mapEmployeeToUi(employee: Record<string, unknown> = {}): Employee {
     workLocationLabel: String(employee.workLocation || ""),
     managerName: String(employee.managerName || ""),
     managerUserId: String(employee.managerUserId || ""),
+    shiftId: String(employee.shiftId || ""),
     noticePeriodDays: Number(employee.noticePeriodDays) || 30,
     probationDays: Number(employee.probationDays) || 0,
     bankName: String(employee.bankName || ""),
@@ -454,7 +460,7 @@ function getRoleCoreSectionsForEmployeeAccess(role: string = "", departments: st
   return Object.values(grouped).filter((s) => s.modules.length > 0);
 }
 
-function buildEmployeeReportRows(employee: Record<string, unknown>): Array<{ label: string; value: string }> {
+function buildEmployeeReportRows(employee: Record<string, unknown>, shiftLabel = ""): Array<{ label: string; value: string }> {
   const rawRole = String(employee.workspaceRole || employee.role || "");
   const departmentsRaw = employee.departments || employee.departmentNames || [];
   const departments = Array.isArray(departmentsRaw) ? departmentsRaw.filter(Boolean).map(String) : [String(departmentsRaw)];
@@ -485,6 +491,7 @@ function buildEmployeeReportRows(employee: Record<string, unknown>): Array<{ lab
     { label: "State", value: String(employee.state || "-") },
     { label: "City", value: String(employee.city || "-") },
     { label: "Manager", value: String(employee.managerName || "-") },
+    { label: "Shift", value: shiftLabel || "Not assigned" },
     { label: "Salary Package", value: String(employee.salaryLabel || "-") },
     { label: "Monthly Allowances", value: salary.allowances ? String(salary.allowances) : "-" },
     { label: "Monthly Deductions (Tax/PF)", value: salary.deductions ? String(salary.deductions) : "-" },
@@ -731,6 +738,44 @@ function IdProofsEditor({
   );
 }
 
+function EmployeeShiftField({
+  value, shifts, error, onChange, onConfigureShifts,
+}: {
+  value: string;
+  shifts: EmployeeShiftOption[];
+  error?: string;
+  onChange: (value: string) => void;
+  onConfigureShifts?: () => void;
+}): React.ReactElement {
+  const isLocked = shifts.length === 0;
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Shift <span className="text-red-400">*</span></label>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={isLocked}
+        className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${error ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
+      >
+        <option value="">{isLocked ? "No shifts configured" : "Select Shift"}</option>
+        {shifts.map((shift) => (
+          <option key={shift.id} value={shift.id}>{shift.name} ({formatTime12h(shift.startTime)} - {formatTime12h(shift.endTime)})</option>
+        ))}
+      </select>
+      {isLocked ? (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2">
+          <p className="flex items-center gap-1 text-[9px] font-pmedium text-amber-700"><Lock size={10} /> No shifts are added.</p>
+          <button type="button" onClick={onConfigureShifts} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-600 px-2 py-1 text-[9px] font-pmedium uppercase tracking-wider text-white hover:bg-amber-700">
+            <Plus size={10} /> Add Shift
+          </button>
+        </div>
+      ) : error ? <p className="text-[10px] font-pmedium text-red-500">{error}</p> : (
+        <p className="text-[9px] font-pmedium text-slate-400">Attendance and leave hours follow this shift.</p>
+      )}
+    </div>
+  );
+}
+
 function DepartmentCheckboxDropdown({
   departments,
   selectedDepartments,
@@ -811,6 +856,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [transferredEmployees, setTransferredEmployees] = useState<Employee[]>([]);
   const [availableDepartments, setAvailableDepartments] = useState<string[]>(DEFAULT_DEPARTMENT_OPTIONS);
+  const [attendanceShifts, setAttendanceShifts] = useState<EmployeeShiftOption[]>([]);
   const [workspaceCurrency, setWorkspaceCurrency] = useState(DEFAULT_WORKSPACE_CURRENCY);
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [stateOptions, setStateOptions] = useState<string[]>([]);
@@ -937,6 +983,22 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const userId = currentUser?.id || currentUser?._id;
     if (userId) loadEmployees();
   }, [currentUser?.id, currentUser?._id, (currentUser as Record<string, unknown>)?.activeWorkspaceId, (currentUser as Record<string, unknown>)?.workspace?.id]);
+
+  useEffect(() => {
+    let active = true;
+    getAttendanceSettings()
+      .then((response: any) => {
+        if (!active) return;
+        const settings = response?.data?.settings || response?.settings || null;
+        const shifts = Array.isArray(settings?.shifts) ? settings.shifts : [];
+        setAttendanceShifts(shifts.map((shift: any) => ({
+          id: String(shift.id || ""), name: String(shift.name || ""),
+          startTime: String(shift.startTime || ""), endTime: String(shift.endTime || ""),
+        })).filter((shift: EmployeeShiftOption) => shift.id && shift.name));
+      })
+      .catch(() => { if (active) setAttendanceShifts([]); });
+    return () => { active = false; };
+  }, [currentUser?.id, currentUser?._id, (currentUser as Record<string, unknown>)?.activeWorkspaceId]);
 
   useEffect(() => {
     let isActive = true;
@@ -1167,6 +1229,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     if (!form.country.trim()) errors.country = "Country is required";
     if (!form.state.trim()) errors.state = "State is required";
     if (!form.city.trim()) errors.city = "City is required";
+    if (attendanceShifts.length === 0) errors.shiftId = "Configure at least one shift in Attendance Settings";
+    else if (!form.shiftId.trim()) errors.shiftId = "Shift is required";
     const requiresCompensation = !isInternshipEmploymentType(form.employmentType) || !form.internshipIsUnpaid;
     const annualCtc = Number(form.salaryAmount);
     if (requiresCompensation && (!Number.isFinite(annualCtc) || annualCtc <= 0)) {
@@ -1438,6 +1502,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       departments: normalizeDepartmentSelection(employee.role, isWorkspaceLeaderRole(employee.role) ? allDepartments : employee.departments),
       role: employee.role || "Employee",
       managerUserId: employee.managerUserId,
+      shiftId: employee.shiftId || "",
       workLocation: employee.workLocation, workMode: employee.workMode,
       employmentType: employee.employmentType || "full-time",
       internshipIsUnpaid: employee.internshipIsUnpaid,
@@ -1895,6 +1960,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       departmentNames: departments,
       workspaceRole: mapRoleLabelToValue(form.role),
       managerUserId: form.managerUserId || null,
+      shiftId: form.shiftId,
       managerName: form.managerUserId
         ? managerNameById.get(form.managerUserId) || (editingEmployee?.managerName ?? "")
         : "",
@@ -1947,10 +2013,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     }
   };
 
-  const employeeViewRows = useMemo(
-    () => viewingEmployee ? buildEmployeeReportRows(viewingEmployee as unknown as Record<string, unknown>) : [],
-    [viewingEmployee],
-  );
+  const employeeViewRows = useMemo(() => {
+    if (!viewingEmployee) return [];
+    const shift = attendanceShifts.find((option) => option.id === viewingEmployee.shiftId);
+    const shiftLabel = shift
+      ? `${shift.name} (${formatTime12h(shift.startTime)} - ${formatTime12h(shift.endTime)})`
+      : "Not assigned";
+    return buildEmployeeReportRows(viewingEmployee as unknown as Record<string, unknown>, shiftLabel);
+  }, [viewingEmployee, attendanceShifts]);
 
   /* ───────────────────── Render ───────────────────── */
 
@@ -2271,6 +2341,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         <p className="text-[9px] font-medium text-slate-400">Manager can only be assigned for Employee role.</p>
                       )}
                     </div>
+                    <EmployeeShiftField
+                      value={addForm.shiftId}
+                      shifts={attendanceShifts}
+                      error={addFormErrors.shiftId}
+                      onChange={(value) => handleAddFieldChange("shiftId", value)}
+                      onConfigureShifts={() => navigate("/hr/attendance-review?openAttendanceSettings=1")}
+                    />
                   </div>
 
                   {/* Internship Options */}
@@ -2429,10 +2506,72 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <>
               {/* ─── Data Panel ─── */}
               <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-                {/* Header Row: Search + Filters */}
-                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                  {/* Search */}
-                  <div className="relative flex-1 min-w-[180px] w-full xl:w-auto">
+                {/* Header: status sub-tabs + filters + search + add button, all in one line */}
+                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex items-center gap-3 bg-slate-50/50 overflow-x-auto">
+                  {/* Status Sub-Tabs (Pill Filters) */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setStatusFilter("all")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                        statusFilter === "all"
+                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {statusFilterOptions.filter((o) => o.key !== "probation" && o.key !== "terminated").map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setStatusFilter(opt.key)}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                          statusFilter === opt.key
+                            ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                            : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Spacer */}
+                  <div className="flex-1 shrink-0" />
+
+                  {/* Department filter */}
+                  <div className="relative shrink-0">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      value={deptFilter}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
+                      className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                    >
+                      <option>All Departments</option>
+                      {availableDepartments.map((department) => (
+                        <option key={department} value={department}>{department}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={13} />
+                  </div>
+
+                  {/* Role filter */}
+                  <div className="relative shrink-0">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      value={roleFilter}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
+                      className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                    >
+                      <option>All Roles</option>
+                      {roleFilterOptions.map((role) => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={13} />
+                  </div>
+
+                  {/* Search (compact width) */}
+                  <div className="relative w-44 sm:w-52 shrink-0">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text"
@@ -2443,73 +2582,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     />
                   </div>
 
-                  {/* Right: Filters */}
-                  <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                    {/* Department filter */}
-                    <div className="relative">
-                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                      <select
-                        value={deptFilter}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                      >
-                        <option>All Departments</option>
-                        {availableDepartments.map((department) => (
-                          <option key={department} value={department}>{department}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Role filter */}
-                    <div className="relative">
-                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                      <select
-                        value={roleFilter}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                      >
-                        <option>All Roles</option>
-                        {roleFilterOptions.map((role) => (
-                          <option key={role} value={role}>{role}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Add Employee button */}
-                    <button
-                      onClick={() => { setIsAddModalOpen(true); resetAddForm(); }}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                    >
-                      <UserPlus size={13} strokeWidth={2.5} /> ADD EMPLOYEE
-                    </button>
-                  </div>
-                </div>
-
-                {/* Status Sub-Tabs (Pill Filters) */}
-                <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
+                  {/* Add Employee button */}
                   <button
-                    onClick={() => setStatusFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                      statusFilter === "all"
-                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                    }`}
+                    onClick={() => { setIsAddModalOpen(true); resetAddForm(); }}
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap shrink-0"
                   >
-                    All
+                    <UserPlus size={13} strokeWidth={2.5} /> ADD EMPLOYEE
                   </button>
-                  {statusFilterOptions.filter((o) => o.key !== "probation" && o.key !== "terminated").map((opt) => (
-                    <button
-                      key={opt.key}
-                      onClick={() => setStatusFilter(opt.key)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                        statusFilter === opt.key
-                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
                 </div>
 
                 {/* Table */}
@@ -3080,6 +3159,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <p className="text-[9px] font-pmedium text-slate-400">Manager can only be assigned for Employee role.</p>
                     )}
                   </div>
+                  <EmployeeShiftField
+                    value={editForm.shiftId}
+                    shifts={attendanceShifts}
+                    error={editFormErrors.shiftId}
+                    onChange={(value) => setEditForm((previous) => ({ ...previous, shiftId: value }))}
+                    onConfigureShifts={() => navigate("/hr/attendance-review?openAttendanceSettings=1")}
+                  />
                 </div>
               </FormSection>
 
@@ -3469,6 +3555,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <p className="text-[9px] font-pmedium text-slate-400">Manager can only be assigned for Employee role.</p>
                     )}
                   </div>
+                    <EmployeeShiftField
+                      value={addForm.shiftId}
+                      shifts={attendanceShifts}
+                      error={addFormErrors.shiftId}
+                      onChange={(value) => handleAddFieldChange("shiftId", value)}
+                      onConfigureShifts={() => navigate("/hr/attendance-review?openAttendanceSettings=1")}
+                    />
                 </div>
               </FormSection>
               <FormSection title="Compensation & Bank Details" icon={FileText}>

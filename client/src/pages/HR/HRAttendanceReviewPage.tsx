@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search, Eye, X, Clock, CheckCircle2, XCircle, AlertCircle,
   AlertTriangle, Users, Building2, ChevronDown, Calendar,
-  Filter, Check, Ban, Loader2, User, MapPin, Navigation, Coffee, Settings, Edit3,
+  Filter, Check, Ban, Loader2, User, MapPin, Navigation, Coffee, Settings, Edit3, Plus, Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -28,7 +28,10 @@ interface AttendanceRecord {
   recordId?: string;
   userId?: string;
   employeeName?: string;
+  employeeEmail?: string;
   employeeId?: string;
+  shiftId?: string;
+  shiftName?: string;
   department?: string;
   date?: string;
   checkIn?: string;
@@ -119,6 +122,13 @@ interface AttendanceSettingsConfig {
   breakDurationMinutes: number | null;
   lateMarkAfter: string | null;
   halfDayMarkAfter: string | null;
+  shifts: Array<{
+    id: string; name: string; startTime: string; endTime: string;
+    breakDurationMinutes: number | null;
+    weeklyWorkingHours: number | null;
+    lateMarkAfter: string | null;
+    halfDayMarkAfter: string | null;
+  }>;
 }
 
 /* ───────────────────────────── Constants ───────────────────────────── */
@@ -502,6 +512,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
 export default function HRAttendanceReviewPage() {
   const navigate = useNavigate();
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("attendance-master");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -557,7 +568,17 @@ export default function HRAttendanceReviewPage() {
     breakDurationMinutes: null,
     lateMarkAfter: null,
     halfDayMarkAfter: null,
+    shifts: [],
   });
+
+  useEffect(() => {
+    if (searchParams.get("openAttendanceSettings") !== "1") return;
+    setShowGeofenceModal(true);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("openAttendanceSettings");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
 
   const { rangeFrom, rangeTo } = useMemo(() => {
     const today = getLocalDateString();
@@ -577,10 +598,7 @@ export default function HRAttendanceReviewPage() {
 
   const isAttendanceFullyConfigured = useMemo(() => {
     const geofenceReady = geofenceConfig.enabled && geofenceConfig.latitude != null && geofenceConfig.longitude != null;
-    const settingsReady = attendanceSettings.weeklyWorkingHours != null
-      && Boolean(attendanceSettings.workingHoursStart)
-      && Boolean(attendanceSettings.workingHoursEnd)
-      && attendanceSettings.breakDurationMinutes != null;
+    const settingsReady = attendanceSettings.shifts.length > 0;
     return geofenceReady && settingsReady;
   }, [geofenceConfig, attendanceSettings]);
 
@@ -637,6 +655,13 @@ export default function HRAttendanceReviewPage() {
             breakDurationMinutes: nextSettings.breakDurationMinutes != null ? Number(nextSettings.breakDurationMinutes) : null,
             lateMarkAfter: nextSettings.lateMarkAfter || null,
             halfDayMarkAfter: nextSettings.halfDayMarkAfter || null,
+            shifts: Array.isArray(nextSettings.shifts) ? nextSettings.shifts.map((shift: any) => ({
+              id: String(shift.id || ""), name: String(shift.name || ""),
+              startTime: String(shift.startTime || ""), endTime: String(shift.endTime || ""),
+              breakDurationMinutes: shift.breakDurationMinutes != null ? Number(shift.breakDurationMinutes) : null,
+              weeklyWorkingHours: shift.weeklyWorkingHours != null ? Number(shift.weeklyWorkingHours) : null,
+              lateMarkAfter: shift.lateMarkAfter || null, halfDayMarkAfter: shift.halfDayMarkAfter || null,
+            })) : [],
           });
         }
         setStats({
@@ -887,31 +912,50 @@ export default function HRAttendanceReviewPage() {
     );
   };
 
+  const updateAdditionalShift = (shiftId: string, field: string, value: string | number | null) => {
+    setAttendanceSettings((current) => ({
+      ...current,
+      shifts: current.shifts.map((shift) => shift.id === shiftId ? { ...shift, [field]: value } : shift),
+    }));
+  };
+
+  const addAdditionalShift = () => {
+    setAttendanceSettings((current) => {
+      const presets = [
+        { id: "day-shift", name: "Day Shift" },
+        { id: "afternoon-shift", name: "Afternoon Shift" },
+        { id: "night-shift", name: "Night Shift" },
+      ];
+      const preset = presets.find((candidate) => !current.shifts.some((shift) => shift.id === candidate.id));
+      const sequence = current.shifts.length + 1;
+      return {
+        ...current,
+        shifts: [...current.shifts, {
+          id: preset?.id || `shift-${Date.now()}`,
+          name: preset?.name || `Shift ${sequence}`,
+          startTime: "",
+          endTime: "",
+          breakDurationMinutes: null,
+          weeklyWorkingHours: null,
+          lateMarkAfter: null,
+          halfDayMarkAfter: null,
+        }],
+      };
+    });
+  };
+
+  const removeAdditionalShift = (shiftId: string) => {
+    setAttendanceSettings((current) => ({ ...current, shifts: current.shifts.filter((shift) => shift.id !== shiftId) }));
+  };
+
   const handleSaveAttendanceSettings = async () => {
-    if (attendanceSettings.weeklyWorkingHours == null || !attendanceSettings.workingHoursStart || !attendanceSettings.workingHoursEnd || attendanceSettings.breakDurationMinutes == null) {
-      toast.error("Fill in weekly working hours, working hours start/end, and break duration.");
+    if (attendanceSettings.shifts.length === 0) {
+      toast.error("Add and configure at least one shift.");
       return;
     }
-    if (
-      attendanceSettings.lateMarkAfter
-      && (attendanceSettings.lateMarkAfter <= attendanceSettings.workingHoursStart || attendanceSettings.lateMarkAfter >= attendanceSettings.workingHoursEnd)
-    ) {
-      toast.error("Late mark-after time must be after clock-in and before clock-out.");
-      return;
-    }
-    if (
-      attendanceSettings.halfDayMarkAfter
-      && (attendanceSettings.halfDayMarkAfter <= attendanceSettings.workingHoursStart || attendanceSettings.halfDayMarkAfter >= attendanceSettings.workingHoursEnd)
-    ) {
-      toast.error("Half-day mark-after time must be after clock-in and before clock-out.");
-      return;
-    }
-    if (
-      attendanceSettings.lateMarkAfter
-      && attendanceSettings.halfDayMarkAfter
-      && attendanceSettings.halfDayMarkAfter < attendanceSettings.lateMarkAfter
-    ) {
-      toast.error("Half-day mark-after time must be at or after the late mark-after time.");
+    const invalidShift = attendanceSettings.shifts.find((shift) => !shift.name.trim() || !shift.startTime || !shift.endTime || shift.breakDurationMinutes == null || shift.weeklyWorkingHours == null);
+    if (invalidShift) {
+      toast.error("Complete the name, start, end, break, and weekly hours for every shift.");
       return;
     }
     setGeofenceSaving(true);
@@ -935,13 +979,15 @@ export default function HRAttendanceReviewPage() {
         setGeofencePreviewUrl(buildGeofenceIframeUrl(nextGeofence.latitude, nextGeofence.longitude));
       }
 
+      const primaryShift = attendanceSettings.shifts[0];
       const settingsResponse = await updateAttendanceSettings({
-        weeklyWorkingHours: attendanceSettings.weeklyWorkingHours,
-        workingHoursStart: attendanceSettings.workingHoursStart,
-        workingHoursEnd: attendanceSettings.workingHoursEnd,
-        breakDurationMinutes: attendanceSettings.breakDurationMinutes,
-        lateMarkAfter: attendanceSettings.lateMarkAfter,
-        halfDayMarkAfter: attendanceSettings.halfDayMarkAfter,
+        weeklyWorkingHours: primaryShift.weeklyWorkingHours,
+        workingHoursStart: primaryShift.startTime,
+        workingHoursEnd: primaryShift.endTime,
+        breakDurationMinutes: primaryShift.breakDurationMinutes,
+        lateMarkAfter: primaryShift.lateMarkAfter,
+        halfDayMarkAfter: primaryShift.halfDayMarkAfter,
+        shifts: attendanceSettings.shifts,
       });
       const nextSettings = settingsResponse?.data?.settings || settingsResponse?.settings || null;
       if (nextSettings) {
@@ -952,6 +998,13 @@ export default function HRAttendanceReviewPage() {
           breakDurationMinutes: nextSettings.breakDurationMinutes != null ? Number(nextSettings.breakDurationMinutes) : null,
           lateMarkAfter: nextSettings.lateMarkAfter || null,
           halfDayMarkAfter: nextSettings.halfDayMarkAfter || null,
+            shifts: Array.isArray(nextSettings.shifts) ? nextSettings.shifts.map((shift: any) => ({
+              id: String(shift.id || ""), name: String(shift.name || ""),
+              startTime: String(shift.startTime || ""), endTime: String(shift.endTime || ""),
+              breakDurationMinutes: shift.breakDurationMinutes != null ? Number(shift.breakDurationMinutes) : null,
+              weeklyWorkingHours: shift.weeklyWorkingHours != null ? Number(shift.weeklyWorkingHours) : null,
+              lateMarkAfter: shift.lateMarkAfter || null, halfDayMarkAfter: shift.halfDayMarkAfter || null,
+            })) : [],
         });
       }
 
@@ -1088,9 +1141,9 @@ export default function HRAttendanceReviewPage() {
                 left, then the Today / This Month / Custom Range tabs, the search
                 bar and the Attendance Settings button last; the custom range
                 opens as a popup so it never pushes the layout. */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="overflow-x-auto p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
+              <div className="flex min-w-max flex-nowrap items-center justify-between gap-3">
+                <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
                   {(activeTab === "attendance-master" ? ATTENDANCE_FILTER_PILLS : CORRECTION_FILTER_PILLS).map((pill) => (
                     <button
                       key={pill.key}
@@ -1106,7 +1159,7 @@ export default function HRAttendanceReviewPage() {
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex shrink-0 flex-nowrap items-center gap-3">
                   <div className="relative">
                     <div className="flex items-center gap-1.5">
                       {DATE_FILTER_OPTIONS.map((opt) => (
@@ -1174,7 +1227,7 @@ export default function HRAttendanceReviewPage() {
                     )}
                   </div>
 
-                  <div className="relative w-full sm:w-64">
+                  <div className="relative w-64 shrink-0">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text"
@@ -1207,21 +1260,22 @@ export default function HRAttendanceReviewPage() {
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain pb-2">
               {activeTab === "attendance-master" ? (
-                <table className="w-full">
+                <table className="w-full min-w-[1610px] table-auto">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-5 py-4 text-left">Emp ID</th>
-                      <th className="px-5 py-4 text-left">Employee</th>
-                      <th className="px-5 py-4 text-left">Department</th>
-                      <th className="px-5 py-4 text-left">Role</th>
-                      <th className="px-5 py-4 text-left">Date</th>
-                      <th className="px-5 py-4 text-left">Check In</th>
-                      <th className="px-5 py-4 text-left">Check Out</th>
-                      <th className="px-5 py-4 text-left">Status</th>
-                      <th className="px-5 py-4 text-left">Hours</th>
-                      <th className="px-5 py-4 text-center">Action</th>
+                      <th className="min-w-[120px] px-6 py-4 text-left">Emp ID</th>
+                      <th className="min-w-[260px] px-6 py-4 text-left">Employee</th>
+                      <th className="min-w-[180px] px-6 py-4 text-left">Department</th>
+                      <th className="min-w-[140px] px-6 py-4 text-left">Role</th>
+                      <th className="min-w-[180px] px-6 py-4 text-left">Shift</th>
+                      <th className="min-w-[150px] px-6 py-4 text-left">Date</th>
+                      <th className="min-w-[130px] px-6 py-4 text-left">Check In</th>
+                      <th className="min-w-[130px] px-6 py-4 text-left">Check Out</th>
+                      <th className="min-w-[140px] px-6 py-4 text-left">Status</th>
+                      <th className="min-w-[120px] px-6 py-4 text-left">Hours</th>
+                      <th className="min-w-[90px] px-6 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
@@ -1229,40 +1283,48 @@ export default function HRAttendanceReviewPage() {
                       renderTableSkeletonRows(10)
                     ) : filteredAttendance.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-20 text-slate-400 font-pmedium">
+                        <td colSpan={11} className="text-center py-20 text-slate-400 font-pmedium">
                           No attendance records found.
                         </td>
                       </tr>
                     ) : (
                       filteredAttendance.map((record, idx) => (
                         <tr key={record.id || record.recordId || idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">
+                          <td className="min-w-[120px] whitespace-nowrap px-6 py-4 text-[11px] font-pmedium text-slate-700">
                             {record.employeeId || "--"}
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-2.5">
-                              <User size={14} className="text-slate-400" />
-                              <p className="text-[12px] font-pmedium text-slate-800 truncate">{record.employeeName || "--"}</p>
+                          <td className="min-w-[260px] px-6 py-4">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <User size={14} className="shrink-0 text-slate-400" />
+                              <div className="min-w-0">
+                                <p className="truncate text-[12px] font-pmedium text-slate-800" title={record.employeeName || ""}>{record.employeeName || "--"}</p>
+                                <p className="mt-0.5 max-w-[220px] truncate text-[10px] font-pmedium text-slate-400" title={record.employeeEmail || ""}>{record.employeeEmail || "Email not available"}</p>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{record.department || "--"}</td>
-                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{formatRoleLabel(record.employeeRole)}</td>
-                          <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">{formatLongDate(record.date)}</td>
-                          <td className="px-5 py-4">
+                          <td className="min-w-[180px] whitespace-nowrap px-6 py-4 text-[11px] font-pmedium text-slate-600">{record.department || "--"}</td>
+                          <td className="min-w-[140px] whitespace-nowrap px-6 py-4 text-[11px] font-pmedium text-slate-600">{formatRoleLabel(record.employeeRole)}</td>
+                          <td className="min-w-[180px] whitespace-nowrap px-6 py-4">
+                            <span className="inline-flex rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-[10px] font-pmedium text-blue-700">
+                              {record.shiftName || "Not assigned"}
+                            </span>
+                          </td>
+                          <td className="min-w-[150px] whitespace-nowrap px-6 py-4 text-[11px] font-pmedium text-slate-700">{formatLongDate(record.date)}</td>
+                          <td className="min-w-[130px] whitespace-nowrap px-6 py-4">
                             <span className="text-[12px] font-pmedium text-slate-800">
                               {record.checkIn ? formatTime12h(record.checkIn) : "--"}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="min-w-[130px] whitespace-nowrap px-6 py-4">
                             <span className="text-[12px] font-pmedium text-slate-800">
                               {record.checkOut ? formatTime12h(record.checkOut) : "--"}
                             </span>
                           </td>
-                          <td className="px-5 py-4"><StatusBadge status={record.status} /></td>
-                          <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">
+                          <td className="min-w-[140px] whitespace-nowrap px-6 py-4"><StatusBadge status={record.status} /></td>
+                          <td className="min-w-[120px] whitespace-nowrap px-6 py-4 text-[12px] font-pmedium text-slate-700">
                             {formatDuration(record.totalHours ?? record.workingHours)}
                           </td>
-                          <td className="px-5 py-4 text-center">
+                          <td className="min-w-[90px] whitespace-nowrap px-6 py-4 text-center">
                             <button
                               onClick={() => openDetail(record)}
                               className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
@@ -1409,86 +1471,40 @@ export default function HRAttendanceReviewPage() {
 
               <div className="max-h-[74vh] overflow-y-auto p-6 space-y-4">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                    <Clock size={12} /> Working Hours & Weekly Target
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div>
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Start</label>
-                      <input
-                        type="time"
-                        value={attendanceSettings.workingHoursStart}
-                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, workingHoursStart: e.target.value }))}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">End</label>
-                      <input
-                        type="time"
-                        value={attendanceSettings.workingHoursEnd}
-                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, workingHoursEnd: e.target.value }))}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 flex items-center gap-1"><Coffee size={10} /> Break (min)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={480}
-                        value={attendanceSettings.breakDurationMinutes ?? ""}
-                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, breakDurationMinutes: e.target.value === "" ? null : Number(e.target.value) }))}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                        placeholder="60"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Weekly hours</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={168}
-                        value={attendanceSettings.weeklyWorkingHours ?? ""}
-                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, weeklyWorkingHours: e.target.value === "" ? null : Number(e.target.value) }))}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                        placeholder="40"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
+                      <Clock size={12} /> Shifts
+                    </p>
+                    <button type="button" onClick={addAdditionalShift} className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-white hover:bg-blue-700">
+                      <Plus size={12} /> Add Shift
+                    </button>
                   </div>
-                  <p className="mt-3 text-[11px] font-pmedium text-slate-500">
-                    Employees checking in after start time + a 30-minute grace period are marked late by default — set a custom cutoff below.
-                  </p>
-                </div>
 
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                    <AlertTriangle size={12} /> Late & Half-Day Cutoffs (optional)
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Mark late after</label>
-                      <input
-                        type="time"
-                        value={attendanceSettings.lateMarkAfter ?? ""}
-                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, lateMarkAfter: e.target.value || null }))}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      />
+                  {attendanceSettings.shifts.length === 0 ? (
+                    <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-amber-50 px-4 py-6 text-center">
+                      <p className="text-[11px] font-pmedium text-amber-700">No shifts are added.</p>
+                      <p className="mt-1 text-[10px] font-pmedium text-amber-600">Add Day Shift first, then Afternoon or Night Shift when required.</p>
                     </div>
-                    <div>
-                      <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Mark half-day after</label>
-                      <input
-                        type="time"
-                        value={attendanceSettings.halfDayMarkAfter ?? ""}
-                        onChange={(e) => setAttendanceSettings((current) => ({ ...current, halfDayMarkAfter: e.target.value || null }))}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-900 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                      />
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      {attendanceSettings.shifts.map((shift) => (
+                        <div key={shift.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <input value={shift.name} onChange={(e) => updateAdditionalShift(shift.id, "name", e.target.value)} className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-[12px] font-pmedium text-slate-900 outline-none focus:border-[#2563EB]" placeholder="Shift name" />
+                            <button type="button" onClick={() => removeAdditionalShift(shift.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={`Remove ${shift.name}`}><Trash2 size={14} /></button>
+                          </div>
+                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Start<input type="time" value={shift.startTime} onChange={(e) => updateAdditionalShift(shift.id, "startTime", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12px] text-slate-900" /></label>
+                            <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">End<input type="time" value={shift.endTime} onChange={(e) => updateAdditionalShift(shift.id, "endTime", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12px] text-slate-900" /></label>
+                            <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Break (min)<input type="number" min={0} max={480} value={shift.breakDurationMinutes ?? ""} onChange={(e) => updateAdditionalShift(shift.id, "breakDurationMinutes", e.target.value === "" ? null : Number(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12px] text-slate-900" /></label>
+                            <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Weekly hours<input type="number" min={1} max={168} value={shift.weeklyWorkingHours ?? ""} onChange={(e) => updateAdditionalShift(shift.id, "weeklyWorkingHours", e.target.value === "" ? null : Number(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12px] text-slate-900" /></label>
+                            <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Mark late after<input type="time" value={shift.lateMarkAfter ?? ""} onChange={(e) => updateAdditionalShift(shift.id, "lateMarkAfter", e.target.value || null)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12px] text-slate-900" /></label>
+                            <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Mark half-day after<input type="time" value={shift.halfDayMarkAfter ?? ""} onChange={(e) => updateAdditionalShift(shift.id, "halfDayMarkAfter", e.target.value || null)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12px] text-slate-900" /></label>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <p className="mt-3 text-[11px] font-pmedium text-slate-500">
-                    Both must fall between the start and end times above. Leave blank to keep the default (30-minute late grace, 1:20 PM half-day cutoff).
-                    An employee clocking in at or after the half-day cutoff is marked half-day regardless of hours worked; a day is also marked half-day automatically whenever total worked hours come out to half or less of the expected daily hours — this part is always calculated from actual clock-in/clock-out, not set manually.
-                  </p>
+                  )}
                 </div>
 
                 <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">

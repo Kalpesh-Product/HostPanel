@@ -413,11 +413,12 @@ const NomadListing = () => {
         </div>
         <form
           ref={formRef}
+          data-tour="nomad-listing-form"
           encType="multipart/form-data"
           onSubmit={handleSubmit(onSubmit)}
           className="md:grid grid-cols-2 gap-4"
         >
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-identity">
             {/* Company Title */}
             <Controller
               name="companyTitle"
@@ -445,7 +446,7 @@ const NomadListing = () => {
               )}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-company-type">
             {/* Company Type */}
             <Controller
               name="companyType"
@@ -516,7 +517,7 @@ const NomadListing = () => {
               </p>
             )}
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-inclusions">
             {/* Inclusions — fixed list per company type, curated on Nomads;
                 hosts can pick from it but not add new ones. */}
             <Controller
@@ -685,7 +686,7 @@ const NomadListing = () => {
             />
           </div>
           */}
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-address">
             {/* Address */}
             <Controller
               name="address"
@@ -765,7 +766,7 @@ const NomadListing = () => {
               )}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-country">
             {/* Country — each listing has its own location, independent of
                 the host's registered company address. */}
             <Controller
@@ -880,7 +881,7 @@ const NomadListing = () => {
               }}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-map">
             {/* Google Map URL */}
             <Controller
               name="googleMap"
@@ -958,7 +959,7 @@ const NomadListing = () => {
               )}
             />
           </div>
-          <div className="mb-4 md:mb-0">
+          <div className="mb-4 md:mb-0" data-tour="nomad-listing-images">
             {/* Images */}
             <Controller
               name="images"
@@ -1003,7 +1004,7 @@ const NomadListing = () => {
             )}
           </div>
           {/* Reviews */}
-          <div className="col-span-2">
+          <div className="col-span-2" data-tour="nomad-listing-reviews">
             <div className="py-4 border-b border-gray-300">
               <span className="text-lg font-pmedium text-primary">Reviews</span>
             </div>
@@ -1092,6 +1093,7 @@ const NomadListing = () => {
           <div className="col-span-2 flex items-center justify-center gap-4">
             <button
               type="submit"
+              data-tour="nomad-listing-submit"
               disabled={isCreating}
               className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
             >
@@ -1105,6 +1107,7 @@ const NomadListing = () => {
             </button>
             <button
               type="button"
+              data-tour="nomad-listing-reset"
               onClick={() => {
                 if (window.confirm("All entered data will be reset. Are you sure you want to continue?")) {
                   resetFormToEmpty();

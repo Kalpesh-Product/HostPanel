@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   completeResignationRequest,
   createResignationRequest,
+  extendResignationNotice,
   getResignationRequest,
   getResignationSettings,
   getMyResignationRequests,
@@ -24,6 +25,7 @@ router.patch("/requests/:requestId", updateResignationRequest);
 router.patch("/requests/:requestId/review", reviewResignationRequest);
 router.patch("/requests/:requestId/decision", reviewResignationRequest);
 router.patch("/requests/:requestId/checklist", updateResignationChecklist);
+router.patch("/requests/:requestId/extend-notice", extendResignationNotice);
 router.post("/requests/:requestId/complete", completeResignationRequest);
 
 export default router;

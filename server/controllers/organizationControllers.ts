@@ -12,6 +12,7 @@ import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
 import { renderNotificationEmail } from "../utils/emailTemplates.js";
 import { createNotification } from "../utils/notify.js";
+import { findAttendanceShift, getConfiguredAttendanceShifts } from "../utils/attendanceShifts.js";
 import {
   buildWorkspaceModuleCatalog,
   COMMON_MODULE_IDS,
@@ -992,9 +993,12 @@ export const getOrganizationOverview = async (req, res, next) => {
 
     const employeeProfiles = await EmployeeProfile.find({
       workspaceId: workspace._id,
-      linkedWorkspaceMemberId: { $in: members.map((m) => m._id) },
+      $or: [
+        { linkedWorkspaceMemberId: { $in: members.map((m) => m._id) } },
+        { linkedUserId: { $in: members.map((m) => m.user?._id).filter(Boolean) } },
+      ],
     })
-      .select("linkedWorkspaceMemberId employeeId")
+      .select("linkedWorkspaceMemberId linkedUserId employeeId shiftId")
       .lean()
       .exec();
 
@@ -1004,6 +1008,21 @@ export const getOrganizationOverview = async (req, res, next) => {
         .map((ep) => [String(ep.linkedWorkspaceMemberId), ep.employeeId]),
     );
 
+    const employeeProfileByMemberId = new Map(
+      employeeProfiles
+        .filter((profile) => profile.linkedWorkspaceMemberId)
+        .map((profile) => [String(profile.linkedWorkspaceMemberId), profile]),
+    );
+    const employeeProfileByUserId = new Map(
+      employeeProfiles
+        .filter((profile) => profile.linkedUserId)
+        .map((profile) => [String(profile.linkedUserId), profile]),
+    );
+    const getEmployeeShiftForMember = (member) => {
+      const profile = employeeProfileByMemberId.get(String(member?._id))
+        || employeeProfileByUserId.get(toId(member?.user?._id));
+      return findAttendanceShift(workspace, profile?.shiftId);
+    };
     // A department manager (not owner/super_admin/admin) only manages their
     // own department(s) — scope the visible departments/members down to that,
     // instead of the whole company, even though hasOrganizationAccess() above
@@ -1058,6 +1077,8 @@ export const getOrganizationOverview = async (req, res, next) => {
           name: member.user?.name || "",
           email: member.user?.email || "",
           employeeId: employeeIdByMemberId.get(String(member._id)) || "",
+          shiftId: getEmployeeShiftForMember(member)?.id || "",
+          shiftName: getEmployeeShiftForMember(member)?.name || "",
           joinedAt: member.createdAt || null,
           role: toRoleLabel(member.role),
           roleBand: getRoleBand(member.role),
@@ -1175,6 +1196,7 @@ export const getOrganizationOverview = async (req, res, next) => {
     return res.status(200).json({
       message: "Organization overview loaded successfully.",
       data: {
+        attendanceShifts: getConfiguredAttendanceShifts(workspace),
         workspace: {
           id: toId(workspace._id),
           selectedPlan: workspace.selectedPlan || "basic",
@@ -2713,6 +2735,77 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
   }
 };
 
+export const updateOrganizationMemberShift = async (req, res, next) => {
+  try {
+    const { user: actor, workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace || !actor) return res.status(404).json({ message: "Workspace not found for this user." });
+
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    }).populate("role").lean();
+    const actorRoleBand = getRoleBand(actorMembership?.role || "");
+    const isManagerActor = actorRoleBand === "manager";
+    if (!["owner", "super_admin", "manager"].includes(actorRoleBand)) {
+      return res.status(403).json({ message: "Only the founder, super admin, or a department manager can change employee shifts." });
+    }
+
+    const member = await WorkspaceMember.findOne({
+      _id: String(req.params.memberId || "").trim(),
+      workspace: workspace._id,
+      isActive: true,
+    }).populate("role").lean();
+    if (!member) return res.status(404).json({ message: "Employee not found." });
+    if (getRoleBand(member.role) !== "employee") {
+      return res.status(403).json({ message: "Shifts can only be changed for employee-level members." });
+    }
+
+    if (isManagerActor) {
+      const actorDepartmentIds = new Set(
+        (Array.isArray(actorMembership?.departments) ? actorMembership.departments : []).map((department) => toId(department)),
+      );
+      const sharesDepartment = (Array.isArray(member.departments) ? member.departments : [])
+        .some((department) => actorDepartmentIds.has(toId(department)));
+      if (!sharesDepartment) {
+        return res.status(403).json({ message: "You can only change shifts for employees in your own department." });
+      }
+    }
+
+    const nextShift = findAttendanceShift(workspace, req.body?.shiftId);
+    if (!nextShift) return res.status(400).json({ message: "Select a shift configured in Attendance Settings." });
+
+    const profile = await EmployeeProfile.findOne({
+      workspaceId: workspace._id,
+      $or: [
+        { linkedWorkspaceMemberId: member._id },
+        { linkedUserId: member.user },
+      ],
+    });
+    if (!profile) return res.status(404).json({ message: "Employee profile not found." });
+
+    const previousShift = findAttendanceShift(workspace, profile.shiftId);
+    profile.shiftId = nextShift.id;
+    await profile.save();
+
+    if (String(previousShift?.id || "") !== nextShift.id) {
+      await createNotification({
+        workspaceId: String(workspace._id), recipientUserId: String(member.user), actorUserId: String(actor._id),
+        type: "employee_shift_changed", category: "system", title: "Your work shift was updated",
+        description: `Your shift changed from ${previousShift?.name || "Not assigned"} to ${nextShift.name} (${nextShift.startTime} - ${nextShift.endTime}). Attendance and leave tracking now follow this schedule.`,
+        entityType: "employee_profile", entityId: String(profile._id), targetUrl: "/profile/my-profile",
+        data: { previousShiftId: previousShift?.id || "", shiftId: nextShift.id }, priority: "normal",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Employee shift updated successfully.",
+      data: { memberId: toId(member._id), shift: nextShift },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 export const transferOrganizationMember = async (req, res, next) => {
   try {
     const { user: actor, workspace } = await getCurrentWorkspace(req.user);

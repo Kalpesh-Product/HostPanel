@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, X, Eye, Calendar,
+  Search, X, Eye, Download, Calendar,
   User, UserCheck, AlertCircle, FileText, ChevronDown,
   ShieldCheck, CheckCircle2, History,
   Send, Calculator, Plus, Minus, Lock,
@@ -13,9 +13,13 @@ import Skeleton, { HRPayrollSkeleton } from "@/components/ui/Skeleton";
 import {
   addPayrollAdjustment,
   getPayrollSnapshot,
+  getPayrollPayslipTemplatePreview,
   preparePayrollCycle,
+  selectPayrollPayslipTemplate,
   updatePayrollCycleStatus,
 } from "@/services/hr";
+import { generatePayrollPayslip, sendPayrollPayslip } from "@/services/finance";
+import { toast } from "sonner";
 import {
   canAccessFinanceDashboard,
   getStoredUser,
@@ -87,6 +91,15 @@ interface EmployeePayrollData {
   adjustmentReason?: string;
   manualAdjustments?: ManualAdjustmentRecord[];
   hasSalaryPackage?: boolean;
+  payslip?: {
+    id?: string;
+    url?: string;
+    fileUrl?: string;
+    fileName?: string;
+    generatedAt?: string;
+    sentAt?: string;
+    templateId?: PayslipTemplateId;
+  };
 }
 
 interface CycleData {
@@ -117,11 +130,19 @@ interface PayrollState {
   currentCycle: CycleData | null;
   history: HistoryRecord[];
   filters: PayrollFilters;
-  settings?: { currency?: string; timezone?: string };
+  settings?: {
+    currency?: string;
+    timezone?: string;
+    payslipTemplateId?: PayslipTemplateId;
+    payslipTemplateLocked?: boolean;
+    payslipTemplateLockedAt?: string;
+    canConfigurePayslipTemplate?: boolean;
+  };
 }
 
 interface ViewingEmployee extends EmployeePayrollData {
   isHistory: boolean;
+  cycleId?: string;
 }
 
 interface AdjustmentForm {
@@ -140,6 +161,26 @@ const PAYROLL_MONTH_NAMES = [
 const PAYROLL_TIME_ZONE = "Asia/Kolkata";
 
 const YEARS_LIST = ["2024", "2025", "2026", "2027"];
+
+type PayslipTemplateId = "classic-mono" | "modern-blue" | "aqua-wave" | "indigo-banner";
+
+const PAYSLIP_TEMPLATES: Array<{
+  id: PayslipTemplateId;
+  name: string;
+  description: string;
+  accent: string;
+  soft: string;
+  layout: "mono" | "modern" | "wave" | "banner";
+}> = [
+  { id: "classic-mono", name: "Classic Mono", description: "Formal black and white", accent: "#111827", soft: "#F3F4F6", layout: "mono" },
+  { id: "modern-blue", name: "Modern Blue", description: "Professional WONO style", accent: "#2563EB", soft: "#DBEAFE", layout: "modern" },
+  { id: "aqua-wave", name: "Aqua Wave", description: "Colorful curved footer", accent: "#16A9C7", soft: "#DFF7FB", layout: "wave" },
+  { id: "indigo-banner", name: "Indigo Banner", description: "Bold branded header", accent: "#5878F7", soft: "#E9EDFF", layout: "banner" },
+];
+
+function getPayslipTemplateName(templateId?: PayslipTemplateId) {
+  return PAYSLIP_TEMPLATES.find((template) => template.id === templateId)?.name || "Modern Blue";
+}
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
 
@@ -399,6 +440,211 @@ function HistoryCycleModal({ cycle, workspaceCurrency, onClose, onViewEmployee }
 /*  EmployeeDetailModal                                              */
 /* ──────────────────────────────────────────────────────────────── */
 
+function PayslipTemplatePicker({
+  value, onChange, actionLoading, selectionDisabled, onPreview, onDownload,
+}: {
+  value: PayslipTemplateId;
+  onChange: (templateId: PayslipTemplateId) => void;
+  actionLoading: { templateId: PayslipTemplateId; action: "preview" | "download" } | null;
+  selectionDisabled?: boolean;
+  onPreview: (templateId: PayslipTemplateId) => void;
+  onDownload: (templateId: PayslipTemplateId) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" role="radiogroup" aria-label="Payslip template">
+      {PAYSLIP_TEMPLATES.map((template) => {
+        const selected = value === template.id;
+        const previewing = actionLoading?.templateId === template.id && actionLoading.action === "preview";
+        const downloading = actionLoading?.templateId === template.id && actionLoading.action === "download";
+        return (
+          <div
+            key={template.id}
+            role="radio"
+            aria-checked={selected}
+            className={"group relative rounded-2xl border p-3 text-left transition-all focus-within:ring-2 focus-within:ring-blue-200 " + (
+              selected
+                ? "border-blue-500 bg-blue-50/60 shadow-sm ring-2 ring-blue-100"
+                : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+            )}
+          >
+            <button
+              type="button"
+              disabled={selectionDisabled}
+              onClick={() => onChange(template.id)}
+              aria-label={"Select " + template.name + " payroll template"}
+              className="absolute inset-0 z-0 rounded-2xl focus:outline-none disabled:cursor-not-allowed"
+            />
+
+            <div className="pointer-events-none relative z-10 flex gap-4">
+              <div className="relative h-[142px] w-[104px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                {template.layout === "banner" && <div className="absolute inset-x-2 top-2 h-7 rounded-sm" style={{ backgroundColor: template.accent }} />}
+                {template.layout === "modern" && <div className="absolute inset-x-0 top-0 h-9" style={{ backgroundColor: "#1E3D73" }} />}
+                {template.layout === "wave" && (
+                  <>
+                    <div className="absolute left-0 top-0 h-9 w-9 -translate-x-4 -translate-y-4 rotate-45" style={{ backgroundColor: template.accent }} />
+                    <div className="absolute -bottom-4 -left-2 h-11 w-32 -rotate-6 rounded-[50%]" style={{ backgroundColor: template.accent }} />
+                  </>
+                )}
+                {template.layout === "mono" && <div className="absolute inset-x-3 top-5 h-px bg-slate-800" />}
+                <div className={"absolute left-3 right-3 " + (template.layout === "banner" ? "top-12" : "top-[52px]") + " h-2 rounded-sm"} style={{ backgroundColor: template.soft }} />
+                <div className="absolute left-3 right-3 top-[68px] grid grid-cols-2 gap-1.5">
+                  <div className="space-y-1.5">
+                    <div className="h-1 rounded bg-slate-300" /><div className="h-1 rounded bg-slate-200" />
+                    <div className="h-1 rounded bg-slate-200" /><div className="h-2 rounded" style={{ backgroundColor: template.accent }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-1 rounded bg-slate-300" /><div className="h-1 rounded bg-slate-200" />
+                    <div className="h-1 rounded bg-slate-200" /><div className="h-2 rounded" style={{ backgroundColor: template.accent }} />
+                  </div>
+                </div>
+                <div className="absolute bottom-5 left-3 right-3 h-2.5 rounded-sm" style={{ backgroundColor: template.layout === "mono" ? "#111827" : template.accent }} />
+
+                <div className="pointer-events-auto absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-slate-950/70 p-2 opacity-100 backdrop-blur-[1px] transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                  <button
+                    type="button"
+                    onClick={(event) => { event.stopPropagation(); onPreview(template.id); }}
+                    disabled={Boolean(actionLoading)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-white px-2 py-2 text-[9px] font-pmedium uppercase tracking-wider text-slate-800 shadow-sm transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-white disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {previewing ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" /> : <Eye size={12} />}
+                    {previewing ? "Opening" : "Preview"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => { event.stopPropagation(); onDownload(template.id); }}
+                    disabled={Boolean(actionLoading)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/50 bg-slate-900/70 px-2 py-2 text-[9px] font-pmedium uppercase tracking-wider text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-white disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {downloading ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-500 border-t-white" /> : <Download size={12} />}
+                    {downloading ? "Saving" : "Download"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="min-w-0 flex-1 pt-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-pmedium text-slate-800">{template.name}</p>
+                    <p className="mt-1 text-[10px] font-pmedium leading-4 text-slate-400">{template.description}</p>
+                  </div>
+                  <span className={"flex h-5 w-5 shrink-0 items-center justify-center rounded-full border " + (selected ? "border-blue-500 bg-blue-500 text-white" : "border-slate-300 bg-white text-transparent")}>
+                    <CheckCircle2 size={12} />
+                  </span>
+                </div>
+                <span className="mt-3 inline-flex rounded-md px-2 py-1 text-[9px] font-pmedium uppercase tracking-wider" style={{ backgroundColor: template.soft, color: template.accent }}>
+                  {template.layout === "mono" ? "B&W" : "Color"}
+                </span>
+                <p className="mt-4 text-[9px] font-pmedium leading-4 text-slate-400">Hover to preview or download the PDF.</p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+interface PayrollTemplateModalProps {
+  open: boolean;
+  selectedTemplateId: PayslipTemplateId;
+  confirming: boolean;
+  saving: boolean;
+  actionLoading: { templateId: PayslipTemplateId; action: "preview" | "download" } | null;
+  onSelect: (templateId: PayslipTemplateId) => void;
+  onPreview: (templateId: PayslipTemplateId) => void;
+  onDownload: (templateId: PayslipTemplateId) => void;
+  onClose: () => void;
+  onContinue: () => void;
+  onBack: () => void;
+  onConfirm: () => void;
+}
+
+function PayrollTemplateModal({
+  open, selectedTemplateId, confirming, saving, actionLoading,
+  onSelect, onPreview, onDownload, onClose, onContinue, onBack, onConfirm,
+}: PayrollTemplateModalProps) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-[#0F172A]/55 p-3 backdrop-blur-sm sm:p-5"
+          onClick={() => { if (!saving) onClose(); }}
+        >
+          <motion.div
+            initial={{ scale: 0.97, opacity: 0, y: 12 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.97, opacity: 0, y: 12 }}
+            className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog" aria-modal="true" aria-labelledby="payroll-template-title"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 bg-blue-50/30 px-5 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2563EB] text-white shadow-sm"><FileText size={18} /></div>
+                <div className="min-w-0">
+                  <h2 id="payroll-template-title" className="truncate text-base font-pmedium text-slate-900 sm:text-lg">
+                    {confirming ? "Confirm payroll template" : "Choose payroll template"}
+                  </h2>
+                  <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">One-time workspace setting</p>
+                </div>
+              </div>
+              <button type="button" onClick={onClose} disabled={saving} aria-label="Close payroll template setup"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+              <p className="text-sm font-pmedium text-slate-800">Select one design</p>
+              <p className="mb-4 mt-1 text-[11px] font-pmedium leading-5 text-slate-500">
+                Hover over a template for Preview and Download. Preview opens the generated PDF in a new tab.
+              </p>
+              <PayslipTemplatePicker
+                value={selectedTemplateId}
+                onChange={onSelect}
+                selectionDisabled={saving || confirming}
+                actionLoading={actionLoading}
+                onPreview={onPreview}
+                onDownload={onDownload}
+              />
+
+              {confirming && (
+                <div className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 shrink-0 text-amber-600" size={18} />
+                    <div>
+                      <p className="text-xs font-pmedium text-amber-900">This action cannot be undone</p>
+                      <p className="mt-1 text-[11px] font-pmedium leading-5 text-amber-800">
+                        Once confirmed, {getPayslipTemplateName(selectedTemplateId)} is permanently locked for this workspace. The Payroll Templates button will disappear and the design cannot be changed later.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
+              <p className="text-[10px] font-pmedium text-slate-500">Selected: <span className="text-slate-900">{getPayslipTemplateName(selectedTemplateId)}</span></p>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={confirming ? onBack : onClose} disabled={saving}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+                  {confirming ? "Back" : "Cancel"}
+                </button>
+                <button type="button" onClick={confirming ? onConfirm : onContinue} disabled={saving}
+                  className={"inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-300 " + (confirming ? "bg-amber-600 hover:bg-amber-700" : "bg-[#2563EB] hover:bg-blue-700")}>
+                  {confirming ? <Lock size={13} /> : <CheckCircle2 size={13} />}
+                  {saving ? "Locking template..." : confirming ? "Confirm & Lock Permanently" : "Use This Template"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 interface EmployeeDetailModalProps {
   employee: ViewingEmployee | null;
   workspaceCurrency: string;
@@ -409,11 +655,17 @@ interface EmployeeDetailModalProps {
   adjustment: AdjustmentForm;
   setAdjustment: React.Dispatch<React.SetStateAction<AdjustmentForm>>;
   isHistoryCycle?: boolean;
+  isProcessingPayslip?: boolean;
+  onGeneratePayslip?: (employee: ViewingEmployee) => void;
+  workspaceTemplateId?: PayslipTemplateId;
+  onSendPayslip?: (employee: ViewingEmployee) => void;
 }
 
 function EmployeeDetailModal({
   employee, workspaceCurrency, onClose, payrollStatus, cycleId,
   onSaveAdjustment, adjustment, setAdjustment, isHistoryCycle,
+  isProcessingPayslip, onGeneratePayslip, onSendPayslip,
+  workspaceTemplateId,
 }: EmployeeDetailModalProps) {
   if (!employee) return null;
   const att = employee.attendance || {};
@@ -612,6 +864,110 @@ function EmployeeDetailModal({
                 </div>
               </div>
             </div>
+
+            <div>
+              <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                <FileText size={14} /> Payslip
+              </h3>
+              {(() => {
+                const ps = employee.payslip || {};
+                const paymentStatus = String(fin.paymentStatus || employee.payment?.status || "");
+                const isPaid = paymentStatus.toLowerCase() === "paid";
+                const canHavePayslip = isPaid && Number(fin.netSalary || 0) > 0;
+
+                if (ps.id) {
+                  return (
+                    <div className="flex flex-wrap items-center gap-3 bg-slate-50/60 border border-slate-100 p-4 rounded-2xl">
+                      <div className="flex-1 min-w-[200px]">
+                        <p className="text-xs font-pmedium text-slate-800">
+                          Payslip generated{ps.fileName ? ` — ${ps.fileName}` : ""}
+                        </p>
+                        <p className="text-[10px] font-pmedium text-slate-400 mt-1">
+                          Template: {getPayslipTemplateName(ps.templateId)}
+                        </p>
+                        <p className="text-[10px] font-pmedium text-slate-400 mt-1">
+                          {ps.generatedAt
+                            ? `Generated ${new Date(ps.generatedAt).toLocaleDateString()}`
+                            : "Generated but no date recorded."}
+                        </p>
+                        {ps.sentAt ? (
+                          <span className="inline-flex items-center gap-1 mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-pmedium uppercase tracking-wider text-emerald-600">
+                            <CheckCircle2 size={11} /> Sent to employee
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-pmedium uppercase tracking-wider text-amber-600">
+                            <Send size={11} /> Not sent yet
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {(ps.fileUrl || ps.url) && (
+                          <button
+                            onClick={() => window.open(ps.fileUrl || ps.url, "_blank", "noopener,noreferrer")}
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-[10px] font-pmedium uppercase tracking-wider text-slate-700 hover:bg-slate-50 transition-all"
+                          >
+                            <FileText size={13} /> View Payslip
+                          </button>
+                        )}
+                        {!ps.sentAt && (
+                          <button
+                            onClick={() => onSendPayslip?.(employee)}
+                            disabled={isProcessingPayslip}
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#2563EB] text-white text-[10px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:bg-slate-300 disabled:shadow-none"
+                          >
+                            <Send size={13} /> {isProcessingPayslip ? "Processing..." : "Send Payslip"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (canHavePayslip) {
+                  if (!workspaceTemplateId) {
+                    return (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="mt-0.5 shrink-0 text-amber-600" size={17} />
+                          <div>
+                            <p className="text-xs font-pmedium text-amber-900">Payroll template setup required</p>
+                            <p className="mt-1 text-[10px] font-pmedium leading-5 text-amber-800">
+                              The HR manager must choose and permanently confirm a template from the Payroll Templates button beside Prepare Payroll before any payslip can be generated.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                      <div className="min-w-[200px] flex-1">
+                        <p className="text-xs font-pmedium text-slate-800">Ready to generate payslip</p>
+                        <p className="mt-1 text-[10px] font-pmedium text-slate-400">
+                          Workspace template: {getPayslipTemplateName(workspaceTemplateId)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => onGeneratePayslip?.(employee)}
+                        disabled={isProcessingPayslip}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                      >
+                        <FileText size={13} /> {isProcessingPayslip ? "Generating..." : "Generate Payslip"}
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="flex items-center justify-center text-center p-4 bg-slate-50/60 border border-slate-100 rounded-2xl">
+                    <p className="text-xs font-pmedium text-slate-500">
+                      Payslip becomes available once Finance confirms this employee&rsquo;s payment as paid.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </motion.div>
       </motion.div>
@@ -665,6 +1021,15 @@ export default function HRPayrollPage() {
   const [viewingHistoryCycle, setViewingHistoryCycle] = useState<HistoryRecord | null>(null);
 
   const [adjustment, setAdjustment] = useState<AdjustmentForm>({ type: "bonus", amount: "", reason: "" });
+  const [isProcessingPayslip, setIsProcessingPayslip] = useState(false);
+  const [selectedPayslipTemplate, setSelectedPayslipTemplate] = useState<PayslipTemplateId>("modern-blue");
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isTemplateConfirmationOpen, setIsTemplateConfirmationOpen] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [templatePdfAction, setTemplatePdfAction] = useState<{
+    templateId: PayslipTemplateId;
+    action: "preview" | "download";
+  } | null>(null);
 
   const payrollCycle = payrollData.currentCycle;
   const payrollMaster = useMemo(
@@ -678,6 +1043,10 @@ export default function HRPayrollPage() {
   const payrollStatus = payrollCycle?.status || "Pending";
   const payrollCurrency = payrollData.settings?.currency || DEFAULT_WORKSPACE_CURRENCY;
   const payrollTimeZone = payrollData.settings?.timezone || PAYROLL_TIME_ZONE;
+  const workspacePayslipTemplate = payrollData.settings?.payslipTemplateLocked
+    ? payrollData.settings?.payslipTemplateId
+    : undefined;
+  const canConfigurePayrollTemplate = payrollData.settings?.canConfigurePayslipTemplate === true;
 
   const ctcPayrollEmployees = useMemo(
     () => payrollMaster.filter((emp) => (
@@ -752,6 +1121,82 @@ export default function HRPayrollPage() {
     void loadPayrollData(selectedMonth, selectedYear);
   }, [loadPayrollData, selectedMonth, selectedYear]);
 
+  const handleTemplatePdfAction = async (
+    templateId: PayslipTemplateId,
+    action: "preview" | "download",
+  ) => {
+    if (templatePdfAction) return;
+
+    let previewWindow: Window | null = null;
+    if (action === "preview") {
+      previewWindow = window.open("about:blank", "_blank");
+      if (!previewWindow) {
+        toast.error("Allow pop-ups to preview the payroll template PDF.");
+        return;
+      }
+      previewWindow.opener = null;
+      previewWindow.document.title = "Generating payroll template preview...";
+      previewWindow.document.body.innerHTML = '<p style="font-family: sans-serif; padding: 24px;">Generating PDF preview...</p>';
+    }
+
+    setTemplatePdfAction({ templateId, action });
+    try {
+      const response = await getPayrollPayslipTemplatePreview(templateId);
+      const objectUrl = URL.createObjectURL(response.data);
+
+      if (action === "preview" && previewWindow) {
+        previewWindow.location.href = objectUrl;
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      } else {
+        const downloadLink = document.createElement("a");
+        downloadLink.href = objectUrl;
+        downloadLink.download = "payroll-" + templateId + "-template.pdf";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+      }
+    } catch (error: any) {
+      previewWindow?.close();
+      toast.error(error?.message || "Unable to generate the payroll template PDF.");
+    } finally {
+      setTemplatePdfAction(null);
+    }
+  };
+
+  const closeTemplateModal = () => {
+    if (isSavingTemplate) return;
+    setIsTemplateModalOpen(false);
+    setIsTemplateConfirmationOpen(false);
+  };
+
+  const handleLockPayrollTemplate = async () => {
+    if (isSavingTemplate) return;
+    setIsSavingTemplate(true);
+    try {
+      const response = await selectPayrollPayslipTemplate(selectedPayslipTemplate);
+      const envelope = response?.data || {};
+      const lockedTemplate = envelope?.data || envelope;
+      setPayrollData((current) => ({
+        ...current,
+        settings: {
+          ...(current.settings || {}),
+          payslipTemplateId: (lockedTemplate.id || selectedPayslipTemplate) as PayslipTemplateId,
+          payslipTemplateLocked: true,
+          payslipTemplateLockedAt: lockedTemplate.lockedAt || new Date().toISOString(),
+        },
+      }));
+      toast.success("Payroll template selected and locked permanently.");
+      setIsTemplateModalOpen(false);
+      setIsTemplateConfirmationOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to lock the payroll template.");
+      await loadPayrollData(selectedMonth, selectedYear);
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
   const filteredMaster = useMemo(() => {
     return ctcPayrollEmployees.filter((emp) => {
       const matchesDept = departmentFilter === "All Departments" || emp.department === departmentFilter;
@@ -821,6 +1266,63 @@ export default function HRPayrollPage() {
       setAdjustment({ type: "bonus", amount: "", reason: "" });
     } catch (error: any) {
       alert(error?.message || "Failed to save payroll adjustment.");
+    }
+  };
+
+  const refreshViewingEmployee = async (employee: ViewingEmployee) => {
+    const refreshed = await loadPayrollData(selectedMonth, selectedYear);
+    const updatedEmployee = refreshed?.currentCycle?.employees?.find((emp: EmployeePayrollData) => emp.profileId === employee.profileId);
+    if (updatedEmployee) setViewingEmployee({ ...updatedEmployee, isHistory: employee.isHistory, cycleId: employee.cycleId || payrollCycle?.id });
+    return updatedEmployee;
+  };
+
+  const handleGeneratePayslip = async (employee: ViewingEmployee) => {
+    const cycleId = employee.cycleId || payrollCycle?.id;
+    if (!cycleId || !employee.profileId || isProcessingPayslip) return;
+    setIsProcessingPayslip(true);
+    try {
+      const res = await generatePayrollPayslip(cycleId, employee.profileId);
+      const updated = res?.data?.data || res?.data || {};
+      toast.success(`Payslip generated for ${employee.name}.`);
+      const refreshedEmployee = await refreshViewingEmployee(employee);
+      if (!refreshedEmployee && (updated?.id || updated?._id)) {
+        const fileUrl = updated.fileUrl || updated.payslipUrl || "";
+        setViewingEmployee({
+          ...employee,
+          payslip: {
+            id: updated.id || updated._id,
+            fileUrl,
+            url: fileUrl,
+            fileName: updated.fileName || "",
+            generatedAt: updated.generatedAt || new Date().toISOString(),
+            templateId: workspacePayslipTemplate,
+          },
+        });
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate payslip.");
+    } finally {
+      setIsProcessingPayslip(false);
+    }
+  };
+
+  const handleSendPayrollPayslip = async (employee: ViewingEmployee) => {
+    if (!employee.payslip?.id || isProcessingPayslip) return;
+    setIsProcessingPayslip(true);
+    try {
+      const res = await sendPayrollPayslip(employee.payslip.id);
+      toast.success(`Payslip sent to ${employee.name}.`);
+      const refreshedEmployee = await refreshViewingEmployee(employee);
+      if (!refreshedEmployee) {
+        setViewingEmployee({
+          ...employee,
+          payslip: { ...(employee.payslip || {}), sentAt: res?.sentToEmployeeAt || new Date().toISOString() },
+        });
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send payslip.");
+    } finally {
+      setIsProcessingPayslip(false);
     }
   };
 
@@ -972,15 +1474,16 @@ export default function HRPayrollPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Header ── */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div className="mb-3 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
             <div>
-              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              <h2 className="text-title flex items-center gap-1.5 font-pmedium uppercase text-primary">
                 Payroll Management
               </h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">
+              <p className="mt-1 text-xs font-pmedium text-slate-500">
                 Calculate monthly salary from employee CTC, apply attendance deductions and send the cycle to Finance.
               </p>
             </div>
+
           </div>
 
           {/* Error message */}
@@ -1142,7 +1645,8 @@ export default function HRPayrollPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+
                     <div className="relative">
                       <select
                         className="min-w-[130px] cursor-pointer appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#0F172A] shadow-sm outline-none hover:bg-slate-50"
@@ -1164,6 +1668,30 @@ export default function HRPayrollPage() {
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
 
+                    {canConfigurePayrollTemplate && !payrollData.settings?.payslipTemplateLocked && !isLoading && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsTemplateConfirmationOpen(false);
+                          setIsTemplateModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl border border-blue-300/60 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] shadow-lg shadow-slate-950/20 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      >
+                        <FileText size={14} /> Payroll Templates
+                      </button>
+                    )}
+                    {workspacePayslipTemplate && !isLoading && (
+                      <button
+                        type="button"
+                        onClick={() => void handleTemplatePdfAction(workspacePayslipTemplate, "preview")}
+                        disabled={Boolean(templatePdfAction)}
+                        title="Preview the confirmed payroll template in a new tab"
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-[#0F172A] shadow-lg shadow-slate-950/20 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <FileText size={14} className="text-[#2563EB]" />
+                        Template: {getPayslipTemplateName(workspacePayslipTemplate)}
+                      </button>
+                    )}
                     {payrollStatus === "Pending" && (
                       <button
                         onClick={() => openPayrollHandoffModal("prepare")}
@@ -1182,9 +1710,14 @@ export default function HRPayrollPage() {
                         <Send size={14} /> SEND TO FINANCE
                       </button>
                     )}
-                    {(payrollStatus === "Sent to Finance" || payrollStatus === "Paid") && (
+                    {payrollStatus === "Sent to Finance" && (
                       <div className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-900/40">
                         <CheckCircle2 size={14} /> AWAITING FINANCE PROCESSING
+                      </div>
+                    )}
+                    {payrollStatus === "Paid" && (
+                      <div className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-900/40">
+                        <CheckCircle2 size={14} /> PAYMENT COMPLETED
                       </div>
                     )}
                   </div>
@@ -1396,6 +1929,24 @@ export default function HRPayrollPage() {
       </PageFrame>
 
       {/* Modals */}
+      <PayrollTemplateModal
+        open={isTemplateModalOpen}
+        selectedTemplateId={selectedPayslipTemplate}
+        confirming={isTemplateConfirmationOpen}
+        saving={isSavingTemplate}
+        actionLoading={templatePdfAction}
+        onSelect={(templateId) => {
+          setSelectedPayslipTemplate(templateId);
+          setIsTemplateConfirmationOpen(false);
+        }}
+        onPreview={(templateId) => void handleTemplatePdfAction(templateId, "preview")}
+        onDownload={(templateId) => void handleTemplatePdfAction(templateId, "download")}
+        onClose={closeTemplateModal}
+        onContinue={() => setIsTemplateConfirmationOpen(true)}
+        onBack={() => setIsTemplateConfirmationOpen(false)}
+        onConfirm={handleLockPayrollTemplate}
+      />
+
       <HandoffConfirmModal
         open={isHandoffModalOpen}
         onClose={() => setIsHandoffModalOpen(false)}
@@ -1409,7 +1960,7 @@ export default function HRPayrollPage() {
         cycle={viewingHistoryCycle}
         workspaceCurrency={payrollCurrency}
         onClose={() => setViewingHistoryCycle(null)}
-        onViewEmployee={(emp) => setViewingEmployee({ ...emp, isHistory: true })}
+        onViewEmployee={(emp) => setViewingEmployee({ ...emp, isHistory: true, cycleId: viewingHistoryCycle?.id })}
       />
 
       <EmployeeDetailModal
@@ -1417,11 +1968,15 @@ export default function HRPayrollPage() {
         workspaceCurrency={payrollCurrency}
         onClose={() => { setViewingEmployee(null); setAdjustment({ type: "bonus", amount: "", reason: "" }); }}
         payrollStatus={payrollStatus}
-        cycleId={payrollCycle?.id}
+        cycleId={viewingEmployee?.cycleId || payrollCycle?.id}
         onSaveAdjustment={handleSaveAdjustment}
         adjustment={adjustment}
         setAdjustment={setAdjustment}
         isHistoryCycle={viewingEmployee?.isHistory}
+        isProcessingPayslip={isProcessingPayslip}
+        onGeneratePayslip={handleGeneratePayslip}
+        onSendPayslip={handleSendPayrollPayslip}
+        workspaceTemplateId={workspacePayslipTemplate}
       />
     </div>
   );

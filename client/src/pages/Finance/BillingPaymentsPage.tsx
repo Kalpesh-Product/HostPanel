@@ -11,14 +11,12 @@ import { createReport } from '@/services/reports';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
-  generatePayrollPayslip,
   getPayrollSnapshot,
   getTenantBillingSnapshot,
   generateTenantSecurityDepositInvoice,
   markTenantSecurityDepositPaid,
   processPayrollPayment,
   resetTenantSecurityDepositInvoice,
-  sendPayrollPayslip,
   sendTenantSecurityDepositInvoice,
 } from '@/services/finance';
 import {
@@ -750,46 +748,6 @@ export function BillingPaymentsPage() {
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to process payroll payment.');
-    } finally {
-      setIsProcessingAction(false);
-    }
-  };
-
-  const handleGeneratePayslip = async (employee: PayrollEmployee) => {
-    if (isProcessingAction) return;
-    setIsProcessingAction(true);
-    try {
-      const res = await generatePayrollPayslip(employee.cycleId || payrollData?.currentCycle?.id || '', employee.profileId || employee.id);
-      const updated = res?.data?.data || res?.data || {};
-      setPayrollData((prev) => {
-        if (!prev?.currentCycle?.employees) return prev;
-        return {
-          ...prev,
-          currentCycle: {
-            ...prev.currentCycle,
-            employees: prev.currentCycle.employees.map((e) => e.id === employee.id ? { ...e, payslip: { id: updated.payslipId || updated.id || e.payslip?.id, fileUrl: updated.fileUrl || updated.payslipUrl || e.payslip?.fileUrl, url: updated.url || e.payslip?.url } } : e),
-          },
-        };
-      });
-      toast.success(`Payslip generated for ${employee.name}.`);
-      window.dispatchEvent(new Event('finance:snapshot-updated'));
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to generate payslip.');
-    } finally {
-      setIsProcessingAction(false);
-    }
-  };
-
-  const handleSendPayrollPayslip = async (employee: PayrollEmployee) => {
-    if (isProcessingAction) return;
-    setIsProcessingAction(true);
-    try {
-      if (!employee.payslip?.id) throw new Error('Generate the payslip before sending it.');
-      await sendPayrollPayslip(employee.payslip.id);
-      toast.success(`Payslip sent to ${employee.name}.`);
-      window.dispatchEvent(new Event('finance:snapshot-updated'));
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to send payslip.');
     } finally {
       setIsProcessingAction(false);
     }
@@ -1533,26 +1491,6 @@ export function BillingPaymentsPage() {
                   className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Paid'}
-                </button>
-              )}
-              {!viewingEmployee.payslip?.id && (
-                <button
-                  type="button"
-                  onClick={() => handleGeneratePayslip(viewingEmployee)}
-                  disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
-                >
-                  <FileText size={12} /> {isProcessingAction ? 'Processing...' : 'Generate Payslip'}
-                </button>
-              )}
-              {viewingEmployee.payslip?.id && (
-                <button
-                  type="button"
-                  onClick={() => handleSendPayrollPayslip(viewingEmployee)}
-                  disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
-                >
-                  <Send size={12} /> {isProcessingAction ? 'Processing...' : 'Send Payslip'}
                 </button>
               )}
             </div>

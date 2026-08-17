@@ -11,6 +11,7 @@ import {
   Building,
   Building2,
   CalendarDays,
+  Clock,
   Camera,
   ChevronDown,
   Download,
@@ -34,6 +35,7 @@ import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
+import { formatTime12h } from "../../utils/time";
 import { getCompanyDocuments, getDepartmentDocuments, getAllDepartmentDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import humanDate from "../../utils/humanDateForamt";
@@ -471,6 +473,10 @@ interface EmployeeRecord {
   workMode?: string;
   workLocation?: string;
   managerName?: string;
+  shiftId?: string;
+  shiftName?: string;
+  shiftStartTime?: string;
+  shiftEndTime?: string;
   noticePeriodDays?: number;
   probationDays?: number;
   bankName?: string;
@@ -593,6 +599,7 @@ export default function UserDetails() {
     { label: "Joining Date", value: formatDate(employee?.joiningDate), icon: CalendarDays },
     { label: "Manager", value: employee?.managerName || "-", icon: UserRound },
     { label: "Notice Period", value: employee?.noticePeriodDays ? `${employee.noticePeriodDays} days` : "-", icon: CalendarDays },
+    { label: "Shift", value: employee?.shiftName ? `${employee.shiftName} (${formatTime12h(employee.shiftStartTime || "")} - ${formatTime12h(employee.shiftEndTime || "")})` : "Not assigned", icon: Clock },
     { label: "Probation", value: employee?.probationDays ? `${employee.probationDays} days` : employee?.probationDays === 0 ? "No Probation" : "-", icon: BadgeAlert },
   ];
   const workFields = hasTenantRole
@@ -648,8 +655,12 @@ export default function UserDetails() {
           return;
         }
 
-        const response = await axios.get("/api/hr/company-management/overview");
+        const [response, attendanceResponse] = await Promise.all([
+          axios.get("/api/hr/company-management/overview"),
+          axios.get("/api/attendance/settings").catch(() => null),
+        ]);
         const overview = response?.data?.data || response?.data || response || {};
+        const assignedShift = attendanceResponse?.data?.data?.shiftAssignment?.shift || null;
         const employees = Array.isArray(overview.employees) ? overview.employees : [];
 
         const matched = employees.find((emp: Record<string, unknown>) => {
@@ -687,6 +698,10 @@ export default function UserDetails() {
               managerName: String(matched.managerName || ""),
               noticePeriodDays: Number(matched.noticePeriodDays) || 0,
               probationDays: Number(matched.probationDays) || 0,
+              shiftId: String(matched.shiftId || assignedShift?.id || ""),
+              shiftName: String(assignedShift?.name || ""),
+              shiftStartTime: String(assignedShift?.startTime || ""),
+              shiftEndTime: String(assignedShift?.endTime || ""),
               bankName: String(matched.bankName || ""),
               accountHolderName: String(matched.accountHolderName || ""),
               accountNumber: String(matched.accountNumber || ""),
@@ -1237,23 +1252,6 @@ export default function UserDetails() {
               </select>
             </FormField>
 
-            <FormField label="Emergency Contact Name">
-              <input
-                type="text"
-                value={editForm.emergencyContactName}
-                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))}
-                className={fieldInputClass}
-              />
-            </FormField>
-            <FormField label="Emergency Contact Phone">
-              <input
-                type="tel"
-                value={editForm.emergencyContactPhone}
-                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))}
-                className={fieldInputClass}
-              />
-            </FormField>
-
             <FormField label="Current Address" className="sm:col-span-2">
               <input
                 type="text"
@@ -1290,6 +1288,23 @@ export default function UserDetails() {
                 />
                 Same as current address
               </label>
+            </FormField>
+
+            <FormField label="Emergency Contact Name">
+              <input
+                type="text"
+                value={editForm.emergencyContactName}
+                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactName: e.target.value }))}
+                className={fieldInputClass}
+              />
+            </FormField>
+            <FormField label="Emergency Contact Phone">
+              <input
+                type="tel"
+                value={editForm.emergencyContactPhone}
+                onChange={(e) => setEditForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))}
+                className={fieldInputClass}
+              />
             </FormField>
           </div>
         </div>

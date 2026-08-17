@@ -6,6 +6,7 @@ import Workspace from "../../models/Workspace.js";
 import WorkspaceMember from "../../models/WorkspaceMember.js";
 import Department from "../../models/Department.js";
 import EmployeeProfile from "../../models/EmployeeProfile.js";
+import { findAttendanceShift } from "../../utils/attendanceShifts.js";
 import TenantEmployee from "../../models/TenantEmployee.js";
 import { Role } from "../../models/Role.js";
 import { formatEmployeeId } from "../../utils/employee-id.js";
@@ -337,6 +338,7 @@ const mapEmployeeProfileToResponse = async (profileDoc: any) => {
     workMode: String(profile.workMode || "hybrid"),
     managerName: String(profile.managerName || ""),
     managerUserId: toId(profile.managerUserId || ""),
+    shiftId: String(profile.shiftId || ""),
     workspaceRole: displayRole,
     rawRole: rawRoleName || displayRole,
     isHousekeepingStaff: Boolean(profile.isHousekeepingStaff),
@@ -776,6 +778,12 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
       { linkedWorkspaceMemberId: payload?.linkedWorkspaceMemberId || null },
     ],
   }).exec();
+  const requestedShiftId = payload?.shiftId !== undefined
+    ? normalizeText(payload.shiftId)
+    : normalizeText(profile?.shiftId || "");
+  if (requestedShiftId && !findAttendanceShift(workspace, requestedShiftId)) {
+    throw Object.assign(new Error("Select a shift configured in Attendance Settings."), { statusCode: 400 });
+  }
 
   const currentDocuments = Array.isArray(profile?.documents) ? profile.documents : [];
   const nextDocuments = Array.isArray(payload?.documents) ? payload.documents : currentDocuments;
@@ -814,6 +822,7 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     workMode: String(payload?.workMode || profile?.workMode || "hybrid"),
     managerName: normalizeText(payload?.managerName || profile?.managerName || ""),
     managerUserId: payload?.managerUserId || profile?.managerUserId || null,
+    shiftId: requestedShiftId,
     workspaceRole: roleDoc._id,
     isHousekeepingStaff: Boolean(payload?.isHousekeepingStaff || profile?.isHousekeepingStaff),
     employmentType: String(payload?.employmentType || profile?.employmentType || "full_time"),

@@ -3,6 +3,7 @@ import useAuth from '../../hooks/useAuth';
 import { getAssets } from '../../services/assets';
 import { createTicket } from '../../services/tickets';
 import { ShieldCheck, Wrench, Box, Package, Building2, MapPin, Search, Eye, AlertTriangle, X, Loader2 } from 'lucide-react';
+import PageFrame from '../../components/Pages/PageFrame';
 
 interface Asset {
   recordId?: string;
@@ -154,6 +155,7 @@ export function AssignedAssetsTab() {
   }
 
   return (
+    <PageFrame>
     <div>
       <div className="flex items-center justify-between pb-4">
         <span className="text-title font-pmedium text-primary uppercase">My Assigned Assets</span>
@@ -249,5 +251,6 @@ export function AssignedAssetsTab() {
         </div>
       )}
     </div>
+    </PageFrame>
   );
 }

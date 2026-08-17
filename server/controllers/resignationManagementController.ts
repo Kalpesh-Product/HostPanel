@@ -2,6 +2,7 @@
 import {
   completeResignationRequestForCurrentUser,
   createResignationRequestForCurrentUser,
+  extendResignationNoticePeriodForCurrentUser,
   getResignationRequestForCurrentUser,
   getResignationSettingsForCurrentUser,
   getMyResignationRequestsForCurrentUser,
@@ -130,6 +131,21 @@ export const updateResignationChecklist = async (request, response, next) => {
       request.body || {},
     );
     return response.status(200).json({ success: true, message: "Resignation checklist updated successfully.", data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const extendResignationNotice = async (request, response, next) => {
+  try {
+    const { userId, workspaceId } = context(request);
+    const data = await extendResignationNoticePeriodForCurrentUser(
+      userId,
+      workspaceId,
+      request.params.requestId,
+      request.body || {},
+    );
+    return response.status(200).json({ success: true, message: "Notice period extended successfully.", data });
   } catch (error) {
     next(error);
   }
