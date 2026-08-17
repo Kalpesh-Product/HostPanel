@@ -329,10 +329,10 @@ export default function AccountingPage(): React.ReactElement {
           getMeetingRoomBookings({ fiscalYear }),
         ]);
         setData({
-          finance: (financeRes?.data as Record<string, unknown>) || {},
-          tenantBills: Array.isArray((tenantRes?.data as Record<string, unknown>)?.tenantBills) ? (tenantRes.data as Record<string, unknown>).tenantBills as Record<string, unknown>[] : [],
-          payroll: (payrollRes?.data as Record<string, unknown>) || {},
-          bookings: Array.isArray((bookingRes?.data as Record<string, unknown>)?.bookings) ? (bookingRes.data as Record<string, unknown>).bookings as Record<string, unknown>[] : [],
+          finance: (financeRes as Record<string, unknown>) || {},
+          tenantBills: Array.isArray((tenantRes as Record<string, unknown>)?.tenantBills) ? (tenantRes as Record<string, unknown>).tenantBills as Record<string, unknown>[] : [],
+          payroll: (payrollRes as Record<string, unknown>) || {},
+          bookings: Array.isArray((bookingRes as Record<string, unknown>)?.bookings) ? (bookingRes as Record<string, unknown>).bookings as Record<string, unknown>[] : [],
         });
       } catch (error: unknown) {
         const message = (error as Error)?.message || 'Failed to load accounting data.';
@@ -354,7 +354,7 @@ export default function AccountingPage(): React.ReactElement {
     const syncPayroll = async () => {
       try {
         const payrollRes = await getPayrollSnapshot({ month: Number(selectedMonth), year: Number(selectedYear) });
-        setData((current) => ({ ...current, payroll: (payrollRes?.data as Record<string, unknown>) || {} }));
+        setData((current) => ({ ...current, payroll: (payrollRes as Record<string, unknown>) || {} }));
       } catch (error: unknown) {
         setLoadError((error as Error)?.message || 'Failed to load payroll data.');
       }
