@@ -3,31 +3,30 @@ import { axiosPrivate } from "../utils/axios";
 interface GetReportsParams {
   page?: number;
   limit?: number;
-}
-
-interface GetReportsFilteredParams {
   department?: string;
+  category?: string;
   dataWindow?: string;
   month?: string;
+  status?: string;
 }
 
 export const createReport = async (payload: Record<string, any>) => {
-  return axiosPrivate.post("/api/v1/reports", payload);
+  return axiosPrivate.post("/api/reports", payload);
 };
 
 export const getReports = async (params?: GetReportsParams) => {
-  const response = await axiosPrivate.get("/api/v1/reports", { params });
+  const response = await axiosPrivate.get("/api/reports", { params });
   return response;
 };
 
-export const getReportsFiltered = async (params?: GetReportsFilteredParams) => {
-  const response = await axiosPrivate.get("/api/v1/reports/filtered", { params });
+export const getReportsFiltered = async (params?: GetReportsParams) => {
+  const response = await axiosPrivate.get("/api/reports", { params });
   return response;
 };
 
 export const downloadReport = async (recordId: string, options?: { format?: string }) => {
-  const response = await axiosPrivate.get(`/api/v1/reports/${recordId}/download`, {
-    params: { format: options?.format },
+  const response = await axiosPrivate.post(`/api/reports/${recordId}/download`, {
+    format: options?.format,
   });
   return response;
 };

@@ -41,6 +41,15 @@ function getUserId(req: Request) {
   return user.id || user._id || user;
 }
 
+async function isManagerOfFinanceDepartment(workspaceId: any, userId: any) {
+  if (!workspaceId || !userId) return false;
+  const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: userId })
+    .populate("departments", "name")
+    .lean()
+    .exec();
+  return (membership?.departments || []).some((d: any) => String(d?.name || "").trim().toLowerCase() === "finance");
+}
+
 export async function getDepartmentFinance(req: Request, res: Response, next: NextFunction) {
   try {
     const workspaceId = getWorkspaceId(req);
@@ -48,12 +57,22 @@ export async function getDepartmentFinance(req: Request, res: Response, next: Ne
     const fiscalYear = String(req.query.fiscalYear || "").trim();
 
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+
+    const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: getUserId(req) })
+      .populate("departments", "name")
+      .lean()
+      .exec();
+    const ownDepartments = (membership?.departments || []).map((d: any) => String(d?.name || "").trim().toLowerCase()).filter(Boolean);
+
     if (!department) {
-      const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: getUserId(req) })
-        .populate("departments", "name")
-        .lean()
-        .exec();
       department = String(membership?.departments?.[0]?.name || "").trim();
+    } else {
+      const roleValue = String((req as any).workspaceMembership?.role?.name || (req as any).workspaceMembership?.role || "")
+        .trim().toLowerCase().replace(/[\s-]+/g, "_");
+      const canViewAnyDepartment = ["owner", "founder", "super_admin", "admin", "finance_manager", "finance"].includes(roleValue);
+      if (!canViewAnyDepartment && !ownDepartments.includes(department.trim().toLowerCase())) {
+        return res.status(403).json({ message: "You do not have access to this department's finance data." });
+      }
     }
     if (!department) return res.status(400).json({ message: "department is required" });
     if (!fiscalYear) return res.status(400).json({ message: "fiscalYear is required" });
@@ -180,6 +199,14 @@ export async function updateMonthlyExpenseStatus(req: Request, res: Response, ne
     const workspaceId = getWorkspaceId(req);
 
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+
+    const roleValue = String((req as any).workspaceMembership?.role?.name || (req as any).workspaceMembership?.role || "")
+      .trim().toLowerCase().replace(/[\s-]+/g, "_");
+    const canManageFinancePayments = ["owner", "founder", "super_admin", "admin", "finance_manager", "finance"].includes(roleValue)
+      || (roleValue === "manager" && await isManagerOfFinanceDepartment(workspaceId, getUserId(req)));
+    if (!canManageFinancePayments) {
+      return res.status(403).json({ message: "Only Finance can mark an expense's payment status." });
+    }
 
     const { planId, expenseKey, paymentStatus, actualAmount } = (req.body || {}) as any;
 

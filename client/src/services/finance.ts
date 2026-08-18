@@ -36,14 +36,15 @@ export const applyFinanceApprovalDecision = async (
  * Mark a monthly expense as paid (or update its payment status).
  */
 export const updateMonthlyExpenseStatus = async (payload: {
-  planId?: string;
-  fiscalYear: string;
-  monthKey: string;
-  expenseId: string;
-  expenseKey?: string;
+  planId: string;
+  expenseKey: string;
+  paymentStatus: string;
+  actualAmount?: number;
+  fiscalYear?: string;
+  monthKey?: string;
+  expenseId?: string;
   department?: string;
-  status: string;
-  paymentStatus?: string;
+  status?: string;
 }) => {
   const response = await axiosPrivate.patch(
     '/api/finance/department/month-expense/status',
