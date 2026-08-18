@@ -232,7 +232,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
       const response = await downloadReport(report.recordId, { format: forcedFormat || report.format });
       const downloadMeta = response?.data?.download;
       const updatedReport = response?.data?.report;
-      await downloadReportFile(downloadMeta);
+      await downloadReportFile(downloadMeta?.url, { fileName: downloadMeta?.fileName });
       if (updatedReport?.recordId) {
         setReports((previous) => previous.map((item) => (item.recordId === updatedReport.recordId ? updatedReport : item)));
         if (viewingReport?.recordId === updatedReport.recordId) setViewingReport(updatedReport);
