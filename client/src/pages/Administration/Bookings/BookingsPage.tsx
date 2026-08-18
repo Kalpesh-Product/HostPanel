@@ -38,8 +38,8 @@ import { formatWorkspaceCurrency, getWorkspaceDateKey, getWorkspaceTime } from '
 // Backend services - uncomment when backend is ready:
 // import { getMeetingRoomBookings, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
 // import { getTenantCompanies } from '@/services/tenant-companies';
-// import { createReport } from '@/services/reports';
-// import { downloadReportFile } from '@/utils/report-download';
+import { createReport } from '@/services/reports';
+import { downloadReportFile } from '@/utils/report-download';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -1387,8 +1387,6 @@ export default function BookingsPage() {
     ] as StatItem[];
   }, [activeScope, externalRows, historyRows, internalDepartmentRows, tenantRows]);
 
-  // Backend service - uncomment when backend is ready:
-  /*
   const handleExportBookingsReport = async (format = 'PDF') => {
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
     if (visibleRows.length === 0) {
@@ -1420,7 +1418,7 @@ export default function BookingsPage() {
       });
 
       if (reportFormat === 'PDF') {
-        await downloadReportFile((response as any)?.data?.download, { openInNewTab: false });
+        await downloadReportFile((response as any)?.data?.download?.url, { openInNewTab: false });
       }
 
       window.dispatchEvent(new Event('reports:refresh'));
@@ -1432,15 +1430,7 @@ export default function BookingsPage() {
       setIsExportingReport('');
     }
   };
-  */
 
-  const handleExportBookingsReport = async (format = 'PDF') => {
-    alert('Export UI only - Backend integration pending.');
-    setIsExportingReport('');
-  };
-
-  // Backend service - uncomment when backend is ready:
-  /*
   const handleExportBookingReport = async (booking: Record<string, unknown> | null = null, format = 'PDF') => {
     if (!booking) return;
 
@@ -1464,7 +1454,7 @@ export default function BookingsPage() {
       });
 
       if (reportFormat === 'PDF') {
-        await downloadReportFile((response as any)?.data?.download, { openInNewTab: false });
+        await downloadReportFile((response as any)?.data?.download?.url, { openInNewTab: false });
       }
 
       window.dispatchEvent(new Event('reports:refresh'));
@@ -1475,13 +1465,6 @@ export default function BookingsPage() {
     } finally {
       setIsExportingReport('');
     }
-  };
-  */
-
-  const handleExportBookingReport = async (booking: Record<string, unknown> | null = null, format = 'PDF') => {
-    if (!booking) return;
-    alert('Export UI only - Backend integration pending.');
-    setIsExportingReport('');
   };
 
   const currentBookingInvites = useMemo(() => {

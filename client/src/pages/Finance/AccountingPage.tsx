@@ -677,7 +677,7 @@ export default function AccountingPage(): React.ReactElement {
           sourceRef: selectedReport.sourceRef, reportRows: selectedReport.reportRows,
           monthlyData: selectedReport.monthlyData,
         });
-        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
         window.dispatchEvent(new Event('reports:refresh'));
         toast.success(`${activeAccountingReportLabel} report saved to Reports.`);
       } catch (error: unknown) {

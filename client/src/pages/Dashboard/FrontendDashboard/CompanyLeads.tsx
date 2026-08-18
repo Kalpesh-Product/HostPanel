@@ -150,7 +150,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
         })),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       toast.success(`${reportFormat} report saved to Reports.`);
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (error) { toast.error(error?.message || `Failed to export ${pageTitle.toLowerCase()} report.`); }

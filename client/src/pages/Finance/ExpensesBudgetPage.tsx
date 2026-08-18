@@ -1183,11 +1183,11 @@ export function ExpensesBudgetPage() {
         reportRows: selectedReport.reportRows,
         monthlyData: selectedReport.monthlyData,
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Finance report saved to Reports.' : 'Finance report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/finance/report?reportId=${createdReportId}` : '/dashboard/finance/report');
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
     } catch (exportError: any) {
       toast.error(exportError?.message || `Failed to export ${activeFinanceReportLabel.toLowerCase()}.`);
     }

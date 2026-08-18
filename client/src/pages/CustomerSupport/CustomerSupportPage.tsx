@@ -466,7 +466,7 @@ export default function CustomerSupportPage() {
         })),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       toast.success(`${reportFormat} support report saved to Reports.`);
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (error: any) { toast.error(error?.response?.data?.message || "Failed to export support issues."); }

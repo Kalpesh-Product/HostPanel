@@ -842,7 +842,7 @@ export function BillingPaymentsPage() {
         sourceRef: selectedReport.sourceRef,
         reportRows: selectedReport.reportRows,
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(`${activeReportLabel} report saved.`);
     } catch (exportError: any) {

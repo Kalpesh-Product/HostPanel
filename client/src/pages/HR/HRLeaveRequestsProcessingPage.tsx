@@ -795,7 +795,7 @@ export default function HRLeaveRequestsProcessingPage() {
         reportRows: buildLeaveExportRows(activeReportRows, activeReportScopeLabel, departmentFilter, searchQuery),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const id = response?.data?.report?.recordId;
       toast.success("Leave report saved to Reports.");
       navigate(id ? `/dashboard/hr/report?reportId=${id}` : "/dashboard/hr/report");
@@ -822,7 +822,7 @@ export default function HRLeaveRequestsProcessingPage() {
         reportRows: buildEmployeeLeaveExportRows(employee),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const id = response?.data?.report?.recordId;
       toast.success("Employee leave report saved to Reports.");
       navigate(id ? `/dashboard/hr/report?reportId=${id}` : "/dashboard/hr/report");
