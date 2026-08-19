@@ -36,7 +36,25 @@ const SURFACE = "#14141c";
 const WRAP = "mx-auto w-full max-w-7xl px-6 md:px-10";
 const PAGE_WRAP = `${WRAP} py-12 md:py-16`;
 const EYEBROW = `text-[12px] font-semibold uppercase tracking-[0.08em] ${FONT}`;
-const SECTION_HEADING = `text-[24px] md:text-[28px] font-bold tracking-[-0.01em] ${HEADING_FONT}`;
+const SECTION_HEADING = `text-sm font-semibold uppercase tracking-[0.15em] sm:text-base md:text-xl lg:text-[26px] ${HEADING_FONT}`;
+
+const LinedHeading = ({
+  title,
+  className = "",
+  style,
+}: {
+  title: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) => (
+  <div className={`flex items-center gap-4 ${className}`}>
+    <div className="flex-1 border-t" style={{ borderColor: ACCENT }} />
+    <h2 className={`shrink-0 text-center ${SECTION_HEADING}`} style={style}>
+      {title}
+    </h2>
+    <div className="flex-1 border-t" style={{ borderColor: ACCENT }} />
+  </div>
+);
 const CARD = "rounded-[4px] bg-[#14141c] transition duration-150";
 const PILL_BUTTON = `inline-flex items-center justify-center rounded-full px-7 py-3 text-[14px] font-semibold transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${FONT}`;
 const INPUT =
@@ -158,16 +176,37 @@ const getProductCardDescription = (product: any) =>
     product?.subText || product?.homeCardSubText || product?.description || "",
   ).trim();
 
+// Dropdown-page cards carry `cardImage`, but a page's own sub-products (added
+// via the Services tab's "Add Product" list) only carry an `images` array —
+// fall back to that (and a couple of other shapes), and finally to the
+// parent page's own cardImage (same last-resort the product-detail view
+// uses via `page?.cardImage`) so a sub-product with no image of its own
+// still shows something instead of a blank box.
+const getProductCardImage = (product: any, fallbackImage?: string) => {
+  const candidate =
+    product?.cardImage ??
+    product?.images?.[0] ??
+    product?.heroImage ??
+    product?.heroImages?.[0] ??
+    "";
+  const resolved =
+    typeof candidate === "string" ? candidate : candidate?.url || candidate?.preview || "";
+  return resolved || fallbackImage || "";
+};
+
 const ProductGrid = ({
   products,
   onSelect,
+  fallbackImage,
 }: {
   products: any[];
   onSelect: (p: any) => void;
+  fallbackImage?: string;
 }) => (
   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
     {products.map((product: any, idx: number) => {
       const description = getProductCardDescription(product);
+      const cardImage = getProductCardImage(product, fallbackImage);
       return (
         <button
           key={idx}
@@ -180,9 +219,9 @@ const ProductGrid = ({
             className="aspect-[4/3] w-full overflow-hidden"
             style={{ backgroundColor: "#15151f" }}
           >
-            {product?.cardImage ? (
+            {cardImage ? (
               <img
-                src={product.cardImage}
+                src={cardImage}
                 alt={product?.name || ""}
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
@@ -251,30 +290,157 @@ const LogoCarousel = ({
   );
 
   return (
-    <section
-      className={PAGE_WRAP}
-      style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
-    >
-      <span className={EYEBROW} style={{ color: ACCENT }}>
-        {title || "Trusted by"}
-      </span>
+    <section className={PAGE_WRAP}>
+      <LinedHeading title={title || "Trusted by"} style={{ color: ACCENT }} />
       <div className="mt-7 overflow-hidden">
         <div className="flex items-center justify-center gap-8 md:gap-16">
           {displayed.map((src, idx) => (
             <div
               key={`logo-${offset}-${idx}`}
-              className="flex h-[50px] w-[120px] shrink-0 items-center justify-center opacity-80 md:h-[70px] md:w-[180px]"
+              className="flex h-[50px] w-[120px] shrink-0 items-center justify-center rounded-[4px] bg-white/95 p-2 md:h-[70px] md:w-[180px]"
             >
               <img
                 src={src}
                 alt={`Partner logo ${idx + 1}`}
-                className="max-h-full max-w-full object-contain brightness-0 invert"
+                className="max-h-full max-w-full object-contain"
               />
             </div>
           ))}
         </div>
       </div>
     </section>
+  );
+};
+
+const getTestimonialsPerView = () => {
+  if (typeof window === "undefined") return 3;
+  if (window.innerWidth < 768) return 1;
+  if (window.innerWidth < 1024) return 2;
+  return 3;
+};
+
+const TestimonialCard = ({ item }: { item: any }) => (
+  <div
+    className={`${CARD} h-full border p-5`}
+    style={{ borderColor: "rgba(255,255,255,0.12)" }}
+  >
+    <div className="text-[13px]" style={{ color: ACCENT }}>
+      {"★".repeat(Number(item?.rating) || 5)}
+    </div>
+    <p className="mt-2 text-[14px] leading-relaxed">"{item?.text}"</p>
+    <span className="mt-3 block text-[13px] font-semibold" style={{ color: HEADING }}>
+      {item?.name}
+    </span>
+  </div>
+);
+
+// Mirrors Classic's sliding testimonials carousel: auto-advances every 3s,
+// pauses on hover, and loops seamlessly by appending the first `perView`
+// items to the end of the track and snapping back once they scroll past.
+// Falls back to a plain static grid when there aren't enough testimonials
+// to fill more than one page.
+const TestimonialsCarousel = ({ testimonials }: { testimonials: any[] }) => {
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [perView, setPerView] = useState(getTestimonialsPerView);
+  const [isPaused, setIsPaused] = useState(false);
+  const [transition, setTransition] = useState(true);
+  const total = testimonials.length;
+  const isCarousel = total > perView;
+  const extended = [...testimonials, ...testimonials.slice(0, perView)];
+
+  useEffect(() => {
+    const handleResize = () => setPerView(getTestimonialsPerView());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isCarousel) return;
+    setSlideIndex(0);
+  }, [perView, isCarousel]);
+
+  useEffect(() => {
+    if (!isCarousel || isPaused) return;
+    const timer = window.setInterval(() => setSlideIndex((prev) => prev + 1), 3000);
+    return () => window.clearInterval(timer);
+  }, [isCarousel, isPaused]);
+
+  // When we reach the duplicated tail, jump back to the real start instantly
+  // (transition off for one frame) so the loop reads as continuous.
+  useEffect(() => {
+    if (slideIndex >= total) {
+      const jump = window.setTimeout(() => {
+        setTransition(false);
+        setSlideIndex(0);
+      }, 500);
+      return () => window.clearTimeout(jump);
+    }
+  }, [slideIndex, total]);
+
+  useEffect(() => {
+    if (!transition) {
+      const restore = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setTransition(true));
+      });
+      return () => cancelAnimationFrame(restore);
+    }
+  }, [transition]);
+
+  if (!total) return null;
+
+  if (!isCarousel) {
+    return (
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        {testimonials.map((item, idx) => (
+          <TestimonialCard key={item?.key || idx} item={item} />
+        ))}
+      </div>
+    );
+  }
+
+  const slideWidth = 100 / perView;
+  const dotIndex = slideIndex % total;
+
+  return (
+    <div onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
+      <div className="overflow-hidden">
+        <div
+          className="flex"
+          style={{
+            transform: `translateX(-${slideIndex * slideWidth}%)`,
+            transition: transition ? "transform 500ms ease-in-out" : "none",
+          }}
+        >
+          {extended.map((item, idx) => (
+            <div
+              key={`${item?.key || item?.name}-${idx}`}
+              className="shrink-0 px-2.5"
+              style={{ width: `${slideWidth}%` }}
+            >
+              <TestimonialCard item={item} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-6 flex justify-center gap-2">
+        {Array.from({ length: total }).map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => {
+              setTransition(true);
+              setSlideIndex(i);
+            }}
+            aria-label={`Go to testimonial ${i + 1}`}
+            className="h-1.5 rounded-full transition-all"
+            style={{
+              width: i === dotIndex ? 24 : 6,
+              backgroundColor: i === dotIndex ? ACCENT : "rgba(255,255,255,0.18)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 };
 
@@ -315,13 +481,8 @@ const FaqList = ({
   const [open, setOpen] = useState<number | null>(null);
   if (!faqs.length) return null;
   return (
-    <section
-      className={PAGE_WRAP}
-      style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
-    >
-      <div className={EYEBROW} style={{ color: ACCENT }}>
-        Frequently Asked Questions
-      </div>
+    <section className={PAGE_WRAP}>
+      <LinedHeading title="Frequently Asked Questions" style={{ color: ACCENT }} />
       <div className="mt-5 flex flex-col gap-3">
         {faqs.map((faq, idx) => {
           const isOpen = open === idx;
@@ -415,13 +576,8 @@ const Inclusions = ({
   const enabled = inclusions.filter((item) => item?.enabled !== false);
   if (!enabled.length) return null;
   return (
-    <section
-      className={PAGE_WRAP}
-      style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
-    >
-      <span className={EYEBROW} style={{ color: ACCENT }}>
-        {title}
-      </span>
+    <section className={PAGE_WRAP}>
+      <LinedHeading title={title} style={{ color: ACCENT }} />
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6 md:gap-6">
         {enabled.map((item, index) => {
           const { label, icon } = getInclusionMeta(item);
@@ -694,32 +850,41 @@ const FreshStudioTemplate: React.FC = () => {
           className={FONT}
           style={{ backgroundColor: PAGE_BG }}
         >
-          <div className={`${WRAP} ${FONT} flex items-center gap-2 py-2 text-[12px]`}>
-            {breadcrumbItems.map((item, index) => (
-              <div key={`${item.label}-${index}`} className={`${FONT} flex items-center gap-2`}>
-                {index > 0 ? (
-                  <span className={FONT} style={{ color: "rgba(255,255,255,0.25)" }}>/</span>
-                ) : null}
-                {item.onClick ? (
-                  <button
-                    type="button"
-                    onClick={item.onClick}
-                    className={`${FONT} transition hover:text-[#E11D48]`}
-                    style={{ color: "rgba(255,255,255,0.55)" }}
-                  >
-                    {item.label}
-                  </button>
-                ) : (
-                  <span
-                    aria-current="page"
-                    className={`${FONT} font-bold`}
-                    style={{ color: ACCENT }}
-                  >
-                    {item.label}
-                  </span>
-                )}
-              </div>
-            ))}
+          <div className={`${WRAP} ${FONT} flex items-center gap-3 py-2 px-4 text-[12px] md:px-6`}>
+            {breadcrumbItems.map((item, index) => {
+              const isCurrent = index === breadcrumbItems.length - 1;
+              return (
+                <div key={`${item.label}-${index}`} className={`${FONT} flex items-center gap-3`}>
+                  {index > 0 ? (
+                    <span
+                      aria-hidden="true"
+                      className={FONT}
+                      style={{ color: "rgba(255,255,255,0.25)" }}
+                    >
+                      &rsaquo;
+                    </span>
+                  ) : null}
+                  {item.onClick && !isCurrent ? (
+                    <button
+                      type="button"
+                      onClick={item.onClick}
+                      className={`${FONT} transition hover:text-[#E11D48]`}
+                      style={{ color: "rgba(255,255,255,0.55)" }}
+                    >
+                      {item.label}
+                    </button>
+                  ) : (
+                    <span
+                      aria-current="page"
+                      className={`${FONT} font-semibold`}
+                      style={{ color: ACCENT }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -852,14 +1017,9 @@ const FreshStudioTemplate: React.FC = () => {
           {t.aboutPageEnabled &&
           t.isSectionEnabled("home_about") &&
           t.aboutIntroBlocks.length ? (
-            <section
-              className={PAGE_WRAP}
-              style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
-            >
-              <span className={EYEBROW} style={{ color: ACCENT }}>
-                About
-              </span>
-              <div className="mt-6 flex flex-col gap-4">
+            <section className={PAGE_WRAP}>
+              <LinedHeading title="About" style={{ color: ACCENT }} />
+              <div className="mx-auto mt-6 flex max-w-2xl flex-col items-center gap-4 text-center">
                 {t.aboutIntroBlocks.map((text: string, idx: number) => (
                   <p key={idx} className="text-[15px] leading-relaxed">
                     {text}
@@ -872,13 +1032,8 @@ const FreshStudioTemplate: React.FC = () => {
           {t.productsPageEnabled &&
           t.isSectionEnabled("home_products") &&
           productPages.length ? (
-            <section
-              className={PAGE_WRAP}
-              style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
-            >
-              <span className={EYEBROW} style={{ color: ACCENT }}>
-                What we offer
-              </span>
+            <section className={PAGE_WRAP}>
+              <LinedHeading title="What we offer" style={{ color: ACCENT }} />
               <div className="mt-6">
                 <ProductGrid
                   products={productPages}
@@ -894,15 +1049,8 @@ const FreshStudioTemplate: React.FC = () => {
             <Inclusions inclusions={draft.inclusions} title="Inclusions" />
           ) : null}
           {t.galleryPageEnabled && t.isSectionEnabled("home_gallery") ? (
-            <section
-              className={PAGE_WRAP}
-              style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
-            >
-              <div>
-                <span className={EYEBROW} style={{ color: ACCENT }}>
-                  Gallery
-                </span>
-              </div>
+            <section className={PAGE_WRAP}>
+              <LinedHeading title="Gallery" style={{ color: ACCENT }} />
               <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
                 {t.homeGalleryItems.map((src: string, idx: number) => (
                   <button
@@ -940,49 +1088,27 @@ const FreshStudioTemplate: React.FC = () => {
           ) : null}
 
           {t.isSectionEnabled("home_testimonials") && t.testimonials.length ? (
-            <section
-              className={PAGE_WRAP}
-              style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className={EYEBROW} style={{ color: ACCENT }}>
-                    What people say
-                  </span>
-                </div>
-                {t.showWriteReview ? (
+            <section className={PAGE_WRAP}>
+              <LinedHeading title="What people say" style={{ color: ACCENT }} />
+              <div className="mt-7">
+                <TestimonialsCarousel testimonials={t.testimonials} />
+              </div>
+              {t.showWriteReview ? (
+                <div className="mt-7 text-center">
                   <button
                     type="button"
                     onClick={t.openReviewModal}
-                    className="text-[13px] font-semibold focus-visible:outline focus-visible:outline-2"
-                    style={{ color: ACCENT, ...focusStyle }}
+                    className="rounded-full px-6 py-2.5 text-[13px] font-semibold focus-visible:outline focus-visible:outline-2"
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.22)",
+                      color: HEADING,
+                      ...focusStyle,
+                    }}
                   >
                     Write a review
                   </button>
-                ) : null}
-              </div>
-              <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-3">
-                {t.visibleTestimonials.map((item: any) => (
-                  <div
-                    key={item.key}
-                    className={`${CARD} border p-5`}
-                    style={{ borderColor: "rgba(255,255,255,0.12)" }}
-                  >
-                    <div className="text-[13px]" style={{ color: ACCENT }}>
-                      {"★".repeat(item.rating || 5)}
-                    </div>
-                    <p className="mt-2 text-[14px] leading-relaxed">
-                      "{item.text}"
-                    </p>
-                    <span
-                      className="mt-3 block text-[13px] font-semibold"
-                      style={{ color: HEADING }}
-                    >
-                      {item.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -1099,12 +1225,11 @@ const FreshStudioTemplate: React.FC = () => {
       {/* About page */}
       {section === "about" && t.aboutPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <h2
-            className={`${SECTION_HEADING} text-center`}
+          <LinedHeading
+            title={draft?.aboutTitle || "About us"}
+            className="mb-2"
             style={{ color: ACCENT }}
-          >
-            {draft?.aboutTitle || "About us"}
-          </h2>
+          />
           <div className="mx-auto mt-6 flex max-w-2xl flex-col items-center gap-4 text-center">
             {t.aboutIntroBlocks.map((text: string, idx: number) => (
               <p key={idx} className="text-[15px] leading-relaxed">
@@ -1137,50 +1262,97 @@ const FreshStudioTemplate: React.FC = () => {
             </div>
           ) : null}
           {t.founders.length ? (
-            <div className="mt-14 flex flex-col gap-10">
-              <span
-                className={`${EYEBROW} block text-center`}
-                style={{ color: ACCENT }}
-              >
-                Founders
-              </span>
-              {t.founders.map((founder: any, idx: number) => (
-                <div
-                  key={idx}
-                  className="grid gap-6 md:grid-cols-[0.3fr_0.7fr]"
-                >
-                  {founder?.image ? (
-                    <img
-                      src={
-                        typeof founder.image === "string"
-                          ? founder.image
-                          : founder.image?.url
-                      }
-                      alt={founder?.name}
-                      className="aspect-square w-full rounded-[4px] object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="aspect-square w-full rounded-[4px]"
-                      style={{ backgroundColor: "#15151f" }}
-                    />
-                  )}
-                  <div>
-                    <h4
-                      className={`text-[18px] font-bold ${HEADING_FONT}`}
-                      style={{ color: HEADING }}
-                    >
-                      {founder?.name}
-                    </h4>
-                    <p className="text-[13px]" style={{ color: ACCENT }}>
-                      {founder?.role}
-                    </p>
-                    <p className="mt-2 text-[14px] leading-relaxed">
-                      {founder?.bio}
-                    </p>
+            <div className="mt-14 flex flex-col gap-16">
+              <LinedHeading title="Founders" style={{ color: ACCENT }} />
+              {t.founders.map((founder: any, idx: number) => {
+                const founderImg =
+                  typeof founder?.image === "string"
+                    ? founder.image
+                    : founder?.image?.url || "";
+                return (
+                  <div
+                    key={idx}
+                    className={`flex flex-col items-stretch gap-6 md:flex-row md:gap-10 ${
+                      idx % 2 === 1 ? "md:flex-row-reverse" : ""
+                    }`}
+                  >
+                    <div className="w-full md:w-1/2">
+                      {founderImg ? (
+                        <img
+                          src={founderImg}
+                          alt={founder?.name}
+                          className="h-full min-h-[280px] w-full rounded-[4px] object-cover md:min-h-[420px]"
+                        />
+                      ) : (
+                        <div
+                          className="h-full min-h-[280px] w-full rounded-[4px] md:min-h-[420px]"
+                          style={{ backgroundColor: "#15151f" }}
+                        />
+                      )}
+                    </div>
+                    <div className="flex w-full flex-col justify-center md:w-1/2">
+                      <h4
+                        className={`text-[22px] font-bold ${HEADING_FONT} md:text-[26px]`}
+                        style={{ color: HEADING }}
+                      >
+                        {founder?.name}
+                      </h4>
+                      <p className="mt-1 text-[14px] font-semibold" style={{ color: ACCENT }}>
+                        {founder?.role}
+                      </p>
+                      <p className="mt-3 text-[14.5px] leading-relaxed">
+                        {founder?.bio}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          ) : null}
+          {t.aboutPageImageCards.length ? (
+            <div className="mt-14 flex flex-col gap-8">
+              <LinedHeading
+                title={draft?.aboutPageTeamHeading || "Our Team"}
+                style={{ color: ACCENT }}
+              />
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-8">
+                {t.aboutPageImageCards.map((card: any, idx: number) => {
+                  const image =
+                    typeof card?.image === "string" ? card.image : card?.image?.url || "";
+                  return (
+                    <div
+                      key={idx}
+                      className="w-[calc(50%-12px)] shrink-0 grow-0 sm:w-[calc(33.333%-16px)] lg:w-[calc(20%-19.2px)]"
+                    >
+                      {image ? (
+                        <img
+                          src={image}
+                          alt={card?.title || ""}
+                          className="aspect-square w-full rounded-[4px] object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="aspect-square w-full rounded-[4px]"
+                          style={{ backgroundColor: "#15151f" }}
+                        />
+                      )}
+                      {card?.title ? (
+                        <h5
+                          className={`mt-3 text-[15px] font-bold ${HEADING_FONT}`}
+                          style={{ color: HEADING }}
+                        >
+                          {card.title}
+                        </h5>
+                      ) : null}
+                      {card?.description ? (
+                        <p className="mt-1 text-[13px]" style={{ color: MUTED }}>
+                          {card.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
         </section>
@@ -1366,51 +1538,45 @@ const FreshStudioTemplate: React.FC = () => {
                   heroImages) with the page heading/subheading/CTA overlaid. */}
               {(t.selectedProductPage as any)?.heroEnabled !== false ? (
                 <section
-                  className="relative h-[56svh] min-h-[380px] overflow-hidden md:h-[68vh] md:min-h-[480px]"
+                  className="relative h-[62svh] min-h-[450px] overflow-hidden md:h-[84vh] md:min-h-[550px]"
                   style={{ backgroundColor: "#15151f" }}
                 >
                   {t.selectedProductHeroImage ? (
                     <img
                       src={t.selectedProductHeroImage}
                       alt={t.selectedProductPage?.name || "Service"}
-                      className="absolute inset-0 h-full w-full object-cover opacity-55"
+                      className="absolute inset-0 h-full w-full object-cover opacity-60"
                     />
                   ) : null}
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, rgba(10,10,18,0.25) 0%, #0A0A12 92%)",
-                    }}
-                  />
-                  <div className="absolute inset-0 flex flex-col items-center justify-end gap-2 px-6 pb-10 text-center md:pb-14">
-                    <span className={EYEBROW} style={{ color: ACCENT }}>
-                      {t.selectedProductPage?.name}
-                    </span>
-                    <h1
-                      className={`text-[26px] font-extrabold ${HEADING_FONT} md:text-[38px]`}
-                      style={{ color: WHITE }}
-                    >
-                      {(t.selectedProductPage as any)?.heroHeading ||
-                        (t.selectedProductPage as any)?.name}
-                    </h1>
-                    {(t.selectedProductPage as any)?.heroSubHeading ? (
-                      <p
-                        className="mx-auto max-w-xl text-[14.5px]"
-                        style={{ color: "rgba(255,255,255,0.75)" }}
+                  <div className="absolute inset-0 flex items-end justify-center px-4 pb-10 text-center text-white md:pb-16">
+                    <div>
+                      <h1
+                        className={`text-[26px] font-bold ${HEADING_FONT} md:text-4xl`}
+                        style={{ color: WHITE }}
                       >
-                        {(t.selectedProductPage as any).heroSubHeading}
-                      </p>
-                    ) : null}
-                    {(t.selectedProductPage as any)?.heroButtonText ? (
-                      <button
-                        type="button"
-                        className={`${PILL_BUTTON} mt-2`}
-                        style={{ background: ACCENT_GRADIENT, color: WHITE }}
-                      >
-                        {(t.selectedProductPage as any).heroButtonText}
-                      </button>
-                    ) : null}
+                        {(t.selectedProductPage as any)?.heroHeading ||
+                          (t.selectedProductPage as any)?.name}
+                      </h1>
+                      {(t.selectedProductPage as any)?.heroSubHeading ? (
+                        <p
+                          className="mt-2 text-[13px] leading-relaxed md:mt-3 md:text-lg"
+                          style={{ color: "rgba(255,255,255,0.75)" }}
+                        >
+                          {(t.selectedProductPage as any).heroSubHeading}
+                        </p>
+                      ) : null}
+                      {(t.selectedProductPage as any)?.heroButtonText ? (
+                        <button
+                          type="button"
+                          className={`${PILL_BUTTON} mt-4 md:mt-6`}
+                          style={{ background: ACCENT_GRADIENT, color: WHITE }}
+                        >
+                          {String(
+                            (t.selectedProductPage as any).heroButtonText,
+                          ).toUpperCase()}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                   {(t.selectedProductPage as any)?.heroMode === "carousel" &&
                   t.selectedProductHeroImages.length > 1 ? (
@@ -1439,12 +1605,11 @@ const FreshStudioTemplate: React.FC = () => {
               ) : null}
               <section className={PAGE_WRAP}>
                 <div>
-                  <h2
-                    className={`mb-6 ${SECTION_HEADING} text-center`}
+                  <LinedHeading
+                    title={`${String((t.selectedProductPage as any)?.heading || t.selectedProductPage?.name || "").trim() || "Our"} ${t.isMenuProductSlug(t.selectedProductPage?.slug || "") ? "Menu" : "Services"}`}
+                    className="mb-6"
                     style={{ color: ACCENT }}
-                  >
-                    {`${String((t.selectedProductPage as any)?.heading || t.selectedProductPage?.name || "").trim() || "Our"} ${t.isMenuProductSlug(t.selectedProductPage?.slug || "") ? "Menu" : "Services"}`}
-                  </h2>
+                  />
                   {t.isMenuProductSlug(t.selectedProductPage?.slug || "") ? (
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3">
                       {t.menuItems.map((item: any, idx: number) => (
@@ -1486,6 +1651,11 @@ const FreshStudioTemplate: React.FC = () => {
                           ? t.selectedProductContentItems
                           : [t.selectedProductPage]
                       }
+                      fallbackImage={
+                        typeof (t.selectedProductPage as any)?.cardImage === "string"
+                          ? (t.selectedProductPage as any).cardImage
+                          : (t.selectedProductPage as any)?.cardImage?.url || ""
+                      }
                       onSelect={(item: any) =>
                         t.goToProductItem(
                           t.selectedProductPage?.slug ||
@@ -1512,12 +1682,11 @@ const FreshStudioTemplate: React.FC = () => {
             </>
           ) : (
             <section className={PAGE_WRAP}>
-              <h2
-                className={`mb-6 ${SECTION_HEADING} text-center`}
+              <LinedHeading
+                title={String(draft?.productTitle || "").trim() || "Our Services"}
+                className="mb-6"
                 style={{ color: ACCENT }}
-              >
-                {String(draft?.productTitle || "").trim() || "Our Services"}
-              </h2>
+              />
               <ProductGrid
                 products={productPages}
                 onSelect={t.handleProductCardAction}
@@ -1530,12 +1699,10 @@ const FreshStudioTemplate: React.FC = () => {
       {/* Gallery page */}
       {section === "gallery" && t.galleryPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <h2
-            className={`${SECTION_HEADING} text-center`}
+          <LinedHeading
+            title="Gallery"
             style={{ color: ACCENT }}
-          >
-            Gallery
-          </h2>
+          />
           <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
             {t.galleryItems.map((src: string, idx: number) => (
               <button
@@ -1560,12 +1727,10 @@ const FreshStudioTemplate: React.FC = () => {
       {section === "testimonials" ? (
         <section className={PAGE_WRAP}>
           <div className="flex flex-col items-center gap-4 text-center">
-            <h2
-              className={`${SECTION_HEADING} text-center`}
+            <LinedHeading
+              title="Testimonials"
               style={{ color: ACCENT }}
-            >
-              Testimonials
-            </h2>
+            />
             {t.showWriteReview ? (
               <button
                 type="button"
@@ -1577,59 +1742,20 @@ const FreshStudioTemplate: React.FC = () => {
               </button>
             ) : null}
           </div>
-          <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-3">
-            {t.visibleTestimonials.map((item: any) => (
-              <div
-                key={item.key}
-                className={`${CARD} border p-5`}
-                style={{ borderColor: "rgba(255,255,255,0.12)" }}
-              >
-                <div className="text-[13px]" style={{ color: ACCENT }}>
-                  {"★".repeat(item.rating || 5)}
-                </div>
-                <p className="mt-2 text-[14px] leading-relaxed">
-                  "{item.text}"
-                </p>
-                <span
-                  className="mt-3 block text-[13px] font-semibold"
-                  style={{ color: HEADING }}
-                >
-                  {item.name}
-                </span>
-              </div>
-            ))}
+          <div className="mt-7">
+            <TestimonialsCarousel testimonials={t.testimonials} />
           </div>
-          {t.testimonialPages > 1 ? (
-            <div className="mt-7 flex gap-2">
-              {Array.from({ length: t.testimonialPages }).map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => t.setTestimonialIndex(idx)}
-                  className="h-1.5 rounded-full transition-all"
-                  style={{
-                    width: t.testimonialIndex === idx ? 24 : 6,
-                    backgroundColor:
-                      t.testimonialIndex === idx
-                        ? ACCENT
-                        : "rgba(255,255,255,0.18)",
-                  }}
-                />
-              ))}
-            </div>
-          ) : null}
         </section>
       ) : null}
 
       {/* Partner page */}
       {section === "partner" && t.partnerPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <h2
-            className={`mb-6 ${SECTION_HEADING} text-center`}
+          <LinedHeading
+            title={t.partnerPageHeading || "Become a partner"}
+            className="mb-6"
             style={{ color: ACCENT }}
-          >
-            {t.partnerPageHeading || "Become a partner"}
-          </h2>
+          />
           <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
             <div className="text-[14.5px] leading-relaxed">
               {t.partnerPageContent ? (
@@ -1647,7 +1773,7 @@ const FreshStudioTemplate: React.FC = () => {
               style={{ borderColor: "rgba(255,255,255,0.12)" }}
             >
               <h3
-                className="text-[15px] font-semibold"
+                className="text-center text-[18px] font-semibold md:text-[20px]"
                 style={{ color: HEADING }}
               >
                 {t.partnerFormTitle ||
@@ -1729,14 +1855,13 @@ const FreshStudioTemplate: React.FC = () => {
         <section className={PAGE_WRAP}>
           {!t.careersApplyJob ? (
             <>
-              <h2
-                className={`mb-6 ${SECTION_HEADING} text-center`}
-                style={{ color: ACCENT }}
-              >
-                {draft?.companyName
+              <LinedHeading
+                title={draft?.companyName
                   ? `Join ${draft.companyName}`
                   : "Join our team"}
-              </h2>
+                className="mb-6"
+                style={{ color: ACCENT }}
+              />
               <div className="mx-auto max-w-2xl text-center text-[14.5px] leading-relaxed">
                 {(draft?.careersPageIntro
                   ? draft.careersPageIntro.split("\n")
@@ -2158,12 +2283,11 @@ const FreshStudioTemplate: React.FC = () => {
       {/* Contact page */}
       {section === "contact" && t.contactPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <h2
-            className={`mb-6 ${SECTION_HEADING} text-center`}
+          <LinedHeading
+            title={draft?.contactTitle || "Get in touch"}
+            className="mb-6"
             style={{ color: ACCENT }}
-          >
-            {draft?.contactTitle || "Get in touch"}
-          </h2>
+          />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[0.6fr_0.4fr]">
             {draft?.mapUrl ? (
               <iframe
@@ -2517,6 +2641,23 @@ const FreshStudioTemplate: React.FC = () => {
                 className={INPUT}
                 style={{ ...inputStyle, ...inputFocusStyle }}
               />
+              <select
+                value={t.reviewForm.rating}
+                onChange={(e) =>
+                  t.setReviewForm((prev: any) => ({
+                    ...prev,
+                    rating: e.target.value,
+                  }))
+                }
+                className={INPUT}
+                style={{ ...inputStyle, ...inputFocusStyle }}
+              >
+                {[5, 4, 3, 2, 1].map((rating) => (
+                  <option key={rating} value={String(rating)}>
+                    {rating} Star{rating > 1 ? "s" : ""}
+                  </option>
+                ))}
+              </select>
               <textarea
                 placeholder="Your review"
                 value={t.reviewForm.review}

@@ -53,6 +53,32 @@ const defaultSubProduct = {
   images: [],
 };
 
+const buildDefaultProductPage = (name = "Service Page 1") => {
+  const slug = toSlug(name || "service-page-1");
+  return {
+    name,
+    slug,
+    enabled: true,
+    heroEnabled: true,
+    inclusionsEnabled: true,
+    faqEnabled: true,
+    heroHeading: name,
+    heroSubHeading: "",
+    heroMode: "single",
+    heroImage: null,
+    heroImages: [],
+    heroButtonText: "View More",
+    homeCardHeading: name,
+    homeCardSubText: "",
+    homeCardImage: null,
+    leadEnabled: true,
+    leadFormLabel: "View More / Get Details",
+    faqs: [],
+    inclusions: [],
+    subProducts: [{ ...defaultSubProduct, images: [] }],
+  };
+};
+
 const MAX_SUB_PRODUCTS_PER_PAGE = 12;
 const MAX_SUB_PRODUCT_IMAGES = 5;
 
@@ -148,7 +174,11 @@ const DEFAULT_PAGE_NAV_ITEMS = [
 
 const buildDefaultPageNavItems = () =>
   DEFAULT_PAGE_NAV_ITEMS.map((name) => {
-    const slug = String(name).toLowerCase().replace(/\s+/g, "-");
+    // "Services" is displayed as the label, but the Services page settings
+    // panel and its lookups throughout this file key off the legacy
+    // "products" slug (see migrateNavItems), so keep that slug here too.
+    const slug =
+      name === "Services" ? "products" : String(name).toLowerCase().replace(/\s+/g, "-");
     return {
       name,
       slug,
@@ -709,7 +739,9 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   logoCarousel: {
     enabled: formValues?.logoCarousel?.enabled === true,
     title: String(formValues?.logoCarousel?.title || "").trim(),
-    logos: Array.isArray(formValues?.logoCarousel?.logos) ? formValues.logoCarousel.logos : [],
+    logos: (Array.isArray(formValues?.logoCarousel?.logos) ? formValues.logoCarousel.logos : [])
+      .map((item: unknown) => getMediaUrlForPreview(item))
+      .filter(Boolean),
   },
   aboutPageIntro: String(formValues?.aboutPageIntro || "").trim(),
   aboutPageOverview: String(formValues?.aboutPageOverview || "").trim(),
@@ -1251,7 +1283,7 @@ const CreateWebsite = () => {
       copyrightText: "",
       socials: buildDefaultSocials(),
       pageNavItems: buildDefaultPageNavItems(),
-      productDropdownPages: [],
+      productDropdownPages: [buildDefaultProductPage()],
       aboutPageIntro: "",
       aboutPageOverview: "",
       aboutPageStory: "",
@@ -2861,14 +2893,18 @@ const CreateWebsite = () => {
       });
       setValue("founders", mergedFounders, { shouldDirty: false });
     }
-    // Logo carousel logos
+    // Logo carousel logos — merge keyed off the current form state (like
+    // founders/sub-product images above/below), not off the server response.
+    // Keying off the response instead silently truncated the array to
+    // whatever length that particular save/autosave happened to return,
+    // dropping any logos picked after that request was already in flight.
     if (Array.isArray(savedTemplate.logoCarousel?.logos)) {
       const currentLogos = getValues("logoCarousel.logos") || [];
-      const mergedLogos = savedTemplate.logoCarousel.logos.map((saved: any, idx: number) => {
-        const current = currentLogos[idx];
+      const savedLogos = savedTemplate.logoCarousel.logos;
+      const mergedLogos = currentLogos.map((current: any, idx: number) => {
         // Keep File objects if they're newer than saved; otherwise use saved S3 object
         if (current instanceof File) return current;
-        return saved;
+        return savedLogos[idx] || current;
       });
       setValue("logoCarousel.logos", mergedLogos, { shouldDirty: false });
     }
@@ -3290,6 +3326,7 @@ const CreateWebsite = () => {
       copyrightText: "",
       socials: buildDefaultSocials(),
       pageNavItems: buildDefaultPageNavItems(),
+      productDropdownPages: [buildDefaultProductPage()],
     });
 
     setActiveMainPageTab(0);
@@ -3431,6 +3468,20 @@ const CreateWebsite = () => {
   const legacyHomeProductsEditorEnabled = Boolean(
     values?.__legacyHomeProductsEditorEnabled,
   );
+
+  const hasSeededDefaultServicesPageRef = useRef(false);
+
+  useEffect(() => {
+    const currentPages = getValues("productDropdownPages");
+    if (Array.isArray(currentPages) && currentPages.length > 0) {
+      hasSeededDefaultServicesPageRef.current = true;
+      return;
+    }
+    if (hasSeededDefaultServicesPageRef.current) return;
+    setValue("productDropdownPages", [buildDefaultProductPage()], { shouldDirty: false });
+    setActiveProductPageTab(0);
+    hasSeededDefaultServicesPageRef.current = true;
+  }, [getValues, setValue, setActiveProductPageTab]);
 
   if (isCheckingExistingWebsite) {
     return <WebsiteBuilderEditorSkeleton />;
@@ -4774,21 +4825,25 @@ const CreateWebsite = () => {
                   )}
                 />
 
-                {/* mainHeroImage (single) — templates that pair a rotating
-                    background carousel with one fixed foreground shot (e.g.
-                    Fresh Studio) use this; ignored by templates that don't. */}
-                <Controller
-                  name="mainHeroImage"
-                  control={control}
-                  render={({ field }) => (
-                    <UploadFileInput
-                      id="mainHeroImage"
-                      value={field.value}
-                      label="Main Hero Image (Fresh Studio template)"
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
+                {/* mainHeroImage (single) — only Fresh Studio pairs a
+                    rotating background carousel with one fixed foreground
+                    shot, so this field is template-specific and hidden for
+                    every other template instead of showing a field that
+                    would be silently ignored. */}
+                {watch("themeVariant") === "fresh-studio" && (
+                  <Controller
+                    name="mainHeroImage"
+                    control={control}
+                    render={({ field }) => (
+                      <UploadFileInput
+                        id="mainHeroImage"
+                        value={field.value}
+                        label="Main Hero Image"
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                )}
 
                 <Controller
                   name="title"

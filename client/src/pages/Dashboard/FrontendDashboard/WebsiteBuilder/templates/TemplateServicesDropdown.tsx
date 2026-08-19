@@ -39,7 +39,7 @@ const styles: Record<
     mobileItem: "text-[#b9b8ff]/70 hover:bg-white/10 hover:text-white",
   },
   fresh: {
-    desktopTrigger: "text-[14px] font-medium border-b-2 border-transparent pb-1 text-white/80 hover:text-white hover:border-[#E11D48]",
+    desktopTrigger: "text-[14px] font-medium border-b-2 border-transparent pb-1",
     desktopPanel: "border border-white/10 bg-[#11111a] shadow-2xl",
     desktopItem: "text-white/70 hover:bg-white/[0.07] hover:text-white",
     desktopActive: "border-[#E11D48] text-[#E11D48]",
@@ -49,10 +49,10 @@ const styles: Record<
     mobileItem: "text-white/70 hover:bg-white/[0.07] hover:text-white",
   },
   warm: {
-    desktopTrigger: "text-[13px] text-[#5b473b] hover:text-[#b85c38]",
+    desktopTrigger: "text-[13px] border-b-2 border-transparent pb-1 text-[#5b473b] hover:text-[#b85c38]",
     desktopPanel: "border border-[#6b4f3b]/15 bg-[#fffaf1] shadow-xl",
     desktopItem: "text-[#6b584b] hover:bg-[#f1e6d3] hover:text-[#b85c38]",
-    desktopActive: "bg-[#f1e6d3] font-semibold text-[#b85c38]",
+    desktopActive: "border-[#b85c38] font-semibold text-[#b85c38]",
     mobileWrap: "border-b border-[#6b4f3b]/15",
     mobileRow: "text-[14px] text-[#3b3029]",
     mobilePanel: "border-t border-[#6b4f3b]/10 bg-[#f1e6d3]/60",
@@ -168,9 +168,16 @@ const TemplateServicesDropdown: React.FC<TemplateServicesDropdownProps> = ({
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative inline-flex items-center">
       <div
         className={`inline-flex items-center gap-1.5 ${theme.desktopTrigger} ${isActive || open ? theme.desktopActive : ""}`}
+        style={
+          variant === "fresh" && (isActive || open)
+            ? { color: "#E11D48", borderBottomColor: "#E11D48" }
+            : variant === "warm" && (isActive || open)
+              ? { color: "#b85c38", borderBottomColor: "#b85c38" }
+              : undefined
+        }
       >
         <button type="button" onClick={goAllProducts}>
           {item?.name || "Services"}

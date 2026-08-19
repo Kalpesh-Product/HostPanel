@@ -24,11 +24,21 @@ const MUTED = "#5A4A3C";
 const SERIF = "font-['Fraunces',ui-serif,Georgia,serif]";
 const SANS = "font-['Karla',ui-sans-serif,system-ui,sans-serif]";
 
-const WRAP = "mx-auto w-full max-w-6xl";
+const WRAP = "mx-auto w-full max-w-7xl";
 const EYEBROW = `text-[11.5px] font-semibold uppercase tracking-[0.12em] ${SANS}`;
 const PAGE_WRAP = `${WRAP} px-6 py-12 md:px-11 md:py-16`;
 const INPUT = "w-full rounded-xl px-4 py-2.5 text-[14px] outline-none bg-white";
 const inputStyle = { border: `1px solid ${BROWN}33` };
+
+function LinedHeading({ title, className = "" }: { title: string; className?: string }) {
+  return (
+    <div className={`flex items-center gap-4 mb-6 ${className}`}>
+      <div className="flex-1 h-px" style={{ backgroundColor: RUST }} />
+      <h2 className={`text-sm font-semibold uppercase tracking-[0.15em] sm:text-base md:text-xl lg:text-[26px] ${SANS}`} style={{ color: RUST }}>{title}</h2>
+      <div className="flex-1 h-px" style={{ backgroundColor: RUST }} />
+    </div>
+  );
+}
 
 const SOCIAL_LABEL: Record<string, string> = {
   instagram: "Instagram",
@@ -398,6 +408,58 @@ const WarmOrganicTemplate: React.FC = () => {
       )
     : [];
 
+  const breadcrumbItems: Array<{ label: string; onClick?: () => void }> = [
+    { label: "Home", onClick: () => t.goToSection("home") },
+  ];
+
+  if (section !== "home") {
+    const label =
+      section === "partner"
+        ? "Partner"
+        : section === "testimonials"
+          ? "Testimonials"
+          : section === "products"
+            ? "Services"
+            : section.charAt(0).toUpperCase() + section.slice(1);
+    breadcrumbItems.push({
+      label,
+      onClick: () => t.goToSection(section),
+    });
+  }
+
+  if (section === "products" && t.selectedProductPage) {
+    breadcrumbItems.push({
+      label: String(
+        t.selectedProductPage?.heading ||
+          t.selectedProductPage?.name ||
+          "Service",
+      ).trim(),
+      onClick: t.selectedDetailItem
+        ? () =>
+            t.goToProductPage(
+              t.selectedProductPage?.slug ||
+                t.selectedProductPage?.name ||
+                "",
+            )
+        : undefined,
+    });
+  }
+
+  if (section === "products" && t.selectedDetailItem) {
+    breadcrumbItems.push({
+      label: String(
+        t.selectedDetailItem?.title ||
+          t.selectedDetailItem?.name ||
+          t.selectedDetailItem?.heading ||
+          "Details",
+      ).trim(),
+    });
+  }
+
+  if (breadcrumbItems.length > 1) {
+    breadcrumbItems[breadcrumbItems.length - 1].onClick = undefined;
+  }
+
   return (
     <div
       className={`wo-template min-h-screen ${SANS}`}
@@ -417,8 +479,8 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Header */}
       <header
         ref={t.headerRef}
-        className="sticky top-0 z-30"
-        style={{ backgroundColor: `${SAND}F2`, backdropFilter: "blur(4px)" }}
+        className="sticky top-0 z-30 bg-white border-b border-black/5"
+        style={{ backdropFilter: "blur(4px)" }}
       >
         <div
           className={`${WRAP} flex items-center justify-between gap-4 px-6 py-5 md:px-11`}
@@ -480,10 +542,13 @@ const WarmOrganicTemplate: React.FC = () => {
                   key={item.slug}
                   type="button"
                   onClick={() => t.goToSection(item.slug)}
-                  className="text-[13px]"
+                  className={`text-[13px] border-b-2 pb-1 transition-colors duration-150 ${
+                    isActive
+                      ? "border-current font-semibold"
+                      : "border-transparent font-normal"
+                  }`}
                   style={{
                     color: isActive ? RUST : MUTED,
-                    fontWeight: isActive ? 600 : 400,
                   }}
                 >
                   {item.name}
@@ -544,64 +609,17 @@ const WarmOrganicTemplate: React.FC = () => {
         ) : null}
       </header>
 
-      {(() => {
-        const breadcrumbItems: Array<{ label: string; onClick?: () => void }> = [
-          { label: "Home", onClick: () => t.goToSection("home") },
-        ];
-        if (section !== "home") {
-          const label =
-            section === "partner"
-              ? "Partner"
-              : section === "testimonials"
-                ? "Testimonials"
-                : section === "products"
-                  ? "Services"
-                  : section.charAt(0).toUpperCase() + section.slice(1);
-          breadcrumbItems.push({
-            label,
-            onClick: () => t.goToSection(section),
-          });
-        }
-        if (section === "products" && t.selectedProductPage) {
-          breadcrumbItems.push({
-            label: String(
-              t.selectedProductPage?.heading ||
-                t.selectedProductPage?.name ||
-                "Service",
-            ).trim(),
-            onClick: t.selectedDetailItem
-              ? () =>
-                  t.goToProductPage(
-                    t.selectedProductPage?.slug ||
-                      t.selectedProductPage?.name ||
-                      "",
-                  )
-              : undefined,
-          });
-        }
-        if (section === "products" && t.selectedDetailItem) {
-          breadcrumbItems.push({
-            label: String(
-              t.selectedDetailItem?.title ||
-                t.selectedDetailItem?.name ||
-                t.selectedDetailItem?.heading ||
-                "Details",
-            ).trim(),
-          });
-        }
-        if (breadcrumbItems.length > 1) {
-          breadcrumbItems[breadcrumbItems.length - 1].onClick = undefined;
-        }
-        if (breadcrumbItems.length <= 1) return null;
-        return (
-          <div style={{ backgroundColor: SAND }}>
-            <div className={`${WRAP} flex items-center gap-2 py-2 px-6 md:px-11 text-[12px]`}>
-              {breadcrumbItems.map((item, index) => (
-                <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+      {breadcrumbItems.length > 1 ? (
+        <div style={{ backgroundColor: SAND }}>
+          <div className={`${WRAP} flex items-center gap-3 py-2 px-4 md:px-6 text-[12px]`}>
+            {breadcrumbItems.map((item, index) => {
+              const isCurrent = index === breadcrumbItems.length - 1;
+              return (
+                <div key={`${item.label}-${index}`} className="flex items-center gap-3">
                   {index > 0 ? (
-                    <span style={{ color: `${BROWN}40` }}>/</span>
+                    <span aria-hidden="true" style={{ color: `${BROWN}40` }}>&rsaquo;</span>
                   ) : null}
-                  {item.onClick ? (
+                  {item.onClick && !isCurrent ? (
                     <button
                       type="button"
                       onClick={item.onClick}
@@ -613,18 +631,18 @@ const WarmOrganicTemplate: React.FC = () => {
                   ) : (
                     <span
                       aria-current="page"
-                      className="font-bold"
+                      className="font-semibold"
                       style={{ color: RUST }}
                     >
                       {item.label}
                     </span>
                   )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        );
-      })()}
+        </div>
+      ) : null}
 
       {isHome ? (
         <>
@@ -722,12 +740,7 @@ const WarmOrganicTemplate: React.FC = () => {
           t.isSectionEnabled("home_about") &&
           t.aboutIntroBlocks.length ? (
             <section className={PAGE_WRAP}>
-              <span className={EYEBROW} style={{ color: RUST }}>
-                About
-              </span>
-              <h2 className={`mt-2 mb-6 text-[26px] font-normal ${SERIF}`}>
-                The space, the story
-              </h2>
+              <LinedHeading title={String(draft?.aboutTitle || "").trim() || "About Our Vision"} className="justify-center" />
               <div className="flex flex-col gap-4">
                 {t.aboutIntroBlocks.map((text: string, idx: number) => (
                   <p
@@ -746,12 +759,7 @@ const WarmOrganicTemplate: React.FC = () => {
           t.isSectionEnabled("home_products") &&
           productPages.length ? (
             <section className={`${WRAP} px-6 pb-4 pt-2 md:px-11`}>
-              <span className={EYEBROW} style={{ color: RUST }}>
-                What we offer
-              </span>
-              <h2 className={`mt-2 mb-7 text-[26px] font-normal ${SERIF}`}>
-                Spaces to suit your day
-              </h2>
+              <LinedHeading title={String(draft?.productTitle || "").trim() || "Our Services"} className="justify-center" />
               <ProductGrid
                 products={productPages}
                 onSelect={t.handleProductCardAction}
@@ -768,12 +776,7 @@ const WarmOrganicTemplate: React.FC = () => {
           {t.galleryPageEnabled && t.isSectionEnabled("home_gallery") ? (
             <section className={PAGE_WRAP}>
               <div>
-                <span className={EYEBROW} style={{ color: RUST }}>
-                  Gallery
-                </span>
-                <h2 className={`mt-2 text-[26px] font-normal ${SERIF}`}>
-                  A look inside
-                </h2>
+                <LinedHeading title={draft?.galleryTitle || "Gallery"} className="justify-center" />
               </div>
               <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3">
                 {t.homeGalleryItems.map((src: string, idx: number) => (
@@ -810,14 +813,7 @@ const WarmOrganicTemplate: React.FC = () => {
           {t.isSectionEnabled("home_testimonials") && t.testimonials.length ? (
             <section className={PAGE_WRAP}>
               <div className="flex items-center justify-between">
-                <div>
-                  <span className={EYEBROW} style={{ color: RUST }}>
-                    What people say
-                  </span>
-                  <h2 className={`mt-2 text-[26px] font-normal ${SERIF}`}>
-                    Kind words
-                  </h2>
-                </div>
+                <LinedHeading title={draft?.testimonialTitle || "Testimonials"} className="justify-center mb-0" />
                 {t.showWriteReview ? (
                   <button
                     type="button"
@@ -859,12 +855,7 @@ const WarmOrganicTemplate: React.FC = () => {
 
           {t.contactPageEnabled && t.isSectionEnabled("home_contact") ? (
             <section className={PAGE_WRAP}>
-              <span className={EYEBROW} style={{ color: RUST }}>
-                Contact
-              </span>
-              <h2 className={`mt-2 mb-7 text-[26px] font-normal ${SERIF}`}>
-                Come say hello
-              </h2>
+              <LinedHeading title={draft?.contactTitle || "Contact"} className="justify-center" />
               <div className="grid grid-cols-1 gap-6 md:grid-cols-[0.62fr_0.38fr]">
                 {draft?.mapUrl ? (
                   <iframe
@@ -933,16 +924,8 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* About page */}
       {section === "about" && t.aboutPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            About
-          </span>
-          <h2 className={`mt-2 text-[32px] font-normal ${SERIF} text-center`}>
-            {draft?.aboutTitle || "About us"}
-          </h2>
-          <div className="mt-6 flex max-w-2xl flex-col gap-4">
+          <LinedHeading title={String(draft?.aboutTitle || "").trim() || "About Our Vision"} className="justify-center" />
+          <div className="mt-6 flex max-w-2xl flex-col gap-4 mx-auto">
             {t.aboutIntroBlocks.map((text: string, idx: number) => (
               <p
                 key={idx}
@@ -979,12 +962,7 @@ const WarmOrganicTemplate: React.FC = () => {
           ) : null}
           {t.founders.length ? (
             <div className="mt-16 flex flex-col gap-12">
-              <span
-                className={`${EYEBROW} block text-center`}
-                style={{ color: RUST }}
-              >
-                Founders
-              </span>
+              <LinedHeading title="Our Founders" className="justify-center" />
               {t.founders.map((founder: any, idx: number) => (
                 <div
                   key={idx}
@@ -1182,9 +1160,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     }}
                   />
                   <div className="absolute inset-0 flex flex-col items-center justify-end gap-2 px-6 pb-10 text-center md:pb-14">
-                    <span className={EYEBROW} style={{ color: RUST }}>
-                      {t.selectedProductPage?.name}
-                    </span>
+                    <LinedHeading title={t.selectedProductPage?.name || "Service"} className="justify-center" />
                     <h1 className={`text-[28px] font-normal ${SERIF} md:text-[38px]`}>
                       {(t.selectedProductPage as any)?.heroHeading ||
                         (t.selectedProductPage as any)?.name}
@@ -1300,17 +1276,7 @@ const WarmOrganicTemplate: React.FC = () => {
             </>
           ) : (
             <section className={PAGE_WRAP}>
-              <span
-                className={`${EYEBROW} block text-center`}
-                style={{ color: RUST }}
-              >
-                What we offer
-              </span>
-              <h2
-                className={`mt-2 mb-7 text-[26px] font-normal ${SERIF} text-center`}
-              >
-                {String(draft?.productTitle || "").trim() || "Our services"}
-              </h2>
+              <LinedHeading title={String(draft?.productTitle || "").trim() || "Our Services"} className="justify-center" />
               <ProductGrid
                 products={productPages}
                 onSelect={t.handleProductCardAction}
@@ -1324,18 +1290,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Gallery page */}
       {section === "gallery" && t.galleryPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            Gallery
-          </span>
-          <h2
-            className={`text-[30px] font-normal ${SERIF} text-center mt-3`}
-            style={{ color: BROWN }}
-          >
-            Gallery
-          </h2>
+          <LinedHeading title={draft?.galleryTitle || "Gallery"} className="justify-center" />
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3">
             {t.galleryItems.map((src: string, idx: number) => (
               <button
@@ -1360,18 +1315,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {section === "testimonials" ? (
         <section className={PAGE_WRAP}>
           <div className="flex flex-col items-center gap-4 text-center">
-            <span
-              className={`${EYEBROW} block text-center`}
-              style={{ color: RUST }}
-            >
-              What people say
-            </span>
-            <h2
-              className={`text-[30px] font-normal ${SERIF} text-center mt-3`}
-              style={{ color: BROWN }}
-            >
-              Testimonials
-            </h2>
+            <LinedHeading title={draft?.testimonialTitle || "Testimonials"} className="justify-center" />
             {t.showWriteReview ? (
               <button
                 type="button"
@@ -1428,17 +1372,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Partner page */}
       {section === "partner" && t.partnerPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            Partner
-          </span>
-          <h2
-            className={`mt-2 mb-6 text-[28px] font-normal ${SERIF} text-center`}
-          >
-            {t.partnerPageHeading || "Become a partner"}
-          </h2>
+          <LinedHeading title={t.partnerPageHeading || "Become A Partner"} className="justify-center" />
           <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
             <div
               className="text-[14.5px] leading-relaxed"
@@ -1458,13 +1392,13 @@ const WarmOrganicTemplate: React.FC = () => {
             </div>
             <div className="rounded-2xl p-6" style={{ backgroundColor: CREAM }}>
               <h3
-                className={`text-[16px] font-normal ${SERIF}`}
+                className={`text-center text-[18px] font-semibold md:text-[20px] ${SERIF}`}
                 style={{ color: RUST }}
               >
                 {t.partnerFormTitle ||
                   `Partner with ${draft?.companyName || "us"}`}
               </h3>
-              <div className="mt-4 flex flex-col gap-3">
+              <div className="mt-6 flex flex-col gap-3">
                 <input
                   type="text"
                   placeholder="Your name"
@@ -1536,19 +1470,7 @@ const WarmOrganicTemplate: React.FC = () => {
         <section className={PAGE_WRAP}>
           {!t.careersApplyJob ? (
             <>
-              <span
-                className={`${EYEBROW} block text-center`}
-                style={{ color: RUST }}
-              >
-                Careers
-              </span>
-              <h2
-                className={`mt-2 mb-6 text-[28px] font-normal ${SERIF} text-center`}
-              >
-                {draft?.companyName
-                  ? `Join ${draft.companyName}`
-                  : "Join our team"}
-              </h2>
+              <LinedHeading title={draft?.companyName ? `Join Our Team - ${draft.companyName}` : "Join Our Team - Company Name"} className="justify-center" />
               <div
                 className="mx-auto max-w-2xl text-center text-[14.5px] leading-relaxed"
                 style={{ color: MUTED }}
@@ -1612,7 +1534,7 @@ const WarmOrganicTemplate: React.FC = () => {
                                   className="text-[11px] font-semibold uppercase tracking-wider"
                                   style={{ color: RUST }}
                                 >
-                                  Apply →
+                                  {draft?.careersApplyButtonText || "Apply →"}
                                 </span>
                               </button>
                             ))}
@@ -1627,8 +1549,22 @@ const WarmOrganicTemplate: React.FC = () => {
                     className="mt-4 self-start rounded-full px-6 py-3 text-[13px] font-semibold"
                     style={{ backgroundColor: FOREST, color: CREAM }}
                   >
-                    General application
+                    {draft?.careersApplyButtonText || "General application"}
                   </button>
+                  {(draft?.careersClosingText || draft?.careersClosingHeading) && (
+                    <div className="mt-12 text-center">
+                      {draft?.careersClosingHeading && (
+                        <p className={`text-[18px] font-normal ${SERIF}`} style={{ color: BROWN }}>
+                          {draft.careersClosingHeading}
+                        </p>
+                      )}
+                      {draft?.careersClosingText && (
+                        <p className="mt-2 text-[14px] leading-relaxed" style={{ color: MUTED }}>
+                          {draft.careersClosingText}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -1957,17 +1893,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Contact page */}
       {section === "contact" && t.contactPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            Contact
-          </span>
-          <h2
-            className={`mt-2 mb-6 text-[26px] font-normal ${SERIF} text-center`}
-          >
-            {draft?.contactTitle || "Get in touch"}
-          </h2>
+          <LinedHeading title={draft?.contactTitle || "Contact"} className="justify-center" />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[0.6fr_0.4fr]">
             {draft?.mapUrl ? (
               <iframe
@@ -2058,8 +1984,8 @@ const WarmOrganicTemplate: React.FC = () => {
       ) : null}
 
       {/* Footer */}
-      <footer style={{ backgroundColor: FOREST, color: CREAM }}>
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-14 text-center md:grid-cols-[1.35fr_1fr_1fr_1fr] md:px-11 md:text-left">
+      <footer className="bg-white border-t border-black/5" style={{ color: BROWN }}>
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 py-14 text-center md:grid-cols-[1.35fr_1fr_1fr_1fr] md:px-11 md:text-left">
           <div>
             {draft?.companyLogo ? (
               <img
@@ -2086,7 +2012,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     rel="noreferrer"
                     aria-label={SOCIAL_LABEL[social.key] || social.key}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full transition hover:opacity-75"
-                    style={{ backgroundColor: `${CREAM}22`, color: CREAM }}
+                    style={{ backgroundColor: `${RUST}15`, color: RUST }}
                   >
                     {SOCIAL_ICON[social.key]}
                   </a>
@@ -2148,7 +2074,7 @@ const WarmOrganicTemplate: React.FC = () => {
         </div>
         <div
           className="px-6 py-4 text-center text-[11.5px] opacity-60"
-          style={{ borderTop: `1px solid ${CREAM}22` }}
+          style={{ borderTop: `1px solid ${BROWN}15` }}
         >
           {t.footerCopyrightText}
         </div>
