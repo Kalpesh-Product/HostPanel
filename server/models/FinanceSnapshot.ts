@@ -25,10 +25,10 @@ function getFiscalYearLabel(startYear: number): string {
         const currentYear = now.getFullYear();
         const startYearFallback = now.getMonth() >= 3 ? currentYear : currentYear - 1;
         const nextYearFallback = startYearFallback + 1;
-        return `FY ${String(startYearFallback).slice(-2)}-${String(nextYearFallback).slice(-2)}`;
+        return `FY ${startYearFallback}-${String(nextYearFallback).slice(-2)}`;
     }
     const nextYear = safeStartYear + 1;
-    return `FY ${String(safeStartYear).slice(-2)}-${String(nextYear).slice(-2)}`;
+    return `FY ${safeStartYear}-${String(nextYear).slice(-2)}`;
 }
 
 function getCurrentFiscalYearLabel(): string {
