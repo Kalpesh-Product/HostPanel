@@ -28,6 +28,7 @@ export interface IAnnualFinanceRequest extends Document {
     workspaceId: mongoose.Types.ObjectId;
     requestKey: string; // matches original 'id' string field
     department: string;
+    fiscalYear: string;
     requestedBudget: number;
     previousSpend: number;
     status: "Draft" | "Pending" | "Approved" | "Rejected" | "Discuss";
@@ -138,6 +139,7 @@ const annualFinanceRequestSchema = new Schema<IAnnualFinanceRequest>(
         },
         requestKey: { type: String, trim: true, required: true, maxlength: 40, index: true },
         department: { type: String, trim: true, required: true, maxlength: 120, index: true },
+        fiscalYear: { type: String, trim: true, required: true, maxlength: 20, index: true },
         requestedBudget: { type: Number, required: true, min: 0, default: 0 },
         previousSpend: { type: Number, required: true, min: 0, default: 0 },
         status: {
