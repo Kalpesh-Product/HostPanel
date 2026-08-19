@@ -36,14 +36,15 @@ export const applyFinanceApprovalDecision = async (
  * Mark a monthly expense as paid (or update its payment status).
  */
 export const updateMonthlyExpenseStatus = async (payload: {
-  planId?: string;
-  fiscalYear: string;
-  monthKey: string;
-  expenseId: string;
-  expenseKey?: string;
+  planId: string;
+  expenseKey: string;
+  paymentStatus: string;
+  actualAmount?: number;
+  fiscalYear?: string;
+  monthKey?: string;
+  expenseId?: string;
   department?: string;
-  status: string;
-  paymentStatus?: string;
+  status?: string;
 }) => {
   const response = await axiosPrivate.patch(
     '/api/finance/department/month-expense/status',
@@ -110,23 +111,23 @@ export const getTenantBillingSnapshot = async (params?: Record<string, any>) => 
   return unwrap(response);
 };
 
-export const markTenantSecurityDepositPaid = async (recordId: string, payload: Record<string, any>) => {
-  const response = await axiosPrivate.post("/api/finance/tenant-billing/mark-deposit-paid", { recordId, ...payload });
+export const markTenantSecurityDepositPaid = async (tenantId: string, payload: Record<string, any> = {}) => {
+  const response = await axiosPrivate.patch(`/api/finance/tenant-billing/${tenantId}`, payload);
   return unwrap(response);
 };
 
-export const generateTenantSecurityDepositInvoice = async (recordId: string) => {
-  const response = await axiosPrivate.post("/api/finance/tenant-billing/generate-deposit-invoice", { recordId });
+export const generateTenantSecurityDepositInvoice = async (tenantId: string) => {
+  const response = await axiosPrivate.post(`/api/finance/tenant-billing/${tenantId}/invoice/generate`);
   return unwrap(response);
 };
 
-export const sendTenantSecurityDepositInvoice = async (recordId: string) => {
-  const response = await axiosPrivate.post("/api/finance/tenant-billing/send-deposit-invoice", { recordId });
+export const sendTenantSecurityDepositInvoice = async (tenantId: string) => {
+  const response = await axiosPrivate.post(`/api/finance/tenant-billing/${tenantId}/invoice/send`);
   return unwrap(response);
 };
 
-export const resetTenantSecurityDepositInvoice = async (recordId: string) => {
-  const response = await axiosPrivate.post("/api/finance/tenant-billing/reset-deposit-invoice", { recordId });
+export const resetTenantSecurityDepositInvoice = async (tenantId: string) => {
+  const response = await axiosPrivate.post(`/api/finance/tenant-billing/${tenantId}/invoice/reset`);
   return unwrap(response);
 };
 

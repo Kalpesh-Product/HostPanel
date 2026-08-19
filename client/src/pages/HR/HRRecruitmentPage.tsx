@@ -1051,7 +1051,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
         sourceRef: "hr-recruitment-jobs",
         reportRows: buildRecruitmentReportRows(),
       });
-      await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (error: any) {
       setErrorMessage(error?.message || "Failed to export recruitment PDF.");
@@ -1074,7 +1074,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
         sourceRef: "hr-recruitment-jobs",
         reportRows: buildRecruitmentReportRows(),
       });
-      await downloadReportFile(response?.data?.download, `${new Date().toISOString().slice(0, 10)}_Recruitment_Jobs.xlsx`);
+      await downloadReportFile(response?.data?.download?.url, { fileName: `${new Date().toISOString().slice(0, 10)}_Recruitment_Jobs.xlsx` });
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (error: any) {
       setErrorMessage(error?.message || "Failed to export recruitment Excel.");

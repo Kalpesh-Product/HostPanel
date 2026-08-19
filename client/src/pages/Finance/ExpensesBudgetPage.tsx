@@ -904,17 +904,44 @@ export function ExpensesBudgetPage() {
     setIsUpdatingExpense(true);
     (async () => {
       try {
+        const department = targetExpense.department || viewingBudget?.department || '';
+        let planId = targetExpense.planId || targetExpense.plan_id || '';
+        let expenseKey = targetExpense.expenseKey || '';
+
+        if (!planId || !expenseKey) {
+          const snapshotPayload = await getFinanceSnapshot(selectedFY);
+          const departmentPlan = getDepartmentFinancePlan(snapshotPayload, department);
+          planId = planId || departmentPlan?._id || '';
+          const targetMonthKey = normalizeLookupKey(targetExpense.monthKey);
+          const sourceMonth = (Array.isArray(departmentPlan?.monthlyPlan) ? departmentPlan.monthlyPlan : [])
+            .find((month: any) => normalizeLookupKey(month?.monthKey || month?.month || '') === targetMonthKey);
+          const sourceExpenses = Array.isArray(sourceMonth?.expenses) ? sourceMonth.expenses : [];
+          const targetId = normalizeLookupKey(targetExpense.id);
+          const targetVendorId = normalizeLookupKey(targetExpense.vendorId);
+          const matchedExpense = sourceExpenses.find((exp: any) => {
+            if (targetId && normalizeLookupKey(exp?.expenseKey) === targetId) return true;
+            if (targetVendorId && normalizeLookupKey(exp?.vendorId) === targetVendorId) return true;
+            return false;
+          });
+          expenseKey = expenseKey || matchedExpense?.expenseKey || '';
+          planId = planId || matchedExpense?.planId || '';
+        }
+
+        if (!planId || !expenseKey) {
+          toast.error('Could not resolve this expense record. Please refresh and try again.');
+          return;
+        }
+
         const nextActualAmount = Number(targetExpense.actualAmount || 0) > 0
           ? Number(targetExpense.actualAmount || 0)
           : getBudgetExpenseAmount(targetExpense);
         const response = await updateMonthlyExpenseStatus({
-          fiscalYear: selectedFY,
-          monthKey: targetExpense.monthKey,
-          expenseId: targetExpense.id,
-          department: targetExpense.department || viewingBudget?.department || '',
-          status: 'Paid',
+          planId,
+          expenseKey,
+          paymentStatus: 'Paid',
+          actualAmount: nextActualAmount,
         });
-        const responseExpense = response?.data?.expense || {};
+        const responseExpense = response || {};
         const nextPaymentStatus = responseExpense.paymentStatus || 'Payment Done - Invoice Pending';
         setViewingExpense((current: any) => current && current.id === targetExpense.id ? {
           ...current,
@@ -1156,11 +1183,11 @@ export function ExpensesBudgetPage() {
         reportRows: selectedReport.reportRows,
         monthlyData: selectedReport.monthlyData,
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Finance report saved to Reports.' : 'Finance report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/finance/report?reportId=${createdReportId}` : '/dashboard/finance/report');
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
     } catch (exportError: any) {
       toast.error(exportError?.message || `Failed to export ${activeFinanceReportLabel.toLowerCase()}.`);
     }

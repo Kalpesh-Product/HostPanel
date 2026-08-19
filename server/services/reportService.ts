@@ -12,9 +12,7 @@ const getCurrentWorkspaceId = (req) => {
     req.user?.activeWorkspaceId ||
     req.user?.activeWorkspace ||
     req.user?.primaryWorkspace ||
-    req.user?.workspaceId ||
-    req.body?.workspaceId ||
-    req.query?.workspaceId
+    req.user?.workspaceId
   );
 };
 
@@ -84,6 +82,54 @@ function validateDataWindow(input) {
   return "Monthly";
 }
 
+function normalizeRole(value) {
+  return normalizeText(value).toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function getAccessibleReportDepartments(req) {
+  const membership = req.workspaceMembership || {};
+  const departments = Array.isArray(membership.departments) ? membership.departments : [];
+  return [...new Set(departments
+    .map((department) => normalizeText(department?.name || department))
+    .filter(Boolean))];
+}
+
+function canViewAllReports(req) {
+  const role = normalizeRole(req.workspaceMembership?.role?.name || req.workspaceMembership?.role || req.user?.role);
+  return role === "owner" || role === "super_admin";
+}
+
+function buildReportVisibilityFilter(req, userId) {
+  if (canViewAllReports(req)) return null;
+
+  const visibility = [
+    { generatedByUserId: new mongoose.Types.ObjectId(userId) },
+  ];
+  const employeeId = normalizeText(req.workspaceMembership?.employeeId || req.user?.employeeId);
+  const generatedBy = normalizeText(req.workspaceMembership?.fullName || req.user?.fullName || req.user?.name);
+  const departments = getAccessibleReportDepartments(req);
+
+  if (employeeId) visibility.push({ generatedByEmployeeId: employeeId });
+  if (generatedBy) visibility.push({ generatedBy });
+  if (departments.length > 0) visibility.push({ department: { $in: departments } });
+
+  return { $or: visibility };
+}
+
+function ensureReportVisibility(report, req, userId) {
+  const visibility = buildReportVisibilityFilter(req, userId);
+  if (!visibility) return;
+
+  const matches = visibility.$or.some((condition) => {
+    const [field, expected] = Object.entries(condition)[0] || [];
+    const actual = report?.[field];
+    if (field === "generatedByUserId") return actual && String(actual) === String(expected);
+    if (condition.department?.$in) return condition.department.$in.includes(String(actual || ""));
+    return normalizeText(actual) === normalizeText(expected);
+  });
+  if (!matches) throw Object.assign(new Error("Report not found"), { statusCode: 404 });
+}
+
 export async function listReportsForCurrentUser(req, query = {}) {
   const workspaceId = getCurrentWorkspaceId(req);
   const userId = getCurrentUserId(req);
@@ -105,14 +151,22 @@ export async function listReportsForCurrentUser(req, query = {}) {
     workspaceId: new mongoose.Types.ObjectId(workspaceId),
   };
 
-  if (department) filter.department = department;
+  const visibilityFilter = buildReportVisibilityFilter(req, userId);
+  if (visibilityFilter) filter.$and = [visibilityFilter];
+
+  if (department) (filter.$and || (filter.$and = [])).push({ department });
   if (category) filter.category = category;
   if (dataWindow) filter.dataWindow = dataWindow;
   if (status) filter.status = status;
 
   if (month) {
-    // Prefer reportMonth match; fallback to generatedAt range is more complex, so keep it simple.
-    filter.$or = [{ reportMonth: month }, { generatedAt: { $gte: new Date(month), $lte: new Date(month) } }];
+    const [year, monthNumber] = String(month).split("-").map(Number);
+    const monthStart = new Date(year, monthNumber - 1, 1);
+    const monthEnd = new Date(year, monthNumber, 1);
+    const monthFilter = Number.isFinite(monthStart.getTime())
+      ? { $or: [{ reportMonth: month }, { reportMonth: { $in: ["", null] }, generatedAt: { $gte: monthStart, $lt: monthEnd } }] }
+      : { reportMonth: month };
+    (filter.$and || (filter.$and = [])).push(monthFilter);
   }
 
   const pageNumber = Math.max(Number(page) || 1, 1);
@@ -149,6 +203,13 @@ export async function createReportForCurrentUser(req, body = {}) {
   const dataWindow = validateDataWindow(body.dataWindow);
 
   const department = normalizeText(body.department, "General");
+
+  if (!canViewAllReports(req)) {
+    const departments = getAccessibleReportDepartments(req);
+    if (department !== "General" && !departments.includes(department)) {
+      throw Object.assign(new Error("You do not have permission to create reports for this department."), { statusCode: 403 });
+    }
+  }
 
   const generatedAt = new Date();
   const reportMonth = normalizeText(body.reportMonth || "", "");
@@ -238,6 +299,7 @@ export async function downloadReportForCurrentUser(req, reportId, body = {}) {
 
   const report = await Report.findOne({ _id: reportId, workspaceId }).exec();
   if (!report) throw Object.assign(new Error("Report not found"), { statusCode: 404 });
+  ensureReportVisibility(report, req, userId);
 
   const requestedFormat = body.format || report.format || "PDF";
 

@@ -423,7 +423,7 @@ export function BillingPaymentsPage() {
 
       try {
         const [billingRes, bookingRes, payrollRes, creditRes] = await Promise.allSettled([
-          getTenantBillingSnapshot(selectedFY),
+          getTenantBillingSnapshot({ fiscalYear: selectedFY }),
           getMeetingRoomBookings({ fiscalYear: selectedFY }),
           getPayrollSnapshot(),
           getTenantCompanies({ fiscalYear: selectedFY }),
@@ -432,23 +432,23 @@ export function BillingPaymentsPage() {
         if (!alive) return;
 
         if (billingRes.status === 'fulfilled') {
-          const data = billingRes.value?.data?.data || billingRes.value?.data || [];
-          setTenantBills(Array.isArray(data) ? data : []);
+          const data = billingRes.value?.data?.data || billingRes.value?.data || billingRes.value || {};
+          setTenantBills(Array.isArray(data) ? data : Array.isArray(data?.tenantBills) ? data.tenantBills : []);
         }
 
         if (bookingRes.status === 'fulfilled') {
-          const data = bookingRes.value?.data?.data || bookingRes.value?.data || [];
-          setBookingRecords(Array.isArray(data) ? data : []);
+          const data = bookingRes.value?.data?.data || bookingRes.value?.data || bookingRes.value || {};
+          setBookingRecords(Array.isArray(data) ? data : Array.isArray(data?.bookings) ? data.bookings : []);
         }
 
         if (payrollRes.status === 'fulfilled') {
-          const data = payrollRes.value?.data?.data || payrollRes.value?.data || null;
+          const data = payrollRes.value?.data?.data || payrollRes.value?.data || payrollRes.value || null;
           setPayrollData(data);
         }
 
         if (creditRes.status === 'fulfilled') {
-          const resData = creditRes.value?.data?.data || creditRes.value?.data || [];
-          const companies = Array.isArray(resData) ? resData : [];
+          const resData = creditRes.value?.data?.data || creditRes.value?.data || creditRes.value || [];
+          const companies = Array.isArray(resData) ? resData : Array.isArray(resData?.tenants) ? resData.tenants : [];
           const creditRequests: ExtraCreditRequest[] = [];
           companies.forEach((company: any) => {
             if (Array.isArray(company.creditRequests)) {
@@ -842,7 +842,7 @@ export function BillingPaymentsPage() {
         sourceRef: selectedReport.sourceRef,
         reportRows: selectedReport.reportRows,
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(`${activeReportLabel} report saved.`);
     } catch (exportError: any) {

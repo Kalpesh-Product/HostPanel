@@ -427,7 +427,7 @@ export function HRResignationManagementPage() {
         monthlyData: [],
       });
       if (reportFormat === "PDF") {
-        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       }
       const createdReportId = response?.data?.report?.recordId;
       toast.success(reportFormat === "PDF" ? "Resignation report saved to Reports." : "Resignation report saved to Reports. Preview it before downloading.");
@@ -462,7 +462,7 @@ export function HRResignationManagementPage() {
         monthlyData: [],
       });
       if (reportFormat === "PDF") {
-        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       }
       const createdReportId = response?.data?.report?.recordId;
       toast.success(reportFormat === "PDF" ? "Resignation request report saved to Reports." : "Resignation request report saved to Reports. Preview it before downloading.");

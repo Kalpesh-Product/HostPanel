@@ -577,11 +577,11 @@ export default function SalesArchitecturePage() {
         reportRows: buildExportRows({ building: selectedBuilding, floor: selectedFloor, wing: selectedWing, resources: filtered, searchQuery: query }),
         monthlyData: [],
       });
-      if (f === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (f === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const rid = response?.data?.report?.recordId;
       window.dispatchEvent(new Event("reports:refresh"));
       toast.success("Architecture report saved.");
-      navigate(rid ? `/dashboard/sales-crm/report?reportId=${rid}` : "/dashboard/sales-crm/report");
+      navigate(rid ? `/dashboard/reports?reportId=${rid}` : "/dashboard/reports");
     } catch (e) { toast.error(e?.message || "Export failed."); }
     finally { setIsExporting(""); }
   };

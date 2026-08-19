@@ -981,7 +981,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
 export const getBookings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const workspaceId = workspaceIdFor(req);
-        if (!workspaceId || workspaceId !== req.params.workspaceId) return res.status(403).json({ message: "Workspace access denied" });
+        if (!workspaceId || (req.params.workspaceId && workspaceId !== req.params.workspaceId)) return res.status(403).json({ message: "Workspace access denied" });
         const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
         const [bookings, rooms] = await Promise.all([
             MeetingRoomBooking.find({ workspaceId }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").populate("externalClientId", "name email phone company clientCode").sort({ start: -1 }).lean().exec(),

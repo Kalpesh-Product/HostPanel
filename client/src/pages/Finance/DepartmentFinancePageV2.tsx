@@ -623,22 +623,52 @@ export function DepartmentFinancePageV2() {
     }
   };
 
-  const handleGenerateReport = async () => {
+  const handleGenerateReport = async (format: string = 'PDF') => {
+    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
+    const fiscalYearLabel = selectedFY || '';
+
+    const expenseRows = monthlyExpenses.flatMap((month) =>
+      month.expenses.map((expense) => ({
+        label: `${month.month || month.title || ''} — ${expense.title}`,
+        value: `Projected: ${formatCurrency(expense.projectedAmount)} | Actual: ${formatCurrency(expense.actualSpent)} | Status: ${expense.paymentStatus || expense.status}`,
+      })),
+    );
+    const vendorRows = vendors.map((vendor: any) => ({
+      label: vendor.name || vendor.vendorName || 'Vendor',
+      value: `Contact: ${vendor.contactPerson || '—'} | Email: ${vendor.email || '—'}`,
+    }));
+    const reportRows = [...expenseRows, ...vendorRows];
+
+    if (!reportRows.length) {
+      toast.error(`There is no ${departmentLabel} finance data to export for ${fiscalYearLabel}.`);
+      return;
+    }
+
     try {
-      const payload = {
-        type: 'department-finance',
+      const response = await createReport({
+        title: `${departmentLabel} Finance - ${fiscalYearLabel}`,
         department: departmentLabel,
-        fiscalYear: selectedFY,
-        data: { financeData, monthlyExpenses, vendors },
-      };
-      const response = await createReport(payload);
-      const downloadUrl = response?.data?.downloadUrl || response?.downloadUrl;
-      if (downloadUrl) {
-        await downloadReportFile(downloadUrl);
-        toast.success('Report downloaded.');
-      } else {
-        toast.success('Report generated successfully.');
-      }
+        category: 'Financial',
+        dataWindow: 'Annual',
+        reportMonth: new Date().toISOString().slice(0, 7),
+        period: `${fiscalYearLabel} Department Finance`,
+        generatedBy: (currentUser?.name as string) || 'Department Manager',
+        format: reportFormat,
+        description: `Department finance report for ${departmentLabel}, fiscal year ${fiscalYearLabel}.`,
+        sourceType: 'custom',
+        sourceRef: 'department-finance',
+        reportRows,
+        monthlyData: monthlyExpenses.map((month) => ({
+          month: month.month || month.title || '',
+          metric: `${departmentLabel} projected`,
+          value: formatCurrency(month.projectedAmount),
+        })),
+      });
+      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      const createdReportId = response?.data?.report?.recordId;
+      window.dispatchEvent(new Event('reports:refresh'));
+      toast.success(reportFormat === 'PDF' ? 'Report saved to Reports.' : 'Report saved to Reports. Preview it before downloading.');
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
     } catch (error: any) {
       toast.error(error?.message || 'Failed to generate report.');
     }
@@ -700,7 +730,7 @@ export function DepartmentFinancePageV2() {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">Bulk Upload</span>
               </button>
               <button
-                onClick={handleGenerateReport}
+                onClick={() => handleGenerateReport('PDF')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-rose-50 hover:border-rose-200 text-slate-500 transition-all active:scale-95 shadow-sm"
                 title="Export as PDF"
               >
@@ -708,7 +738,7 @@ export function DepartmentFinancePageV2() {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-rose-500 text-white px-1.5 py-0.5 rounded">Export PDF</span>
               </button>
               <button
-                onClick={handleGenerateReport}
+                onClick={() => handleGenerateReport('Excel')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
                 title="Export as Excel"
               >

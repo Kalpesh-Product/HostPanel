@@ -377,10 +377,10 @@ export default function LeadsManagementPage() {
         reportRows: buildLeadReportRows(exportData, { stageFilter: stageLabel, searchQuery: searchLabel }, pipelineStats),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const createdReportId = response?.data?.report?.recordId;
       toast.success(reportFormat === "PDF" ? "Report saved to Reports." : "Report saved to Reports. Preview it before downloading.");
-      navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : "/dashboard/sales-crm/report");
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : "/dashboard/reports");
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (exportError) { toast.error(exportError?.message || "Failed to export leads report."); }
     finally { setIsExportingReport(""); }

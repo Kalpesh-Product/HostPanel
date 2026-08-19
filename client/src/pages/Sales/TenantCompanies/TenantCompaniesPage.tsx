@@ -1773,13 +1773,13 @@ export default function TenantCompaniesPage() {
       });
 
       if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       }
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Tenant companies report saved to Reports.' : 'Tenant companies report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : '/dashboard/sales-crm/report');
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
     } catch (error) {
       toast.error(error?.message || 'Unable to export tenant companies report.');
     } finally {
@@ -1811,13 +1811,13 @@ export default function TenantCompaniesPage() {
       });
 
       if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       }
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Company report saved to Reports.' : 'Company report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : '/dashboard/sales-crm/report');
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
     } catch (error) {
       toast.error(error?.message || 'Unable to export company report.');
     } finally {

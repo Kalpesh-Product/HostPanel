@@ -825,11 +825,15 @@ export async function processPayrollPaymentForCurrentUser(input: {
 
   const paymentMethod = safeString(body.paymentMethod, "bank_transfer");
   const transactionId = safeString(body.transactionId, `TXN-${Date.now()}`);
+  const now = new Date();
 
-  entry.financials.paymentStatus = "Processing";
+  entry.financials.paymentStatus = "Paid";
   entry.financials.paymentMethod = paymentMethod;
+  entry.financials.paymentTransactionId = transactionId;
+  entry.financials.paidAt = now;
   if (!Array.isArray(entry.financials.paymentHistory)) entry.financials.paymentHistory = [];
-  entry.financials.paymentHistory.push(`Payment initiated via ${paymentMethod} on ${new Date().toISOString()}`);
+  entry.financials.paymentHistory.push(`Payment initiated via ${paymentMethod} on ${now.toISOString()}`);
+  entry.financials.paymentHistory.push(`Payment marked Paid on ${now.toISOString()}`);
 
   await entry.save();
 
@@ -842,16 +846,19 @@ export async function processPayrollPaymentForCurrentUser(input: {
     employeeName: entry.employeeName,
     department: entry.department,
     departmentId: entry.departmentId,
-    cycleKey: `CYCLE-${cycleObjectId.toString().slice(-6)}`,
-    monthLabel: "",
-    year: new Date().getFullYear(),
+    cycleKey: cycle.cycleKey || `CYCLE-${cycleObjectId.toString().slice(-6)}`,
+    monthLabel: cycle.monthLabel || PAYROLL_MONTHS[Number(cycle.month)] || "",
+    year: Number(cycle.year) || new Date().getFullYear(),
     amount: safeNumber(entry.financials.netSalary),
     currency: normalizeCurrency(entry.financials.currency),
-    paymentStatus: "Processing",
+    paymentStatus: "Paid",
     paymentMethod,
     transactionId,
     bankDetails: {},
-    paymentHistory: [{ status: "Processing", note: "Payment initiated", changedBy: userId, createdAt: new Date() }],
+    paymentHistory: [
+      { status: "Processing", note: "Payment initiated", changedBy: userId, createdAt: now },
+      { status: "Paid", note: "Payment marked Paid", changedBy: userId, createdAt: now },
+    ],
     initiatedBy: userId,
     payrollSnapshot: entry.toObject(),
   });

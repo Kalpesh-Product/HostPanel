@@ -1429,7 +1429,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         sourceRef: "hr-employee-management",
         reportRows,
       });
-      if (response?.data?.download) await downloadReportFile(response.data.download, { openInNewTab: true });
+      if (response?.data?.download) await downloadReportFile(response.data.download.url, { openInNewTab: true });
       window.dispatchEvent(new Event("reports:refresh"));
       toast.success("PDF report saved.");
     } catch { toast.error("Failed to export PDF."); }
@@ -1455,7 +1455,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         sourceRef: "hr-employee-management",
         reportRows,
       });
-      await downloadReportFile(response?.data?.download, `${new Date().toISOString().slice(0, 10)}_Employees.xlsx`);
+      await downloadReportFile(response?.data?.download?.url, { fileName: `${new Date().toISOString().slice(0, 10)}_Employees.xlsx` });
       window.dispatchEvent(new Event("reports:refresh"));
       toast.success("Excel report saved.");
     } catch { toast.error("Failed to export Excel."); }

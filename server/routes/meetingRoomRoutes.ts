@@ -43,6 +43,7 @@ router.post("/clients", createExternalClient);          // Create external clien
 
 // Booking Management — all /bookings/* routes before /:id wildcard
 router.post("/bookings", upload.single("paymentProof"), createBooking); // Create booking
+router.get("/bookings", getBookings); // All bookings in the active workspace
 router.get("/bookings/workspace/:workspaceId", getBookings); // All bookings in workspace
 router.get("/bookings/my", getMyBookings);                  // Current user's bookings
 router.get("/bookings/tenant-company/:tenantCompanyId", getBookingsByTenantCompany); // Bookings by tenant company

@@ -1575,13 +1575,13 @@ export default function PricingPackagesPage() {
       });
 
       if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       }
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Pricing report saved to Reports.' : 'Pricing report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : '/dashboard/sales-crm/report');
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
     } catch (error) {
       toast.error(error?.message || 'Unable to export pricing report.');
     } finally {
@@ -1613,13 +1613,13 @@ export default function PricingPackagesPage() {
       });
 
       if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       }
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Package report saved to Reports.' : 'Package report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : '/dashboard/sales-crm/report');
+      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
     } catch (error) {
       toast.error(error?.message || 'Unable to export package report.');
     } finally {

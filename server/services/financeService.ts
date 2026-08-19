@@ -970,7 +970,6 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
       department: safeString(payload.department),
       fiscalYear: safeString(payload.fiscalYear),
     }).exec();
-    planId = plan?._id;
   }
   if (!plan) {
     throw Object.assign(new Error("Submit the annual budget before requesting an extra budget."), { statusCode: 409 });
