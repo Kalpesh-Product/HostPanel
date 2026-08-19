@@ -12,6 +12,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import { createNotification } from "../utils/notify.js";
+import { parseFiscalYearRange } from "../utils/fiscalYear.js";
 import {
     DEFAULT_WORKSPACE_CURRENCY,
     DEFAULT_WORKSPACE_TIMEZONE,
@@ -983,8 +984,15 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
         const workspaceId = workspaceIdFor(req);
         if (!workspaceId || (req.params.workspaceId && workspaceId !== req.params.workspaceId)) return res.status(403).json({ message: "Workspace access denied" });
         const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
+        const bookingFilter = { workspaceId };
+        const fiscalYearRange = parseFiscalYearRange(req.query.fiscalYear);
+        if (fiscalYearRange) {
+            // A booking belongs to a fiscal year if its slot overlaps that FY's date range.
+            bookingFilter.start = { $lte: fiscalYearRange.end };
+            bookingFilter.end = { $gte: fiscalYearRange.start };
+        }
         const [bookings, rooms] = await Promise.all([
-            MeetingRoomBooking.find({ workspaceId }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").populate("externalClientId", "name email phone company clientCode").sort({ start: -1 }).lean().exec(),
+            MeetingRoomBooking.find(bookingFilter).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").populate("externalClientId", "name email phone company clientCode").sort({ start: -1 }).lean().exec(),
             Resource.find({
                 workspaceId,
                 isActive: true,

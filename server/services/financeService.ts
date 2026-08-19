@@ -6,6 +6,7 @@ import FinanceSnapshot from "../models/FinanceSnapshot.js";
 import AnnualFinanceRequest from "../models/AnnualFinanceRequest.js";
 import ExtraFinanceRequest from "../models/ExtraFinanceRequest.js";
 import { TenantCompany } from "../models/TenantCompany.js";
+import { parseFiscalYearRange } from "../utils/fiscalYear.js";
 
 function asObjectId(value: any): mongoose.Types.ObjectId | null {
   try {
@@ -1288,7 +1289,15 @@ export async function getTenantBillingSnapshotForCurrentUser(input: {
 }) {
   const { workspaceId, query = {} } = input;
 
-  const tenants = await TenantCompany.find({ workspaceId })
+  const tenantFilter: any = { workspaceId };
+  const fiscalYearRange = parseFiscalYearRange(query.fiscalYear);
+  if (fiscalYearRange) {
+    // A tenant belongs to a fiscal year if its contract overlaps that FY's date range.
+    tenantFilter.contractStart = { $lte: fiscalYearRange.end };
+    tenantFilter.$or = [{ contractEnd: null }, { contractEnd: { $exists: false } }, { contractEnd: { $gte: fiscalYearRange.start } }];
+  }
+
+  const tenants = await TenantCompany.find(tenantFilter)
     .sort({ createdAt: -1 })
     .lean();
 

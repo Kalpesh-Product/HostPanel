@@ -1,7 +1,7 @@
 import { axiosPrivate } from "../utils/axios";
 
-export const getTenantCompanies = async () => {
-  return axiosPrivate.get("/api/v1/tenant-companies");
+export const getTenantCompanies = async (params?: Record<string, any>) => {
+  return axiosPrivate.get("/api/v1/tenant-companies", { params });
 };
 
 export const getMyTenantCompany = async () => {
