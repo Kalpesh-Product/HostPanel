@@ -61,7 +61,7 @@ const businessTypeLabelByVertical = {
 };
 
 const sectionTitleByVertical = {
-  "co-working": "Our Products",
+  "co-working": "Our Services",
   "co-living": "Our Rooms",
   "meeting-rooms": "Our Meeting Rooms",
   workation: "Our Packages",
@@ -257,7 +257,7 @@ const serializeProductDropdownPagesForClient = (items = [], products = []) => {
   const productImageBySlug = buildProductImageBySlug(products);
   return normalizeProductDropdownPages(items).map((page, index) => {
     // Match the product page to its product by slug/name first, then fall back to
-    // the product at the same index â€” so the product photo shows as the page's
+    // the product at the same index — so the product photo shows as the page's
     // cover on the home cards and on the products page.
     const fallbackProductImage =
       productImageBySlug[slugifyForMatch(page?.slug || page?.name || "")] ||
@@ -309,8 +309,8 @@ const serializeWebsiteTemplateForClient = (template) => {
     payload.products,
   );
   // Older websites have no productDropdownPages but do have a products list with
-  // images â€” derive product cards from products so their images still show on the
-  // home "Our Products" section and each product opens as a product page.
+  // images — derive product cards from products so their images still show on the
+  // home "Our Services" section and each product opens as a product page.
   payload.productPages =
     serializedProductPages.length > 0
       ? serializedProductPages
@@ -638,6 +638,14 @@ export const saveTemplateDraft = async (req, res) => {
     template.isActive = true;
     template.isDraft = true;
     template.draftUpdatedAt = new Date();
+    // Keep the top-level themeVariant (used by hydration on revisit) in sync
+    // with draftData.themeVariant. Without this, the field stays stuck at its
+    // creation-time default ("default"/Classic) on every autosave, even
+    // though the template picker's choice is captured correctly in draftData.
+    template.themeVariant =
+      draftData?.themeVariant !== undefined && draftData?.themeVariant !== null
+        ? String(draftData.themeVariant).trim() || template.themeVariant || "default"
+        : template.themeVariant;
     template.productDropdownPages = sanitizeProductDropdownPagesForPersistence(
       template.productDropdownPages,
     );
@@ -1024,6 +1032,15 @@ export const saveTemplateDraft = async (req, res) => {
         1,
       );
       template.companyLogo = uploaded[0] || template.companyLogo;
+    }
+
+    if (filesByField.mainHeroImage?.[0]) {
+      const uploaded = await uploadImagesForDraft(
+        [filesByField.mainHeroImage[0]],
+        `${baseFolder}/mainHeroImage`,
+        1,
+      );
+      template.mainHeroImage = uploaded[0] || template.mainHeroImage;
     }
 
     if (filesByField.careersHeroImage?.[0]) {
@@ -1413,7 +1430,7 @@ export const createTemplate = async (req, res, next) => {
     const resolvedProductTitle =
       String(req.body?.productTitle || "").trim() ||
       sectionTitleByVertical[vertical] ||
-      "Our Products";
+      "Our Services";
     console.log("VERTICAL BEING SAVED:", req.body.vertical);
     const themeIdFromConfig = VERTICAL_CONFIG?.[vertical]?.themeId;
     const themeId =
@@ -2030,6 +2047,15 @@ export const createTemplate = async (req, res, next) => {
       template.companyLogo = { id: data.id, url: data.url };
     }
 
+    // mainHeroImage (single file)
+    if (filesByField.mainHeroImage && filesByField.mainHeroImage[0]) {
+      const uploaded = await uploadImages(
+        [filesByField.mainHeroImage[0]],
+        `${baseFolder}/mainHeroImage`,
+      );
+      template.mainHeroImage = uploaded[0] || template.mainHeroImage;
+    }
+
     // careersHeroImage (single file)
     if (filesByField.careersHeroImage && filesByField.careersHeroImage[0]) {
       const uploaded = await uploadImages(
@@ -2378,7 +2404,7 @@ export const createTemplate = async (req, res, next) => {
       ).catch(() => {});
     }
 
-    // First-time website creation is FREE â€” no credit deduction.
+    // First-time website creation is FREE — no credit deduction.
     // Credits are only deducted on edit (PATCH /edit-website), which goes through
     // the checkAndDeductCredit middleware and deductWorkspaceCreditOnSuccess in editTemplate.
 
@@ -3106,6 +3132,21 @@ export const editTemplate = async (req, res, next) => {
         1,
       );
       template.companyLogo = uploaded[0];
+    }
+
+    // === MAIN HERO IMAGE (limit 1) ===
+    if (filesByField.mainHeroImage?.length) {
+      if (filesByField.mainHeroImage.length > 1) {
+        throw new Error("Only one main hero image is allowed.");
+      }
+      if (template.mainHeroImage?.url)
+        await deleteImagesFromS3([template.mainHeroImage]);
+      const uploaded = await uploadImages(
+        [filesByField.mainHeroImage[0]],
+        `${baseFolder}/mainHeroImage`,
+        1,
+      );
+      template.mainHeroImage = uploaded[0];
     }
 
     // === CAREERS HERO IMAGE (limit 1) ===

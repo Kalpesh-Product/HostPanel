@@ -304,6 +304,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   // }, [axios, companyId]);
 
   const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
+  const selectTemplateRoute = `${builderBasePath}/dynamic/select-template`;
   const leadsRoute = `${builderBasePath}/dynamic/leads`;
   const reviewsRoute = `${builderBasePath}/dynamic/reviews`;
   const careersRoute = `${builderBasePath}/dynamic/careers`;
@@ -419,7 +420,8 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
       BUSINESS_TYPE_TO_VERTICAL_KEY[selectedType] || "co-working";
     localStorage.setItem("selectedVertical", selectedVertical);
     localStorage.setItem("selectedVerticalLabel", selectedType);
-    navigate(createOrEditRoute);
+    // Brand-new website: pick a template first, then land in the builder.
+    navigate(selectTemplateRoute);
   };
 
   if (isCheckingWebsite) {

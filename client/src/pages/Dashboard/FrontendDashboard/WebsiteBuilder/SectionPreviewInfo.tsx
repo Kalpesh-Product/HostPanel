@@ -103,10 +103,10 @@ const AboutMock = () => (
   </div>
 );
 
-// Products: lined heading + cards with photo on top and dark panel below.
+// Services: lined heading + cards with photo on top and dark panel below.
 const ProductsMock = () => (
   <div className="space-y-4">
-    <LinedHeading title="Our Products" />
+    <LinedHeading title="Our Services" />
     <div className="grid grid-cols-3 gap-3">
       {[
         ["Coworking", IMG.desk],
@@ -316,7 +316,7 @@ const FooterMock = () => (
         </div>
       </div>
       <div>
-        <p className="text-[9px] font-semibold text-[#111827]">Products</p>
+        <p className="text-[9px] font-semibold text-[#111827]">Services</p>
         <div className="mt-1 space-y-0.5 text-[8px] text-[#374151]">
           <p>Coworking</p><p>Meeting Rooms</p><p>Cafe</p>
         </div>
@@ -496,7 +496,7 @@ const PagesMock = () => (
       <p className="text-[11px] font-semibold text-[#111827]">Your Company</p>
       <div className="flex gap-3 text-[9px] font-medium text-[#374151]">
         <span className="font-semibold text-black">Home</span>
-        <span>Products</span>
+        <span>Services</span>
         <span>About</span>
         <span>Gallery</span>
         <span>Contact</span>
@@ -509,12 +509,12 @@ const PagesMock = () => (
   </div>
 );
 
-// Product page: hero banner, description, inclusions and enquiry CTA.
+// Service page: hero banner, description, inclusions and enquiry CTA.
 const ProductDetailsMock = () => (
   <div className="space-y-4">
     <HeroMock small title="Coworking" />
     <p className={`text-[9px] leading-relaxed text-[#374151] ${POPPINS}`}>
-      The product description you write appears here, followed by the product's
+      The service description you write appears here, followed by the service's
       own inclusions, gallery, FAQs and the enquiry form.
     </p>
     <InclusionsMock />
@@ -524,18 +524,18 @@ const ProductDetailsMock = () => (
   </div>
 );
 
-// Products page: hero banner + product card grid.
+// Services page: hero banner + product card grid.
 const ProductsPageMock = () => (
   <div className="space-y-4">
-    <HeroMock small title="Our Products" />
+    <HeroMock small title="Our Services" />
     <ProductsMock />
   </div>
 );
 
 const SECTION_MOCKUPS = {
   pages: { title: "Website Navigation", node: <PagesMock /> },
-  productsPage: { title: "Products Page", node: <ProductsPageMock /> },
-  productDetails: { title: "Product Page", node: <ProductDetailsMock /> },
+  productsPage: { title: "Services Page", node: <ProductsPageMock /> },
+  productDetails: { title: "Service Page", node: <ProductDetailsMock /> },
   heroBanner: { title: "Page Hero Banner", node: <HeroMock small title="Page Title" /> },
   aboutPage: { title: "About Us Page", node: <AboutPageMock /> },
   galleryPage: { title: "Gallery Page", node: <GalleryPageMock /> },
@@ -551,7 +551,7 @@ const SECTION_MOCKUPS = {
   contactPerson: { title: "Contact Person Card", node: <ContactPersonMock /> },
   hero: { title: "Home Hero Section", node: <HeroMock carousel /> },
   about: { title: "About Section", node: <AboutMock /> },
-  products: { title: "Products Section", node: <ProductsMock /> },
+  products: { title: "Services Section", node: <ProductsMock /> },
   testimonials: { title: "Testimonials Section", node: <TestimonialsMock /> },
   logoCarousel: { title: "Trusted By Section", node: <LogoCarouselMock /> },
   contact: { title: "Contact Section", node: <ContactMock /> },
