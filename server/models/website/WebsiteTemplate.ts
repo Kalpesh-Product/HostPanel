@@ -42,6 +42,14 @@ const templateSchema = new mongoose.Schema(
         url: { type: String },
       },
     ],
+    // Single featured image shown statically in the foreground of templates
+    // that pair a background image carousel (heroImages) with one fixed
+    // "hero" shot up front (e.g. Fresh Studio). Optional — templates that
+    // don't use it fall back to heroImages themselves.
+    mainHeroImage: {
+      id: { type: String },
+      url: { type: String },
+    },
     //about
     about: [{ type: String }],
     //products

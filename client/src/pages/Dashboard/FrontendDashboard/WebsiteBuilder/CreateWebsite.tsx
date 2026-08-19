@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import PageFrame from "../../../../components/Pages/PageFrame";
+import { TEMPLATE_REGISTRY, DEFAULT_TEMPLATE_ID } from "./templates/templateRegistry";
 
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -43,7 +44,7 @@ const defaultProduct = {
 };
 
 // A custom product page's own products — separate from the top-level
-// `products` list (Home page's global "Our Products" section), so each page
+// `products` list (Home page's global "Our Services" section), so each page
 // gets its own items instead of all pages showing the same shared list.
 const defaultSubProduct = {
   name: "",
@@ -138,7 +139,7 @@ const WebsiteBuilderEditorSkeleton = () => {
 const DEFAULT_PAGE_NAV_ITEMS = [
   "Home",
   "About Us",
-  "Products",
+  "Services",
   "Gallery",
   "Partner",
   "Careers",
@@ -163,6 +164,9 @@ const migrateNavItems = (items: any[]): any[] => {
     const name = String(item?.name || "").trim().toLowerCase();
     if (slug === "testimonials" || name === "testimonials") {
       return { ...item, name: "Partner", slug: "partner" };
+    }
+    if (slug === "products" && name === "products") {
+      return { ...item, name: "Services" };
     }
     return item;
   });
@@ -471,6 +475,7 @@ const hasMeaningfulDraftContent = (draftData: any) => {
 
   const hasMediaSignature =
     Boolean(draftData?.mediaSignature?.companyLogo) ||
+    Boolean(draftData?.mediaSignature?.mainHeroImage) ||
     arrayFields.some(
       (items) =>
         Array.isArray(items) &&
@@ -762,6 +767,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   styleConfig: formValues?.styleConfig || {},
   mediaSignature: {
     companyLogo: toMediaToken(formValues?.companyLogo),
+    mainHeroImage: toMediaToken(formValues?.mainHeroImage),
     heroImages: Array.isArray(formValues?.heroImages)
       ? formValues.heroImages.map((item: any) => toMediaToken(item)).filter(Boolean)
       : [],
@@ -995,7 +1001,7 @@ const ProductPageSubProducts = ({
   return (
     <div className="mt-3 grid grid-cols-1 gap-4">
       <p className="text-xs text-slate-500">
-        Products shown only on this page ("{pageName || "this page"}"). Add at least 3.
+        Services shown only on this page ("{pageName || "this page"}"). Add at least 3.
       </p>
       {subProductFields.map((field, index) => (
         <div
@@ -1177,6 +1183,24 @@ const CreateWebsite = () => {
   // async runs (triggered by rapid dep changes) don't race each other.
   const isCheckingWebsiteInFlightRef = useRef(false);
 
+  // SelectWebsiteTemplate.tsx writes this before navigating here for a
+  // brand-new website. Edit mode ignores it — the real value comes from the
+  // fetched record's themeVariant during hydration below. Deliberately NOT
+  // cleared here: this component can remount (navigating away and back)
+  // before any DB record exists yet, and clearing on read would drop the
+  // user's choice back to the default on that revisit. It's cleared once a
+  // DB record is actually found during hydration below, since from that
+  // point the record's own themeVariant always takes precedence anyway.
+  const initialThemeVariant = (() => {
+    let stored = "";
+    try {
+      stored = localStorage.getItem("selectedThemeVariant") || "";
+    } catch {
+      stored = "";
+    }
+    return !isEditMode && stored ? stored : DEFAULT_TEMPLATE_ID;
+  })();
+
   const {
     control,
     register,
@@ -1191,10 +1215,12 @@ const CreateWebsite = () => {
       // hero/company
       companyId: "", // âœ… change from businessId
       companyName: "",
+      themeVariant: initialThemeVariant,
       title: "",
       subTitle: "",
       CTAButtonText: "",
       companyLogo: null,
+      mainHeroImage: null,
       heroImages: [],
       gallery: [],
       // about
@@ -1583,6 +1609,13 @@ const CreateWebsite = () => {
           null;
 
         if (found) {
+          // A DB record now exists, so its own themeVariant (set below) always
+          // wins from here on — the localStorage hint has served its purpose.
+          try {
+            localStorage.removeItem("selectedThemeVariant");
+          } catch {
+            // ignore
+          }
           setHasExistingWebsite(true);
           if (found?.isPublished === true || found?.deployedUrl || found?.publishedProjectUrl) {
             setPublishedWebsiteUrl(
@@ -1608,10 +1641,23 @@ const CreateWebsite = () => {
 
           reset({
             ...getValues(),
+            // Locked in at creation. While still a draft, prefer
+            // draftData.themeVariant: the autosave path only ever wrote the
+            // picker's choice there, leaving the record's top-level
+            // themeVariant stuck at its creation-time default — so trusting
+            // only `found.themeVariant` silently reverted the template on
+            // revisit. Once published/created for real, the top-level field
+            // is authoritative.
+            themeVariant: String(
+              (canResumeDraft ? draftData?.themeVariant : "") ||
+                found?.themeVariant ||
+                DEFAULT_TEMPLATE_ID,
+            ).trim(),
             sectionOverrides: draftData?.sectionOverrides || found?.sectionOverrides || {},
             companyId: String(draftData?.companyId || prefillCompanyId || found?.companyId || "").trim(),
             companyName: String(draftData?.companyName || prefillCompanyName || found?.companyName || "").trim(),
             companyLogo: found?.companyLogo || null,
+            mainHeroImage: found?.mainHeroImage || null,
             heroImages: Array.isArray(found?.heroImages) ? found.heroImages : [],
             title: String(draftData?.title || found?.title || "").trim(),
             subTitle: String(draftData?.subTitle || found?.subTitle || "").trim(),
@@ -1786,7 +1832,7 @@ const CreateWebsite = () => {
               if (fromDraft && fromDraft.length) return fromDraft;
 
               // No product pages configured (existing/older templates): derive one
-              // product page per existing product so they show in the home "Our Products"
+              // product page per existing product so they show in the home "Our Services"
               // section and as product pages â€" using each product's own image as the cover.
               const sourceProducts =
                 Array.isArray(found?.products) && found.products.length
@@ -2248,6 +2294,7 @@ const CreateWebsite = () => {
 
     fd.set("about", JSON.stringify(values.about.map((p) => p.text)));
     appendFileIfPresent("companyLogo", values.companyLogo);
+    appendFileIfPresent("mainHeroImage", values.mainHeroImage);
 
     fd.delete("heroImages");
     (values.heroImages || []).forEach((file) => appendFileIfPresent("heroImages", file));
@@ -2320,6 +2367,12 @@ const CreateWebsite = () => {
     fd.set("inclusions", JSON.stringify(values.inclusions || []));
     fd.set("faqs", JSON.stringify(values.faqs || []));
     fd.set("sectionOverrides", JSON.stringify(values.sectionOverrides || {}));
+    // themeVariant is never bound to a real form input (it's set once by the
+    // template picker and shown read-only afterward), so FormData(formEl)
+    // never picks it up on its own — without this explicit set, the chosen
+    // template is silently never persisted and the site falls back to Classic
+    // on every reload.
+    fd.set("themeVariant", String(values.themeVariant || DEFAULT_TEMPLATE_ID).trim());
     (values.productDropdownPages || []).forEach((item, index) => {
       appendFileIfPresent(`productPageHeroImage_${index}`, item?.heroImage);
       (item?.heroImages || []).forEach((file) => {
@@ -2485,6 +2538,7 @@ const CreateWebsite = () => {
     sectionOverrides: formValues?.sectionOverrides || {},
     styleConfig: formValues?.styleConfig || {},
     companyLogo: getMediaUrlForPreview(formValues?.companyLogo),
+      mainHeroImage: getMediaUrlForPreview(formValues?.mainHeroImage),
       heroImages: (formValues?.heroImages || [])
         .map((item: unknown) => getMediaUrlForPreview(item))
         .filter(Boolean),
@@ -2506,7 +2560,7 @@ const CreateWebsite = () => {
         enabled: card?.enabled !== false,
       })),
       productSectionTitle:
-        String(formValues?.productTitle || "").trim() || "Our Products",
+        String(formValues?.productTitle || "").trim() || "Our Services",
       products: (formValues?.products || []).map((item: any) => ({
         name: String(item?.name || "").trim(),
         type: String(item?.type || "").trim(),
@@ -2733,6 +2787,43 @@ const CreateWebsite = () => {
     window.dispatchEvent(new Event("website-preview-draft-updated"));
   }, [getPreviewPayloadFromValues, values, prefillCompanyName]);
 
+  // Swaps ONLY the specific File objects this particular save request
+  // uploaded for the server's saved {id,url} refs it returned for them —
+  // matched by array reference against `submittedFiles` (the exact Files
+  // this request sent, in order), paired with the same number of items off
+  // the tail of `savedItems` (the server always reconciles kept images
+  // first, then appends newly-uploaded ones at the end).
+  //
+  // This must NOT be done by rebuilding the whole array via
+  // `savedItems.map((saved, idx) => ...currentItems[idx]...)`: two autosave
+  // requests can overlap (user adds another image while the first request's
+  // upload is still in flight), so by the time a response lands, the live
+  // form array can be longer than — or reordered relative to — the array
+  // that specific response reflects. Mapping over the (shorter/stale)
+  // server array silently truncates whatever the user added in the
+  // meantime, which is exactly what made hero/gallery images "disappear a
+  // few seconds after adding". Mapping over the CURRENT live array instead,
+  // and only touching the exact Files we know this response accounts for,
+  // leaves everything else (already-saved items, and any newer not-yet-
+  // uploaded Files) untouched no matter how the request/response timing
+  // overlaps.
+  const mergeUploadedMediaField = (
+    fieldName: string,
+    savedItems: any,
+    submittedFiles: File[] = [],
+  ) => {
+    if (!submittedFiles.length || !Array.isArray(savedItems)) return;
+    const newlyUploaded = savedItems.slice(-submittedFiles.length);
+    if (newlyUploaded.length !== submittedFiles.length) return;
+    const fileToSaved = new Map<File, any>();
+    submittedFiles.forEach((file, idx) => fileToSaved.set(file, newlyUploaded[idx]));
+    const currentItems = getValues(fieldName as any) || [];
+    const merged = (Array.isArray(currentItems) ? currentItems : []).map((item: any) =>
+      item instanceof File && fileToSaved.has(item) ? fileToSaved.get(item) : item,
+    );
+    setValue(fieldName as any, merged, { shouldDirty: false });
+  };
+
   // After ANY successful save (draft autosave, Update, or Create), swap
   // newly-uploaded File objects in form state for the server's saved
   // {id,url} refs. Without this, a resubmit before the swap (e.g. clicking
@@ -2740,39 +2831,24 @@ const CreateWebsite = () => {
   // same files, and server-side append-only logic (push, not replace) piles
   // them on top of what's already saved — this is what causes counts like
   // "uploaded 12, now showing 24" after saving more than once.
-  const syncSavedMediaIntoForm = (savedTemplate: any) => {
+  const syncSavedMediaIntoForm = (
+    savedTemplate: any,
+    pendingFieldFiles: Record<string, File[]> = {},
+  ) => {
     if (!savedTemplate) return;
-    // Hero images
-    if (Array.isArray(savedTemplate.heroImages)) {
-      const currentHero = getValues("heroImages") || [];
-      const mergedHero = savedTemplate.heroImages.map((saved: any, idx: number) => {
-        const current = currentHero[idx];
-        // Keep File objects if they're newer than saved; otherwise use saved S3 object
-        if (current instanceof File) return current;
-        return saved;
-      });
-      setValue("heroImages", mergedHero, { shouldDirty: false });
-    }
-    // Gallery images
-    if (Array.isArray(savedTemplate.gallery)) {
-      const currentGallery = getValues("gallery") || [];
-      const mergedGallery = savedTemplate.gallery.map((saved: any, idx: number) => {
-        const current = currentGallery[idx];
-        if (current instanceof File) return current;
-        return saved;
-      });
-      setValue("gallery", mergedGallery, { shouldDirty: false });
-    }
-    // About page images
-    if (Array.isArray(savedTemplate.aboutPageImages)) {
-      const currentAboutImages = getValues("aboutPageImages") || [];
-      const mergedAboutImages = savedTemplate.aboutPageImages.map((saved: any, idx: number) => {
-        const current = currentAboutImages[idx];
-        if (current instanceof File) return current;
-        return saved;
-      });
-      setValue("aboutPageImages", mergedAboutImages, { shouldDirty: false });
-    }
+    // Hero / gallery / about-page images: safe merge, scoped to exactly the
+    // files this response accounts for (see mergeUploadedMediaField above).
+    mergeUploadedMediaField(
+      "heroImages",
+      savedTemplate.heroImages,
+      pendingFieldFiles.heroImages,
+    );
+    mergeUploadedMediaField("gallery", savedTemplate.gallery, pendingFieldFiles.gallery);
+    mergeUploadedMediaField(
+      "aboutPageImages",
+      savedTemplate.aboutPageImages,
+      pendingFieldFiles.aboutPageImages,
+    );
     // Founder images
     if (Array.isArray(savedTemplate.founders) && savedTemplate.founders.length) {
       const currentFounders = getValues("founders") || [];
@@ -2823,13 +2899,13 @@ const CreateWebsite = () => {
 
   const { mutate: saveWebsiteDraft } = useMutation({
     mutationKey: ["save-website-draft", prefillCompanyId || prefillCompanyName || selectedVertical],
-    mutationFn: async (draftPayload: FormData) => {
-      const res = await axios.post("/api/editor/save-website-draft", draftPayload, {
+    mutationFn: async (payload: { fd: FormData; pendingFieldFiles: Record<string, File[]> }) => {
+      const res = await axios.post("/api/editor/save-website-draft", payload.fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return res.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       lastDraftSnapshotRef.current = pendingDraftSnapshotRef.current;
       pendingDraftSnapshotRef.current = "";
       pendingDraftFileKeysRef.current.forEach((key) =>
@@ -2843,7 +2919,10 @@ const CreateWebsite = () => {
       // Sync back persisted images from the saved template so the form reflects S3 URLs
       // (founder images, logo carousel logos, sub-product images) rather than keeping
       // stale File blobs that would otherwise get re-uploaded on the next save.
-      syncSavedMediaIntoForm(data?.template);
+      // `variables.pendingFieldFiles` is THIS request's own file list (captured at
+      // request-build time), not a shared ref — so it stays correct even if a later
+      // autosave request's response lands first.
+      syncSavedMediaIntoForm(data?.template, variables?.pendingFieldFiles);
     },
     onError: () => {
       pendingDraftSnapshotRef.current = "";
@@ -2883,6 +2962,11 @@ const CreateWebsite = () => {
       fd.set("draftData", JSON.stringify(draftData));
 
       const pendingFileKeys: string[] = [];
+      // Per-field, in-submission-order lists of the exact File objects this
+      // request sends — passed to syncSavedMediaIntoForm on success so it can
+      // swap only those specific files for their saved refs (see
+      // mergeUploadedMediaField for why index-based merging is unsafe).
+      const pendingFieldFiles: Record<string, File[]> = {};
       const getFileKey = (file: File) =>
         `${file.name}__${file.size}__${file.lastModified}`;
       const appendDraftFileOnce = (fieldName: string, file?: File | null) => {
@@ -2891,9 +2975,11 @@ const CreateWebsite = () => {
         if (uploadedDraftFileKeysRef.current.has(key)) return;
         fd.append(fieldName, file);
         pendingFileKeys.push(key);
+        (pendingFieldFiles[fieldName] ||= []).push(file);
       };
 
       appendDraftFileOnce("companyLogo", values?.companyLogo as File | null);
+      appendDraftFileOnce("mainHeroImage", values?.mainHeroImage as File | null);
       (values?.heroImages || [])
         .filter((item: any) => item instanceof File)
         .forEach((file: File) => appendDraftFileOnce("heroImages", file));
@@ -2986,7 +3072,7 @@ const CreateWebsite = () => {
       });
 
       pendingDraftFileKeysRef.current = pendingFileKeys;
-      saveWebsiteDraft(fd);
+      saveWebsiteDraft({ fd, pendingFieldFiles });
     }, 1200);
     draftAutosaveTimeoutRef.current = timeoutId;
 
@@ -3179,6 +3265,7 @@ const CreateWebsite = () => {
       subTitle: "",
       CTAButtonText: "",
       companyLogo: null,
+      mainHeroImage: null,
       heroImages: [],
       gallery: [],
 
@@ -3403,9 +3490,17 @@ const CreateWebsite = () => {
                 {effectiveEditMode ? "Edit Website" : "Create Website"}
               </h2>
               <div className="flex flex-col items-end gap-1" data-tour="wb-editor-draft-status">
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                  {selectedVerticalBadgeText}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                    {selectedVerticalBadgeText}
+                  </span>
+                  <span
+                    title="The template was chosen when this website was created and can't be changed here."
+                    className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700"
+                  >
+                    Template: {TEMPLATE_REGISTRY[watch("themeVariant") || DEFAULT_TEMPLATE_ID]?.name || "Classic"}
+                  </span>
+                </div>
                 <p className="text-[11px] text-slate-500">
                   {draftStatus === "saving"
                     ? "Saving draft..."
@@ -3483,7 +3578,7 @@ const CreateWebsite = () => {
               <div className="mt-4 min-w-0 overflow-hidden">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-products-page-settings">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Products Page Settings <SectionPreviewInfo section="productsPage" /></span>
+                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Services Page Settings <SectionPreviewInfo section="productsPage" /></span>
                     <div className="min-w-[200px]">
                       <WebsiteFormField
                         select
@@ -3516,7 +3611,7 @@ const CreateWebsite = () => {
                       <PageVisibilityBanner
                         name={`pageNavItems.${productsPageNavIndex}.enabled`}
                         control={control}
-                        pageLabel="Products"
+                        pageLabel="Services"
                       />
                     </div>
                   ) : null}
@@ -3543,7 +3638,7 @@ const CreateWebsite = () => {
                           }`}
                         >
                           <span className="flex-1 truncate">
-                            {watch(`productDropdownPages.${index}.name`) || `Product Page ${index + 1}`}
+                            {watch(`productDropdownPages.${index}.name`) || `Service Page ${index + 1}`}
                           </span>
                           <button
                             type="button"
@@ -3604,7 +3699,7 @@ const CreateWebsite = () => {
                       <div className="mt-3 grid grid-cols-1 gap-3">
                         <div>
                           <div className="border-b-default border-borderGray py-4 flex items-center justify-between" data-tour="wb-editor-products-page-details">
-                            <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Product Page Details <SectionPreviewInfo section="productDetails" /></span>
+                            <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Service Page Details <SectionPreviewInfo section="productDetails" /></span>
                             <SectionToggle name={`productDropdownPages.${activeProductPageTab}.enabled`} control={control} />
                           </div>
                           <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
@@ -3612,14 +3707,14 @@ const CreateWebsite = () => {
                             name={`productDropdownPages.${activeProductPageTab}.name`}
                             control={control}
                             render={({ field }) => (
-                              <WebsiteFormField field={field} label="Product Page Name" />
+                              <WebsiteFormField field={field} label="Service Page Name" />
                             )}
                           />
                           <Controller
                             name={`productDropdownPages.${activeProductPageTab}.slug`}
                             control={control}
                             render={({ field }) => (
-                              <WebsiteFormField field={field} label="Product Page Route Slug" />
+                              <WebsiteFormField field={field} label="Service Page Route Slug" />
                             )}
                           />
                           </div>
@@ -3627,7 +3722,7 @@ const CreateWebsite = () => {
 
                         <div>
                           <div className="py-2 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-products-page-hero">
-                            <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Product Page Hero <SectionPreviewInfo section="heroBanner" /></span>
+                            <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Service Page Hero <SectionPreviewInfo section="heroBanner" /></span>
                             <SectionToggle name={`productDropdownPages.${activeProductPageTab}.heroEnabled`} control={control} />
                           </div>
                           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -3924,7 +4019,7 @@ const CreateWebsite = () => {
                   </>
                 ) : (
                   <p className="mt-3 text-xs text-slate-500">
-                    No product pages added yet. Select from dropdown and click Add Product Page.
+                    No service pages added yet. Select from dropdown and click Add Service Page.
                   </p>
                 )}
               </div>
@@ -4679,6 +4774,22 @@ const CreateWebsite = () => {
                   )}
                 />
 
+                {/* mainHeroImage (single) — templates that pair a rotating
+                    background carousel with one fixed foreground shot (e.g.
+                    Fresh Studio) use this; ignored by templates that don't. */}
+                <Controller
+                  name="mainHeroImage"
+                  control={control}
+                  render={({ field }) => (
+                    <UploadFileInput
+                      id="mainHeroImage"
+                      value={field.value}
+                      label="Main Hero Image (Fresh Studio template)"
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+
                 <Controller
                   name="title"
                   control={control}
@@ -4835,7 +4946,7 @@ const CreateWebsite = () => {
             {activeSections.includes("products") && (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-products-section">
-                <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Our Products Section <SectionPreviewInfo section="products" /></span>
+                <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Our Services Section <SectionPreviewInfo section="products" /></span>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -4852,7 +4963,7 @@ const CreateWebsite = () => {
                     }}
                     className="text-[#2563EB] text-sm font-pmedium hover:underline inline-flex items-center gap-1 transition-all"
                   >
-                    Go to Products Tab →
+                    Go to Services Tab →
                   </button>
                   <SectionToggle sectionKey="home_products" control={control} />
                 </div>
@@ -4864,8 +4975,8 @@ const CreateWebsite = () => {
                   render={({ field }) => (
                     <WebsiteFormField
                       field={field}
-                      label="Products Title"
-                      placeholder="Our Products"
+                      label="Services Title"
+                      placeholder="Our Services"
                       maxLength={CHAR_LIMITS.productTitle}
                     />
                   )}
@@ -4875,7 +4986,7 @@ const CreateWebsite = () => {
                   productPageFields.map((pageField, index) => {
                     const pageName =
                       watch(`productDropdownPages.${index}.name`) ||
-                      `Product Page ${index + 1}`;
+                      `Service Page ${index + 1}`;
                     const pageSlug = String(
                       watch(`productDropdownPages.${index}.slug`) || "",
                     )
@@ -4937,20 +5048,20 @@ const CreateWebsite = () => {
                   })
                 ) : (
                   <p className="text-xs text-slate-500">
-                    Add product pages in the Products tab to create Home section cards here.
+                    Add service pages in the Services tab to create Home section cards here.
                   </p>
                 )}
               </div>
             </div>
             )}
 
-            {/* Home Inclusions â€" toggle amenities shown below Our Products on home page */}
+            {/* Home Inclusions â€" toggle amenities shown below Our Services on home page */}
             {productPageFields.length > 0 ? (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray flex items-center justify-between" data-tour="wb-editor-inclusions-section">
                 <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Home Inclusions Section <SectionPreviewInfo section="inclusions" /></span>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-400">Shown below Our Products on home page</span>
+                  <span className="text-xs text-slate-400">Shown below Our Services on home page</span>
                   <SectionToggle sectionKey="home_inclusions" control={control} />
                 </div>
               </div>
@@ -5071,7 +5182,7 @@ const CreateWebsite = () => {
             {legacyHomeProductsEditorEnabled && selectedVertical === "co-working" && (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Products <SectionPreviewInfo section="products" /></span>
+                <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Services <SectionPreviewInfo section="products" /></span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -5080,7 +5191,7 @@ const CreateWebsite = () => {
                   render={({ field }) => (
                     <WebsiteFormField
                       field={field}
-                      label={sectionTitles[selectedVertical] || "Products Section Title"}
+                      label={sectionTitles[selectedVertical] || "Services Section Title"}
                       maxLength={CHAR_LIMITS.productTitle}
                       helperText={getHelperText(
                         errors?.productTitle?.message,
@@ -5871,7 +5982,7 @@ const CreateWebsite = () => {
                   <p className="text-sm font-medium text-slate-700">
                     {effectiveEditMode
                       ? "Your existing published website will be updated and the changes will be published again. This action will deduct 1 credit from your monthly balance."
-                      : "Your website will be created with page-style navigation (Home, About, Products, Gallery, Testimonials, Contact). Do you want to continue?"}
+                      : "Your website will be created with page-style navigation (Home, About, Services, Gallery, Testimonials, Contact). Do you want to continue?"}
                   </p>
                   <p className="mt-2 text-xs text-slate-600">
                     {effectiveEditMode
