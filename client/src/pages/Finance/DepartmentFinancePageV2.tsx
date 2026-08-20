@@ -239,6 +239,23 @@ export function DepartmentFinancePageV2() {
         const data = response?.data || response || {};
         setFinanceData(data);
         setMonthlyExpenses(Array.isArray(data.monthlyPlan) ? data.monthlyPlan : []);
+        if (!data.annualRequest && Array.isArray(data.monthlyPlan)) {
+          setDraftMonths(data.monthlyPlan.map((month: any, index: number) => ({
+            id: String(month?.monthKey || month?.month || index),
+            month: String(month?.month || monthLabels[month?.monthKey] || ''),
+            monthKey: String(month?.monthKey || month?.month || ''),
+            title: String(month?.title || ''),
+            expenses: (Array.isArray(month?.expenses) ? month.expenses : []).map((expense: any, expenseIndex: number) => ({
+              id: String(expense?.id || expense?.expenseKey || `${index}-${expenseIndex}`),
+              title: String(expense?.title || expense?.expenseLabel || ''),
+              projectedAmount: Number(expense?.projectedAmount || 0),
+              dueDate: String(expense?.dueDate || ''),
+              description: String(expense?.description || expense?.details || ''),
+            })),
+          })));
+        } else {
+          setDraftMonths([]);
+        }
         setVendors(Array.isArray(data.vendors) ? data.vendors : []);
         setExtraRequests(Array.isArray(data.extraRequests) ? data.extraRequests : []);
       } catch (error: any) {

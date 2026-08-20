@@ -37,8 +37,12 @@ function normalizeExpenseTag(tag: string) {
 
 function ensureMonthlyPlanEntry(plan: any, month: { month: string; monthKey: string; displayOrder?: number }) {
   const monthKeyNorm = normalizeMonthKey(month.monthKey || month.month);
+  const monthNameNorm = normalizeMonthKey(month.month);
   if (!Array.isArray(plan.monthlyPlan)) plan.monthlyPlan = [];
-  const existing = plan.monthlyPlan.find((m: any) => normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm);
+  const existing = plan.monthlyPlan.find((m: any) =>
+    normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm
+    || (monthNameNorm && normalizeMonthKey(m.month) === monthNameNorm),
+  );
   if (existing) return existing;
 
   const created = {
@@ -90,6 +94,17 @@ function recalcMonthTotalsFromExpenses(plan: any, monthKey: string) {
 async function syncMonthlyPlanFromFinanceExpenses(planId: mongoose.Types.ObjectId) {
   const plan = await DepartmentFinancePlan.findById(planId);
   if (!plan) return null;
+
+  // Imported CSVs may use month names while older plans use Excel serial keys.
+  // Collapse those representations so one fiscal year stays April through March.
+  if (Array.isArray(plan.monthlyPlan)) {
+    const uniqueMonths = new Map<string, any>();
+    for (const month of plan.monthlyPlan) {
+      const key = normalizeMonthKey(month.month || month.monthKey);
+      if (!uniqueMonths.has(key)) uniqueMonths.set(key, month);
+    }
+    plan.monthlyPlan = Array.from(uniqueMonths.values());
+  }
 
   const expenses = await FinanceExpense.find({
     planId,
