@@ -53,6 +53,32 @@ const defaultSubProduct = {
   images: [],
 };
 
+const buildDefaultProductPage = (name = "Service Page 1") => {
+  const slug = toSlug(name || "service-page-1");
+  return {
+    name,
+    slug,
+    enabled: true,
+    heroEnabled: true,
+    inclusionsEnabled: true,
+    faqEnabled: true,
+    heroHeading: name,
+    heroSubHeading: "",
+    heroMode: "single",
+    heroImage: null,
+    heroImages: [],
+    heroButtonText: "View More",
+    homeCardHeading: name,
+    homeCardSubText: "",
+    homeCardImage: null,
+    leadEnabled: true,
+    leadFormLabel: "View More / Get Details",
+    faqs: [],
+    inclusions: [],
+    subProducts: [{ ...defaultSubProduct, images: [] }],
+  };
+};
+
 const MAX_SUB_PRODUCTS_PER_PAGE = 12;
 const MAX_SUB_PRODUCT_IMAGES = 5;
 
@@ -148,7 +174,11 @@ const DEFAULT_PAGE_NAV_ITEMS = [
 
 const buildDefaultPageNavItems = () =>
   DEFAULT_PAGE_NAV_ITEMS.map((name) => {
-    const slug = String(name).toLowerCase().replace(/\s+/g, "-");
+    // "Services" is displayed as the label, but the Services page settings
+    // panel and its lookups throughout this file key off the legacy
+    // "products" slug (see migrateNavItems), so keep that slug here too.
+    const slug =
+      name === "Services" ? "products" : String(name).toLowerCase().replace(/\s+/g, "-");
     return {
       name,
       slug,
@@ -709,7 +739,9 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   logoCarousel: {
     enabled: formValues?.logoCarousel?.enabled === true,
     title: String(formValues?.logoCarousel?.title || "").trim(),
-    logos: Array.isArray(formValues?.logoCarousel?.logos) ? formValues.logoCarousel.logos : [],
+    logos: (Array.isArray(formValues?.logoCarousel?.logos) ? formValues.logoCarousel.logos : [])
+      .map((item: unknown) => getMediaUrlForPreview(item))
+      .filter(Boolean),
   },
   aboutPageIntro: String(formValues?.aboutPageIntro || "").trim(),
   aboutPageOverview: String(formValues?.aboutPageOverview || "").trim(),
@@ -1251,7 +1283,7 @@ const CreateWebsite = () => {
       copyrightText: "",
       socials: buildDefaultSocials(),
       pageNavItems: buildDefaultPageNavItems(),
-      productDropdownPages: [],
+      productDropdownPages: [buildDefaultProductPage()],
       aboutPageIntro: "",
       aboutPageOverview: "",
       aboutPageStory: "",
@@ -1438,6 +1470,11 @@ const CreateWebsite = () => {
   const contactPageNavIndex = pageNavItemsForVisibility.findIndex(
     (item: any) => String(item?.slug || "").trim().toLowerCase() === "contact-us",
   );
+  // Lets builder section headers (e.g. "Services Page Settings") echo a
+  // renamed page's custom nav label instead of staying stuck on the default,
+  // so the settings panel below a tab always matches the tab's own name.
+  const pageNavLabel = (index: number, fallback: string) =>
+    String(pageNavItemsForVisibility[index]?.name || "").trim() || fallback;
   // Pages currently toggled off via PageVisibilityBanner; surfaced in a warning
   // before publish so a hidden page isn't a silent surprise.
   const hiddenPageNavEntries = pageNavItemsForVisibility
@@ -2861,14 +2898,18 @@ const CreateWebsite = () => {
       });
       setValue("founders", mergedFounders, { shouldDirty: false });
     }
-    // Logo carousel logos
+    // Logo carousel logos — merge keyed off the current form state (like
+    // founders/sub-product images above/below), not off the server response.
+    // Keying off the response instead silently truncated the array to
+    // whatever length that particular save/autosave happened to return,
+    // dropping any logos picked after that request was already in flight.
     if (Array.isArray(savedTemplate.logoCarousel?.logos)) {
       const currentLogos = getValues("logoCarousel.logos") || [];
-      const mergedLogos = savedTemplate.logoCarousel.logos.map((saved: any, idx: number) => {
-        const current = currentLogos[idx];
+      const savedLogos = savedTemplate.logoCarousel.logos;
+      const mergedLogos = currentLogos.map((current: any, idx: number) => {
         // Keep File objects if they're newer than saved; otherwise use saved S3 object
         if (current instanceof File) return current;
-        return saved;
+        return savedLogos[idx] || current;
       });
       setValue("logoCarousel.logos", mergedLogos, { shouldDirty: false });
     }
@@ -3290,6 +3331,7 @@ const CreateWebsite = () => {
       copyrightText: "",
       socials: buildDefaultSocials(),
       pageNavItems: buildDefaultPageNavItems(),
+      productDropdownPages: [buildDefaultProductPage()],
     });
 
     setActiveMainPageTab(0);
@@ -3432,6 +3474,20 @@ const CreateWebsite = () => {
     values?.__legacyHomeProductsEditorEnabled,
   );
 
+  const hasSeededDefaultServicesPageRef = useRef(false);
+
+  useEffect(() => {
+    const currentPages = getValues("productDropdownPages");
+    if (Array.isArray(currentPages) && currentPages.length > 0) {
+      hasSeededDefaultServicesPageRef.current = true;
+      return;
+    }
+    if (hasSeededDefaultServicesPageRef.current) return;
+    setValue("productDropdownPages", [buildDefaultProductPage()], { shouldDirty: false });
+    setActiveProductPageTab(0);
+    hasSeededDefaultServicesPageRef.current = true;
+  }, [getValues, setValue, setActiveProductPageTab]);
+
   if (isCheckingExistingWebsite) {
     return <WebsiteBuilderEditorSkeleton />;
   }
@@ -3572,13 +3628,46 @@ const CreateWebsite = () => {
               })}
             </div>
 
+            <div className="mt-3 max-w-sm">
+              <Controller
+                name={`pageNavItems.${activeMainPageTab}.name`}
+                control={control}
+                render={({ field }) => (
+                  <WebsiteFormField
+                    field={{
+                      ...field,
+                      onBlur: () => {
+                        const trimmed = String(field.value || "").trim();
+                        if (!trimmed) {
+                          field.onChange(
+                            DEFAULT_PAGE_NAV_ITEMS[activeMainPageTab] ||
+                              `Page ${activeMainPageTab + 1}`,
+                          );
+                        }
+                        field.onBlur();
+                      },
+                    }}
+                    label="Page Name (shown in navbar)"
+                    placeholder={`Page ${activeMainPageTab + 1}`}
+                    maxLength={30}
+                    disabled={activeMainPageSlug === "products"}
+                    helperText={
+                      activeMainPageSlug === "products"
+                        ? "The Services page name isn't editable yet."
+                        : "Renames this tab here and its label in your website's navbar."
+                    }
+                  />
+                )}
+              />
+            </div>
+
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "products" ? (
               <div className="mt-4 min-w-0 overflow-hidden">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-products-page-settings">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Services Page Settings <SectionPreviewInfo section="productsPage" /></span>
+                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(productsPageNavIndex, "Services")} Page Settings <SectionPreviewInfo section="productsPage" /></span>
                     <div className="min-w-[200px]">
                       <WebsiteFormField
                         select
@@ -4030,7 +4119,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "about-us" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-about-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Us Hero Section <SectionPreviewInfo section="aboutPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(aboutPageNavIndex, "About Us")} Hero Section <SectionPreviewInfo section="aboutPage" /></span>
                 {aboutPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4042,6 +4131,20 @@ const CreateWebsite = () => {
                 ) : null}
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
+                  <div>
+                    <Controller
+                      name="aboutTitle"
+                      control={control}
+                      render={({ field }) => (
+                        <WebsiteFormField
+                          field={{ ...field, value: field.value || "" }}
+                          label="About Section Heading (Synced with Home)"
+                          placeholder="About Our Vision"
+                        />
+                      )}
+                    />
+                  </div>
+
                   <div>
                     <Controller
                       name="aboutPageIntro"
@@ -4319,7 +4422,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "gallery" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-gallery-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Hero Section <SectionPreviewInfo section="galleryPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(galleryPageNavIndex, "Gallery")} Hero Section <SectionPreviewInfo section="galleryPage" /></span>
                 {galleryPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4376,7 +4479,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "partner" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-partner-page-header">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Partner Page Section <SectionPreviewInfo section="partnerPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(partnerPageNavIndex, "Partner")} Page Section <SectionPreviewInfo section="partnerPage" /></span>
                 {partnerPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4435,7 +4538,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "careers" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-careers-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Careers Hero Section <SectionPreviewInfo section="careersPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(careersPageNavIndex, "Careers")} Hero Section <SectionPreviewInfo section="careersPage" /></span>
                 {careersPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4774,21 +4877,25 @@ const CreateWebsite = () => {
                   )}
                 />
 
-                {/* mainHeroImage (single) — templates that pair a rotating
-                    background carousel with one fixed foreground shot (e.g.
-                    Fresh Studio) use this; ignored by templates that don't. */}
-                <Controller
-                  name="mainHeroImage"
-                  control={control}
-                  render={({ field }) => (
-                    <UploadFileInput
-                      id="mainHeroImage"
-                      value={field.value}
-                      label="Main Hero Image (Fresh Studio template)"
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
+                {/* mainHeroImage (single) — only Fresh Studio pairs a
+                    rotating background carousel with one fixed foreground
+                    shot, so this field is template-specific and hidden for
+                    every other template instead of showing a field that
+                    would be silently ignored. */}
+                {watch("themeVariant") === "fresh-studio" && (
+                  <Controller
+                    name="mainHeroImage"
+                    control={control}
+                    render={({ field }) => (
+                      <UploadFileInput
+                        id="mainHeroImage"
+                        value={field.value}
+                        label="Main Hero Image"
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                )}
 
                 <Controller
                   name="title"
