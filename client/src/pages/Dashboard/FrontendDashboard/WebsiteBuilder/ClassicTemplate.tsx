@@ -1979,17 +1979,28 @@ const ClassicTemplate = () => {
       ) || null
     );
   }, [currentItemSlug, selectedProductPage, draft]);
+  const navLabelForSection = useCallback(
+    (section: string, fallback: string) => {
+      const match = navItems.find(
+        (item) => resolveSectionFromSlug(item.slug) === section,
+      );
+      return match?.name?.trim() || fallback;
+    },
+    [navItems],
+  );
+
   const breadcrumbItems = useMemo(() => {
     const items: Array<{ label: string; onClick?: () => void }> = [
       {
-        label: "Home",
+        label: navLabelForSection("home", "Home"),
         onClick: () => navigate("/website-preview/page/home"),
       },
     ];
 
     if (currentSection !== "home") {
       items.push({
-        label:
+        label: navLabelForSection(
+          currentSection,
           currentSection === "partner"
             ? "Partner"
             : currentSection === "testimonials"
@@ -1998,6 +2009,7 @@ const ClassicTemplate = () => {
                 ? "Services"
                 : currentSection.charAt(0).toUpperCase() +
                   currentSection.slice(1),
+        ),
         onClick:
           currentSection === "careers"
             ? () => {
@@ -2049,6 +2061,7 @@ const ClassicTemplate = () => {
   }, [
     careersApplyJob,
     currentSection,
+    navLabelForSection,
     navigate,
     resetCareersApplyForm,
     selectedProductPage,
@@ -3050,9 +3063,11 @@ const ClassicTemplate = () => {
                     ) : (
                       <span
                         aria-current="page"
-                        className={
-                          dark ? "font-semibold text-white" : "font-semibold text-black"
-                        }
+                        className={`inline-block border-b-2 pb-0.5 font-semibold ${
+                          dark
+                            ? "border-[#60a5fa] text-white"
+                            : "border-[#3b82f6] text-black"
+                        }`}
                       >
                         {item.label}
                       </span>
@@ -3166,9 +3181,7 @@ const ClassicTemplate = () => {
                         {item}
                       </p>
                     ))
-                  ) : (
-                    <p></p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -3236,7 +3249,7 @@ const ClassicTemplate = () => {
           {galleryPageEnabled && isSectionEnabled("home_gallery") ? (
             <section id="gallery" className={SECTION_BLOCK}>
               <div className={CONTENT_WRAP}>
-                <LinedHeading title={draft?.galleryTitle || "Gallery"} />
+                <LinedHeading title={draft?.galleryTitle || navLabelForSection("gallery", "Gallery")} />
                 <div className="mt-6 grid grid-cols-2 gap-4 md:mt-10 md:grid-cols-3 md:gap-[8px]">
                   {homeGalleryItems.map((item: string, idx: number) => (
                     <button
@@ -3301,7 +3314,7 @@ const ClassicTemplate = () => {
           {contactPageEnabled && isSectionEnabled("home_contact") ? (
             <section id="contact" className={SECTION_BLOCK}>
               <div className={CONTENT_WRAP}>
-                <LinedHeading title={draft?.contactTitle || "Contact"} />
+                <LinedHeading title={draft?.contactTitle || navLabelForSection("contact", "Contact")} />
                 <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
                   <div className="md:col-span-7">
                     {draft?.mapUrl ? (
@@ -3356,9 +3369,7 @@ const ClassicTemplate = () => {
                     {item}
                   </p>
                 ))
-              ) : (
-                <p></p>
-              )}
+              ) : null}
             </div>
             {aboutNarrativeBlocks.length ? (
               <div className="mt-10 grid grid-cols-1 gap-5 md:mt-14 md:grid-cols-2">

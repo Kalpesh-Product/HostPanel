@@ -5,7 +5,7 @@ import { isProductsNavItem } from "./templateNavigation";
 import { getInclusionMeta } from "./inclusionIcons";
 
 // "Fresh Studio" — dark, image-forward theme: near-black background
-// (#0A0A12) with white text and a red gradient accent (#FF3B5C → #C81E3A),
+// (#0A0A12) with white text and a soft red accent (#D94B4B),
 // small precise radii with pill buttons, tight functional spacing, explicit
 // focus-visible states for WCAG 2.2 AA. Distinct from Minimal Swiss and Warm
 // Organic. Full site: home, about, products (listing + detail + lead
@@ -27,8 +27,8 @@ const HEADING = "#ffffff";
 const MUTED = "rgba(255,255,255,0.55)";
 const WHITE = "#ffffff";
 const BLACK = "#000000";
-const ACCENT = "#E11D48";
-const ACCENT_GRADIENT = "linear-gradient(135deg, #FF3B5C 0%, #C81E3A 100%)";
+const ACCENT = "#D94B4B";
+const ACCENT_GRADIENT = "linear-gradient(135deg, #D94B4B 0%, #D94B4B 100%)";
 const PAGE_BG = "#0A0A12";
 const SURFACE = "#14141c";
 
@@ -61,8 +61,8 @@ const INPUT =
   "w-full rounded-[4px] border px-3.5 py-2.5 text-[14px] outline-none transition duration-150 bg-[#14141c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1";
 const inputStyle = { borderColor: "rgba(255,255,255,0.18)", color: TEXT };
 const focusStyle = { outlineColor: ACCENT } as React.CSSProperties;
-// Form fields specifically use a neutral focus outline instead of the pink
-// accent — the pink ring around every input read as a validation/error
+// Form fields specifically use a neutral focus outline instead of the red
+// accent — the red ring around every input read as a validation/error
 // state rather than a normal focus indicator. Buttons/links keep the accent
 // outline via focusStyle above.
 const inputFocusStyle = { outlineColor: "rgba(255,255,255,0.35)" } as React.CSSProperties;
@@ -626,19 +626,28 @@ const FreshStudioTemplate: React.FC = () => {
       )
     : [];
 
+  const navLabelForSection = (sectionKey: string, fallback: string) => {
+    const match = (t.navItems || []).find(
+      (item: any) => resolveSectionFromSlug(item.slug) === sectionKey,
+    );
+    return String(match?.name || "").trim() || fallback;
+  };
+
   const breadcrumbItems: Array<{ label: string; onClick?: () => void }> = [
-    { label: "Home", onClick: () => t.goToSection("home") },
+    { label: navLabelForSection("home", "Home"), onClick: () => t.goToSection("home") },
   ];
 
   if (section !== "home") {
-    const label =
+    const label = navLabelForSection(
+      section,
       section === "partner"
         ? "Partner"
         : section === "testimonials"
           ? "Testimonials"
           : section === "products"
             ? "Services"
-            : section.charAt(0).toUpperCase() + section.slice(1);
+            : section.charAt(0).toUpperCase() + section.slice(1),
+    );
     breadcrumbItems.push({
       label,
       onClick: () => t.goToSection(section),
@@ -682,7 +691,7 @@ const FreshStudioTemplate: React.FC = () => {
   // whether something deeper will get pushed after it. Without this, a
   // section with no further drill-down (About, Gallery, Contact, or
   // Products with nothing selected) rendered its own name as a plain
-  // clickable link instead of the non-clickable pink/bold current-page
+  // clickable link instead of the non-clickable red/bold current-page
   // label.
   if (breadcrumbItems.length > 1) {
     breadcrumbItems[breadcrumbItems.length - 1].onClick = undefined;
@@ -773,8 +782,8 @@ const FreshStudioTemplate: React.FC = () => {
                   key={item.slug}
                   type="button"
                   onClick={() => t.goToSection(item.slug)}
-                  className={`border-b-2 pb-1 text-[14px] font-medium transition duration-150 hover:border-[#E11D48] focus-visible:outline focus-visible:outline-2 ${
-                    isActive ? "border-[#E11D48]" : "border-transparent"
+                  className={`border-b-2 pb-1 text-[14px] font-medium transition duration-150 hover:border-[#D94B4B] focus-visible:outline focus-visible:outline-2 ${
+                    isActive ? "border-[#D94B4B]" : "border-transparent"
                   }`}
                   style={{ color: isActive ? ACCENT : TEXT, ...focusStyle }}
                 >
@@ -785,7 +794,7 @@ const FreshStudioTemplate: React.FC = () => {
             <button
               type="button"
               onClick={() => window.location.assign("/")}
-              className="rounded-full border border-white/22 px-5 py-2 text-[13px] font-semibold text-white transition hover:border-[#E11D48] hover:text-[#E11D48] focus-visible:outline focus-visible:outline-2"
+              className="rounded-full border border-white/22 px-5 py-2 text-[13px] font-semibold text-white transition hover:border-[#D94B4B] hover:text-[#D94B4B] focus-visible:outline focus-visible:outline-2"
               style={focusStyle}
             >
               Login
@@ -818,7 +827,7 @@ const FreshStudioTemplate: React.FC = () => {
                     type="button"
                     onClick={() => t.goToSection(item.slug)}
                     className={`py-3 text-left text-[14px] font-medium ${
-                      t.currentSection === resolveSectionFromSlug(item.slug) ? "text-[#E11D48]" : ""
+                      t.currentSection === resolveSectionFromSlug(item.slug) ? "text-[#D94B4B]" : ""
                     }`}
                     style={{
                       borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -868,7 +877,7 @@ const FreshStudioTemplate: React.FC = () => {
                     <button
                       type="button"
                       onClick={item.onClick}
-                      className={`${FONT} transition hover:text-[#E11D48]`}
+                      className={`${FONT} transition hover:text-[#D94B4B]`}
                       style={{ color: "rgba(255,255,255,0.55)" }}
                     >
                       {item.label}
@@ -876,8 +885,8 @@ const FreshStudioTemplate: React.FC = () => {
                   ) : (
                     <span
                       aria-current="page"
-                      className={`${FONT} font-semibold`}
-                      style={{ color: ACCENT }}
+                      className={`${FONT} inline-block border-b-2 pb-0.5 font-semibold`}
+                      style={{ color: ACCENT, borderColor: ACCENT }}
                     >
                       {item.label}
                     </span>
@@ -962,8 +971,8 @@ const FreshStudioTemplate: React.FC = () => {
                       className="rounded-full px-7 py-3 text-[14px] font-semibold text-white transition duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                       style={{
                         background:
-                          "linear-gradient(135deg, #FF3B5C 0%, #C81E3A 100%)",
-                        outlineColor: "#FF3B5C",
+                          "linear-gradient(135deg, #D94B4B 0%, #D94B4B 100%)",
+                        outlineColor: "#D94B4B",
                       }}
                     >
                       {draft?.ctaText || "Get in touch"}
@@ -984,7 +993,7 @@ const FreshStudioTemplate: React.FC = () => {
                     className="pointer-events-none absolute -inset-6 rounded-[40px] opacity-50 blur-3xl md:-inset-10"
                     style={{
                       background:
-                        "radial-gradient(circle, #E11D48, transparent 65%)",
+                        "radial-gradient(circle, #D94B4B, transparent 65%)",
                     }}
                   />
                   <div
@@ -1004,7 +1013,7 @@ const FreshStudioTemplate: React.FC = () => {
                         className="pointer-events-none absolute inset-0"
                         style={{
                           background:
-                            "radial-gradient(circle at 30% 25%, rgba(225,29,72,0.35), transparent 55%)",
+                            "radial-gradient(circle at 30% 25%, rgba(217,75,75,1), transparent 55%)",
                         }}
                       />
                     )}
@@ -1493,7 +1502,7 @@ const FreshStudioTemplate: React.FC = () => {
                               ))}
                             </div>
                             {t.leadSubmitError ? (
-                              <p className="text-[12px] text-[#ff6b81]">
+                              <p className="text-[12px] text-[#D94B4B]">
                                 {t.leadSubmitError}
                               </p>
                             ) : null}
@@ -2253,7 +2262,7 @@ const FreshStudioTemplate: React.FC = () => {
                         ),
                       )}
                       {t.careersApplyError ? (
-                        <p className="md:col-span-2 text-[12px] text-[#ff6b81]">
+                        <p className="md:col-span-2 text-[12px] text-[#D94B4B]">
                           {t.careersApplyError}
                         </p>
                       ) : null}
@@ -2577,7 +2586,7 @@ const FreshStudioTemplate: React.FC = () => {
                   />
                 ))}
                 {t.leadSubmitError ? (
-                  <p className="text-[12px] text-[#ff6b81]">
+                  <p className="text-[12px] text-[#D94B4B]">
                     {t.leadSubmitError}
                   </p>
                 ) : null}
@@ -2672,7 +2681,7 @@ const FreshStudioTemplate: React.FC = () => {
                 style={{ ...inputStyle, ...inputFocusStyle }}
               />
               {t.reviewSubmitError ? (
-                <p className="text-[12px] text-[#ff6b81]">
+                <p className="text-[12px] text-[#D94B4B]">
                   {t.reviewSubmitError}
                 </p>
               ) : null}

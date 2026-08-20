@@ -17,13 +17,39 @@ function LinedHeading({ title, className = "" }: { title: string; className?: st
   return (
     <div className={`flex items-center gap-4 mb-6 ${className}`}>
       <div className="flex-1 h-px bg-amber-400" />
-      <h2 className={`text-sm font-semibold uppercase tracking-[0.15em] sm:text-base md:text-xl lg:text-[26px] text-amber-400 ${HEADING_FONT}`}>{title}</h2>
+      <h2 className={`text-sm font-semibold uppercase tracking-[0.15em] sm:text-base md:text-xl lg:text-[18px] text-amber-400 ${HEADING_FONT}`}>{title}</h2>
       <div className="flex-1 h-px bg-amber-400" />
     </div>
   );
 }
 const INPUT =
   "w-full bg-emerald-950/60 border border-emerald-800 rounded-lg px-4 py-3 text-stone-100 text-sm placeholder:text-stone-600 focus:outline-none focus:border-amber-400 transition-colors";
+
+const CONTACT_ICON_CIRCLE = ({ children }: { children: React.ReactNode }) => (
+  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-400/50 text-amber-400">
+    {children}
+  </span>
+);
+
+const ContactMailIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 7l9 6 9-6" />
+  </svg>
+);
+
+const ContactPhoneIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.08 4.18 2 2 0 0 1 4.07 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.64 2.6a2 2 0 0 1-.45 2.11L8 9.69a16 16 0 0 0 6.31 6.31l1.26-1.26a2 2 0 0 1 2.11-.45c.83.31 1.7.52 2.6.64A2 2 0 0 1 22 16.92Z" />
+  </svg>
+);
+
+const ContactMapIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z" />
+    <circle cx="12" cy="11" r="2.25" />
+  </svg>
+);
 
 const SOCIAL_LABEL: Record<string, string> = {
   instagram: "Instagram",
@@ -44,12 +70,7 @@ const FigmaInclusions = ({
   return (
     <section className="py-20 px-6 bg-[#004f3b]/20">
       <div className="max-w-7xl mx-auto">
-        <LinedHeading title="Inclusions" />
-        {/* <h2
-          className={`text-4xl font-semibold text-stone-100 mb-10 ${HEADING_FONT}`}
-        >
-          {title}
-        </h2> */}
+        <LinedHeading title={title} />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6">
           {enabled.map((item, index) => {
             const { label, icon } = getInclusionMeta(item);
@@ -106,13 +127,8 @@ const FigmaFaqList = ({ faqs }: { faqs: any[] }) => {
   if (!visible.length) return null;
   return (
     <section className="py-20 px-6 bg-[#004f3b]/20">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <LinedHeading title="FAQ" />
-        <h2
-          className={`text-4xl font-semibold text-stone-100 mb-10 ${HEADING_FONT}`}
-        >
-          Frequently asked questions
-        </h2>
         <div className="flex flex-col gap-3">
           {visible.map((item, index) => {
             const isOpen = openIndex === index;
@@ -202,9 +218,9 @@ const FigmaProductGrid = ({
           key={idx}
           type="button"
           onClick={() => onSelect(product)}
-          className="group flex flex-col items-center rounded-xl border border-emerald-800/50 bg-emerald-900/40 p-7 text-center transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-400/40 hover:bg-emerald-900/60 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+          className="group flex h-full flex-col items-center rounded-xl border border-emerald-800/50 bg-emerald-900/40 p-7 text-center transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-400/40 hover:bg-emerald-900/60 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
         >
-          <div className="mb-4 flex h-40 w-full items-center justify-center overflow-hidden rounded-lg bg-emerald-950/60">
+          <div className="mb-4 flex h-[200px] w-full items-center justify-center overflow-hidden rounded-lg bg-emerald-950/60 md:h-[230px]">
             {image ? (
               <img
                 src={image}
@@ -227,7 +243,7 @@ const FigmaProductGrid = ({
               {description}
             </p>
           ) : null}
-          <span className="mt-3 text-xs font-semibold uppercase tracking-wider text-amber-400 group-hover:underline">
+          <span className="mt-auto pt-3 text-xs font-semibold uppercase tracking-wider text-amber-400 group-hover:underline">
             Learn more →
           </span>
         </button>
@@ -271,29 +287,76 @@ const getTestimonialsPerView = () => {
   return 3;
 };
 
-const EmeraldTestimonialCard = ({ item }: { item: any }) => (
-  <div className="h-full min-h-[254px] bg-[#004f3b]/40 border border-[#006045]/50 rounded-xl p-8 flex flex-col gap-6">
-    <p className="text-stone-300 text-base leading-relaxed flex-1">
-      &ldquo;{item?.text}&rdquo;
-    </p>
-    <div className="flex items-center gap-3 border-t border-emerald-800/50 pt-5">
-      <div className="w-10 h-10 rounded-full bg-amber-400 text-emerald-950 font-bold text-sm flex items-center justify-center shrink-0">
-        {item?.name
-          ?.split(" ")
-          .map((w: string) => w.charAt(0))
-          .join("")
-          .slice(0, 2)
-          .toUpperCase() || "?"}
+const StarIcon = ({ filled, size = 14 }: { filled: boolean; size?: number }) => (
+  <svg viewBox="0 0 20 20" className="inline-block" style={{ width: size, height: size, color: filled ? "#ffb900" : "#3f5d52", fill: "currentColor" }}>
+    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.538 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.783.57-1.838-.197-1.538-1.118l1.287-3.957a1 1 0 00-.364-1.118L3.063 9.39c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
+  </svg>
+);
+
+const EmeraldOverallRating = ({ testimonials }: { testimonials: any[] }) => {
+  const ratings = testimonials.map((t) => Number(t?.rating || 0)).filter((r) => r > 0);
+  if (!ratings.length) return null;
+  const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+  const rounded = Math.round(average);
+  return (
+    <div className="mb-8 flex flex-col items-center gap-1">
+      <span className={`text-5xl font-semibold text-stone-100 ${HEADING_FONT}`}>{average.toFixed(1)}</span>
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <StarIcon key={i} filled={i < rounded} size={20} />
+        ))}
       </div>
-      <div>
-        <p className="font-semibold text-sm text-stone-100">{item?.name}</p>
-        {item?.rating ? (
-          <p className="text-amber-400 text-xs">{"★".repeat(item.rating)}</p>
-        ) : null}
+      <span className="text-sm text-stone-400">
+        {ratings.length} review{ratings.length !== 1 ? "s" : ""}
+      </span>
+    </div>
+  );
+};
+
+const TESTIMONIAL_MAX_CHARS = 200;
+
+const EmeraldTestimonialCard = ({ item }: { item: any }) => {
+  const rating = Number(item?.rating || 0);
+  const text = String(item?.text || "").trim();
+  const isLong = text.length > TESTIMONIAL_MAX_CHARS;
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="h-full min-h-[254px] bg-[#004f3b]/40 border border-[#006045]/50 rounded-xl p-8 flex flex-col gap-6">
+      <p className="text-stone-300 text-base leading-relaxed flex-1">
+        &ldquo;{expanded || !isLong ? text : `${text.slice(0, TESTIMONIAL_MAX_CHARS).trimEnd()}...`}&rdquo;
+      </p>
+      {isLong ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="-mt-4 self-start text-xs font-semibold text-amber-400 hover:underline"
+        >
+          {expanded ? "Show less" : "View more"}
+        </button>
+      ) : null}
+      <div className="flex items-center gap-3 border-t border-emerald-800/50 pt-5">
+        <div className="w-10 h-10 rounded-full bg-amber-400 text-emerald-950 font-bold text-sm flex items-center justify-center shrink-0">
+          {item?.name
+            ?.split(" ")
+            .map((w: string) => w.charAt(0))
+            .join("")
+            .slice(0, 2)
+            .toUpperCase() || "?"}
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-stone-100">{item?.name}</p>
+          {rating ? (
+            <div className="flex items-center gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <StarIcon key={i} filled={i < rating} size={12} />
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Sliding testimonials carousel, mirroring Classic/Fresh Studio: auto-
 // advances every 3s, pauses on hover, and loops seamlessly by appending the
@@ -349,10 +412,13 @@ const TestimonialsCarousel = ({ testimonials }: { testimonials: any[] }) => {
 
   if (!isCarousel) {
     return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {testimonials.map((item, idx) => (
-          <EmeraldTestimonialCard key={item?.key || idx} item={item} />
-        ))}
+      <div>
+        <EmeraldOverallRating testimonials={testimonials} />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {testimonials.map((item, idx) => (
+            <EmeraldTestimonialCard key={item?.key || idx} item={item} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -362,6 +428,7 @@ const TestimonialsCarousel = ({ testimonials }: { testimonials: any[] }) => {
 
   return (
     <div onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
+      <EmeraldOverallRating testimonials={testimonials} />
       <div className="overflow-hidden">
         <div
           className="flex"
@@ -420,19 +487,28 @@ const EmeraldStudioTemplate: React.FC = () => {
     );
   }
 
+  const navLabelForSection = (sectionKey: string, fallback: string) => {
+    const match = (t.navItems || []).find(
+      (item: any) => resolveSectionFromSlug(item.slug) === sectionKey,
+    );
+    return String(match?.name || "").trim() || fallback;
+  };
+
   const breadcrumbItems: Array<{ label: string; onClick?: () => void }> = [
-    { label: "Home", onClick: () => t.goToSection("home") },
+    { label: navLabelForSection("home", "Home"), onClick: () => t.goToSection("home") },
   ];
 
   if (section !== "home") {
-    const label =
+    const label = navLabelForSection(
+      section,
       section === "partner"
         ? "Partner"
         : section === "testimonials"
           ? "Testimonials"
           : section === "products"
             ? "Services"
-            : section.charAt(0).toUpperCase() + section.slice(1);
+            : section.charAt(0).toUpperCase() + section.slice(1),
+    );
     breadcrumbItems.push({
       label,
       onClick: () => t.goToSection(section),
@@ -715,7 +791,7 @@ const EmeraldStudioTemplate: React.FC = () => {
       </header>
 
       {breadcrumbItems.length > 1 ? (
-        <div className="bg-[#001f19] border-b border-emerald-800/40">
+        <div className="pt-16 bg-[#004f3b]/20">
           <div className={`${WRAP} flex items-center gap-3 py-2 px-4 md:px-6 text-[12px]`}>
             {breadcrumbItems.map((item, index) => {
               const isCurrent = index === breadcrumbItems.length - 1;
@@ -735,7 +811,7 @@ const EmeraldStudioTemplate: React.FC = () => {
                   ) : (
                     <span
                       aria-current="page"
-                      className="font-semibold text-amber-400"
+                      className="inline-block border-b-2 border-[#ffb900] pb-0.5 font-semibold text-amber-400"
                     >
                       {item.label}
                     </span>
@@ -987,35 +1063,59 @@ const EmeraldStudioTemplate: React.FC = () => {
                 ) : (
                   <div className="min-h-[300px] rounded-2xl bg-emerald-900/40 border border-emerald-800/50" />
                 )}
-                <div className="rounded-2xl border border-emerald-800/50 bg-emerald-900/40 p-8 flex flex-col justify-center">
-                  <div className="space-y-3 text-sm text-stone-400">
+                <div className="rounded-2xl border border-emerald-800/50 bg-emerald-900/40 p-8 flex flex-col">
+                  {draft?.companyLogo ? (
+                    <img
+                      src={draft.companyLogo}
+                      alt={draft.companyName || "Company"}
+                      className="mb-12 h-12 w-auto self-center object-contain"
+                    />
+                  ) : (
+                    <span
+                      className={`mb-5 flex h-12 w-12 items-center justify-center self-start rounded-lg bg-amber-400 text-lg font-bold text-emerald-950 ${HEADING_FONT}`}
+                    >
+                      {(draft?.companyName || "Y").charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <div className="space-y-4 text-lg text-stone-300">
                     {t.contactEmail ? (
                       <a
-                        className="block hover:text-amber-400"
+                        className="flex items-center gap-4 hover:text-amber-400"
                         href={`mailto:${t.contactEmail}`}
                       >
-                        {t.contactEmail}
+                        <CONTACT_ICON_CIRCLE>
+                          <ContactMailIcon />
+                        </CONTACT_ICON_CIRCLE>
+                        <span>{t.contactEmail}</span>
                       </a>
                     ) : null}
                     {t.contactPhone ? (
                       <a
-                        className="block hover:text-amber-400"
+                        className="flex items-center gap-4 hover:text-amber-400"
                         href={`tel:${t.contactPhone.replace(/[^\d+]/g, "")}`}
                       >
-                        {t.contactPhone}
+                        <CONTACT_ICON_CIRCLE>
+                          <ContactPhoneIcon />
+                        </CONTACT_ICON_CIRCLE>
+                        <span>{t.contactPhone}</span>
                       </a>
                     ) : null}
                     {t.contactAddress ? (
-                      <p className="whitespace-pre-line">{t.contactAddress}</p>
+                      <div className="flex items-start gap-4">
+                        <CONTACT_ICON_CIRCLE>
+                          <ContactMapIcon />
+                        </CONTACT_ICON_CIRCLE>
+                        <span className="whitespace-pre-line">{t.contactAddress}</span>
+                      </div>
                     ) : null}
                   </div>
-                  <button
+                  {/* <button
                     type="button"
                     onClick={() => t.goToSection("contact")}
                     className="mt-8 self-start rounded bg-amber-400 px-6 py-3 text-sm font-semibold text-emerald-950"
                   >
                     Contact Us
-                  </button>
+                  </button> */}
                 </div>
                 </div>
               </div>
@@ -1084,106 +1184,52 @@ const EmeraldStudioTemplate: React.FC = () => {
       {/* ─── ABOUT ─── */}
       {section === "about" && t.aboutPageEnabled ? (
         <>
-          <section className="pt-36 pb-20 px-6 bg-[#004f3b]/20">
+          <section className="pt-20 pb-20 px-6 bg-[#004f3b]/20">
             <div className="max-w-7xl mx-auto text-center">
-              <LinedHeading title="About" className="justify-center" />
-              {/* <h1
-                className={`text-5xl md:text-6xl font-semibold leading-tight max-w-3xl mx-auto text-stone-100 mb-6 ${HEADING_FONT}`}
-              >
-                {draft?.aboutTitle ||
-                  "A team that cares about your outcome, not just your invoice."}
-              </h1> */}
+              <LinedHeading title={String(draft?.aboutTitle || "").trim() || "About Our Vision"} className="justify-center" />
               {t.aboutIntroBlocks.length > 0 ? (
                 <p className="text-stone-400 text-lg max-w-2xl mx-auto leading-relaxed">
                   {t.aboutIntroBlocks[0]}
                 </p>
               ) : null}
             </div>
-          </section>
-
-          {t.aboutNarrativeBlocks.find(
-            (item: any) => item.title === "Our Story",
-          ) ? (
-            <section className="py-20 px-6 bg-[#004f3b]/20">
-              <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-14 items-center">
-                <img
-                  src={
-                    typeof t.aboutPageImageCards[0]?.image === "string"
-                      ? t.aboutPageImageCards[0].image
-                      : t.aboutPageImageCards[0]?.image?.url ||
-                        professionalTeamFallback
-                  }
-                  alt=""
-                  className="w-full h-[480px] object-cover rounded-2xl opacity-90"
-                />
-                <div>
-                  <h2
-                    className={`text-4xl font-semibold mb-6 text-stone-100 ${HEADING_FONT}`}
+            {t.aboutNarrativeBlocks.length ? (
+              <div className="mt-14 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+                {t.aboutNarrativeBlocks.map((item: any, i: number) => (
+                  <div
+                    key={item.title}
+                    className="flex gap-5 bg-emerald-900/40 border border-emerald-800/50 rounded-xl p-7"
                   >
-                    Our story
-                  </h2>
-                  <p className="text-stone-400 text-base leading-relaxed whitespace-pre-line">
-                    {
-                      t.aboutNarrativeBlocks.find(
-                        (item: any) => item.title === "Our Story",
-                      )?.body
-                    }
-                  </p>
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {t.aboutNarrativeBlocks.some(
-            (item: any) => item.title !== "Our Story",
-          ) ? (
-            <section className="py-20 px-6 bg-[#004f3b]/20">
-              <div className="max-w-7xl mx-auto">
-                <LinedHeading title="Our Values" />
-                <h2
-                  className={`text-4xl font-semibold mb-12 text-stone-100 ${HEADING_FONT}`}
-                >
-                  Our values
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {t.aboutNarrativeBlocks
-                    .filter((item: any) => item.title !== "Our Story")
-                    .map((item: any, i: number) => (
-                      <div
-                        key={item.title}
-                        className="flex gap-5 bg-emerald-900/40 border border-emerald-800/50 rounded-xl p-7"
+                    <span
+                      className={`text-amber-400 font-bold text-xl shrink-0 ${HEADING_FONT}`}
+                    >
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div>
+                      <h3
+                        className={`font-semibold text-lg mb-2 text-stone-100 ${HEADING_FONT}`}
                       >
-                        <span
-                          className={`text-amber-400 font-bold text-xl shrink-0 ${HEADING_FONT}`}
-                        >
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-                        <div>
-                          <h3
-                            className={`font-semibold text-lg mb-2 text-stone-100 ${HEADING_FONT}`}
-                          >
-                            {item.title}
-                          </h3>
-                          <p className="text-stone-400 text-sm leading-relaxed">
-                            {item.body}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                        {item.title}
+                      </h3>
+                      <p className="text-stone-400 text-sm leading-relaxed whitespace-pre-line">
+                        {item.body}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </section>
-          ) : null}
+            ) : null}
+          </section>
 
           {t.founders.length ? (
             <section className="py-24 px-6 bg-[#004f3b]/20">
               <div className="max-w-7xl mx-auto">
                 <LinedHeading title="Our Founders" />
-                <h2
+                {/* <h2
                   className={`text-4xl font-semibold mb-12 text-stone-100 ${HEADING_FONT}`}
                 >
                   Leadership team
-                </h2>
+                </h2> */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   {t.founders.map((founder: any, idx: number) => (
                     <div key={idx} className="group">
@@ -1218,13 +1264,12 @@ const EmeraldStudioTemplate: React.FC = () => {
             </section>
           ) : null}
 
-          {t.aboutPageImageCards.length > 1 ? (
+          {t.aboutPageImageCards.length > 0 ? (
             <section className="py-24 px-6 bg-[#004f3b]/20">
               <div className="max-w-7xl mx-auto">
                 <LinedHeading title={draft?.aboutPageTeamHeading || "Our Team"} />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {t.aboutPageImageCards
-                    .slice(1)
                     .map((card: any, idx: number) => (
                       <div key={idx}>
                         {card?.image ? (
@@ -1279,7 +1324,7 @@ const EmeraldStudioTemplate: React.FC = () => {
               const price = String(item?.price || item?.cost || "").trim();
               return (
                 <>
-                <section className="pt-36 pb-24 px-6">
+                <section className="pt-20 pb-24 px-6 bg-[#004f3b]/20">
                   <div className="max-w-7xl mx-auto grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-14">
                     <div className="w-full">
                       {image ? (
@@ -1321,9 +1366,9 @@ const EmeraldStudioTemplate: React.FC = () => {
                           </ul>
                         ) : null}
                       </div>
-                      <div className="shrink-0">
+                      <div className="shrink-0 min-h-[380px]">
                         {t.leadSubmitted ? (
-                          <div className="bg-emerald-900/30 border border-emerald-800/50 rounded-2xl p-8 text-center">
+                          <div className="flex h-full min-h-[380px] flex-col items-center justify-center rounded-2xl border border-emerald-800/50 bg-emerald-900/30 p-8 text-center">
                             <div className="w-14 h-14 rounded-full bg-amber-400 flex items-center justify-center text-emerald-950 text-2xl mb-4 mx-auto">
                               ✓
                             </div>
@@ -1340,32 +1385,34 @@ const EmeraldStudioTemplate: React.FC = () => {
                             className="bg-emerald-900/30 border border-emerald-800/50 rounded-2xl p-8 space-y-4"
                           >
                             <LinedHeading title="Enquire now" />
-                            {t
-                              .getLeadFieldsForProduct(
-                                t.selectedLeadProduct?.slug ||
-                                  t.selectedLeadProduct?.name ||
-                                  "",
-                              )
-                              .map((field: any) => (
-                                <div key={field.key}>
-                                  <label className="block text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">
-                                    {field.label}
-                                  </label>
-                                  <input
-                                    type={field.type === "date" ? "date" : field.type}
-                                    required={field.required}
-                                    placeholder={field.label}
-                                    value={(t.leadForm as any)[field.key] ?? ""}
-                                    onChange={(e) =>
-                                      t.setLeadForm((prev: any) => ({
-                                        ...prev,
-                                        [field.key]: e.target.value,
-                                      }))
-                                    }
-                                    className={INPUT}
-                                  />
-                                </div>
-                              ))}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              {t
+                                .getLeadFieldsForProduct(
+                                  t.selectedLeadProduct?.slug ||
+                                    t.selectedLeadProduct?.name ||
+                                    "",
+                                )
+                                .map((field: any) => (
+                                  <div key={field.key}>
+                                    <label className="block text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">
+                                      {field.label}
+                                    </label>
+                                    <input
+                                      type={field.type === "date" ? "date" : field.type}
+                                      required={field.required}
+                                      placeholder={field.label}
+                                      value={(t.leadForm as any)[field.key] ?? ""}
+                                      onChange={(e) =>
+                                        t.setLeadForm((prev: any) => ({
+                                          ...prev,
+                                          [field.key]: e.target.value,
+                                        }))
+                                      }
+                                      className={INPUT}
+                                    />
+                                  </div>
+                                ))}
+                            </div>
                             {t.leadSubmitError ? (
                               <p className="text-xs text-red-400">{t.leadSubmitError}</p>
                             ) : null}
@@ -1399,12 +1446,12 @@ const EmeraldStudioTemplate: React.FC = () => {
           ) : t.selectedProductPage ? (
             <>
               {(t.selectedProductPage as any)?.heroEnabled !== false ? (
-                <section className="relative h-[50svh] min-h-[320px] overflow-hidden md:h-[60vh] md:min-h-[400px] bg-[#002c22]">
+                <section className="relative h-[50svh] min-h-[320px] overflow-hidden md:h-[88vh] md:min-h-[400px] bg-[#002c22]">
                   {t.selectedProductHeroImage ? (
                     <img
                       src={t.selectedProductHeroImage}
                       alt={t.selectedProductPage?.name || "Service"}
-                      className="absolute inset-0 h-full w-full object-cover opacity-50"
+                      className="absolute inset-0 h-full w-full object-cover opacity-100"
                     />
                   ) : (
                     <>
@@ -1423,9 +1470,8 @@ const EmeraldStudioTemplate: React.FC = () => {
                       <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-[#007a55]/25 blur-[60px] pointer-events-none" />
                     </>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#002c22] to-[#002c22]/40" />
+                  {/* <div className="absolute inset-0 bg-gradient-to-t from-[#002c22] to-[#002c22]/40" /> */}
                   <div className="absolute inset-0 flex flex-col items-center justify-end gap-2 px-6 pb-10 text-center md:pb-14">
-                    <LinedHeading title={(t.selectedProductPage as any)?.name || ""} className="justify-center" />
                     <h1 className={`text-3xl md:text-5xl font-semibold text-stone-100 ${HEADING_FONT}`}>
                       {(t.selectedProductPage as any)?.heroHeading ||
                         (t.selectedProductPage as any)?.name}
@@ -1470,11 +1516,10 @@ const EmeraldStudioTemplate: React.FC = () => {
               ) : null}
               <section className="pt-16 pb-24 px-6 bg-[#004f3b]/20">
                 <div className="max-w-7xl mx-auto">
-                  <h2
-                    className={`mb-10 text-center text-4xl font-semibold text-stone-100 ${HEADING_FONT}`}
-                  >
-                    {`${String((t.selectedProductPage as any)?.heading || t.selectedProductPage?.name || "").trim() || "Our"} Services`}
-                  </h2>
+                  <LinedHeading
+                    title={`${String((t.selectedProductPage as any)?.heading || t.selectedProductPage?.name || "").trim() || "Our"} Services`}
+                    className="justify-center"
+                  />
                   <FigmaProductGrid
                     products={
                       t.selectedProductContentItems.length
@@ -1510,7 +1555,7 @@ const EmeraldStudioTemplate: React.FC = () => {
               ) : null}
             </>
           ) : (
-            <section className="pt-36 pb-16 px-6 bg-[#004f3b]/20">
+            <section className="pt-20 pb-16 px-6 bg-[#004f3b]/20">
               <div className="max-w-7xl mx-auto text-center">
                 <LinedHeading title={String(draft?.productTitle || "").trim() || "Our Services"} className="justify-center" />
                 {/* <h1
@@ -1534,7 +1579,7 @@ const EmeraldStudioTemplate: React.FC = () => {
       {/* ─── GALLERY ─── */}
       {section === "gallery" && t.galleryPageEnabled ? (
         <>
-          <section className="pt-36 pb-16 px-6 bg-[#004f3b]/20">
+          <section className="pt-20 pb-16 px-6 bg-[#004f3b]/20">
             <div className="max-w-7xl mx-auto text-center">
               <LinedHeading title="Gallery" className="justify-center" />
               {/* <h1
@@ -1569,7 +1614,7 @@ const EmeraldStudioTemplate: React.FC = () => {
 
       {/* ─── TESTIMONIALS ─── */}
       {section === "testimonials" ? (
-        <section className="pt-36 pb-24 px-6 bg-[#004f3b]/20">
+        <section className="pt-20 pb-24 px-6 bg-[#004f3b]/20">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col items-center gap-4 text-center mb-14">
               <div>
@@ -1597,7 +1642,7 @@ const EmeraldStudioTemplate: React.FC = () => {
 
       {/* ─── PARTNER ─── */}
       {section === "partner" && t.partnerPageEnabled ? (
-        <section className="pt-36 pb-24 px-6 bg-[#004f3b]/20">
+        <section className="pt-20 pb-24 px-6 bg-[#004f3b]/20">
           <div className="max-w-7xl mx-auto">
             <LinedHeading title={t.partnerPageHeading || "Become A Partner"} className="justify-center" />
             {/* <h1
@@ -1686,7 +1731,7 @@ const EmeraldStudioTemplate: React.FC = () => {
 
       {/* ─── CAREERS ─── */}
       {section === "careers" && t.careersPageEnabled ? (
-        <section className="pt-36 pb-24 px-6 bg-[#004f3b]/20">
+        <section className="pt-20 pb-24 px-6 bg-[#004f3b]/20">
           <div className="max-w-7xl mx-auto">
             {!t.careersApplyJob ? (
               <>
@@ -2125,7 +2170,7 @@ const EmeraldStudioTemplate: React.FC = () => {
 
       {/* ─── CONTACT ─── */}
       {section === "contact" && t.contactPageEnabled ? (
-        <section className="pt-36 pb-24 px-6 bg-[#004f3b]/20">
+        <section className="pt-20 pb-24 px-6 bg-[#004f3b]/20">
           <div className="max-w-7xl mx-auto text-center mb-12">
             <LinedHeading title={draft?.contactTitle || "Contact"} className="justify-center" />
             {/* <h1
@@ -2145,20 +2190,28 @@ const EmeraldStudioTemplate: React.FC = () => {
             ) : (
               <div className="h-[320px] w-full rounded-2xl border border-emerald-800/50 bg-emerald-900/40 md:h-[440px]" />
             )}
-            <div className="flex flex-col justify-center gap-6 rounded-2xl border border-emerald-800/50 bg-emerald-900/40 p-8">
+            <div className="flex flex-col gap-6 rounded-2xl border border-emerald-800/50 bg-emerald-900/40 p-8">
               {draft?.companyLogo ? (
                 <img
                   src={draft.companyLogo}
                   alt={draft.companyName || "Company"}
-                  className="mb-1 h-12 w-auto self-start object-contain"
+                  className="mb-7 h-12 w-auto self-center object-contain"
                 />
-              ) : null}
+              ) : (
+                <span
+                  className={`mb-1 flex h-12 w-12 items-center justify-center self-start rounded-lg bg-amber-400 text-lg font-bold text-emerald-950 ${HEADING_FONT}`}
+                >
+                  {(draft?.companyName || "Y").charAt(0).toUpperCase()}
+                </span>
+              )}
               {t.contactEmail ? (
                 <a
                   href={`mailto:${t.contactEmail}`}
                   className="flex items-center gap-4 text-stone-300 hover:text-amber-400"
                 >
-                  <span className="text-amber-400">✉</span>
+                  <CONTACT_ICON_CIRCLE>
+                    <ContactMailIcon />
+                  </CONTACT_ICON_CIRCLE>
                   <span>{t.contactEmail}</span>
                 </a>
               ) : null}
@@ -2167,13 +2220,17 @@ const EmeraldStudioTemplate: React.FC = () => {
                   href={`tel:${t.contactPhone.replace(/[^\d+]/g, "")}`}
                   className="flex items-center gap-4 text-stone-300 hover:text-amber-400"
                 >
-                  <span className="text-amber-400">☎</span>
+                  <CONTACT_ICON_CIRCLE>
+                    <ContactPhoneIcon />
+                  </CONTACT_ICON_CIRCLE>
                   <span>{t.contactPhone}</span>
                 </a>
               ) : null}
               {t.contactAddress ? (
                 <div className="flex items-start gap-4 text-stone-300">
-                  <span className="text-amber-400">⊙</span>
+                  <CONTACT_ICON_CIRCLE>
+                    <ContactMapIcon />
+                  </CONTACT_ICON_CIRCLE>
                   <span className="whitespace-pre-line">
                     {t.contactAddress}
                   </span>

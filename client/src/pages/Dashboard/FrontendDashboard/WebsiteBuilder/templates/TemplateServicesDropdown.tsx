@@ -42,7 +42,7 @@ const styles: Record<
     desktopTrigger: "text-[14px] font-medium border-b-2 border-transparent pb-1",
     desktopPanel: "border border-white/10 bg-[#11111a] shadow-2xl",
     desktopItem: "text-white/70 hover:bg-white/[0.07] hover:text-white",
-    desktopActive: "border-[#E11D48] text-[#E11D48]",
+    desktopActive: "border-[#D94B4B] text-[#D94B4B]",
     mobileWrap: "border-b border-white/[0.08]",
     mobileRow: "text-[14px] font-medium text-white/80",
     mobilePanel: "border-t border-white/[0.08] bg-white/[0.03]",
@@ -173,7 +173,7 @@ const TemplateServicesDropdown: React.FC<TemplateServicesDropdownProps> = ({
         className={`inline-flex items-center gap-1.5 ${theme.desktopTrigger} ${isActive || open ? theme.desktopActive : ""}`}
         style={
           variant === "fresh" && (isActive || open)
-            ? { color: "#E11D48", borderBottomColor: "#E11D48" }
+            ? { color: "#D94B4B", borderBottomColor: "#D94B4B" }
             : variant === "warm" && (isActive || open)
               ? { color: "#b85c38", borderBottomColor: "#b85c38" }
               : undefined

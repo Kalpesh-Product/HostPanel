@@ -57,7 +57,7 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     swatch: {
       bg: "#ffffff",
       fg: "#0e0e0e",
-      accent: "#45a57a",
+      accent: "#D94B4B",
       font: "'Proxima Nova', sans-serif",
     },
   },

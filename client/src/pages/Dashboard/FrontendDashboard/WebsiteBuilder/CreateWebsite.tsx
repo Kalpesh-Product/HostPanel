@@ -1470,6 +1470,11 @@ const CreateWebsite = () => {
   const contactPageNavIndex = pageNavItemsForVisibility.findIndex(
     (item: any) => String(item?.slug || "").trim().toLowerCase() === "contact-us",
   );
+  // Lets builder section headers (e.g. "Services Page Settings") echo a
+  // renamed page's custom nav label instead of staying stuck on the default,
+  // so the settings panel below a tab always matches the tab's own name.
+  const pageNavLabel = (index: number, fallback: string) =>
+    String(pageNavItemsForVisibility[index]?.name || "").trim() || fallback;
   // Pages currently toggled off via PageVisibilityBanner; surfaced in a warning
   // before publish so a hidden page isn't a silent surprise.
   const hiddenPageNavEntries = pageNavItemsForVisibility
@@ -3623,13 +3628,46 @@ const CreateWebsite = () => {
               })}
             </div>
 
+            <div className="mt-3 max-w-sm">
+              <Controller
+                name={`pageNavItems.${activeMainPageTab}.name`}
+                control={control}
+                render={({ field }) => (
+                  <WebsiteFormField
+                    field={{
+                      ...field,
+                      onBlur: () => {
+                        const trimmed = String(field.value || "").trim();
+                        if (!trimmed) {
+                          field.onChange(
+                            DEFAULT_PAGE_NAV_ITEMS[activeMainPageTab] ||
+                              `Page ${activeMainPageTab + 1}`,
+                          );
+                        }
+                        field.onBlur();
+                      },
+                    }}
+                    label="Page Name (shown in navbar)"
+                    placeholder={`Page ${activeMainPageTab + 1}`}
+                    maxLength={30}
+                    disabled={activeMainPageSlug === "products"}
+                    helperText={
+                      activeMainPageSlug === "products"
+                        ? "The Services page name isn't editable yet."
+                        : "Renames this tab here and its label in your website's navbar."
+                    }
+                  />
+                )}
+              />
+            </div>
+
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "products" ? (
               <div className="mt-4 min-w-0 overflow-hidden">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-products-page-settings">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Services Page Settings <SectionPreviewInfo section="productsPage" /></span>
+                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(productsPageNavIndex, "Services")} Page Settings <SectionPreviewInfo section="productsPage" /></span>
                     <div className="min-w-[200px]">
                       <WebsiteFormField
                         select
@@ -4081,7 +4119,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "about-us" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-about-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Us Hero Section <SectionPreviewInfo section="aboutPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(aboutPageNavIndex, "About Us")} Hero Section <SectionPreviewInfo section="aboutPage" /></span>
                 {aboutPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4093,6 +4131,20 @@ const CreateWebsite = () => {
                 ) : null}
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
+                  <div>
+                    <Controller
+                      name="aboutTitle"
+                      control={control}
+                      render={({ field }) => (
+                        <WebsiteFormField
+                          field={{ ...field, value: field.value || "" }}
+                          label="About Section Heading (Synced with Home)"
+                          placeholder="About Our Vision"
+                        />
+                      )}
+                    />
+                  </div>
+
                   <div>
                     <Controller
                       name="aboutPageIntro"
@@ -4370,7 +4422,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "gallery" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-gallery-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Hero Section <SectionPreviewInfo section="galleryPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(galleryPageNavIndex, "Gallery")} Hero Section <SectionPreviewInfo section="galleryPage" /></span>
                 {galleryPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4427,7 +4479,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "partner" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-partner-page-header">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Partner Page Section <SectionPreviewInfo section="partnerPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(partnerPageNavIndex, "Partner")} Page Section <SectionPreviewInfo section="partnerPage" /></span>
                 {partnerPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4486,7 +4538,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "careers" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-careers-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Careers Hero Section <SectionPreviewInfo section="careersPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(careersPageNavIndex, "Careers")} Hero Section <SectionPreviewInfo section="careersPage" /></span>
                 {careersPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
