@@ -35,6 +35,7 @@ import DormsSection from "./DormsSection";
 import MenuSection from "./MenuSection";
 import Skeleton from "../../../../components/ui/Skeleton";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import TemplateChangeRequestControl from "./TemplateChangeRequestControl";
 
 const defaultProduct = {
   type: "",
@@ -3551,7 +3552,7 @@ const CreateWebsite = () => {
                     {selectedVerticalBadgeText}
                   </span>
                   <span
-                    title="The template was chosen when this website was created and can't be changed here."
+                    title="The current website template. Use Change Template below to request a different one."
                     className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700"
                   >
                     Template: {TEMPLATE_REGISTRY[watch("themeVariant") || DEFAULT_TEMPLATE_ID]?.name || "Classic"}
@@ -3586,8 +3587,15 @@ const CreateWebsite = () => {
               className="min-w-0 w-full"
             >
             <div className="mb-4 min-w-0 overflow-hidden">
-            <div className="border-b-default border-borderGray py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b-default border-borderGray py-3">
               <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Website Pages <SectionPreviewInfo section="pages" /></span>
+              {effectiveEditMode && draftTemplateId ? (
+                <TemplateChangeRequestControl
+                  websiteId={draftTemplateId}
+                  companyId={String(companyId || prefillCompanyId || "")}
+                  workspaceId={String(workspaceId || "")}
+                />
+              ) : null}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm" data-tour="wb-editor-page-tabs" data-editor-page={activeMainPageSlug}>
               {pageNavFields.map((item, index) => {
