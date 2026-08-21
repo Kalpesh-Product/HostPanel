@@ -210,7 +210,6 @@ const companySettingsData: NavNode[] = [
   { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
   { id: "unit-settings", label: "Unit Settings", icon: SlidersHorizontal, route: "/company-settings/unit-settings", disabled: true },
   { id: "unit-management", label: "Unit Management", icon: LayoutGrid, route: "/company-settings/unit-management", disabled: true },
-  { id: "analytics", label: "Analytics", icon: BarChart, disabled: true },
   { id: "customer-support", label: "Customer Support", icon: Headphones, route: "/company-settings/customer-support" },
 ];
 
@@ -359,6 +358,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "house-keeping": "/administration/house-keeping",
   "meeting-room-system": "/meetings/meeting-rooms",
   assets: "/extra-common-modules/assets",
+  analytics: "/company-settings/analytics",
   inventory: "/extra-common-modules/inventory",
   "department-inventory": "/extra-common-modules/department-inventory",
   "finance-management": "/extra-common-modules/finance-management",

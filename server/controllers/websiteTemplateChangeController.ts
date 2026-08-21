@@ -207,6 +207,7 @@ export const createTemplateChangeRequest = async (req, res, next) => {
       workspaceId: resolvedWorkspaceId,
       companyName: normalizeId(website.companyName || access.workspace.businessName),
       currentTemplateId,
+      requestSource: "host",
       requestedTemplateId,
       status: "pending",
       isActive: true,

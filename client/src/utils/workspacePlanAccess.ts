@@ -31,6 +31,9 @@ const BASIC_IDS = [
   "org_departments_assign_acting_manager",
   "org_departments_remove_acting_manager",
   "access-grants",
+  // Read-only rollup of enabled modules — included with Basic, inherits to
+  // every tier. Keep in lockstep with BASIC_DEFAULT_IDS on the server.
+  "analytics",
 ] as const;
 
 const PROFESSIONAL_EXTRA_IDS = [

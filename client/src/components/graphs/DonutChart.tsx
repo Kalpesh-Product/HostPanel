@@ -13,6 +13,7 @@ const DonutChart = ({
   onSliceClick,
   width,
   isMonetary = false,
+  wrapLabels = false,
 }) => {
   const chartData = {
     series: series,
@@ -21,10 +22,32 @@ const DonutChart = ({
   };
   const { chartKey, containerRef } = useResponsiveChart();
 
- const fullLabels = chartData.labels;
-const truncatedLabels = fullLabels.map(label =>
-  label.length > 7 ? label.slice(0, 15) + "..." : label
-);
+  const fullLabels = chartData.labels;
+
+  // Wrap a long label onto multiple lines at word boundaries so legend text
+  // fits without shrinking the donut itself.
+  const wrapLabel = (label) => {
+    const text = String(label ?? "").trim();
+    if (text.length <= 12) return text;
+    const words = text.split(/\s+/);
+    const lines = [];
+    let current = "";
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (candidate.length <= 12) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        current = word;
+      }
+    }
+    if (current) lines.push(current);
+    return lines.join("\n");
+  };
+
+  const truncatedLabels = fullLabels.map((label) =>
+    wrapLabels ? wrapLabel(label) : label.length > 7 ? label.slice(0, 15) + "..." : label
+  );
 
   const chartOptions = {
     chart: {
@@ -47,6 +70,9 @@ const truncatedLabels = fullLabels.map(label =>
     labels: truncatedLabels,
     legend: {
       position: "bottom",
+      ...(wrapLabels
+        ? { fontSize: "11px", itemMargin: { horizontal: 8, vertical: 2 }, markers: { size: 6 } }
+        : {}),
     },
     dataLabels: {
       enabled: true,
@@ -84,7 +110,7 @@ const truncatedLabels = fullLabels.map(label =>
             total: {
               show: true,
               label: `Total ${centerLabel}`,
-              fontSize: "16px",
+              fontSize: wrapLabels ? "11px" : "16px",
               fontWeight: "bold",
               formatter: function (w) {
                 const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
@@ -101,7 +127,17 @@ const truncatedLabels = fullLabels.map(label =>
   };
 
   return (
-    <div className="rounded-md" ref={containerRef}>
+    <div className={`rounded-md ${wrapLabels ? "analytics-donut" : ""}`} ref={containerRef}>
+      {wrapLabels ? (
+        <style>{`
+          .analytics-donut .apexcharts-legend-text {
+            white-space: pre-line !important;
+            word-break: break-word;
+            line-height: 1.25;
+            text-align: center;
+          }
+        `}</style>
+      ) : null}
       <ReactApexChart
         key={chartKey}
         options={chartOptions}

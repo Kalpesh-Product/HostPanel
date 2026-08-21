@@ -113,6 +113,7 @@ import OrganizationPage from "../pages/Organization/OrganizationPage";
 import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
 import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
+import AnalyticsPage from "../pages/Analytics/AnalyticsPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
 import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
@@ -567,6 +568,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "workspace-management",
                     element: <UnitManagementPage />,
+                  },
+                  {
+                    path: "analytics",
+                    element: <AnalyticsPage />,
                   },
                   {
                     path: "customer-support",

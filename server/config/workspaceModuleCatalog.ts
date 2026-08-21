@@ -97,7 +97,7 @@ const MODULE_GROUPS = [
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true },
       { id: "workspace-settings", label: "Unit Settings", route: "/company-settings/workspace-settings", implemented: true },
       { id: "workspace-management", label: "Unit Management", route: "/company-settings/workspace-management", implemented: true },
-      { id: "analytics", label: "Analytics", implemented: false },
+      { id: "analytics", label: "Analytics", route: "/company-settings/analytics", implemented: true },
     ],
   },
   {
@@ -322,6 +322,9 @@ const BASIC_DEFAULT_IDS = new Set([
   "org_departments_assign_acting_manager",
   "org_departments_remove_acting_manager",
   "access-grants",
+  // Analytics is a read-only rollup of whatever modules the workspace already
+  // has enabled, so it ships with Basic and inherits upward to every tier.
+  "analytics",
 ]);
 
 const PROFESSIONAL_DEFAULT_IDS = new Set([

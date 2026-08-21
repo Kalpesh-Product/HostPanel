@@ -1495,11 +1495,11 @@ const addDaysToDateKey = (dateKey, days) => {
   return date.toISOString().slice(0, 10);
 };
 
-// Anyone who forgets to clock out (or forgets to end a break) is auto-clocked
-// out at 12:00 AM workspace-local time on the day after they checked in, so
-// open sessions never bleed into the next day's numbers. The employee can
-// then file a correction request (reviewed by HR/admin/manager via
-// reviewAttendanceCorrection) to fix the recorded times.
+// Day-shift employees who forget to clock out are closed at 12:00 AM
+// workspace-local time. Overnight shifts are closed at their configured shift
+// end (for example 9:00 AM) so the full night shift stays on one attendance
+// record. Employees can then file a correction request if the recorded time
+// needs HR/admin/manager review.
 export async function runAttendanceAutoCheckoutSweep() {
   const now = new Date();
   const openRecords = await Attendance.find({
@@ -1511,7 +1511,7 @@ export async function runAttendanceAutoCheckoutSweep() {
     const timezone = normalizeTimeZone(record.timezone);
     const snapshotEndMinutes = Number(record.shiftEndMinutes);
     let autoCheckoutMoment;
-    if (Number.isFinite(snapshotEndMinutes)) {
+    if (record.isOvernightShift && Number.isFinite(snapshotEndMinutes)) {
       const dayOffset = Math.floor(snapshotEndMinutes / (24 * 60));
       const endClockMinutes = ((snapshotEndMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
       const endDateKey = addDaysToDateKey(record.dateKey, dayOffset);
@@ -1562,9 +1562,9 @@ export async function runAttendanceAutoCheckoutSweep() {
 const AUTO_CHECKOUT_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 
 /**
- * Sweeps for attendance records left open past workspace-local midnight and
- * auto-checks them out. Runs inside the long-lived Express process; safe to
- * call once at startup after MongoDB is connected.
+ * Sweeps for attendance records left open past their forgotten-clock-out
+ * cutoff. Runs inside the long-lived Express process; safe to call once at
+ * startup after MongoDB is connected.
  */
 export const startAttendanceAutoCheckoutScheduler = () => {
   const tick = () => {
