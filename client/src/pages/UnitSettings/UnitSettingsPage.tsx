@@ -164,6 +164,7 @@ export default function WorkspaceSettingsPage() {
   const [is24Hours, setIs24Hours] = useState(false);
   const [workspaceTimezone, setWorkspaceTimezone] = useState("Asia/Kolkata");
   const [workspaceCurrency, setWorkspaceCurrency] = useState("INR");
+  const [fiscalYearStartMonth, setFiscalYearStartMonth] = useState(4);
   const [billing, setBilling] = useState<WorkspaceBillingConfig>(() => getCountryBillingDefaults("IN"));
   const [isSavingHours, setIsSavingHours] = useState(false);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
@@ -195,6 +196,7 @@ export default function WorkspaceSettingsPage() {
           setIs24Hours(Boolean(bh?.is24Hours));
           setWorkspaceTimezone(preferences.timezone || "Asia/Kolkata");
           setWorkspaceCurrency(preferences.currency || "INR");
+          setFiscalYearStartMonth(Number(preferences.fiscalYearStartMonth) || 4);
           setBilling(normalizeBillingConfig(preferences.billing));
         }
       } catch {
@@ -382,8 +384,10 @@ export default function WorkspaceSettingsPage() {
     try {
       setIsSavingPreferences(true);
       await updateWorkspaceSettings(axiosPrivate, {
-        preferences: { billing },
+        preferences: { billing, fiscalYearStartMonth },
       });
+      window.localStorage.setItem("workspaceFiscalYearStartMonth", String(fiscalYearStartMonth));
+      window.dispatchEvent(new Event("workspace-fiscal-year-updated"));
       toast.success("Preferences updated successfully.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to update preferences.");
@@ -889,6 +893,19 @@ export default function WorkspaceSettingsPage() {
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace Currency</p>
                     <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{workspaceCurrency || "-"}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Fiscal Year Starts</label>
+                    <select
+                      value={fiscalYearStartMonth}
+                      onChange={(event) => setFiscalYearStartMonth(Number(event.target.value))}
+                      className="mt-1 w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none cursor-pointer"
+                    >
+                      {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((month, index) => (
+                        <option key={month} value={index + 1}>{month}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[10px] font-pmedium text-slate-400">Used by Finance, Accounting, budgets, and reports.</p>
                   </div>
                 </div>
                 <label className="flex items-center gap-2.5 mb-4 cursor-pointer select-none">

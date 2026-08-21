@@ -23,6 +23,7 @@ export const updateWorkspaceSettings = (
       dateFormat?: string;
       timeFormat?: "12h" | "24h";
       weekStartsOn?: "monday" | "sunday";
+      fiscalYearStartMonth?: number;
       businessHours?: { start?: string; end?: string; is24Hours?: boolean };
       billing?: WorkspaceBillingConfig;
     };

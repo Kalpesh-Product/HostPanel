@@ -732,7 +732,7 @@ export function DepartmentFinancePageV2() {
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Report saved to Reports.' : 'Report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
+      navigate(createdReportId ? `/extra-common-modules/reports?reportId=${createdReportId}` : '/extra-common-modules/reports');
     } catch (error: any) {
       toast.error(error?.message || 'Failed to generate report.');
     }

@@ -58,7 +58,7 @@ const monthlyDataEntrySchema = new Schema<IMonthlyDataEntry>(
 const reportRowSchema = new Schema<IReportRow>(
     {
         label: { type: String, trim: true, maxlength: 120, required: true },
-        value: { type: String, trim: true, maxlength: 500, required: true },
+        value: { type: String, trim: true, maxlength: 2000, required: true },
     },
     { _id: false }
 );

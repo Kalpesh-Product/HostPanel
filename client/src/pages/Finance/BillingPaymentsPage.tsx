@@ -28,7 +28,7 @@ import {
 import { getTenantCompanies, updateTenantCompanyCreditRequest } from '@/services/tenant-companies';
 import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
-import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
+import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions, getFiscalYearStartMonth } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
 
 /* ───────────────────── Types ───────────────────── */
@@ -179,6 +179,19 @@ interface TransactionEntry {
   details?: string;
 }
 
+function getFiscalYearStartYear(value: string) {
+  const match = String(value || '').match(/FY\s*(\d{4})-(\d{2,4})/i);
+  return match ? Number(match[1]) : new Date().getFullYear();
+}
+
+function getCycleSortKey(cycle: PayrollCycle) {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const year = Number(cycle.year || String(cycle.cycleKey || '').slice(0, 4)) || 0;
+  const rawMonth = String(cycle.month ?? cycle.monthLabel ?? cycle.displayMonth ?? '');
+  const month = Number.isInteger(Number(rawMonth)) ? Number(rawMonth) : monthNames.findIndex((name) => name.toLowerCase() === rawMonth.toLowerCase()) + 1;
+  return year * 100 + (month > 0 ? month : 0);
+}
+
 /* ───────────────────── Constants / Helpers ───────────────────── */
 
 function getCreditRequestStatusLabel(status = ''): string {
@@ -205,11 +218,16 @@ function parseFiscalYearRange(fiscalYear = DEFAULT_FISCAL_YEAR): { start: Date; 
   if (!match) {
     const now = new Date();
     const currentYear = now.getFullYear();
-    return { start: new Date(currentYear, 3, 1), end: new Date(currentYear + 1, 2, 31, 23, 59, 59, 999) };
+    const startMonth = getFiscalYearStartMonth();
+    const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+    const endYear = currentYear + (startMonth === 1 ? 0 : 1);
+    return { start: new Date(currentYear, startMonth - 1, 1), end: new Date(endYear, endMonth, 0, 23, 59, 59, 999) };
   }
   const startYear = Number(match[1].length === 2 ? `20${match[1]}` : match[1]);
-  const endYear = Number(match[2].length === 2 ? `20${match[2]}` : match[2]);
-  return { start: new Date(startYear, 3, 1), end: new Date(endYear, 2, 31, 23, 59, 59, 999) };
+  const startMonth = getFiscalYearStartMonth();
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  const endYear = startYear + (startMonth === 1 ? 0 : 1);
+  return { start: new Date(startYear, startMonth - 1, 1), end: new Date(endYear, endMonth, 0, 23, 59, 59, 999) };
 }
 
 function isDateInFiscalYear(value: string | Date | null | undefined, fiscalYear = DEFAULT_FISCAL_YEAR): boolean {
@@ -463,6 +481,17 @@ export function BillingPaymentsPage() {
   const [extraCreditRequests, setExtraCreditRequests] = useState<ExtraCreditRequest[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const selectedPayrollCycle = useMemo(() => {
+    if (!payrollData) return null;
+    const startYear = getFiscalYearStartYear(selectedFY);
+    const cycles = [payrollData.currentCycle, ...(payrollData.history || [])].filter(Boolean) as PayrollCycle[];
+    const matching = cycles.filter((cycle) => {
+      const cycleKey = getCycleSortKey(cycle);
+      return cycleKey >= startYear * 100 + 4 && cycleKey <= (startYear + 1) * 100 + 3;
+    });
+    return matching.sort((a, b) => getCycleSortKey(b) - getCycleSortKey(a))[0] || null;
+  }, [payrollData, selectedFY]);
+
   const [viewingTenantBill, setViewingTenantBill] = useState<TenantBillingRecord | null>(null);
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<PayrollEmployee | null>(null);
@@ -574,8 +603,8 @@ export function BillingPaymentsPage() {
   }, [bookingRecords, statusFilter, searchQuery]);
 
   const payablePayrollEmployees = useMemo(() => {
-    return payrollData?.currentCycle?.employees || [];
-  }, [payrollData]);
+    return selectedPayrollCycle?.employees || [];
+  }, [selectedPayrollCycle]);
 
   const filteredPayrollEmployees = useMemo(() => {
     return payablePayrollEmployees.filter((emp) => {
@@ -810,12 +839,12 @@ export function BillingPaymentsPage() {
           ...prev,
           currentCycle: {
             ...prev.currentCycle,
-            employees: prev.currentCycle.employees.map((e) => e.id === employee.id ? { ...e, payment: { ...e.payment, status: 'Processing' }, financials: { ...e.financials, paymentStatus: 'Processing' } } : e),
+            employees: prev.currentCycle.employees.map((e) => e.id === employee.id ? { ...e, payment: { ...e.payment, status: 'Paid' }, financials: { ...e.financials, paymentStatus: 'Paid' } } : e),
           },
         };
       });
-      if (viewingEmployee?.id === employee.id) setViewingEmployee((prev) => prev ? { ...prev, payment: { ...prev.payment, status: 'Processing' }, financials: { ...prev.financials, paymentStatus: 'Processing' } } : null);
-      toast.success(`Payment processing started for ${employee.name}.`);
+      if (viewingEmployee?.id === employee.id) setViewingEmployee((prev) => prev ? { ...prev, payment: { ...prev.payment, status: 'Paid' }, financials: { ...prev.financials, paymentStatus: 'Paid' } } : null);
+      toast.success(`Payment marked Paid for ${employee.name}.`);
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to process payroll payment.');
@@ -871,7 +900,7 @@ export function BillingPaymentsPage() {
         period: `${fiscalYearLabel} Payroll`,
         description: `Payroll report for ${fiscalYearLabel}.`,
         sourceRef: 'finance-payroll',
-        reportRows: buildPayrollReportRows(filteredPayrollEmployees, payrollData?.currentCycle || null, payrollData?.history || [], { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        reportRows: buildPayrollReportRows(filteredPayrollEmployees, selectedPayrollCycle, payrollData?.history || [], { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: filteredPayrollEmployees.length > 0,
       },
       extraCredits: {
@@ -949,16 +978,16 @@ export function BillingPaymentsPage() {
                   ))}
                 </select>
               </div>
-              <button
+                              <button
                                 type="button"
-                                // onClick={handleExportPDF}
+                                onClick={() => void handleExportActiveReport('PDF')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
-                                // onClick={handleExportExcel}
+                                onClick={() => void handleExportActiveReport('Excel')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>

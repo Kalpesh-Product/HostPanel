@@ -279,7 +279,6 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
         const response = await getReportsFiltered({
           department: queryDepartment,
           dataWindow: selectedDownloadDataWindow,
-          month: selectedReportMonth === 'all' ? '' : selectedReportMonth,
         });
         if (!isMounted) return;
         const loaded: Report[] = Array.isArray(response?.data?.reports) ? response.data.reports : [];

@@ -1357,6 +1357,7 @@ export const getWorkspaceSettings = async (req, res, next) => {
           preferences: {
             timezone: preferences.timezone || "Asia/Kolkata",
             currency: preferences.currency || "INR",
+            fiscalYearStartMonth: Number(preferences.fiscalYearStartMonth) || 4,
             dateFormat: preferences.dateFormat || "DD MMM YYYY",
             timeFormat: preferences.timeFormat || "12h",
             weekStartsOn: preferences.weekStartsOn || "monday",
@@ -1506,6 +1507,12 @@ export const updateWorkspaceSettings = async (req, res, next) => {
     if (preferences.currency !== undefined && !isValidCurrency(preferences.currency)) {
       return res.status(400).json({ message: "A valid ISO currency is required." });
     }
+    if (preferences.fiscalYearStartMonth !== undefined) {
+      const fiscalYearStartMonth = Number(preferences.fiscalYearStartMonth);
+      if (!Number.isInteger(fiscalYearStartMonth) || fiscalYearStartMonth < 1 || fiscalYearStartMonth > 12) {
+        return res.status(400).json({ message: "Fiscal year start month must be between 1 and 12." });
+      }
+    }
     const normalizedPreferences = {
       ...preferences,
       ...(preferences.timezone !== undefined
@@ -1513,6 +1520,9 @@ export const updateWorkspaceSettings = async (req, res, next) => {
         : {}),
       ...(preferences.currency !== undefined
         ? { currency: normalizeCurrency(preferences.currency) }
+        : {}),
+      ...(preferences.fiscalYearStartMonth !== undefined
+        ? { fiscalYearStartMonth: Number(preferences.fiscalYearStartMonth) }
         : {}),
       ...(preferences.billing !== undefined
         ? { billing: normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state) }

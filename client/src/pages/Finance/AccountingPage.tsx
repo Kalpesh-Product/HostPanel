@@ -20,7 +20,7 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
 import { getFinanceSnapshot, getPayrollSnapshot, getTenantBillingSnapshot } from '@/services/finance';
 import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
-import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
+import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions, getFiscalYearStartMonth } from '@/features/finance/utils/fiscalYear';
 import { downloadReportFile } from '@/utils/report-download';
 import PageFrame from '@/components/Pages/PageFrame';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
@@ -69,9 +69,12 @@ function parseFiscalYears(value: string = '') {
 function getFiscalYearBounds(value: string = '') {
   const { startYear } = parseFiscalYears(value);
   const endYear = startYear + 1;
+  const startMonth = getFiscalYearStartMonth();
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  const endYearOffset = startMonth === 1 ? 0 : 1;
   return {
-    start: new Date(startYear, 3, 1, 0, 0, 0, 0),
-    end: new Date(endYear, 2, 31, 23, 59, 59, 999),
+    start: new Date(startYear, startMonth - 1, 1, 0, 0, 0, 0),
+    end: new Date(startYear + endYearOffset, endMonth, 0, 23, 59, 59, 999),
   };
 }
 
@@ -85,16 +88,13 @@ function isDateInFiscalYear(value: string | Date | null | undefined, fiscalYear:
 function buildFiscalPeriods(value: string = '') {
   const { startYear, endYear } = parseFiscalYears(value);
   const periods: Array<{ value: string; label: string }> = [];
-  for (let month = 3; month < 12; month += 1) {
+  const startMonth = getFiscalYearStartMonth();
+  for (let offset = 0; offset < 12; offset += 1) {
+    const month = (startMonth - 1 + offset) % 12;
+    const year = month + 1 >= startMonth ? startYear : endYear;
     periods.push({
-      value: `${startYear}-${padMonth(month + 1)}`,
-      label: `${MONTH_SHORT_NAMES[month]} ${startYear}`,
-    });
-  }
-  for (let month = 0; month < 3; month += 1) {
-    periods.push({
-      value: `${endYear}-${padMonth(month + 1)}`,
-      label: `${MONTH_SHORT_NAMES[month]} ${endYear}`,
+      value: `${year}-${padMonth(month + 1)}`,
+      label: `${MONTH_SHORT_NAMES[month]} ${year}`,
     });
   }
   return periods;
@@ -406,18 +406,27 @@ export default function AccountingPage(): React.ReactElement {
     const payrollCycles: Array<Record<string, unknown>> = [
       ...((data.payroll?.currentCycle ? [data.payroll.currentCycle] : []) as Array<Record<string, unknown>>),
       ...(Array.isArray(data.payroll?.history) ? data.payroll.history as Array<Record<string, unknown>> : []),
-    ];
+    ].filter((cycle, index, all) => {
+      const cycleKey = String(cycle?.cycleKey || '');
+      const expectedCycleKey = `${selectedYear}-${padMonth(selectedMonth)}`;
+      if (cycleKey === expectedCycleKey) return true;
+      const cycleMonth = Number(cycle?.month);
+      const cycleYear = Number(cycle?.year);
+      return !cycleKey && cycleYear === Number(selectedYear) && cycleMonth === Number(selectedMonth) && all.findIndex((item) => item === cycle) === index;
+    });
 
     payrollCycles.forEach((cycle) => {
       ((cycle?.employees || []) as Array<Record<string, unknown>>).forEach((employee) => {
         if (text(String((employee?.financials as Record<string, unknown>)?.paymentStatus || '')).toLowerCase() !== 'paid') return;
         const amount = Number((employee?.financials as Record<string, unknown>)?.netSalary || 0);
         const paidAt = ((employee?.financials as Record<string, unknown>)?.paidAt || cycle?.paidAt || cycle?.processedOn || cycle?.updatedAt) as string | undefined;
+        const cycleKey = String(cycle?.cycleKey || '');
+        const payrollPeriodDate = /^\d{4}-\d{2}$/.test(cycleKey) ? `${cycleKey}-01` : paidAt;
         if (amount <= 0 || !paidAt) return;
-        if (!withinSelectedFiscalYear(paidAt)) return;
+        if (!withinSelectedFiscalYear(payrollPeriodDate)) return;
         rows.push(ledgerRow({
           id: ((employee?.financials as Record<string, unknown>)?.paymentRecordId as string) || ((employee?.financials as Record<string, unknown>)?.paymentTransactionId as string) || `${cycle?.cycleKey || 'payroll'}-${employee?.profileId || employee?.id || employee?.employeeId || employee?.employeeName || 'employee'}`,
-          date: paidAt,
+          date: payrollPeriodDate,
           type: 'Expense',
           source: 'Payroll Expense',
           entity: (employee?.employeeName || employee?.fullName || employee?.name || 'Employee') as string,
@@ -425,6 +434,7 @@ export default function AccountingPage(): React.ReactElement {
           amount,
           ref: ((employee?.financials as Record<string, unknown>)?.paymentTransactionId as string) || ((employee?.financials as Record<string, unknown>)?.paymentRecordId as string) || (cycle?.cycleKey as string) || '--',
           status: ((employee?.financials as Record<string, unknown>)?.paymentStatus as string) || 'Paid',
+          periodKey: cycleKey,
         }));
       });
     });
@@ -715,16 +725,16 @@ export default function AccountingPage(): React.ReactElement {
                   ))}
                 </select>
               </div>
-              <button
+                              <button
                                 type="button"
-                                // onClick={handleExportPDF}
+                                onClick={() => void handleExportAccountingReport('PDF')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
-                                // onClick={handleExportExcel}
+                                onClick={() => void handleExportAccountingReport('Excel')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
