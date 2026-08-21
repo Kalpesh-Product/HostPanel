@@ -58,6 +58,8 @@ export default function useWorkspacePreferences(): WorkspacePreferences {
         const profile = response?.data?.data?.settings?.profile;
         const incoming = response?.data?.data?.settings?.preferences;
         if (!mounted || !incoming) return;
+        const fiscalYearStartMonth = Number(incoming.fiscalYearStartMonth) || 4;
+        window.localStorage.setItem("workspaceFiscalYearStartMonth", String(fiscalYearStartMonth));
         setPreferences({
           timezone: normalizeWorkspaceTimeZone(incoming.timezone),
           location: String(profile?.location || "").trim(),

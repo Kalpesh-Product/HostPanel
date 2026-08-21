@@ -28,7 +28,7 @@ import {
 import { getTenantCompanies, updateTenantCompanyCreditRequest } from '@/services/tenant-companies';
 import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
-import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
+import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions, getFiscalYearStartMonth } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
 
 /* ───────────────────── Types ───────────────────── */
@@ -218,11 +218,16 @@ function parseFiscalYearRange(fiscalYear = DEFAULT_FISCAL_YEAR): { start: Date; 
   if (!match) {
     const now = new Date();
     const currentYear = now.getFullYear();
-    return { start: new Date(currentYear, 3, 1), end: new Date(currentYear + 1, 2, 31, 23, 59, 59, 999) };
+    const startMonth = getFiscalYearStartMonth();
+    const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+    const endYear = currentYear + (startMonth === 1 ? 0 : 1);
+    return { start: new Date(currentYear, startMonth - 1, 1), end: new Date(endYear, endMonth, 0, 23, 59, 59, 999) };
   }
   const startYear = Number(match[1].length === 2 ? `20${match[1]}` : match[1]);
-  const endYear = Number(match[2].length === 2 ? `20${match[2]}` : match[2]);
-  return { start: new Date(startYear, 3, 1), end: new Date(endYear, 2, 31, 23, 59, 59, 999) };
+  const startMonth = getFiscalYearStartMonth();
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  const endYear = startYear + (startMonth === 1 ? 0 : 1);
+  return { start: new Date(startYear, startMonth - 1, 1), end: new Date(endYear, endMonth, 0, 23, 59, 59, 999) };
 }
 
 function isDateInFiscalYear(value: string | Date | null | undefined, fiscalYear = DEFAULT_FISCAL_YEAR): boolean {

@@ -20,7 +20,7 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
 import { getFinanceSnapshot, getPayrollSnapshot, getTenantBillingSnapshot } from '@/services/finance';
 import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
-import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
+import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions, getFiscalYearStartMonth } from '@/features/finance/utils/fiscalYear';
 import { downloadReportFile } from '@/utils/report-download';
 import PageFrame from '@/components/Pages/PageFrame';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
@@ -69,9 +69,12 @@ function parseFiscalYears(value: string = '') {
 function getFiscalYearBounds(value: string = '') {
   const { startYear } = parseFiscalYears(value);
   const endYear = startYear + 1;
+  const startMonth = getFiscalYearStartMonth();
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  const endYearOffset = startMonth === 1 ? 0 : 1;
   return {
-    start: new Date(startYear, 3, 1, 0, 0, 0, 0),
-    end: new Date(endYear, 2, 31, 23, 59, 59, 999),
+    start: new Date(startYear, startMonth - 1, 1, 0, 0, 0, 0),
+    end: new Date(startYear + endYearOffset, endMonth, 0, 23, 59, 59, 999),
   };
 }
 
@@ -85,16 +88,13 @@ function isDateInFiscalYear(value: string | Date | null | undefined, fiscalYear:
 function buildFiscalPeriods(value: string = '') {
   const { startYear, endYear } = parseFiscalYears(value);
   const periods: Array<{ value: string; label: string }> = [];
-  for (let month = 3; month < 12; month += 1) {
+  const startMonth = getFiscalYearStartMonth();
+  for (let offset = 0; offset < 12; offset += 1) {
+    const month = (startMonth - 1 + offset) % 12;
+    const year = month + 1 >= startMonth ? startYear : endYear;
     periods.push({
-      value: `${startYear}-${padMonth(month + 1)}`,
-      label: `${MONTH_SHORT_NAMES[month]} ${startYear}`,
-    });
-  }
-  for (let month = 0; month < 3; month += 1) {
-    periods.push({
-      value: `${endYear}-${padMonth(month + 1)}`,
-      label: `${MONTH_SHORT_NAMES[month]} ${endYear}`,
+      value: `${year}-${padMonth(month + 1)}`,
+      label: `${MONTH_SHORT_NAMES[month]} ${year}`,
     });
   }
   return periods;
