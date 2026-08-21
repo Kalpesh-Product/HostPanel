@@ -28,6 +28,11 @@ const websiteTemplateChangeRequestSchema = new Schema(
     companyName: { type: String, trim: true, default: "" },
     currentTemplateId: { type: String, required: true, trim: true },
     requestedTemplateId: { type: String, required: true, trim: true },
+    requestSource: {
+      type: String,
+      enum: ["host", "master"],
+      default: "host",
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected", "completed"],

@@ -350,7 +350,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true, unlockedInWorkspace: true },
       { id: "workspace-settings", label: "Unit Settings", route: "/company-settings/workspace-settings", implemented: true, unlockedInWorkspace: false },
       { id: "workspace-management", label: "Unit Management", route: "/company-settings/workspace-management", implemented: true, unlockedInWorkspace: false },
-      { id: "analytics", label: "Analytics", implemented: false, unlockedInWorkspace: false },
+      { id: "analytics", label: "Analytics", route: "/company-settings/analytics", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "department-accesses": {

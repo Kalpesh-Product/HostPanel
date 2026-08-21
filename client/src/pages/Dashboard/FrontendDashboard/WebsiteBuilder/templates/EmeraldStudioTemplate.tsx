@@ -1908,7 +1908,7 @@ const EmeraldStudioTemplate: React.FC = () => {
                 ) : null}
 
                 {(t.careersDetailTab === "apply" || t.careersDirectApply) && (
-                  <div className="max-w-2xl">
+                  <div>
                     {t.careersApplySubmitted ? (
                       <div className="bg-emerald-900/30 border border-emerald-800/50 rounded-2xl p-8 text-center">
                         <div className="w-14 h-14 rounded-full bg-amber-400 flex items-center justify-center text-emerald-950 text-2xl mb-4 mx-auto">
@@ -1926,7 +1926,7 @@ const EmeraldStudioTemplate: React.FC = () => {
                     ) : (
                       <form
                         onSubmit={t.submitCareersApplication}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                        className="bg-emerald-900/30 border border-emerald-800/50 rounded-2xl p-8 grid grid-cols-1 md:grid-cols-2 gap-4"
                       >
                         <div>
                           <label className="block text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">

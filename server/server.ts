@@ -57,6 +57,7 @@ import taskRoutes from "./routes/taskRoutes.js";
 import financeRoutes from "./routes/financeRoutes.js";
 import departmentDocumentRoutes from "./routes/departmentDocumentRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
@@ -175,6 +176,7 @@ app.use("/api/v1/resources", verifyJwt, blockWriteIfImpersonating, resourceRoute
 app.use("/api/v1/pricing-packages", verifyJwt, blockWriteIfImpersonating, plansPricingRoutes);
 app.use("/api/v1/tenant-companies", verifyJwt, blockWriteIfImpersonating, tenantCompanyRoutes);
 app.use("/api/reports", verifyJwt, blockWriteIfImpersonating, reportRoutes);
+app.use("/api/analytics", verifyJwt, blockWriteIfImpersonating, analyticsRoutes);
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
