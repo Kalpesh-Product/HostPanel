@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import { MemberInvite } from "../models/MemberInvite.js";
 import HostUser from "../models/HostUser.js";
 import HostActivityLog from "../models/HostActivityLog.js";
 import { Holiday } from "../models/Holiday.js";
@@ -266,14 +267,12 @@ const mergeInsights = (insightsList) => {
 
 // Which departments drive this module? Groups by a department field and
 // resolves ObjectId references to Department names.
-const deptBreakdownBy = async (model, base, field) => {
+const deptBreakdownBy = async (model, base, field, unwindArray = false) => {
   try {
-    const rows = await model
-      .aggregate([
-        { $match: base },
-        { $group: { _id: `$${field}`, count: { $sum: 1 } } },
-      ])
-      .exec();
+    const pipeline: any[] = [{ $match: base }];
+    if (unwindArray) pipeline.push({ $unwind: `$${field}` });
+    pipeline.push({ $group: { _id: `$${field}`, count: { $sum: 1 } } });
+    const rows = await model.aggregate(pipeline).exec();
     const filtered = rows.filter(
       (row) => row._id !== null && row._id !== undefined && String(row._id).trim() !== "",
     );
@@ -556,7 +555,55 @@ const MODULE_STAT_PROVIDERS: Record<string, ProviderFn> = {
     };
   },
 
+  // Team Management page = member roster + sidebar access delegation +
+  // department SOP & Policy tabs. NOT employee onboarding (that's Company
+  // Management below).
   "team-management": async ({ objectId, since30 }) => {
+    const memberBase = { workspace: objectId };
+    const [members, activeMembers, inactiveMembers, recentMembers, sops, policies, recentDocs, monthlyMembers, monthlyDocs] =
+      await Promise.all([
+        safeCount(WorkspaceMember, memberBase),
+        safeCount(WorkspaceMember, { ...memberBase, status: "active", isActive: true }),
+        safeCount(WorkspaceMember, {
+          workspace: objectId,
+          $or: [{ status: { $ne: "active" } }, { isActive: false }],
+        }),
+        safeCount(WorkspaceMember, { ...memberBase, createdAt: { $gte: since30 } }),
+        safeCount(DepartmentDocument, { workspaceId: objectId, docType: "sop" }),
+        safeCount(DepartmentDocument, { workspaceId: objectId, docType: "policy" }),
+        safeCountSum([
+          { model: DepartmentDocument, filter: { workspaceId: objectId, docType: "sop", createdAt: { $gte: since30 } } },
+          { model: DepartmentDocument, filter: { workspaceId: objectId, docType: "policy", createdAt: { $gte: since30 } } },
+        ]),
+        monthlySeries(WorkspaceMember, "workspace", objectId),
+        monthlySeries(DepartmentDocument, "workspaceId", objectId, { docType: { $in: ["sop", "policy"] } }),
+      ]);
+    const documents = sops + policies;
+    return {
+      totalRecords: members + documents,
+      activeLast30Days: recentMembers + recentDocs,
+      openItems: inactiveMembers,
+      completionRate: null,
+      kpis: [
+        { label: "Team members", value: members },
+        { label: "Active", value: activeMembers },
+        { label: "SOPs & policies", value: documents },
+        { label: "New members (30d)", value: recentMembers },
+      ],
+      breakdown: [
+        { label: "Active", value: activeMembers },
+        { label: "Inactive", value: inactiveMembers },
+      ].filter((segment) => segment.value > 0),
+      secondaryBreakdown: [
+        { label: "SOPs", value: sops },
+        { label: "Policies", value: policies },
+      ].filter((segment) => segment.value > 0),
+      monthly: mergeSeries([monthlyMembers, monthlyDocs]),
+    };
+  },
+
+  // Company Management (HR): employees, departments and onboarding pipeline.
+  "employee-management": async ({ objectId, since30 }) => {
     const deptBase = { workspaceId: objectId };
     const profileBase = { workspaceId: objectId };
     const [departments, profiles, recent, onboarding, activeStaff, probation, inactiveStaff, monthlyProfiles, monthlyDepartments] =
@@ -705,10 +752,11 @@ const MODULE_STAT_PROVIDERS: Record<string, ProviderFn> = {
     };
   },
 
-  "organization-management": async ({ objectId, since30 }) => {
+  "organization-management": async ({ objectId, stringId, since30 }) => {
     const memberBase = { workspace: objectId, isActive: true };
     const deptBase = { workspaceId: objectId };
-    const [members, departments, recentMembers, recentDepartments, notActive, monthlyMembers, monthlyDepartments] =
+    const logBase = { workspaceId: stringId, module: "Organization", success: true };
+    const [members, departments, recentMembers, recentDepartments, notActive, monthlyMembers, monthlyDepartments, pendingInvites, invites30, accessChanges30, roleChanges30, transfers30] =
       await Promise.all([
         safeCount(WorkspaceMember, memberBase),
         safeCount(Department, deptBase),
@@ -717,33 +765,53 @@ const MODULE_STAT_PROVIDERS: Record<string, ProviderFn> = {
         safeCount(WorkspaceMember, { workspace: objectId, status: { $ne: "active" } }),
         monthlySeries(WorkspaceMember, "workspace", objectId),
         monthlySeries(Department, "workspaceId", objectId),
+        safeCount(MemberInvite, { workspaceId: objectId, contextType: "workspace", status: "pending" }),
+        safeCount(HostActivityLog, { ...logBase, action: "invite", createdAt: { $gte: since30 } }),
+        safeCount(HostActivityLog, { ...logBase, action: "access", createdAt: { $gte: since30 } }),
+        safeCount(HostActivityLog, { ...logBase, action: "role", createdAt: { $gte: since30 } }),
+        safeCount(HostActivityLog, { ...logBase, action: "transfer", createdAt: { $gte: since30 } }),
       ]);
     return {
       totalRecords: members + departments,
       activeLast30Days: recentMembers + recentDepartments,
-      openItems: notActive,
+      openItems: notActive + pendingInvites,
       completionRate: null,
       kpis: [
         { label: "Members", value: members },
         { label: "Departments", value: departments },
-        { label: "New members (30d)", value: recentMembers },
-        { label: "Not active", value: notActive },
+        { label: "Pending invites", value: pendingInvites },
+        { label: "Access changes (30d)", value: accessChanges30 },
       ],
       breakdown: [
         { label: "Active members", value: Math.max(0, members - notActive) },
         { label: "Not active", value: notActive },
       ].filter((segment) => segment.value > 0),
+      secondaryBreakdown: [
+        { label: "Invites sent", value: invites30 },
+        { label: "Access toggles", value: accessChanges30 },
+        { label: "Role changes", value: roleChanges30 },
+        { label: "Unit transfers", value: transfers30 },
+      ].filter((segment) => segment.value > 0),
       monthly: mergeSeries([monthlyMembers, monthlyDepartments]),
     };
   },
 
-  "access-grants": async ({ objectId, since30 }) => {
+  "access-grants": async ({ objectId, stringId, since30 }) => {
     const base = { workspaceId: objectId };
-    const [totalRecords, activeLast30Days, systemRoles, customRoles] = await Promise.all([
+    const [totalRecords, activeLast30Days, systemRoles, customRoles, totalMembers, membersWithExtraAccess, accessToggles30] = await Promise.all([
       safeCount(Role, base),
       safeCount(Role, { ...base, createdAt: { $gte: since30 } }),
       safeCount(Role, { ...base, isSystemRole: true }),
       safeCount(Role, { ...base, isSystemRole: { $ne: true } }),
+      safeCount(WorkspaceMember, { workspace: objectId }),
+      safeCount(WorkspaceMember, { workspace: objectId, grantedModules: { $exists: true, $ne: [] } }),
+      safeCount(HostActivityLog, {
+        workspaceId: stringId,
+        module: "Organization",
+        action: "access",
+        success: true,
+        createdAt: { $gte: since30 },
+      }),
     ]);
     return {
       totalRecords,
@@ -752,15 +820,70 @@ const MODULE_STAT_PROVIDERS: Record<string, ProviderFn> = {
       completionRate: null,
       kpis: [
         { label: "Roles", value: totalRecords },
-        { label: "System roles", value: systemRoles },
         { label: "Custom roles", value: customRoles },
-        { label: "New roles (30d)", value: activeLast30Days },
+        { label: "Members w/ extra access", value: membersWithExtraAccess },
+        { label: "Access toggles (30d)", value: accessToggles30 },
       ],
       breakdown: [
         { label: "System", value: systemRoles },
         { label: "Custom", value: customRoles },
       ].filter((segment) => segment.value > 0),
+      secondaryBreakdown: [
+        { label: "With extra access", value: membersWithExtraAccess },
+        { label: "Standard access", value: Math.max(0, totalMembers - membersWithExtraAccess) },
+      ].filter((segment) => segment.value > 0),
       monthly: monthlySeries(Role, "workspaceId", objectId),
+    };
+  },
+
+  // Unit Management: membership links plus unit-to-unit member transfers
+  // (recorded in WorkspaceMember.transferHistory by transferOrganizationMember).
+  "workspace-management": async ({ objectId, stringId, since30 }) => {
+    const [linkedMembers, mainUnitMembers, transfersIn, transfersOut, recentTransfers, transferActions30] =
+      await Promise.all([
+        safeCount(WorkspaceMember, { workspace: objectId }),
+        safeCount(WorkspaceMember, { workspace: objectId, isMainUnit: true }),
+        safeCount(WorkspaceMember, { transferHistory: { $elemMatch: { toWorkspaceId: objectId } } }),
+        safeCount(WorkspaceMember, { transferHistory: { $elemMatch: { fromWorkspaceId: objectId } } }),
+        safeCount(WorkspaceMember, {
+          transferHistory: {
+            $elemMatch: {
+              transferredAt: { $gte: since30 },
+              $or: [
+                { toWorkspaceId: objectId },
+                { fromWorkspaceId: objectId },
+              ],
+            },
+          },
+        }),
+        safeCount(HostActivityLog, {
+          workspaceId: stringId,
+          module: "Organization",
+          action: "transfer",
+          success: true,
+          createdAt: { $gte: since30 },
+        }),
+      ]);
+    return {
+      totalRecords: linkedMembers,
+      activeLast30Days: recentTransfers + transferActions30,
+      openItems: 0,
+      completionRate: null,
+      kpis: [
+        { label: "Linked members", value: linkedMembers },
+        { label: "Main-unit members", value: mainUnitMembers },
+        { label: "Transferred in", value: transfersIn },
+        { label: "Transferred out", value: transfersOut },
+      ],
+      breakdown: [
+        { label: "Transferred in", value: transfersIn },
+        { label: "Transferred out", value: transfersOut },
+      ].filter((segment) => segment.value > 0),
+      monthly: monthlySeries(HostActivityLog, "workspaceId", stringId, {
+        module: "Organization",
+        action: "transfer",
+        success: true,
+      }),
     };
   },
 
@@ -1510,6 +1633,10 @@ const INSIGHT_SOURCES = {
   ],
   assets: [{ model: Asset, field: "workspaceId", type: "objectId" }],
   "team-management": [
+    { model: WorkspaceMember, field: "workspace", type: "objectId" },
+    { model: DepartmentDocument, field: "workspaceId", type: "objectId" },
+  ],
+  "employee-management": [
     { model: EmployeeProfile, field: "workspaceId", type: "objectId" },
     { model: Department, field: "workspaceId", type: "objectId" },
   ],
@@ -1521,6 +1648,7 @@ const INSIGHT_SOURCES = {
     { model: Department, field: "workspaceId", type: "objectId" },
   ],
   "access-grants": [{ model: Role, field: "workspaceId", type: "objectId" }],
+  "workspace-management": [{ model: WorkspaceMember, field: "workspace", type: "objectId" }],
   "visitors-management": [{ model: VisitorLog, field: "workspace", type: "objectId" }],
   "leads-management": [{ model: WebsiteLead, field: "workspaceId", type: "string", escalatedOnly: true }],
   "tenant-companies-sales": [{ model: TenantCompany, field: "workspaceId", type: "objectId" }],
@@ -1588,6 +1716,7 @@ const DEPT_BREAKDOWN_SOURCES = {
   "maintenance-repair-logs": { model: RepairLog, match: "workspaceId", field: "departmentId" },
   "amc-maintenance-scheduler": { model: MaintenanceSchedule, match: "workspaceId", field: "departmentId" },
   "finance-budget": { model: DepartmentFinancePlan, match: "workspaceId", field: "department" },
+  "team-management": { model: WorkspaceMember, match: "workspace", field: "departments", array: true },
 };
 DEPT_BREAKDOWN_SOURCES["it-repair-logs"] = DEPT_BREAKDOWN_SOURCES["maintenance-repair-logs"];
 
@@ -1596,7 +1725,6 @@ DEPT_BREAKDOWN_SOURCES["it-repair-logs"] = DEPT_BREAKDOWN_SOURCES["maintenance-r
 const NON_TRACKABLE_MODULE_IDS = new Set([
   "dashboard",
   "workspace-settings",
-  "workspace-management",
   "wono-nomad",
   "sales-architecture",
 ]);
@@ -1746,10 +1874,15 @@ export const getAnalyticsOverview = async (req: Request, res: Response, next) =>
     const workspaceStringId = String(workspaceObjectId);
     const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    // Every enabled module with a provider is tracked — implemented flag no
-    // longer gates tracking, so management sees numbers for the full catalog.
-    const trackableIds = Array.from(effectiveEnabled).filter(
-      (id) => id !== "analytics" && MODULE_STAT_PROVIDERS[id],
+    // Track EVERY catalog module that has a data provider (minus static
+    // screens like dashboard/unit-settings and analytics itself), so the
+    // founder sees the full picture. Modules not unlocked for this unit are
+    // still listed, flagged with enabled:false.
+    const trackableIds = Array.from(catalogIndex.keys()).filter(
+      (id) =>
+        id !== "analytics" &&
+        !NON_TRACKABLE_MODULE_IDS.has(id) &&
+        Boolean(MODULE_STAT_PROVIDERS[id]),
     );
 
     // Department tabs and key-apps sometimes alias the same data source
@@ -1793,7 +1926,12 @@ export const getAnalyticsOverview = async (req: Request, res: Response, next) =>
           );
           const deptSource = DEPT_BREAKDOWN_SOURCES[id];
           const deptBreakdown = deptSource
-            ? await deptBreakdownBy(deptSource.model, { [deptSource.match]: workspaceObjectId }, deptSource.field)
+            ? await deptBreakdownBy(
+                deptSource.model,
+                { [deptSource.match]: workspaceObjectId },
+                deptSource.field,
+                Boolean(deptSource.array),
+              )
             : [];
           return {
             id,
@@ -1801,6 +1939,7 @@ export const getAnalyticsOverview = async (req: Request, res: Response, next) =>
             sectionLabel: meta.sectionLabel || "",
             route: meta.route || "",
             trackable: true,
+            enabled: effectiveEnabled.has(id),
             planAvailability: planAvailability(id),
             activityScore: computeActivityScore(stats),
             stats: {
@@ -1821,6 +1960,7 @@ export const getAnalyticsOverview = async (req: Request, res: Response, next) =>
             sectionLabel: meta.sectionLabel || "",
             route: meta.route || "",
             trackable: false,
+            enabled: effectiveEnabled.has(id),
             planAvailability: planAvailability(id),
             activityScore: 0,
             stats: null,

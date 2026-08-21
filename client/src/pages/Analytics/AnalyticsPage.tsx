@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +6,6 @@ import {
   Activity,
   BarChart3,
   Building2,
-  Clock,
   Database,
   ListTodo,
   RefreshCw,
@@ -44,13 +43,81 @@ const planChipClass = (availability?: string) => {
   }
 };
 
+const SkeletonBlock = ({ className = "" }: { className?: string }) => (
+  <div className={`animate-pulse rounded-xl bg-slate-100 ${className}`} />
+);
+
+// Full-page skeleton shown while the analytics payload loads.
+const AnalyticsSkeleton = () => (
+  <>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+      {[0, 1, 2, 3].map((index) => (
+        <SkeletonBlock key={index} className="h-24 border border-slate-100 bg-white" />
+      ))}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <SkeletonBlock className="h-80 border border-slate-100 bg-white" />
+      <SkeletonBlock className="h-80 border border-slate-100 bg-white" />
+    </div>
+    <div className="mb-4 space-y-4">
+      <SkeletonBlock className="h-64 border border-slate-100 bg-white" />
+      <SkeletonBlock className="h-64 border border-slate-100 bg-white" />
+    </div>
+  </>
+);
+
+// Mounts heavy chart sections only once they approach the viewport so the
+// top of the page paints fast and the rest streams in while scrolling.
+const LazyMount = ({
+  children,
+  minHeight = 320,
+}: {
+  children: ReactNode;
+  minHeight?: number;
+}) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref}>
+      {visible ? (
+        children
+      ) : (
+        <div style={{ minHeight }}>
+          <SkeletonBlock className="h-full min-h-[240px] w-full border border-slate-100 bg-white" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MODULE_DESCRIPTIONS: Record<string, string> = {
   tickets: "Internal support queue — volume, resolution speed and priority mix.",
   "customer-support": "Customer-facing helpdesk tickets and resolution pipeline health.",
   "meeting-room-system": "Room bookings across internal, external and tenant guests.",
   calendar: "Holidays and leave requests driving the workspace calendar.",
   assets: "Physical asset inventory, category mix and repair lifecycle.",
-  "team-management": "Departments and employee onboarding status.",
+  "team-management": "Team roster and sidebar access, plus department SOPs and policies.",
   "website-builder": "Published websites plus every edit/push logged by the builder.",
   "website-leads": "Leads captured from the public website pipeline.",
   "website-review": "Guest reviews with rating spread and moderation queue.",
@@ -76,6 +143,7 @@ const MODULE_DESCRIPTIONS: Record<string, string> = {
   accounting: "Accounting transactions, expenses and vendors.",
   "maintenance-repair-logs": "Repair logs and preventive maintenance schedules.",
   "amc-maintenance-scheduler": "AMC service schedule adherence and overdue work.",
+  "employee-management": "Company Management — employees, departments and the onboarding pipeline.",
 };
 
 const BREAKDOWN_TITLES: Record<string, [string, string]> = {
@@ -84,7 +152,7 @@ const BREAKDOWN_TITLES: Record<string, [string, string]> = {
   "meeting-room-system": ["By Booking Type", "By Status"],
   calendar: ["Leave Status", "Leave Duration"],
   assets: ["By Category", "By Status"],
-  "team-management": ["Team Composition", "Onboarding"],
+  "team-management": ["Member Status", "SOPs & Policies"],
   "website-builder": ["Publish State", "Coverage"],
   "website-leads": ["Pipeline", "Conversion"],
   "website-review": ["Rating Spread", "Moderation"],
@@ -110,6 +178,7 @@ const BREAKDOWN_TITLES: Record<string, [string, string]> = {
   accounting: ["Record Types", "Movement"],
   "maintenance-repair-logs": ["Repair Status", "Service Schedule"],
   "amc-maintenance-scheduler": ["Schedule Status", "Adherence"],
+  "employee-management": ["Employee Status", "Onboarding"],
 };
 
 const STAT_CARDS = [
@@ -132,21 +201,30 @@ const ChartTile = ({
   </div>
 );
 
+const MAX_DONUT_SEGMENTS = 5;
+
 const BreakdownDonut = ({
   segments,
   centerLabel,
 }: {
   segments: AnalyticsBreakdownSegment[];
   centerLabel: string;
-}) => (
-  <DonutChart
-    centerLabel={centerLabel}
-    labels={segments.map((segment) => segment.label)}
-    colors={segments.map((_, index) => CHART_COLORS[index % CHART_COLORS.length])}
-    series={segments.map((segment) => segment.value)}
-    tooltipValue={segments.map((segment) => formatNumber(segment.value))}
-  />
-);
+}) => {
+  const sorted = [...segments].sort((a, b) => b.value - a.value);
+  const top = sorted.slice(0, MAX_DONUT_SEGMENTS);
+  const restValue = sorted.slice(MAX_DONUT_SEGMENTS).reduce((sum, segment) => sum + segment.value, 0);
+  const display = restValue > 0 ? [...top, { label: "Others", value: restValue }] : top;
+  return (
+    <DonutChart
+      centerLabel={centerLabel}
+      labels={display.map((segment) => segment.label)}
+      colors={display.map((_, index) => CHART_COLORS[index % CHART_COLORS.length])}
+      series={display.map((segment) => segment.value)}
+      tooltipValue={display.map((segment) => formatNumber(segment.value))}
+      wrapLabels
+    />
+  );
+};
 
 const CountBars = ({
   chartId,
@@ -198,8 +276,6 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
   if (hasMonthly) tiles.push({ key: "monthly", title: "Monthly Trend", bars: monthly.map((point) => ({ label: point.label, count: point.count })), color: "#80bf01" });
   if ((insights?.byDay ?? []).some((point) => point.count > 0))
     tiles.push({ key: "peakDay", title: "Peak Days (last 90d)", bars: insights!.byDay, color: "#2563EB" });
-  if ((insights?.byHour ?? []).some((point) => point.count > 0))
-    tiles.push({ key: "peakHour", title: "Peak Hours (last 90d)", bars: insights!.byHour, color: "#7c3aed" });
 
   return (
     <div className="border-default rounded-xl overflow-hidden bg-white">
@@ -217,14 +293,14 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
                 {entry.sectionLabel}
               </span>
             ) : null}
+            {entry.enabled === false ? (
+              <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-rose-600">
+                Not Enabled
+              </span>
+            ) : null}
             {entry.planAvailability ? (
               <span className={`rounded-full px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest ${planChipClass(entry.planAvailability)}`}>
                 {entry.planAvailability}
-              </span>
-            ) : null}
-            {insights && insights.peakDayLabel !== "--" ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
-                <Clock size={10} /> Peak {insights.peakDayLabel} · {insights.peakHourLabel}
               </span>
             ) : null}
           </div>
@@ -259,7 +335,7 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
           {tiles.map((tile) => (
             <ChartTile key={`${entry.id}-${tile.key}`} title={tile.title}>
               {tile.donut ? (
-                <BreakdownDonut segments={tile.donut} centerLabel={entry.label} />
+                <BreakdownDonut segments={tile.donut} centerLabel="Records" />
               ) : (
                 <CountBars
                   chartId={`analytics-${entry.id}-${tile.key}`}
@@ -295,23 +371,29 @@ const AnalyticsPage = () => {
   const modules = useMemo(() => (Array.isArray(data?.modules) ? data.modules : []), [data]);
   const trend = useMemo(() => (Array.isArray(data?.trend) ? data.trend : []), [data]);
 
-  const recordsBars = useMemo(() => {
-    const sorted = [...modules].sort(
-      (a, b) => (b.stats?.totalRecords ?? 0) - (a.stats?.totalRecords ?? 0),
-    );
-    return {
-      categories: sorted.map((entry) => entry.label),
-      values: sorted.map((entry) => entry.stats?.totalRecords ?? 0),
-    };
-  }, [modules]);
-
   const activityBars = useMemo(() => {
-    const sorted = [...modules].sort((a, b) => b.activityScore - a.activityScore);
+    const sorted = [...modules]
+      .sort((a, b) => b.activityScore - a.activityScore)
+      .slice(0, 10);
     return {
       categories: sorted.map((entry) => entry.label),
       values: sorted.map((entry) => entry.activityScore),
     };
   }, [modules]);
+
+  const trendSummary = useMemo(() => {
+    const counts = trend.map((point) => point.count ?? 0);
+    const labels = trend.map((point) => point.label);
+    const total = counts.reduce((sum, value) => sum + value, 0);
+    const bestIndex = counts.length ? counts.indexOf(Math.max(...counts)) : -1;
+    return {
+      thisMonth: counts[counts.length - 1] ?? 0,
+      lastMonth: counts[counts.length - 2] ?? 0,
+      bestLabel: bestIndex >= 0 ? labels[bestIndex] : "--",
+      bestValue: bestIndex >= 0 ? counts[bestIndex] : 0,
+      avg: counts.length ? Math.round(total / counts.length) : 0,
+    };
+  }, [trend]);
 
   const trendSeries = useMemo(
     () => [{ name: "New records", data: trend.map((point) => point.count) }],
@@ -324,16 +406,6 @@ const AnalyticsPage = () => {
     xaxis: { categories: trend.map((point) => point.label) },
     plotOptions: { bar: { borderRadius: 4, columnWidth: "55%" } },
     dataLabels: { enabled: false },
-    grid: { borderColor: "#f0f0f0" },
-    tooltip: { theme: "light" },
-  };
-
-  const recordsOptions = {
-    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    colors: ["#1E3D73"],
-    xaxis: { categories: recordsBars.categories },
-    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "60%" } },
-    dataLabels: { enabled: true },
     grid: { borderColor: "#f0f0f0" },
     tooltip: { theme: "light" },
   };
@@ -374,10 +446,11 @@ const AnalyticsPage = () => {
   if (isAccessLoading || (isAllowed && isLoading)) {
     return (
       <PageFrame>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-          <RefreshCw size={22} className="text-primary animate-spin" />
-          <p className="text-content font-pmedium text-slate-400">Loading analytics…</p>
+        <div className="mb-3">
+          <SkeletonBlock className="h-9 w-56" />
+          <SkeletonBlock className="h-4 w-96 mt-2" />
         </div>
+        <AnalyticsSkeleton />
       </PageFrame>
     );
   }
@@ -470,17 +543,33 @@ const AnalyticsPage = () => {
         <div className="border-default rounded-xl overflow-hidden bg-white">
           <div className="p-4 border-b-2 border-borderGray uppercase">
             <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Platform Activity Trend</span>
-            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">New records created per month (last 6 months)</p>
+            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">How much new work your unit creates each month (last 6 months)</p>
           </div>
           <div className="p-2">
             <BarGraph chartId="analytics-trend" data={trendSeries} options={trendOptions} height={260} />
+          </div>
+          <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+            {[
+              { label: "This month", value: formatNumber(trendSummary.thisMonth) },
+              { label: "Last month", value: formatNumber(trendSummary.lastMonth) },
+              { label: "Best month", value: `${trendSummary.bestLabel} · ${formatNumber(trendSummary.bestValue)}` },
+              { label: "Monthly avg", value: formatNumber(trendSummary.avg) },
+            ].map((chip) => (
+              <div
+                key={chip.label}
+                className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 flex items-baseline justify-between gap-2"
+              >
+                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{chip.label}</span>
+                <span className="text-[11px] font-pmedium text-slate-900">{chip.value}</span>
+              </div>
+            ))}
           </div>
         </div>
 
         <div className="border-default rounded-xl overflow-hidden bg-white">
           <div className="p-4 border-b-2 border-borderGray uppercase">
             <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Module Activity Scores</span>
-            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">Blends last-30-day usage with overall adoption (0–100)</p>
+            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">Which modules your team actually uses — score out of 100 (top 10)</p>
           </div>
           <div className="p-2">
             {activityBars.categories.length > 0 ? (
@@ -497,32 +586,15 @@ const AnalyticsPage = () => {
         </div>
       </div>
 
-      {/* 4. Records by module — full line so big catalogs stay readable */}
-      <div className="mb-4 border-default rounded-xl overflow-hidden bg-white">
-        <div className="p-4 border-b-2 border-borderGray uppercase">
-          <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Records By Module</span>
-          <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">Total records held in every tracked module</p>
-        </div>
-        <div className="p-2">
-          {recordsBars.categories.length > 0 ? (
-            <BarGraph
-              chartId="analytics-records"
-              data={[{ name: "Records", data: recordsBars.values }]}
-              options={recordsOptions}
-              height={Math.max(280, recordsBars.categories.length * 44)}
-            />
-          ) : (
-            <div className="h-48 flex items-center justify-center text-gray-400 text-content">No module data yet</div>
-          )}
-        </div>
-      </div>
-
-      {/* 5. Module deep dive — one module per line, two charts per line inside */}
+      {/* 4. Module deep dive — one module per line, two charts per line inside.
+          Cards mount lazily as they approach the viewport. */}
       {modules.length > 0 ? (
         <WidgetSection title="Module Deep Dive" border normalCase layout={1}>
           <div className="grid grid-cols-1 gap-4">
             {modules.map((entry) => (
-              <DeepDiveCard key={`deep-${entry.id}`} entry={entry} />
+              <LazyMount key={`deep-${entry.id}`} minHeight={420}>
+                <DeepDiveCard entry={entry} />
+              </LazyMount>
             ))}
           </div>
         </WidgetSection>

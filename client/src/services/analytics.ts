@@ -48,6 +48,7 @@ export interface AnalyticsModuleEntry {
   sectionLabel: string;
   route: string;
   trackable: boolean;
+  enabled?: boolean;
   planAvailability?: string;
   activityScore: number;
   stats: AnalyticsModuleStats | null;
