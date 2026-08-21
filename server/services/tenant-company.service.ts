@@ -13,6 +13,7 @@ import TenantCreditRequest from "../models/TenantCreditRequest.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import TenantAgreementDocument from "../models/TenantAgreementDocument.js";
 import { Resource } from "../models/Resource.js";
+import { parseFiscalYearRange } from "../utils/fiscalYear.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
 const TENANT_COMPANIES_ADMIN_MODULE = "tenant-companies-admin";
@@ -657,6 +658,13 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
   const { workspaceId } = access;
 
   const filter = { workspaceId };
+  const fiscalYearRange = parseFiscalYearRange(query.fiscalYear);
+  if (fiscalYearRange) {
+    // A tenant belongs to a fiscal year if its contract overlaps that FY's date range.
+    // No contractEnd yet (still active) counts as open-ended, so only contractStart needs to be before the FY's end.
+    filter.contractStart = { $lte: fiscalYearRange.end };
+    filter.$or = [{ contractEnd: null }, { contractEnd: { $exists: false } }, { contractEnd: { $gte: fiscalYearRange.start } }];
+  }
   const page = Math.max(1, parseInt(query.page) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 50));
   const skip = (page - 1) * limit;

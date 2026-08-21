@@ -6,6 +6,7 @@ import FinanceSnapshot from "../models/FinanceSnapshot.js";
 import AnnualFinanceRequest from "../models/AnnualFinanceRequest.js";
 import ExtraFinanceRequest from "../models/ExtraFinanceRequest.js";
 import { TenantCompany } from "../models/TenantCompany.js";
+import { parseFiscalYearRange } from "../utils/fiscalYear.js";
 
 function asObjectId(value: any): mongoose.Types.ObjectId | null {
   try {
@@ -36,8 +37,12 @@ function normalizeExpenseTag(tag: string) {
 
 function ensureMonthlyPlanEntry(plan: any, month: { month: string; monthKey: string; displayOrder?: number }) {
   const monthKeyNorm = normalizeMonthKey(month.monthKey || month.month);
+  const monthNameNorm = normalizeMonthKey(month.month);
   if (!Array.isArray(plan.monthlyPlan)) plan.monthlyPlan = [];
-  const existing = plan.monthlyPlan.find((m: any) => normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm);
+  const existing = plan.monthlyPlan.find((m: any) =>
+    normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm
+    || (monthNameNorm && normalizeMonthKey(m.month) === monthNameNorm),
+  );
   if (existing) return existing;
 
   const created = {
@@ -89,6 +94,17 @@ function recalcMonthTotalsFromExpenses(plan: any, monthKey: string) {
 async function syncMonthlyPlanFromFinanceExpenses(planId: mongoose.Types.ObjectId) {
   const plan = await DepartmentFinancePlan.findById(planId);
   if (!plan) return null;
+
+  // Imported CSVs may use month names while older plans use Excel serial keys.
+  // Collapse those representations so one fiscal year stays April through March.
+  if (Array.isArray(plan.monthlyPlan)) {
+    const uniqueMonths = new Map<string, any>();
+    for (const month of plan.monthlyPlan) {
+      const key = normalizeMonthKey(month.month || month.monthKey);
+      if (!uniqueMonths.has(key)) uniqueMonths.set(key, month);
+    }
+    plan.monthlyPlan = Array.from(uniqueMonths.values());
+  }
 
   const expenses = await FinanceExpense.find({
     planId,
@@ -179,8 +195,8 @@ export async function getDepartmentFinanceForManagerInternal(input: {
   const [expenses, vendors, annualRequest, extraRequests] = await Promise.all([
     FinanceExpense.find({ workspaceId, planId: plan._id }).sort({ createdAt: 1 }).lean(),
     FinanceVendor.find({ workspaceId }).sort({ createdAt: -1 }).lean(),
-    AnnualFinanceRequest.findOne({ workspaceId, department }).sort({ createdAt: -1 }).lean(),
-    ExtraFinanceRequest.find({ workspaceId, department }).sort({ createdAt: -1 }).lean(),
+    AnnualFinanceRequest.findOne({ workspaceId, department, fiscalYear }).sort({ createdAt: -1 }).lean(),
+    ExtraFinanceRequest.find({ workspaceId, department, fiscalYear }).sort({ createdAt: -1 }).lean(),
   ]);
 
   const expensesByMonth = new Map<string, any[]>();
@@ -248,7 +264,7 @@ export async function resetRejectedAnnualBudgetForDepartmentInternal(input: {
 
   await Promise.all([
     FinanceExpense.deleteMany({ workspaceId: input.workspaceId, planId: plan._id }),
-    AnnualFinanceRequest.deleteMany({ workspaceId: input.workspaceId, department: input.department }),
+    AnnualFinanceRequest.deleteMany({ workspaceId: input.workspaceId, department: input.department, fiscalYear: input.fiscalYear }),
     DepartmentFinancePlan.deleteOne({ _id: plan._id, workspaceId: input.workspaceId }),
   ]);
   return { reset: true };
@@ -368,6 +384,7 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
     workspaceId,
     requestKey: `BUD-${safeString(department).slice(0, 8).toUpperCase()}-${fiscalYear.replace(/[^a-zA-Z0-9]/g, "")}`,
     department,
+    fiscalYear,
     requestedBudget: safeNumber(annualBudgetRequested, 0),
     previousSpend: safeNumber(previousSpend, 0),
     status: "Pending",
@@ -1033,6 +1050,7 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
     requestKey: `EXTRA-${safeString(plan.department).slice(0, 8).toUpperCase()}-${Date.now()}`,
     date: safeString(payload?.date, submittedAtLabel),
     department: plan.department,
+    fiscalYear: plan.fiscalYear,
     amount: amount,
     reason: safeString(payload?.reason || payload?.title || "Extra budget request", ""),
     monthKey,
@@ -1195,7 +1213,7 @@ function getFiscalYearLabel(startYear?: number) {
   const currentYear = now.getFullYear();
   const resolvedStartYear = Number.isFinite(safeStartYear) ? safeStartYear : (now.getMonth() >= 3 ? currentYear : currentYear - 1);
   const nextYear = resolvedStartYear + 1;
-  return `FY ${String(resolvedStartYear).slice(-2)}-${String(nextYear).slice(-2)}`;
+  return `FY ${resolvedStartYear}-${String(nextYear).slice(-2)}`;
 }
 
 function getCurrentFiscalYearLabel() {
@@ -1213,10 +1231,37 @@ export async function listFinanceSnapshotForManagerInternal(input: {
   const fiscalYear = input.fiscalYear || getCurrentFiscalYearLabel();
 
   const plans = await DepartmentFinancePlan.find({ workspaceId, fiscalYear }).lean();
-  const annualRequests = await AnnualFinanceRequest.find({ workspaceId }).lean();
-  const extraRequests = await ExtraFinanceRequest.find({ workspaceId }).lean();
+  const annualRequests = await AnnualFinanceRequest.find({ workspaceId, fiscalYear }).lean();
+  const extraRequests = await ExtraFinanceRequest.find({ workspaceId, fiscalYear }).lean();
 
-  const departments = plans.map((plan: any, index: number) => {
+  // DepartmentFinancePlan.monthlyPlan doesn't embed line-item expenses — those live in the
+  // separate FinanceExpense collection, keyed by planId. Join them in so the snapshot actually
+  // carries expense data (paid invoices, vendors) for the Expense History tab and used-budget totals.
+  const planIds = plans.map((plan: any) => plan._id);
+  const planExpenses = planIds.length > 0
+    ? await FinanceExpense.find({ workspaceId, planId: { $in: planIds } }).lean()
+    : [];
+  const expensesByPlanAndMonth = new Map<string, any[]>();
+  for (const expense of planExpenses) {
+    const key = `${expense.planId}|${normalizeMonthKey(expense.monthKey)}`;
+    if (!expensesByPlanAndMonth.has(key)) expensesByPlanAndMonth.set(key, []);
+    expensesByPlanAndMonth.get(key)!.push({
+      ...expense,
+      id: expense.expenseKey,
+      actualSpent: safeNumber(expense.actualAmount, 0),
+      variance: safeNumber(expense.projectedAmount, 0) - safeNumber(expense.actualAmount, 0),
+      status: safeString(expense.paymentStatus, "Planned"),
+    });
+  }
+  const plansWithExpenses = plans.map((plan: any) => ({
+    ...plan,
+    monthlyPlan: (Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : []).map((month: any) => ({
+      ...month,
+      expenses: expensesByPlanAndMonth.get(`${plan._id}|${normalizeMonthKey(month.monthKey || month.month)}`) || [],
+    })),
+  }));
+
+  const departments = plansWithExpenses.map((plan: any, index: number) => {
     const monthlyPlan = Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : [];
     const spentYTD = monthlyPlan.reduce((sum: number, m: any) => sum + safeNumber(m.actualSpent, 0), 0);
     const approvedBudget = safeNumber(plan.approvedAnnualBudget, 0);
@@ -1238,7 +1283,7 @@ export async function listFinanceSnapshotForManagerInternal(input: {
     departments,
     annualRequests,
     extraRequests,
-    departmentFinance: plans,
+    departmentFinance: plansWithExpenses,
   };
 }
 
@@ -1259,7 +1304,15 @@ export async function getTenantBillingSnapshotForCurrentUser(input: {
 }) {
   const { workspaceId, query = {} } = input;
 
-  const tenants = await TenantCompany.find({ workspaceId })
+  const tenantFilter: any = { workspaceId };
+  const fiscalYearRange = parseFiscalYearRange(query.fiscalYear);
+  if (fiscalYearRange) {
+    // A tenant belongs to a fiscal year if its contract overlaps that FY's date range.
+    tenantFilter.contractStart = { $lte: fiscalYearRange.end };
+    tenantFilter.$or = [{ contractEnd: null }, { contractEnd: { $exists: false } }, { contractEnd: { $gte: fiscalYearRange.start } }];
+  }
+
+  const tenants = await TenantCompany.find(tenantFilter)
     .sort({ createdAt: -1 })
     .lean();
 

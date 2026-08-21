@@ -7,6 +7,7 @@ export interface IExtraFinanceRequest extends Document {
     importKey?: string;
     date: string;
     department: string;
+    fiscalYear: string;
     amount: number;
     reason?: string;
     monthKey?: string;
@@ -89,6 +90,7 @@ const extraFinanceRequestSchema = new Schema<IExtraFinanceRequest>(
         importKey: { type: String, trim: true, default: "", maxlength: 120 },
         date: { type: String, trim: true, required: true, maxlength: 40 },
         department: { type: String, trim: true, required: true, maxlength: 120, index: true },
+        fiscalYear: { type: String, trim: true, required: true, maxlength: 20, index: true },
         amount: { type: Number, required: true, min: 0, default: 0 },
         reason: { type: String, trim: true, maxlength: 1000, default: "" },
         monthKey: { type: String, trim: true, default: "", maxlength: 32 },

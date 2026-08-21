@@ -59,7 +59,7 @@ const financeExpenseSchema = new Schema<IFinanceExpense>(
             required: true,
             index: true,
         },
-        expenseKey: { type: String, trim: true, required: true, maxlength: 60, index: true },
+        expenseKey: { type: String, trim: true, required: true, maxlength: 120, index: true },
         importKey: { type: String, trim: true, default: "", maxlength: 120 },
         title: { type: String, trim: true, required: true, maxlength: 200 },
         description: { type: String, trim: true, default: "", maxlength: 500 },

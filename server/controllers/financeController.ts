@@ -433,7 +433,8 @@ export async function listFinanceSnapshot(req: Request, res: Response, next: Nex
     const workspaceId = getWorkspaceId(req);
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
 
-    const result = await listFinanceSnapshotForManagerInternal({ workspaceId });
+    const fiscalYear = String(req.query.fiscalYear || "").trim() || undefined;
+    const result = await listFinanceSnapshotForManagerInternal({ workspaceId, fiscalYear });
 
     return res.status(200).json({
       success: true,

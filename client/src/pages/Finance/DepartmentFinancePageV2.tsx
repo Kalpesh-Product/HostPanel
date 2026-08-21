@@ -72,6 +72,8 @@ interface ExpenseData {
   invoiceFile: string;
   invoiceDate: string;
   expenseTag: string;
+  vendorId?: string;
+  vendorName?: string;
 }
 
 interface MonthlyPlan {
@@ -198,6 +200,8 @@ export function DepartmentFinancePageV2() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExtraBudgetForm, setShowExtraBudgetForm] = useState(false);
   const [showVendorList, setShowVendorList] = useState(false);
+  const [selectedVendorToLink, setSelectedVendorToLink] = useState('');
+  const [isLinkingVendor, setIsLinkingVendor] = useState(false);
 
   // Draft annual budget builder (month-by-month, pre-submission)
   const [draftMonths, setDraftMonths] = useState<DraftMonth[]>([]);
@@ -235,6 +239,23 @@ export function DepartmentFinancePageV2() {
         const data = response?.data || response || {};
         setFinanceData(data);
         setMonthlyExpenses(Array.isArray(data.monthlyPlan) ? data.monthlyPlan : []);
+        if (!data.annualRequest && Array.isArray(data.monthlyPlan)) {
+          setDraftMonths(data.monthlyPlan.map((month: any, index: number) => ({
+            id: String(month?.monthKey || month?.month || index),
+            month: String(month?.month || monthLabels[month?.monthKey] || ''),
+            monthKey: String(month?.monthKey || month?.month || ''),
+            title: String(month?.title || ''),
+            expenses: (Array.isArray(month?.expenses) ? month.expenses : []).map((expense: any, expenseIndex: number) => ({
+              id: String(expense?.id || expense?.expenseKey || `${index}-${expenseIndex}`),
+              title: String(expense?.title || expense?.expenseLabel || ''),
+              projectedAmount: Number(expense?.projectedAmount || 0),
+              dueDate: String(expense?.dueDate || ''),
+              description: String(expense?.description || expense?.details || ''),
+            })),
+          })));
+        } else {
+          setDraftMonths([]);
+        }
         setVendors(Array.isArray(data.vendors) ? data.vendors : []);
         setExtraRequests(Array.isArray(data.extraRequests) ? data.extraRequests : []);
       } catch (error: any) {
@@ -569,6 +590,49 @@ export function DepartmentFinancePageV2() {
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update payment status.');
+    }
+  };
+
+  const handleLinkVendor = async (month: MonthlyPlan, expense: ExpenseData) => {
+    const vendor = vendors.find((v) => v.id === selectedVendorToLink);
+    if (!vendor) {
+      toast.error('Select a vendor to link.');
+      return;
+    }
+    setIsLinkingVendor(true);
+    try {
+      await submitVendor({
+        planId: financeData?.plan?._id,
+        fiscalYear: selectedFY,
+        department: departmentLabel,
+        monthKey: month.monthKey,
+        expenseId: expense.id,
+        vendorId: vendor.id,
+        name: vendor.name,
+        contactPerson: vendor.contactPerson,
+        phone: vendor.phone,
+        email: vendor.email,
+        address: vendor.address,
+        paymentTerms: vendor.paymentTerms,
+        category: vendor.category,
+        gstin: vendor.gstin,
+        panNumber: vendor.panNumber,
+        bankName: vendor.bankName,
+        accountName: vendor.accountName,
+        accountNumber: vendor.accountNumber,
+        ifscCode: vendor.ifscCode,
+        upiId: vendor.upiId,
+        website: vendor.website,
+        notes: vendor.notes,
+      });
+      toast.success(`${vendor.name} linked to this expense.`);
+      setSelectedVendorToLink('');
+      setViewingExpense(null);
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to link vendor.');
+    } finally {
+      setIsLinkingVendor(false);
     }
   };
 
@@ -1356,6 +1420,35 @@ export function DepartmentFinancePageV2() {
                     <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.invoiceNumber}</p>
                   </div>
                 )}
+                <div>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Vendor</p>
+                  {viewingExpense.expense.vendorName ? (
+                    <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.vendorName}</p>
+                  ) : vendors.length > 0 ? (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <select
+                        value={selectedVendorToLink}
+                        onChange={(e) => setSelectedVendorToLink(e.target.value)}
+                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="">Select a registered vendor…</option>
+                        {vendors.map((vendor) => (
+                          <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!selectedVendorToLink || isLinkingVendor}
+                        onClick={() => handleLinkVendor(viewingExpense.month, viewingExpense.expense)}
+                        className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isLinkingVendor ? 'Linking…' : 'Link Vendor'}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">No vendors registered yet — add one first, then link it here.</p>
+                  )}
+                </div>
               </div>
             </div>
             <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">

@@ -364,6 +364,73 @@ function buildHistoryReportRows(records: any[] = [], filters: Record<string, any
   return rows.slice(0, 200);
 }
 
+function buildTransactionHistoryFeed(
+  tenantBills: TenantBillingRecord[] = [],
+  bookingRecords: BookingRecord[] = [],
+  payrollEmployees: PayrollEmployee[] = [],
+  extraCreditRequests: ExtraCreditRequest[] = [],
+): TransactionEntry[] {
+  const entries: TransactionEntry[] = [];
+
+  tenantBills
+    .filter((bill) => bill.securityDepositPaidStatus === 'Paid')
+    .forEach((bill) => {
+      entries.push({
+        id: `tenant-${bill.recordId || bill.id}`,
+        type: 'Tenant Security Deposit',
+        entity: bill.company || 'Tenant',
+        amount: Number(bill.securityDepositAmount || 0),
+        date: bill.invoiceGeneratedAt || bill.invoiceSentAt || bill.dueDate || '',
+        ref: bill.invoiceNumber || '',
+        details: bill.packageName || bill.package || '',
+      });
+    });
+
+  bookingRecords
+    .filter((booking) => booking.paymentStatus === 'Paid' || booking.paymentStatus === 'Completed')
+    .forEach((booking) => {
+      entries.push({
+        id: `booking-${booking.recordId || booking.id}`,
+        type: 'Meeting Room Booking',
+        entity: booking.clientCompany || booking.bookedByName || 'Guest',
+        amount: Number(booking.totalAmount ?? booking.amount ?? 0),
+        date: booking.date || booking.dateLabel || booking.createdAt || '',
+        ref: booking.invoiceNumber || booking.transactionId || '',
+        details: booking.roomName || booking.resourceName || '',
+      });
+    });
+
+  payrollEmployees
+    .filter((emp) => (emp.payment?.status || emp.financials?.paymentStatus) === 'Paid')
+    .forEach((emp) => {
+      entries.push({
+        id: `payroll-${emp.profileId || emp.employeeId || emp.id}`,
+        type: 'Payroll',
+        entity: emp.name || 'Employee',
+        amount: Number(emp.financials?.netSalary || 0),
+        date: '',
+        ref: emp.financials?.payslipId || emp.payslip?.id || '',
+        details: emp.department || '',
+      });
+    });
+
+  extraCreditRequests
+    .filter((cr) => cr.status === 'COMPLETED')
+    .forEach((cr) => {
+      entries.push({
+        id: `credit-${cr._id || cr.id}`,
+        type: 'Extra Credit',
+        entity: cr.tenantCompanyName || cr.tenantCompanyCode || 'Tenant',
+        amount: Number(cr.totalAmount || 0),
+        date: cr.updatedAt || cr.createdAt || '',
+        ref: cr.invoiceNumber || cr.paymentTransactionId || '',
+        details: cr.requestedCredits ? `${cr.requestedCredits} credits` : '',
+      });
+    });
+
+  return entries.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+}
+
 /* ───────────────────── Main Component ───────────────────── */
 
 export function BillingPaymentsPage() {
@@ -394,7 +461,6 @@ export function BillingPaymentsPage() {
   const [bookingRecords, setBookingRecords] = useState<BookingRecord[]>([]);
   const [payrollData, setPayrollData] = useState<PayrollSnapshotData | null>(null);
   const [extraCreditRequests, setExtraCreditRequests] = useState<ExtraCreditRequest[]>([]);
-  const [transactionHistory, setTransactionHistory] = useState<TransactionEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
 
   const [viewingTenantBill, setViewingTenantBill] = useState<TenantBillingRecord | null>(null);
@@ -531,6 +597,11 @@ export function BillingPaymentsPage() {
       return haystack.includes(searchQuery.toLowerCase());
     });
   }, [extraCreditRequests, statusFilter, searchQuery]);
+
+  const transactionHistory = useMemo(
+    () => buildTransactionHistoryFeed(tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests),
+    [tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests],
+  );
 
   const statCards = useMemo(() => {
     switch (activeTab) {
