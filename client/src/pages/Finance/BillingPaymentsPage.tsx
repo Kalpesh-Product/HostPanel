@@ -810,12 +810,12 @@ export function BillingPaymentsPage() {
           ...prev,
           currentCycle: {
             ...prev.currentCycle,
-            employees: prev.currentCycle.employees.map((e) => e.id === employee.id ? { ...e, payment: { ...e.payment, status: 'Processing' }, financials: { ...e.financials, paymentStatus: 'Processing' } } : e),
+            employees: prev.currentCycle.employees.map((e) => e.id === employee.id ? { ...e, payment: { ...e.payment, status: 'Paid' }, financials: { ...e.financials, paymentStatus: 'Paid' } } : e),
           },
         };
       });
-      if (viewingEmployee?.id === employee.id) setViewingEmployee((prev) => prev ? { ...prev, payment: { ...prev.payment, status: 'Processing' }, financials: { ...prev.financials, paymentStatus: 'Processing' } } : null);
-      toast.success(`Payment processing started for ${employee.name}.`);
+      if (viewingEmployee?.id === employee.id) setViewingEmployee((prev) => prev ? { ...prev, payment: { ...prev.payment, status: 'Paid' }, financials: { ...prev.financials, paymentStatus: 'Paid' } } : null);
+      toast.success(`Payment marked Paid for ${employee.name}.`);
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to process payroll payment.');
