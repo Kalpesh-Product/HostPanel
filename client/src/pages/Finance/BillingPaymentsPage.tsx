@@ -179,6 +179,19 @@ interface TransactionEntry {
   details?: string;
 }
 
+function getFiscalYearStartYear(value: string) {
+  const match = String(value || '').match(/FY\s*(\d{4})-(\d{2,4})/i);
+  return match ? Number(match[1]) : new Date().getFullYear();
+}
+
+function getCycleSortKey(cycle: PayrollCycle) {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const year = Number(cycle.year || String(cycle.cycleKey || '').slice(0, 4)) || 0;
+  const rawMonth = String(cycle.month ?? cycle.monthLabel ?? cycle.displayMonth ?? '');
+  const month = Number.isInteger(Number(rawMonth)) ? Number(rawMonth) : monthNames.findIndex((name) => name.toLowerCase() === rawMonth.toLowerCase()) + 1;
+  return year * 100 + (month > 0 ? month : 0);
+}
+
 /* ───────────────────── Constants / Helpers ───────────────────── */
 
 function getCreditRequestStatusLabel(status = ''): string {
@@ -463,6 +476,17 @@ export function BillingPaymentsPage() {
   const [extraCreditRequests, setExtraCreditRequests] = useState<ExtraCreditRequest[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const selectedPayrollCycle = useMemo(() => {
+    if (!payrollData) return null;
+    const startYear = getFiscalYearStartYear(selectedFY);
+    const cycles = [payrollData.currentCycle, ...(payrollData.history || [])].filter(Boolean) as PayrollCycle[];
+    const matching = cycles.filter((cycle) => {
+      const cycleKey = getCycleSortKey(cycle);
+      return cycleKey >= startYear * 100 + 4 && cycleKey <= (startYear + 1) * 100 + 3;
+    });
+    return matching.sort((a, b) => getCycleSortKey(b) - getCycleSortKey(a))[0] || null;
+  }, [payrollData, selectedFY]);
+
   const [viewingTenantBill, setViewingTenantBill] = useState<TenantBillingRecord | null>(null);
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<PayrollEmployee | null>(null);
@@ -574,8 +598,8 @@ export function BillingPaymentsPage() {
   }, [bookingRecords, statusFilter, searchQuery]);
 
   const payablePayrollEmployees = useMemo(() => {
-    return payrollData?.currentCycle?.employees || [];
-  }, [payrollData]);
+    return selectedPayrollCycle?.employees || [];
+  }, [selectedPayrollCycle]);
 
   const filteredPayrollEmployees = useMemo(() => {
     return payablePayrollEmployees.filter((emp) => {
@@ -871,7 +895,7 @@ export function BillingPaymentsPage() {
         period: `${fiscalYearLabel} Payroll`,
         description: `Payroll report for ${fiscalYearLabel}.`,
         sourceRef: 'finance-payroll',
-        reportRows: buildPayrollReportRows(filteredPayrollEmployees, payrollData?.currentCycle || null, payrollData?.history || [], { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        reportRows: buildPayrollReportRows(filteredPayrollEmployees, selectedPayrollCycle, payrollData?.history || [], { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: filteredPayrollEmployees.length > 0,
       },
       extraCredits: {
