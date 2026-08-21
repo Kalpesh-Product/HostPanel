@@ -406,18 +406,27 @@ export default function AccountingPage(): React.ReactElement {
     const payrollCycles: Array<Record<string, unknown>> = [
       ...((data.payroll?.currentCycle ? [data.payroll.currentCycle] : []) as Array<Record<string, unknown>>),
       ...(Array.isArray(data.payroll?.history) ? data.payroll.history as Array<Record<string, unknown>> : []),
-    ];
+    ].filter((cycle, index, all) => {
+      const cycleKey = String(cycle?.cycleKey || '');
+      const expectedCycleKey = `${selectedYear}-${padMonth(selectedMonth)}`;
+      if (cycleKey === expectedCycleKey) return true;
+      const cycleMonth = Number(cycle?.month);
+      const cycleYear = Number(cycle?.year);
+      return !cycleKey && cycleYear === Number(selectedYear) && cycleMonth === Number(selectedMonth) && all.findIndex((item) => item === cycle) === index;
+    });
 
     payrollCycles.forEach((cycle) => {
       ((cycle?.employees || []) as Array<Record<string, unknown>>).forEach((employee) => {
         if (text(String((employee?.financials as Record<string, unknown>)?.paymentStatus || '')).toLowerCase() !== 'paid') return;
         const amount = Number((employee?.financials as Record<string, unknown>)?.netSalary || 0);
         const paidAt = ((employee?.financials as Record<string, unknown>)?.paidAt || cycle?.paidAt || cycle?.processedOn || cycle?.updatedAt) as string | undefined;
+        const cycleKey = String(cycle?.cycleKey || '');
+        const payrollPeriodDate = /^\d{4}-\d{2}$/.test(cycleKey) ? `${cycleKey}-01` : paidAt;
         if (amount <= 0 || !paidAt) return;
-        if (!withinSelectedFiscalYear(paidAt)) return;
+        if (!withinSelectedFiscalYear(payrollPeriodDate)) return;
         rows.push(ledgerRow({
           id: ((employee?.financials as Record<string, unknown>)?.paymentRecordId as string) || ((employee?.financials as Record<string, unknown>)?.paymentTransactionId as string) || `${cycle?.cycleKey || 'payroll'}-${employee?.profileId || employee?.id || employee?.employeeId || employee?.employeeName || 'employee'}`,
-          date: paidAt,
+          date: payrollPeriodDate,
           type: 'Expense',
           source: 'Payroll Expense',
           entity: (employee?.employeeName || employee?.fullName || employee?.name || 'Employee') as string,
@@ -425,6 +434,7 @@ export default function AccountingPage(): React.ReactElement {
           amount,
           ref: ((employee?.financials as Record<string, unknown>)?.paymentTransactionId as string) || ((employee?.financials as Record<string, unknown>)?.paymentRecordId as string) || (cycle?.cycleKey as string) || '--',
           status: ((employee?.financials as Record<string, unknown>)?.paymentStatus as string) || 'Paid',
+          periodKey: cycleKey,
         }));
       });
     });
