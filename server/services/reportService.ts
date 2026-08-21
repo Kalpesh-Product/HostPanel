@@ -1,6 +1,7 @@
 // @ts-nocheck
 import mongoose from "mongoose";
 import { Report } from "../models/Report.js";
+import EmployeeProfile from "../models/EmployeeProfile.js";
 import { buildReportFileBuffer, safeMakeReportBaseName } from "../utils/reportGenerator.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 
@@ -65,8 +66,8 @@ function contentSizeLabel(buffer) {
   return `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
 }
 
-async function ensureNextReportNumber(ownerId) {
-  const latest = await Report.findOne({ ownerId }).sort({ reportNumber: -1 }).select("reportNumber").lean().exec();
+async function ensureNextReportNumber(workspaceId) {
+  const latest = await Report.findOne({ workspaceId }).sort({ reportNumber: -1 }).select("reportNumber").lean().exec();
   return (latest?.reportNumber || 7000) + 1;
 }
 
@@ -96,7 +97,29 @@ function getAccessibleReportDepartments(req) {
 
 function canViewAllReports(req) {
   const role = normalizeRole(req.workspaceMembership?.role?.name || req.workspaceMembership?.role || req.user?.role);
-  return role === "owner" || role === "super_admin";
+  return role === "owner" || role === "founder" || role === "super_admin";
+}
+
+async function canCreateFinanceReport(req) {
+  const role = normalizeRole(req.workspaceMembership?.role?.name || req.workspaceMembership?.role || req.user?.role);
+  if (["finance", "finance_manager", "finance_manager_role"].includes(role)) return true;
+  if (getAccessibleReportDepartments(req).some((department) => normalizeRole(department) === "finance")) return true;
+
+  const workspaceId = getCurrentWorkspaceId(req);
+  const userId = getCurrentUserId(req);
+  if (!workspaceId || !userId) return false;
+  const profile = await EmployeeProfile.findOne({ workspaceId, linkedUserId: userId })
+    .populate("departments", "name")
+    .select("departments")
+    .lean();
+  return Array.isArray(profile?.departments) && profile.departments.some((department: any) => normalizeRole(department?.name) === "finance");
+}
+
+function isFinanceReportUser(req) {
+  const role = normalizeRole(req.workspaceMembership?.role?.name || req.workspaceMembership?.role || req.user?.role);
+  if (["finance", "finance_manager", "finance_manager_role"].includes(role)) return true;
+  const department = req.workspaceMembership?.department || req.user?.department;
+  return normalizeRole(department?.name || department) === "finance";
 }
 
 function buildReportVisibilityFilter(req, userId) {
@@ -112,6 +135,7 @@ function buildReportVisibilityFilter(req, userId) {
   if (employeeId) visibility.push({ generatedByEmployeeId: employeeId });
   if (generatedBy) visibility.push({ generatedBy });
   if (departments.length > 0) visibility.push({ department: { $in: departments } });
+  if (isFinanceReportUser(req)) visibility.push({ department: "Finance" });
 
   return { $or: visibility };
 }
@@ -206,7 +230,7 @@ export async function createReportForCurrentUser(req, body = {}) {
 
   if (!canViewAllReports(req)) {
     const departments = getAccessibleReportDepartments(req);
-    if (department !== "General" && !departments.includes(department)) {
+    if (department !== "General" && !(department === "Finance" && await canCreateFinanceReport(req)) && !departments.includes(department)) {
       throw Object.assign(new Error("You do not have permission to create reports for this department."), { statusCode: 403 });
     }
   }
@@ -214,7 +238,7 @@ export async function createReportForCurrentUser(req, body = {}) {
   const generatedAt = new Date();
   const reportMonth = normalizeText(body.reportMonth || "", "");
 
-  const reportNumber = await ensureNextReportNumber(userId);
+  const reportNumber = await ensureNextReportNumber(workspaceId);
   const reportCode = body.reportCode || `RPT-${reportNumber}`;
 
   const draftReport = {

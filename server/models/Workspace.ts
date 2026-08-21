@@ -91,6 +91,7 @@ const workspaceSchema = new mongoose.Schema(
       dateFormat: { type: String, default: "DD MMM YYYY" },
       timeFormat: { type: String, enum: ["12h", "24h"], default: "12h" },
       weekStartsOn: { type: String, enum: ["monday", "sunday"], default: "monday" },
+      fiscalYearStartMonth: { type: Number, min: 1, max: 12, default: 4 },
       businessHours: {
         start: { type: String, default: "09:00" },
         end: { type: String, default: "22:00" },
