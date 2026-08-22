@@ -614,7 +614,7 @@ export function InventoryPage() {
           )}
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="inventory-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
               { label: 'Total SKU Types', value: stats.totalSku, icon: Package, iconBg: 'bg-slate-50 text-slate-600', border: '' },
               { label: 'Available Units', value: stats.availableUnits, icon: ShieldCheck, iconBg: 'bg-blue-50 text-blue-600', border: 'border-l-4 border-l-blue-500' },
@@ -639,7 +639,7 @@ export function InventoryPage() {
 
             {/* Toolbar */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <div data-tour="inventory-type-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {['All', 'Consumable', 'Returnable Asset'].map((t) => (
                   <button
                     key={t}
@@ -672,6 +672,7 @@ export function InventoryPage() {
                 <div className="relative">
                   <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
+                    data-tour="inventory-department-filter"
                     className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-xl text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
                     value={departmentFilter}
                     onChange={(e) => setDepartmentFilter(e.target.value)}
@@ -686,6 +687,7 @@ export function InventoryPage() {
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
+                    data-tour="inventory-search"
                     type="text"
                     placeholder="Search item name or code..."
                     className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-xl text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
@@ -695,6 +697,7 @@ export function InventoryPage() {
                 </div>
                 {canManageInventory && (
                   <button
+                    data-tour="inventory-add-btn"
                     onClick={() => {
                       setAddStockData({ name: '', category: 'Physical', trackingType: 'Consumable', department: defaultDepartment, quantity: '', floor: '', wing: '' });
                       setFloorMode('select');
@@ -711,7 +714,7 @@ export function InventoryPage() {
 
             {/* Desktop Table */}
             <div className="overflow-x-auto flex-1">
-              <table className="hidden lg:table w-full text-left">
+              <table data-tour="inventory-table" className="hidden lg:table w-full text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4 cursor-pointer select-none hover:text-slate-700 transition-colors" onClick={() => handleSort('name')}>
@@ -842,7 +845,7 @@ export function InventoryPage() {
               </table>
 
               {/* Mobile Cards */}
-              <div className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
+              <div data-tour="inventory-table" className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
                 {processedInventory.map((item) => {
                   const isLowStock = (item.availableQuantity || 0) <= LOW_STOCK_THRESHOLD && (item.availableQuantity || 0) > 0;
                   const isOut = (item.availableQuantity || 0) === 0;

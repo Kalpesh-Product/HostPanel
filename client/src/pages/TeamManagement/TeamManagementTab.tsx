@@ -215,7 +215,7 @@ const TeamManagementTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 shrink-0">
+      <div data-tour="team-mgmt-summary" className="grid grid-cols-2 md:grid-cols-3 gap-3 shrink-0">
         {statCards.map((card) => {
           const CardIcon = card.icon;
           return (
@@ -257,6 +257,7 @@ const TeamManagementTab = () => {
             <div className="relative min-w-[180px] flex-1 xl:w-72">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input
+                data-tour="team-mgmt-search"
                 type="text"
                 placeholder="Search name, email or employee ID..."
                 value={searchQuery}
@@ -268,7 +269,7 @@ const TeamManagementTab = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left">
+          <table data-tour="team-mgmt-table" className="w-full min-w-[860px] text-left">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4">Employee ID</th>

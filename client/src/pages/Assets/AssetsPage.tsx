@@ -801,7 +801,7 @@ function AssetsSkeleton() {
 
             </div>
 
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="assets-module-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               <button type="button" className="flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all bg-[#2563EB] text-white shadow-sm">Assets</button>
               <button type="button" onClick={() => setActiveModule('requests')} className="flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900">Asset Requests</button>
             </div>
@@ -810,7 +810,7 @@ function AssetsSkeleton() {
             ) : null}
 
             {/* 2. STAT CARDS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            <div data-tour="assets-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {[
                 { key: 'total', label: 'Total Units', value: statsBase.reduce((sum, asset) => sum + asset.quantity, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: Box, iconClass: 'bg-slate-50 text-slate-600' },
                 { key: 'active', label: 'Allocated Units', value: statsBase.reduce((sum, asset) => sum + asset.allocatedQuantity, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: ShieldCheck, iconClass: 'bg-emerald-50 text-emerald-600' },
@@ -839,7 +839,7 @@ function AssetsSkeleton() {
               {/* Toolbar: status pills + search + filter + action */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="assets-status-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {['All', 'Active', 'Maintenance', 'Decommissioned'].map((status) => (
                     <button
                       key={status}
@@ -858,6 +858,7 @@ function AssetsSkeleton() {
                   <div className="relative">
                     <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
+                      data-tour="assets-department-filter"
                       className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[170px]"
                       value={selectedDeptFilter} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedDeptFilter(e.target.value)}
                     >
@@ -869,6 +870,7 @@ function AssetsSkeleton() {
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
+                      data-tour="assets-search"
                       type="text" placeholder="Search assets..."
                       className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
@@ -876,6 +878,7 @@ function AssetsSkeleton() {
                   </div>
                   {canAddAssets && (
                     <button
+                      data-tour="assets-add-btn"
                       onClick={openAddAsset}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
@@ -889,7 +892,7 @@ function AssetsSkeleton() {
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
 
                 {/* Desktop Table */}
-                <table className="hidden lg:table w-full text-left">
+                <table data-tour="assets-table" className="hidden lg:table w-full text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Asset Identity</th>
@@ -972,7 +975,7 @@ function AssetsSkeleton() {
                 </table>
 
                 {/* Mobile Cards */}
-                <div className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
+                <div data-tour="assets-table" className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
                   {displayedAssets.map((asset) => (
                     <div key={asset.id || asset.recordId} className={`bg-white border p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${asset.status === 'Maintenance' ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
                       <div className="flex justify-between items-start gap-3">

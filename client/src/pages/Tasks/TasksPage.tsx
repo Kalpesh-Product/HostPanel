@@ -1797,7 +1797,7 @@ export function TasksPage() {
             ) : null}
 
             {/* 2. MAIN TABS (Pill-Style Navigation) */}
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="tasks-page-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {isOwnerProfile ? (
                 <>
                   <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -1855,7 +1855,7 @@ export function TasksPage() {
             </div>
 
             {/* 3. STAT CARDS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            <div data-tour="tasks-page-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {[
                 { key: 'total', label: 'Total Tasks', value: statsBase.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: AlertCircle, iconClass: 'bg-slate-50 text-slate-600' },
                 { key: 'pending', label: 'Pending', value: statsBase.filter(t => t.status === 'Pending').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: AlertTriangle, iconClass: 'bg-amber-50 text-amber-600' },
@@ -1881,7 +1881,7 @@ export function TasksPage() {
               {/* Toolbar: status pills + search + filter + action */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="tasks-page-status-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {['All', 'Pending', 'In Progress', 'Completed', 'Approved'].map((status) => (
                     <button
                       key={status}
@@ -1900,6 +1900,7 @@ export function TasksPage() {
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
+                      data-tour="tasks-page-search"
                       type="text" placeholder="Search Tasks or People..."
                       className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -1908,6 +1909,7 @@ export function TasksPage() {
                   <div className="relative">
                     <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
+                      data-tour="tasks-page-department-filter"
                       className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                       value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
                     >
@@ -1916,6 +1918,7 @@ export function TasksPage() {
                     </select>
                   </div>
                   <button
+                    data-tour="tasks-page-assign-btn"
                     onClick={() => setIsAssignModalOpen(true)}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
@@ -1927,7 +1930,7 @@ export function TasksPage() {
               {/* Table (Desktop) / Cards (Mobile) */}
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
                 {/* --- DESKTOP TABLE VIEW --- */}
-                <table className="hidden lg:table w-full text-left">
+                <table data-tour="tasks-page-table" className="hidden lg:table w-full text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Task Details</th>
@@ -2004,7 +2007,7 @@ export function TasksPage() {
                 </table>
 
                 {/* --- MOBILE CARD VIEW --- */}
-                <div className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
+                <div data-tour="tasks-page-table" className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
                   {displayedTasks.map((task) => {
                     const isTaskOverdue = isOverdue(task.dueDate!, task.status);
                     return (

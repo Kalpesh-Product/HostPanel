@@ -1098,7 +1098,7 @@ export default function HRAttendanceReviewPage() {
             </div>
           </div>
 
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-attendance-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {MAIN_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -1115,7 +1115,7 @@ export default function HRAttendanceReviewPage() {
           </div>
 
           {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="hr-attendance-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {statCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -1143,7 +1143,7 @@ export default function HRAttendanceReviewPage() {
                 opens as a popup so it never pushes the layout. */}
             <div className="overflow-x-auto p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50">
               <div className="flex min-w-max flex-nowrap items-center justify-between gap-3">
-                <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
+                <div data-tour="hr-attendance-status-filters" className="flex shrink-0 flex-nowrap items-center gap-1.5">
                   {(activeTab === "attendance-master" ? ATTENDANCE_FILTER_PILLS : CORRECTION_FILTER_PILLS).map((pill) => (
                     <button
                       key={pill.key}
@@ -1159,7 +1159,7 @@ export default function HRAttendanceReviewPage() {
                   ))}
                 </div>
 
-                <div className="flex shrink-0 flex-nowrap items-center gap-3">
+                <div data-tour="hr-attendance-date-filter" className="flex shrink-0 flex-nowrap items-center gap-3">
                   <div className="relative">
                     <div className="flex items-center gap-1.5">
                       {DATE_FILTER_OPTIONS.map((opt) => (
@@ -1230,6 +1230,7 @@ export default function HRAttendanceReviewPage() {
                   <div className="relative w-64 shrink-0">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
+                      data-tour="hr-attendance-search"
                       type="text"
                       placeholder={activeTab === "attendance-master" ? "Search employees..." : "Search requests..."}
                       value={searchQuery}
@@ -1247,6 +1248,7 @@ export default function HRAttendanceReviewPage() {
 
                   {activeTab === "attendance-master" && (
                     <button
+                      data-tour="hr-attendance-settings-btn"
                       type="button"
                       onClick={() => setShowGeofenceModal(true)}
                       className="inline-flex items-center gap-2 rounded-2xl bg-[#2563EB] px-5 py-2.5 text-xs font-pmedium uppercase text-white shadow-sm transition-colors hover:bg-blue-700"
@@ -1262,7 +1264,7 @@ export default function HRAttendanceReviewPage() {
             {/* Table */}
             <div className="overflow-x-auto overscroll-x-contain pb-2">
               {activeTab === "attendance-master" ? (
-                <table className="w-full min-w-[1610px] table-auto">
+                <table data-tour="hr-attendance-table" className="w-full min-w-[1610px] table-auto">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="min-w-[120px] px-6 py-4 text-left">Emp ID</th>
@@ -1338,7 +1340,7 @@ export default function HRAttendanceReviewPage() {
                   </tbody>
                 </table>
               ) : (
-                <table className="w-full">
+                <table data-tour="hr-attendance-table" className="w-full">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       {/* <th className="px-5 py-4 text-left">Emp ID</th> */}

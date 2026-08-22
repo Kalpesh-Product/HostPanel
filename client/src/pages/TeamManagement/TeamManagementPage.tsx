@@ -84,7 +84,7 @@ const TeamManagementPage = () => {
             </div>
           </div>
 
-          <div className="mb-1 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
+          <div data-tour="team-mgmt-tabs" className="mb-1 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
             {visibleTabs.map((tab) => (
               <button
                 key={tab.key}

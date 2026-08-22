@@ -1439,7 +1439,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
           )}
 
           {/* ── Main Pill Tabs ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-recruit-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               onClick={() => { setActiveTab("jobs"); setSearchQuery(""); setStatusFilter("all"); }}
               className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
@@ -1463,7 +1463,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
           </div>
 
           {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="hr-recruit-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {statCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -1486,7 +1486,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
             {/* Data panel header row */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {/* LEFT: status sub-tab pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <div data-tour="hr-recruit-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {(activeTab === "jobs"
                   ? [
                     { key: "all", label: "All" },
@@ -1521,6 +1521,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
+                    data-tour="hr-recruit-search"
                     type="text"
                     placeholder={activeTab === "jobs" ? "Search by title, department..." : "Search by name, position..."}
                     value={searchQuery}
@@ -1531,6 +1532,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                 {activeTab === "candidates" ? (
                   mode !== "careers" && (
                     <button
+                      data-tour="hr-recruit-add-btn"
                       onClick={() => setIsCandidateModalOpen(true)}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
@@ -1539,6 +1541,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                   )
                 ) : (
                   <button
+                    data-tour="hr-recruit-add-btn"
                     onClick={openCreateJobModal}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
@@ -1558,7 +1561,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
             {/* Candidates table */}
             {activeTab === "candidates" && (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full border-collapse">
+                <table data-tour="hr-recruit-table" className="w-full border-collapse">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Candidate Info</th>
@@ -1654,7 +1657,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
             {/* Jobs table */}
             {activeTab === "jobs" && (
               <div className="overflow-x-auto flex-1">
-                <table className="w-full border-collapse">
+                <table data-tour="hr-recruit-table" className="w-full border-collapse">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Job Title & ID</th>

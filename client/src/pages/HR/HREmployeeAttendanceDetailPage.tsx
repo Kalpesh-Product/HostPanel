@@ -498,6 +498,7 @@ export default function HREmployeeAttendanceDetailPage() {
             <div className="relative">
               <Calendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-600" size={13} />
               <select
+                data-tour="hr-att-detail-month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="appearance-none rounded-full border border-blue-100 bg-blue-50/50 py-1.5 pl-9 pr-8 text-[10px] font-pmedium uppercase tracking-[0.24em] text-blue-700 outline-none cursor-pointer hover:bg-blue-50"
@@ -545,7 +546,7 @@ export default function HREmployeeAttendanceDetailPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-4">
+            <div data-tour="hr-att-detail-summary" className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-4">
               {profileSummaryCards.map((card) => (
                 <StatCard key={card.label} label={card.label} value={card.value} icon={card.icon} color={card.color} />
               ))}
@@ -704,7 +705,7 @@ export default function HREmployeeAttendanceDetailPage() {
                     ) : (
                       <div className="overflow-hidden rounded-[1.5rem] border border-slate-100">
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left">
+                          <table data-tour="hr-att-detail-table" className="w-full text-left">
                             <thead className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50/90 text-[10px] font-pmedium uppercase tracking-wider text-slate-500">
                               <tr>
                                 <th className="px-5 py-4">Date</th>

@@ -560,6 +560,7 @@ export function DepartmentInventoryPage() {
               )}
               {roleBand !== 'employee' && (
                 <button
+                  data-tour="dept-inventory-add-btn"
                   onClick={() => {
                     setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', floor: '', wing: '' });
                     setFloorMode('select');
@@ -589,7 +590,7 @@ export function DepartmentInventoryPage() {
           )}
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="dept-inventory-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
               { label: 'Tracked Items', value: totalItems, icon: Box, iconBg: 'bg-blue-50 text-blue-600', border: '' },
               { label: 'Available Stock', value: availableStock, icon: ShieldCheck, iconBg: 'bg-emerald-50 text-emerald-600', border: 'border-l-4 border-l-emerald-500' },
@@ -618,6 +619,7 @@ export function DepartmentInventoryPage() {
               <div className="relative w-full md:w-72 shrink-0">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                 <input
+                  data-tour="dept-inventory-search"
                   type="text"
                   placeholder="Search items..."
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
@@ -629,7 +631,7 @@ export function DepartmentInventoryPage() {
 
             {/* Desktop Table */}
             <div className="overflow-x-auto flex-1">
-              <table className="hidden lg:table w-full text-left">
+              <table data-tour="dept-inventory-table" className="hidden lg:table w-full text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4 cursor-pointer select-none hover:text-slate-700 transition-colors" onClick={() => handleSort('name')}>
@@ -774,7 +776,7 @@ export function DepartmentInventoryPage() {
               </table>
 
               {/* Mobile Cards */}
-              <div className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
+              <div data-tour="dept-inventory-table" className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
                 {processedInventory.map((item) => {
                   const style = getCategoryStyle(item.category);
                   const isLowStock = (item.availableQuantity || 0) <= LOW_STOCK_THRESHOLD && (item.availableQuantity || 0) > 0;

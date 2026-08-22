@@ -1727,7 +1727,7 @@ export default function BookingsPage() {
             </div>
 
             {/* ── Scope Tabs (pill tabs) ────────────────────────────── */}
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="admin-bookings-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {scopeTabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -1745,7 +1745,7 @@ export default function BookingsPage() {
             </div>
 
             {/* ── Stat Cards ────────────────────────────────────────── */}
-            <div className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+            <div data-tour="admin-bookings-summary" className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
               {stats.map((stat, idx) => {
                 const Icon = stat.icon;
                 const borderColors = ['', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500', 'border-l-4 border-l-amber-500'];
@@ -1817,7 +1817,7 @@ export default function BookingsPage() {
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
                 <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                   {/* ── Sub-tabs: Status ── */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  <div data-tour="admin-bookings-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     {(activeScope === 'tenant' ? tenantStatusOptions : bookingStatusOptions).map((status) => (
                       <button
                         key={status}
@@ -1860,6 +1860,7 @@ export default function BookingsPage() {
                   <div className="relative min-w-[200px]">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
+                      data-tour="admin-bookings-search"
                       type="text"
                       placeholder={activeScope === 'tenant' ? 'Search company, resource, date...' : 'Search bookings...'}
                       className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
@@ -1871,7 +1872,7 @@ export default function BookingsPage() {
               </div>
 
               {/* ── Bookings Table ──────────────────────────────────── */}
-              <table className="w-full table-auto text-left">
+              <table data-tour="admin-bookings-table" className="w-full table-auto text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-3 py-4 whitespace-nowrap">Resource</th>

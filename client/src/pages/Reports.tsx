@@ -396,7 +396,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+      <div data-tour="reports-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
         {statCards.map((card) => (
           <div key={card.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass || ''}`}>
             <div className="min-w-0">
@@ -410,7 +410,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
 
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
         <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
-          <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full xl:w-auto">
+          <div data-tour="reports-filters" className="flex flex-col sm:flex-row flex-wrap gap-2 w-full xl:w-auto">
             <div className="relative w-full sm:w-auto">
               <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full sm:w-auto pl-3.5 pr-8 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-[#0F172A] outline-none appearance-none cursor-pointer transition-all shadow-sm focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
@@ -457,13 +457,13 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
           </div>
           <div className="relative w-full sm:w-[220px] shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-            <input type="text" placeholder="Search reports..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            <input data-tour="reports-search" type="text" placeholder="Search reports..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20" />
           </div>
         </div>
 
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full min-w-[1120px] text-left font-pmedium">
+          <table data-tour="reports-table" className="w-full min-w-[1120px] text-left font-pmedium">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4">Report Title</th>
@@ -535,7 +535,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
           </table>
         </div>
 
-        <div className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
+        <div data-tour="reports-table" className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
           {filteredReports.map((report) => {
             const catStyle = getCategoryStyle(report.category);
             return (

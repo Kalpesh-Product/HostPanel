@@ -4,8 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
+  ArrowUpRight,
   BarChart3,
   Building2,
+  ChevronDown,
+  ChevronUp,
   Database,
   ListTodo,
   RefreshCw,
@@ -13,13 +16,11 @@ import {
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
 import WidgetSection from "../../components/WidgetSection";
-import BarGraph from "../../components/graphs/BarGraph";
-import DonutChart from "../../components/graphs/DonutChart";
+import { ChartCard, BarDiagram, DistributionDonut } from "./charts";
+import type { ChartRow } from "./charts";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getAnalyticsOverview } from "../../services/analytics";
 import type { AnalyticsBreakdownSegment, AnalyticsModuleEntry } from "../../services/analytics";
-
-const CHART_COLORS = ["#1E3D73", "#80bf01", "#2563EB", "#f59e0b", "#7c3aed", "#0891b2", "#e11d48", "#059669"];
 
 const formatNumber = (value: number | null | undefined) =>
   value === null || value === undefined ? "--" : Number(value).toLocaleString("en-IN");
@@ -188,73 +189,57 @@ const STAT_CARDS = [
   { key: "open", label: "Open Items", color: "#f59e0b", borderClass: "border-l-4 border-l-amber-500" },
 ] as const;
 
-const ChartTile = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) => (
-  <div className="rounded-2xl border border-slate-100 bg-slate-50/40 p-3 flex flex-col min-w-0">
-    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">{title}</p>
-    <div className="flex-1 min-w-0">{children}</div>
-  </div>
-);
+const ANALYTICS_ID_ALIASES: Record<string, string[]> = {
+  "visitor-management": ["visitors-management"],
+  "visitors-management": ["visitor-management"],
+  "tenant-companies-admin": ["tenant-companies-sales"],
+  "tech-website-builder": ["website-builder"],
+};
+
+const ROUTE_FALLBACKS: Record<string, string> = {
+  attendance: "/extra-common-modules/attendance",
+  tasks: "/extra-common-modules/tasks",
+  "leave-requests": "/calendar",
+  inventory: "/extra-common-modules/inventory",
+  "finance-management": "/extra-common-modules/finance-management",
+  reports: "/dashboard/reports",
+  "employee-management": "/hr/employee-management",
+  "hr-documents": "/hr/documents",
+  recruitment: "/hr/recruitment",
+  "leave-request-processing": "/hr/leave-request-processing",
+  "attendance-review": "/hr/attendance-review",
+  "payroll-management": "/hr/payroll-management",
+  "exit-management": "/hr/resignation-management",
+  "tenant-companies-admin": "/administration/tenant-companies",
+  bookings: "/administration/bookings",
+  "resource-management": "/administration/resource-management",
+  "house-keeping": "/administration/housekeeping",
+  "finance-budget": "/finance/budget",
+  "billing-payments": "/finance/billing-payments",
+  accounting: "/finance/accounting",
+  "maintenance-repair-logs": "/maintenance/repair-logs",
+  "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
+  "it-repair-logs": "/it/repair-logs",
+};
+
+const resolveAnalyticsEntry = (
+  id: string,
+  analyticsById: Map<string, AnalyticsModuleEntry>,
+) => {
+  const candidates = [id, ...(ANALYTICS_ID_ALIASES[id] || [])];
+  return candidates.map((candidate) => analyticsById.get(candidate)).find(Boolean) || null;
+};
 
 const MAX_DONUT_SEGMENTS = 5;
 
-const BreakdownDonut = ({
-  segments,
-  centerLabel,
-}: {
-  segments: AnalyticsBreakdownSegment[];
-  centerLabel: string;
-}) => {
+// Caps a breakdown to the top N segments + an "Others" bucket, same rule the
+// old BreakdownDonut applied, before handing off to the shared DistributionDonut.
+const capSegments = (segments: AnalyticsBreakdownSegment[]) => {
   const sorted = [...segments].sort((a, b) => b.value - a.value);
   const top = sorted.slice(0, MAX_DONUT_SEGMENTS);
   const restValue = sorted.slice(MAX_DONUT_SEGMENTS).reduce((sum, segment) => sum + segment.value, 0);
-  const display = restValue > 0 ? [...top, { label: "Others", value: restValue }] : top;
-  return (
-    <DonutChart
-      centerLabel={centerLabel}
-      labels={display.map((segment) => segment.label)}
-      colors={display.map((_, index) => CHART_COLORS[index % CHART_COLORS.length])}
-      series={display.map((segment) => segment.value)}
-      tooltipValue={display.map((segment) => formatNumber(segment.value))}
-      wrapLabels
-    />
-  );
+  return restValue > 0 ? [...top, { label: "Others", value: restValue }] : top;
 };
-
-const CountBars = ({
-  chartId,
-  points,
-  color = "#1E3D73",
-  height = 280,
-}: {
-  chartId: string;
-  points: { label: string; count: number }[];
-  color?: string;
-  height?: number;
-}) => (
-  <BarGraph
-    chartId={chartId}
-    data={[{ name: "Count", data: points.map((point) => point.count) }]}
-    options={{
-      chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-      colors: [color],
-      xaxis: {
-        categories: points.map((point) => point.label),
-        labels: { rotate: points.length > 10 ? -50 : 0, style: { fontSize: "10px" } },
-      },
-      plotOptions: { bar: { borderRadius: 4, columnWidth: "60%" } },
-      dataLabels: { enabled: false },
-      grid: { borderColor: "#ececec" },
-      tooltip: { theme: "light" },
-    }}
-    height={height}
-  />
-);
 
 const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
   const navigate = useNavigate();
@@ -268,14 +253,23 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
   const hasMonthly = monthly.some((point) => (point?.count ?? 0) > 0);
   const titles = BREAKDOWN_TITLES[entry.id] ?? ["Distribution", "Breakdown"];
   const description = MODULE_DESCRIPTIONS[entry.id];
-
-  const tiles: { key: string; title: string; donut?: AnalyticsBreakdownSegment[]; bars?: { label: string; count: number }[]; color?: string }[] = [];
-  if (breakdown.length > 0) tiles.push({ key: "primary", title: titles[0] || "Distribution", donut: breakdown });
-  if (secondary.length > 0) tiles.push({ key: "secondary", title: titles[1] || "Breakdown", donut: secondary });
-  if (deptSplit.length > 0) tiles.push({ key: "dept", title: "Dept-wise", donut: deptSplit });
-  if (hasMonthly) tiles.push({ key: "monthly", title: "Monthly Trend", bars: monthly.map((point) => ({ label: point.label, count: point.count })), color: "#80bf01" });
+  const completionValue =
+    stats?.completionRate === null || stats?.completionRate === undefined
+      ? `${entry.activityScore}/100`
+      : `${stats.completionRate}%`;
+  const moduleSummaryCards = [
+    { label: "Total Records", value: formatNumber(stats?.totalRecords), icon: Database, color: "#2563EB", borderClass: "border-l-blue-500" },
+    { label: "Last 30 Days", value: formatNumber(stats?.activeLast30Days), icon: Activity, color: "#80bf01", borderClass: "border-l-[#80bf01]" },
+    { label: "Open Items", value: formatNumber(stats?.openItems), icon: ListTodo, color: "#f59e0b", borderClass: "border-l-amber-500" },
+    { label: stats?.completionRate === null || stats?.completionRate === undefined ? "Activity Score" : "Completion", value: completionValue, icon: BarChart3, color: "#7c3aed", borderClass: "border-l-violet-500" },
+  ];
+  const tiles: { key: string; title: string; donut?: ChartRow[]; bars?: ChartRow[] }[] = [];
+  if (breakdown.length > 0) tiles.push({ key: "primary", title: titles[0] || "Distribution", donut: capSegments(breakdown) });
+  if (secondary.length > 0) tiles.push({ key: "secondary", title: titles[1] || "Breakdown", donut: capSegments(secondary) });
+  if (deptSplit.length > 0) tiles.push({ key: "dept", title: "Dept-wise", donut: capSegments(deptSplit) });
+  if (hasMonthly) tiles.push({ key: "monthly", title: "Monthly Trend", bars: monthly.map((point) => ({ label: point.label, value: point.count })) });
   if ((insights?.byDay ?? []).some((point) => point.count > 0))
-    tiles.push({ key: "peakDay", title: "Peak Days (last 90d)", bars: insights!.byDay, color: "#2563EB" });
+    tiles.push({ key: "peakDay", title: "Peak Days (last 90d)", bars: insights!.byDay.map((point) => ({ label: point.label, value: point.count })) });
 
   return (
     <div className="border-default rounded-xl overflow-hidden bg-white">
@@ -309,11 +303,31 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
           <button
             type="button"
             onClick={() => navigate(entry.route)}
-            className="inline-flex items-center gap-1 bg-primary/5 text-primary px-3 py-1.5 rounded-xl font-pmedium text-[10px] uppercase tracking-widest hover:bg-primary hover:text-white active:scale-95 transition-all whitespace-nowrap"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[10px] font-pmedium uppercase tracking-widest shadow-sm shadow-blue-200 transition-all hover:opacity-90 shrink-0"
           >
-            Open
+            Open Page <ArrowUpRight size={13} />
           </button>
         ) : null}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 pb-1">
+        {moduleSummaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className={`bg-white p-5 rounded-[2rem] border border-slate-100 border-l-4 ${card.borderClass} shadow-sm flex justify-between items-center transition-all hover:shadow-md`}
+            >
+              <div className="min-w-0">
+                <p className="text-[9px] font-pmedium uppercase tracking-widest mb-1 text-slate-400">{card.label}</p>
+                <p className="text-[14px] font-pmedium text-slate-900">{card.value}</p>
+              </div>
+              <div className="p-2 rounded-2xl shrink-0" style={{ backgroundColor: `${card.color}18` }}>
+                <Icon size={16} style={{ color: card.color }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {kpis.length > 0 ? (
@@ -332,20 +346,13 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
 
       {tiles.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-3">
-          {tiles.map((tile) => (
-            <ChartTile key={`${entry.id}-${tile.key}`} title={tile.title}>
-              {tile.donut ? (
-                <BreakdownDonut segments={tile.donut} centerLabel="Records" />
-              ) : (
-                <CountBars
-                  chartId={`analytics-${entry.id}-${tile.key}`}
-                  points={tile.bars ?? []}
-                  color={tile.color}
-                  height={300}
-                />
-              )}
-            </ChartTile>
-          ))}
+          {tiles.map((tile) =>
+            tile.donut ? (
+              <DistributionDonut key={`${entry.id}-${tile.key}`} data={tile.donut} title={tile.title} />
+            ) : (
+              <BarDiagram key={`${entry.id}-${tile.key}`} bars={tile.bars ?? []} title={tile.title} />
+            ),
+          )}
         </div>
       ) : (
         <div className="h-40 flex items-center justify-center text-gray-400 text-content">No activity recorded yet</div>
@@ -357,7 +364,8 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
 const AnalyticsPage = () => {
   const navigate = useNavigate();
   const [unitId, setUnitId] = useState("");
-  const { roleBand, plan, isLoading: isAccessLoading } = useDashboardAccess();
+  const access = useDashboardAccess();
+  const { roleBand, plan, isLoading: isAccessLoading, enabledModuleIds, moduleMap } = access;
 
   const isAllowed = roleBand === "owner" || roleBand === "super_admin";
 
@@ -370,6 +378,106 @@ const AnalyticsPage = () => {
 
   const modules = useMemo(() => (Array.isArray(data?.modules) ? data.modules : []), [data]);
   const trend = useMemo(() => (Array.isArray(data?.trend) ? data.trend : []), [data]);
+  const moduleGroups = useMemo(() => {
+    const analyticsById = new Map(modules.map((entry) => [entry.id, entry]));
+    const sections = Array.isArray(moduleMap?.sections) ? moduleMap.sections : [];
+    const enabledIds = enabledModuleIds instanceof Set ? enabledModuleIds : new Set<string>();
+    const sectionOrder = ["common-modules", "extra-common-modules", "key-apps", "founder-core-modules", "department-accesses"];
+    const sectionById = new Map(sections.map((section: any) => [String(section?.sectionId || ""), section]));
+
+    const makeEntry = (raw: any, sectionLabel: string): AnalyticsModuleEntry | null => {
+      const id = String(raw?.id || "").trim();
+      if (!id || !enabledIds.has(id)) return null;
+      const existing = resolveAnalyticsEntry(id, analyticsById);
+      if (existing) {
+        return {
+          ...existing,
+          label: String(raw?.label || existing.label || id),
+          route: raw?.route || existing.route || ROUTE_FALLBACKS[id] || "",
+          sectionLabel,
+        };
+      }
+      return {
+        id,
+        label: String(raw?.label || id),
+        sectionLabel,
+        route: raw?.route || ROUTE_FALLBACKS[id] || "",
+        trackable: false,
+        enabled: true,
+        activityScore: 0,
+        stats: null,
+      };
+    };
+
+    const buildFlatGroup = (sectionId: string, title: string, excludeIds: Set<string>) => {
+      const section: any = sectionById.get(sectionId);
+      const entries = (Array.isArray(section?.items) ? section.items : [])
+        .filter((item: any) => !excludeIds.has(String(item?.id || "")))
+        .map((item: any) => makeEntry(item, title))
+        .filter(Boolean) as AnalyticsModuleEntry[];
+      return entries.length ? { key: sectionId, title, modules: entries } : null;
+    };
+
+    const groups = [
+      buildFlatGroup("common-modules", "Common Modules", new Set(["dashboard", "calendar"])),
+      buildFlatGroup("extra-common-modules", "Extra Common Modules", new Set()),
+      buildFlatGroup("key-apps", "Key Apps", new Set()),
+      buildFlatGroup("founder-core-modules", "Core Modules", new Set(["analytics"])),
+    ].filter(Boolean) as { key: string; title: string; modules: AnalyticsModuleEntry[] }[];
+
+    const departmentSection: any = sectionById.get("department-accesses");
+    (Array.isArray(departmentSection?.items) ? departmentSection.items : []).forEach((department: any) => {
+      const tabs = Array.isArray(department?.tabs) ? department.tabs : [];
+      const entries = tabs
+        .map((tab: any) => makeEntry(tab, String(department?.label || "Department")))
+        .filter(Boolean) as AnalyticsModuleEntry[];
+      if (entries.length) {
+        groups.push({
+          key: String(department?.id || String(department?.label || "department").toLowerCase().replace(/[^a-z0-9]+/g, "-")),
+          title: String(department?.label || "Department"),
+          modules: entries,
+        });
+      }
+    });
+
+    return groups.sort((a, b) => {
+      const aIndex = sectionOrder.indexOf(a.key);
+      const bIndex = sectionOrder.indexOf(b.key);
+      if (aIndex !== -1 || bIndex !== -1) {
+        return (aIndex === -1 ? sectionOrder.length : aIndex) - (bIndex === -1 ? sectionOrder.length : bIndex);
+      }
+      return 0;
+    });
+  }, [enabledModuleIds, moduleMap?.sections, modules]);
+  const [expandedModuleSections, setExpandedModuleSections] = useState<Set<string>>(() => new Set());
+  const [activeModuleTabs, setActiveModuleTabs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!moduleGroups.length) return;
+    setExpandedModuleSections((current) =>
+      current.size ? current : new Set([moduleGroups[0].key]),
+    );
+    setActiveModuleTabs((current) => {
+      let changed = false;
+      const next = { ...current };
+      moduleGroups.forEach((group) => {
+        if (!next[group.key] && group.modules[0]) {
+          next[group.key] = group.modules[0].id;
+          changed = true;
+        }
+      });
+      return changed ? next : current;
+    });
+  }, [moduleGroups]);
+
+  const toggleModuleSection = (key: string) => {
+    setExpandedModuleSections((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const activityBars = useMemo(() => {
     const sorted = [...modules]
@@ -394,31 +502,6 @@ const AnalyticsPage = () => {
       avg: counts.length ? Math.round(total / counts.length) : 0,
     };
   }, [trend]);
-
-  const trendSeries = useMemo(
-    () => [{ name: "New records", data: trend.map((point) => point.count) }],
-    [trend],
-  );
-
-  const trendOptions = {
-    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    colors: ["#80bf01"],
-    xaxis: { categories: trend.map((point) => point.label) },
-    plotOptions: { bar: { borderRadius: 4, columnWidth: "55%" } },
-    dataLabels: { enabled: false },
-    grid: { borderColor: "#f0f0f0" },
-    tooltip: { theme: "light" },
-  };
-
-  const activityOptions = {
-    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    colors: ["#80bf01"],
-    xaxis: { categories: activityBars.categories },
-    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "55%" } },
-    dataLabels: { enabled: true },
-    grid: { borderColor: "#f0f0f0" },
-    tooltip: { theme: "light", y: { formatter: (value: number) => `${value}/100` } },
-  };
 
   const statValues: Record<string, string | number> = {
     modules: data?.totals?.trackedModules ?? 0,
@@ -540,15 +623,9 @@ const AnalyticsPage = () => {
 
       {/* 3. Overview charts — two per line */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <div className="border-default rounded-xl overflow-hidden bg-white">
-          <div className="p-4 border-b-2 border-borderGray uppercase">
-            <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Platform Activity Trend</span>
-            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">How much new work your unit creates each month (last 6 months)</p>
-          </div>
-          <div className="p-2">
-            <BarGraph chartId="analytics-trend" data={trendSeries} options={trendOptions} height={260} />
-          </div>
-          <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
+          <BarDiagram bars={trend.map((point) => ({ label: point.label, value: point.count }))} title="Platform Activity Trend" />
+          <div className="grid grid-cols-2 gap-2">
             {[
               { label: "This month", value: formatNumber(trendSummary.thisMonth) },
               { label: "Last month", value: formatNumber(trendSummary.lastMonth) },
@@ -566,121 +643,98 @@ const AnalyticsPage = () => {
           </div>
         </div>
 
-        <div className="border-default rounded-xl overflow-hidden bg-white">
-          <div className="p-4 border-b-2 border-borderGray uppercase">
-            <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Module Activity Scores</span>
-            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">Which modules your team actually uses — score out of 100 (top 10)</p>
-          </div>
-          <div className="p-2">
-            {activityBars.categories.length > 0 ? (
-              <BarGraph
-                chartId="analytics-activity"
-                data={[{ name: "Activity score", data: activityBars.values }]}
-                options={activityOptions}
-                height={Math.max(260, activityBars.categories.length * 42)}
-              />
-            ) : (
-              <div className="h-48 flex items-center justify-center text-gray-400 text-content">No tracked modules yet</div>
-            )}
-          </div>
-        </div>
+        {activityBars.categories.length > 0 ? (
+          <BarDiagram
+            bars={activityBars.categories.map((label, index) => ({ label, value: activityBars.values[index] }))}
+            title="Module Activity Scores"
+          />
+        ) : (
+          <ChartCard title="Module Activity Scores">
+            <div className="h-48 flex items-center justify-center text-gray-400 text-content">No tracked modules yet</div>
+          </ChartCard>
+        )}
       </div>
 
-      {/* 4. Module deep dive — one module per line, two charts per line inside.
-          Cards mount lazily as they approach the viewport. */}
-      {modules.length > 0 ? (
-        <WidgetSection title="Module Deep Dive" border normalCase layout={1}>
-          <div className="grid grid-cols-1 gap-4">
-            {modules.map((entry) => (
-              <LazyMount key={`deep-${entry.id}`} minHeight={420}>
-                <DeepDiveCard entry={entry} />
-              </LazyMount>
-            ))}
+      {/* 4. Module-wise deep dive — section dropdowns with module tabs inside. */}
+      {moduleGroups.length > 0 ? (
+        <WidgetSection title="Module Wise Analytics" border normalCase layout={1}>
+          <div className="flex flex-col gap-3">
+            {moduleGroups.map((group) => {
+              const isOpen = expandedModuleSections.has(group.key);
+              const activeModule =
+                group.modules.find((entry) => entry.id === activeModuleTabs[group.key]) ??
+                group.modules[0];
+
+              return (
+                <div key={group.key} className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleModuleSection(group.key)}
+                    className={`w-full flex items-center justify-between px-5 py-4 text-left transition-colors ${
+                      isOpen ? "border-b border-slate-100 bg-slate-50/50" : "hover:bg-slate-50/50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3 min-w-0">
+                      <span className="p-2 rounded-xl bg-slate-100/70 text-slate-600 shrink-0">
+                        <BarChart3 size={16} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-pmedium text-slate-900 uppercase tracking-wide">
+                          {group.title}
+                        </span>
+                        <span className="mt-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
+                          {group.modules.length} tabs
+                        </span>
+                      </span>
+                    </span>
+                    {isOpen ? (
+                      <ChevronUp size={16} className="text-slate-400 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-slate-400 shrink-0" />
+                    )}
+                  </button>
+
+                  {isOpen ? (
+                    <div className="p-4 flex flex-col gap-4">
+                      <div className="flex gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                        {group.modules.map((entry) => {
+                          const isActive = activeModule?.id === entry.id;
+                          return (
+                            <button
+                              type="button"
+                              key={entry.id}
+                              onClick={() =>
+                                setActiveModuleTabs((current) => ({
+                                  ...current,
+                                  [group.key]: entry.id,
+                                }))
+                              }
+                              className={`flex-1 shrink-0 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all text-center whitespace-nowrap flex items-center justify-center gap-1.5 ${
+                                isActive
+                                  ? "bg-[#2563EB] text-white shadow-sm"
+                                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                              }`}
+                            >
+                              {entry.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {activeModule ? (
+                        <LazyMount key={`module-wise-${activeModule.id}`} minHeight={420}>
+                          <DeepDiveCard entry={activeModule} />
+                        </LazyMount>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </WidgetSection>
       ) : null}
 
-      {/* 6. Module performance table */}
-      <WidgetSection title="Module Performance" border normalCase layout={1}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left font-pmedium">
-            <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
-              <tr>
-                <th className="px-5 py-4">Module</th>
-                <th className="px-5 py-4">Section</th>
-                <th className="px-5 py-4">Plan</th>
-                <th className="px-5 py-4 text-right">Records</th>
-                <th className="px-5 py-4 text-right">Last 30 Days</th>
-                <th className="px-5 py-4 text-right">Open Items</th>
-                <th className="px-5 py-4 text-right">Completion</th>
-                <th className="px-5 py-4">Activity</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100/60">
-              {modules.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-16 text-center font-pmedium text-slate-400">
-                    No modules with trackable data are enabled for this workspace yet.
-                  </td>
-                </tr>
-              ) : (
-                modules.map((entry: AnalyticsModuleEntry) => {
-                  const tone = activityTone(entry.activityScore);
-                  return (
-                    <tr
-                      key={entry.id}
-                      className={`group transition-colors hover:bg-slate-50/50 ${entry.route ? "cursor-pointer" : ""}`}
-                      onClick={() => entry.route && navigate(entry.route)}
-                    >
-                      <td className="px-5 py-4">
-                        <div className="font-pmedium text-slate-900 capitalize">{entry.label}</div>
-                        <div className="text-[10px] font-pmedium text-slate-400">{entry.id}</div>
-                      </td>
-                      <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{entry.sectionLabel || "--"}</td>
-                      <td className="px-5 py-4">
-                        <span className={`rounded-full px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest ${planChipClass(entry.planAvailability)}`}>
-                          {entry.planAvailability || "--"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-right text-[12px] font-pmedium text-slate-900">{formatNumber(entry.stats?.totalRecords)}</td>
-                      <td className="px-5 py-4 text-right text-[12px] font-pmedium text-slate-700">{formatNumber(entry.stats?.activeLast30Days)}</td>
-                      <td className="px-5 py-4 text-right text-[12px] font-pmedium text-slate-700">{formatNumber(entry.stats?.openItems)}</td>
-                      <td className="px-5 py-4 text-right text-[12px] font-pmedium text-slate-700">
-                        {entry.stats?.completionRate === null || entry.stats?.completionRate === undefined ? "--" : `${entry.stats.completionRate}%`}
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3 min-w-[140px]">
-                          <div className="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden">
-                            <div className={`h-2 rounded-full ${tone.bar}`} style={{ width: `${Math.max(4, Math.min(100, entry.activityScore))}%` }} />
-                          </div>
-                          <span className={`text-[11px] font-pmedium ${tone.text}`}>{entry.activityScore}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </WidgetSection>
-
-      {/* 7. Enabled modules without trackable data */}
-      {data?.alsoEnabled?.length ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mr-1">Also enabled:</span>
-          {data.alsoEnabled.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => item.route && navigate(item.route)}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-500 shadow-sm transition-colors hover:border-blue-200 hover:text-blue-700"
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </PageFrame>
   );
 };

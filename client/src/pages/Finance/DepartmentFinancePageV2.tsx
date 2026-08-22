@@ -813,7 +813,7 @@ export function DepartmentFinancePageV2() {
           </div>
 
           {/* MAIN TABS */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
+          <div data-tour="dept-finance-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
@@ -830,7 +830,7 @@ export function DepartmentFinancePageV2() {
           </div>
 
           {/* STAT CARDS (tab-aware) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="dept-finance-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {activeTab === 'projected' && (
               <>
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
@@ -984,6 +984,7 @@ export function DepartmentFinancePageV2() {
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
+                    data-tour="dept-finance-search"
                     type="text" placeholder="Search..."
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
@@ -992,6 +993,7 @@ export function DepartmentFinancePageV2() {
                 <div className="relative">
                   <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
+                    data-tour="dept-finance-fy-select"
                     value={selectedFY} onChange={(e) => setSelectedFY(e.target.value)}
                     className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                   >
@@ -1212,7 +1214,7 @@ export function DepartmentFinancePageV2() {
                     </div>
                   </div>
                 )}
-                <table className="w-full text-left min-w-[900px]">
+                <table data-tour="dept-finance-table" className="w-full text-left min-w-[900px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Month</th>
@@ -1282,7 +1284,7 @@ export function DepartmentFinancePageV2() {
             {/* Tab 2: Extra Requested */}
             {activeTab === 'extra' && (
               <div className="flex-1 overflow-x-auto">
-                <table className="w-full text-left min-w-[700px]">
+                <table data-tour="dept-finance-table" className="w-full text-left min-w-[700px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Month</th>
@@ -1319,7 +1321,7 @@ export function DepartmentFinancePageV2() {
             {/* Tab 3: History */}
             {activeTab === 'history' && (
               <div className="flex-1 overflow-x-auto">
-                <table className="w-full text-left min-w-[800px]">
+                <table data-tour="dept-finance-table" className="w-full text-left min-w-[800px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Month</th>

@@ -1209,7 +1209,7 @@ export default function AdministrationTenantCompaniesPage() {
           </div>
 
           {/* Pill Tabs */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="admin-tenant-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
               { key: 'all', label: 'All Companies' },
               { key: 'active', label: 'Active' },
@@ -1233,7 +1233,7 @@ export default function AdministrationTenantCompaniesPage() {
           </div>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="admin-tenant-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
               { key: 'total', label: 'Total Tenants', value: String(stats.totalTenants), icon: Building2 },
               { key: 'active', label: 'Active Contracts', value: String(stats.activeContracts), icon: CheckCircle2 },
@@ -1263,6 +1263,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
               <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                 <select
+                  data-tour="admin-tenant-status-select"
                   className="w-full sm:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value)}
@@ -1277,6 +1278,7 @@ export default function AdministrationTenantCompaniesPage() {
                 <div className="relative min-w-[200px]">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
+                    data-tour="admin-tenant-search"
                     type="text"
                     placeholder="Search company or contact..."
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
@@ -1287,7 +1289,7 @@ export default function AdministrationTenantCompaniesPage() {
               </div>
             </div>
 
-            <table className="w-full table-auto text-left">
+            <table data-tour="admin-tenant-table" className="w-full table-auto text-left">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-3 py-4 text-left whitespace-nowrap">Tenant Company</th>

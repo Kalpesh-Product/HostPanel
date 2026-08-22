@@ -300,6 +300,9 @@ export default function usePageTour() {
       isProgressLoading ||
       (access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") ||
       !currentTour ||
+      // Manual-only tours (autoStart: false) never play on page load;
+      // they run only through the Guide button above.
+      currentTour.autoStart === false ||
       auth?.impersonation
     ) return;
 

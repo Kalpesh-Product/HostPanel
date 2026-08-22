@@ -1153,7 +1153,7 @@ export function AttendancePage() {
 
           {/* MAIN TABS */}
           {mainTabs.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="attendance-main-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {mainTabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -1167,7 +1167,7 @@ export function AttendancePage() {
           )}
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="attendance-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {tabCards.map((card) => {
               const Icon = card.icon;
               const colorMap: Record<string, string> = {
@@ -1192,7 +1192,7 @@ export function AttendancePage() {
 
           {/* CLOCK IN/OUT CARD — my attendance only; team/corrections don't clock anyone in */}
           {activeTab === 'my-attendance' && (
-          <div className="bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 border border-blue-100 rounded-2xl p-4 lg:p-5 shadow-sm">
+          <div data-tour="attendance-clock-card" className="bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 border border-blue-100 rounded-2xl p-4 lg:p-5 shadow-sm">
             {isClockInTooEarly && clockStatus === 'checked_out' && (
               <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-pmedium text-amber-700">
                 <Clock size={13} /> Clock-in opens at {formatTime12h(clockInWindow.opensAt)}, one hour before {assignedShiftName || 'your shift'}.
@@ -1219,7 +1219,7 @@ export function AttendancePage() {
                   <p className="text-xs font-pmedium text-slate-500 mt-0.5">{clockStatusTime}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div data-tour="attendance-clock-actions" className="flex items-center gap-2">
                 {clockStatus === 'checked_out' && (
                   <button
                     onClick={() => handleClockAction('in')}
@@ -1263,7 +1263,7 @@ export function AttendancePage() {
             </div>
 
             {/* Live calculations */}
-            <div className="mt-4 pt-4 border-t border-blue-100/70">
+            <div data-tour="attendance-calculations" className="mt-4 pt-4 border-t border-blue-100/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[10px] font-pmedium uppercase tracking-[0.18em] text-slate-500">Today's Calculations</p>
                 {clockStatus === 'on_break' && (
@@ -1297,7 +1297,7 @@ export function AttendancePage() {
               </div>
 
               {/* Daily target */}
-              <div className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
+              <div data-tour="attendance-daily-target" className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     Daily Target <span className="text-slate-700 font-pbold normal-case tracking-normal">{formatSeconds(dailyTargetSeconds)}</span>
@@ -1343,7 +1343,7 @@ export function AttendancePage() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col gap-3 sm:gap-4 bg-slate-50/50">
               <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4">
                 {/* LEFT: sub-tabs, standard across every tab */}
-                <div className="flex items-center gap-1.5 flex-wrap overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="attendance-status-filters" className="flex items-center gap-1.5 flex-wrap overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {subTabs.map((status) => (
                     <button
                       key={status}
@@ -1361,6 +1361,7 @@ export function AttendancePage() {
                   <div className="relative">
                     <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
+                      data-tour="attendance-month-select"
                       value={selectedMonth}
                       onChange={(e) => setSelectedMonth(e.target.value)}
                       className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
@@ -1373,6 +1374,7 @@ export function AttendancePage() {
                   </div>
                   {activeTab === 'my-attendance' && (
                     <button
+                      data-tour="attendance-view-month"
                       onClick={() => handleViewMonth(selectedMonth)}
                       className="px-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest transition-colors flex items-center gap-1.5 shadow-sm"
                     >
@@ -1382,6 +1384,7 @@ export function AttendancePage() {
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
+                      data-tour="attendance-search"
                       type="text" placeholder="Search employee..."
                       className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -1391,6 +1394,7 @@ export function AttendancePage() {
                     <div className="relative">
                       <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                       <select
+                        data-tour="attendance-department-filter"
                         className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
                         value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}
                       >
@@ -1408,7 +1412,7 @@ export function AttendancePage() {
 
               {/* TAB: My Attendance */}
               {activeTab === 'my-attendance' && (
-                <table className="w-full text-left min-w-[700px]">
+                <table data-tour="attendance-table" className="w-full text-left min-w-[700px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Date</th>
@@ -1468,7 +1472,7 @@ export function AttendancePage() {
 
               {/* TAB: Team Attendance */}
               {activeTab === 'team-attendance' && (
-                <table className="w-full text-left min-w-[800px]">
+                <table data-tour="attendance-table" className="w-full text-left min-w-[800px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Emp ID</th>
@@ -1523,7 +1527,7 @@ export function AttendancePage() {
 
               {/* TAB: Corrections */}
               {activeTab === 'corrections' && (
-                <table className="w-full text-left min-w-[800px]">
+                <table data-tour="attendance-table" className="w-full text-left min-w-[800px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       {/* <th className="px-5 py-4">Emp ID</th> */}

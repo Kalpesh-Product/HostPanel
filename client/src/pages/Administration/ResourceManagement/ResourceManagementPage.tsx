@@ -926,7 +926,7 @@ function ResourceManagementPageInner() {
           {isInitialLoading ? <ResourceManagementSkeleton /> : null}
 
           {/* ── Pill Tabs ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="admin-resource-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
               { key: 'all', label: 'All Resources' },
               { key: 'active', label: 'Active' },
@@ -952,7 +952,7 @@ function ResourceManagementPageInner() {
            </div>
 
           {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card) ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="admin-resource-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
               { key: 'total', label: 'Total Resources', value: String(stats.total), icon: LayoutGrid },
               { key: 'active', label: 'Active', value: String(stats.active), icon: CheckCircle2 },
@@ -980,7 +980,7 @@ function ResourceManagementPageInner() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* ── Panel Header ── */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <div data-tour="admin-resource-filters" className="flex items-center gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 <div className="flex items-center gap-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-400 shrink-0">
                   <LayoutGrid size={14} /> Resources
                   <span className="ml-1 text-xs font-semibold text-slate-500 normal-case tracking-normal">({filteredResources.length} of {resources.length})</span>
@@ -1030,6 +1030,7 @@ function ResourceManagementPageInner() {
                 <div className="relative min-w-[200px]">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
+                    data-tour="admin-resource-search"
                     type="text"
                     placeholder="Search by name, ID, category, or location"
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
@@ -1046,6 +1047,7 @@ function ResourceManagementPageInner() {
                 </button>
                 <button
                   onClick={openAddModal}
+                  data-tour="admin-resource-add-btn"
                   className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} />
@@ -1130,7 +1132,7 @@ function ResourceManagementPageInner() {
                 </div>
 
                 <div className="hidden xl:block">
-                  <table className="w-full text-left table-auto">
+                  <table data-tour="admin-resource-table" className="w-full text-left table-auto">
                     <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-3 py-4 text-center w-10">#</th>

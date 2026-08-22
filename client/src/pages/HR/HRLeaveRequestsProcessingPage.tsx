@@ -1128,7 +1128,7 @@ export default function HRLeaveRequestsProcessingPage() {
           )}
 
           {/* ── Main Pill Tabs (DESIGN.md §4) ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-leave-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {MAIN_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -1244,7 +1244,7 @@ export default function HRLeaveRequestsProcessingPage() {
               </div>
             ) : (
               <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="hr-leave-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {STATUS_PILLS.map((pill) => (
                     <button key={pill.key} onClick={() => setStatusFilter(pill.key)} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-pmedium transition-all sm:text-[12px] ${statusFilter === pill.key ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}>
                       {pill.label}
@@ -1252,12 +1252,12 @@ export default function HRLeaveRequestsProcessingPage() {
                   ))}
                 </div>
                 <div className="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap xl:w-auto">
-                  <select className="min-w-[120px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50" value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+                  <select data-tour="hr-leave-department-filter" className="min-w-[120px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50" value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
                     {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                   <div className="relative min-w-[180px] flex-1">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                    <input type="text" placeholder="Search name or role..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20" />
+                    <input data-tour="hr-leave-search" type="text" placeholder="Search name or role..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20" />
                   </div>
                 </div>
               </div>
@@ -1265,7 +1265,7 @@ export default function HRLeaveRequestsProcessingPage() {
             {/* SECTION A: Leave Master Table */}
             {activeTab === "master" && (
               <div className="overflow-x-auto font-pmedium">
-                <table className="w-full min-w-[1120px] text-left font-pmedium">
+                <table data-tour="hr-leave-table" className="w-full min-w-[1120px] text-left font-pmedium">
                   <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                     <tr>
                       <th className="px-5 py-4">Emp ID</th>
@@ -1315,7 +1315,7 @@ export default function HRLeaveRequestsProcessingPage() {
             {/* ── SECTION B: Currently On Leave ── */}
             {activeTab === "current" && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1080px]">
+                <table data-tour="hr-leave-table" className="w-full min-w-[1080px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Employee ID</th>
@@ -1374,7 +1374,7 @@ export default function HRLeaveRequestsProcessingPage() {
             {/* ── SECTION C: Leave Requests Table ── */}
             {activeTab === "requests" && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1140px]">
+                <table data-tour="hr-leave-table" className="w-full min-w-[1140px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Employee ID</th>
@@ -1449,7 +1449,7 @@ export default function HRLeaveRequestsProcessingPage() {
                     </select>
                     <span className="text-[10px] text-slate-400">{filteredQuotas.length} employees</span>
                   </div>
-                  <button type="button" onClick={() => setIsLeaveTypeModalOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white transition-colors hover:bg-blue-700">
+                  <button data-tour="hr-leave-configure-btn" type="button" onClick={() => setIsLeaveTypeModalOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white transition-colors hover:bg-blue-700">
                     <Tags size={14} /> Configure Leave Types
                   </button>
                 </div>

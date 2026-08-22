@@ -627,7 +627,7 @@ function HousekeepingPageInner() {
           {bulkUploadMessage ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{bulkUploadMessage}</div> : null}
 
           {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="admin-housekeeping-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
               { key: 'scheduled', label: 'Daily Scheduled Tasks' },
               { key: 'auto', label: 'Booking-Based Tasks', badge: 'AUTO' },
@@ -654,7 +654,7 @@ function HousekeepingPageInner() {
           </div>
 
           {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card) ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="admin-housekeeping-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
               { key: 'pending', label: 'Scheduled (Pending)', value: String(summary.pendingTasks), icon: ClipboardList },
               { key: 'bookingTriggers', label: 'Booking Triggers', value: String(summary.bookingTriggers), icon: Zap },
@@ -682,7 +682,7 @@ function HousekeepingPageInner() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* ── Panel Header ── */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+              <div data-tour="admin-housekeeping-filters" className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                 {activeTab === 'scheduled' ? (
                   <select
                     className="w-full sm:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
@@ -712,6 +712,7 @@ function HousekeepingPageInner() {
                 <div className="relative min-w-[200px]">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
+                    data-tour="admin-housekeeping-search"
                     type="text"
                     placeholder="Search task or area..."
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
@@ -742,6 +743,7 @@ function HousekeepingPageInner() {
                 </button>
                 <button
                   onClick={() => { setEditingTask(null); setTaskForm(taskFormState()); setIsTaskModalOpen(true); }}
+                  data-tour="admin-housekeeping-add-btn"
                   className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} />
@@ -1033,7 +1035,7 @@ function HousekeepingPageInner() {
 function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
   return (
     <div className="flex-1">
-      <table className="w-full text-left table-auto">
+      <table data-tour="admin-housekeeping-table" className="w-full text-left table-auto">
         <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
           <tr>
             <th className="px-3 py-4 text-left whitespace-nowrap">Task Name & ID</th>
@@ -1158,7 +1160,7 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
 function HistoryTable({ tasks, month, year }: HistoryTableProps) {
   return (
     <div className="flex-1">
-      <table className="w-full text-left table-auto">
+      <table data-tour="admin-housekeeping-table" className="w-full text-left table-auto">
         <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
           <tr>
             <th className="px-3 py-4 text-left whitespace-nowrap">Date</th>

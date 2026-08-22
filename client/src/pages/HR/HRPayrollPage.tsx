@@ -1523,7 +1523,7 @@ export default function HRPayrollPage() {
           </div>
 
           {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="hr-payroll-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {statCards.map((card) => {
               const Icon = card.icon;
               const isLoadingActive = isLoading && activeTab === "master" && card.key !== "cycle-status";
@@ -1559,7 +1559,7 @@ export default function HRPayrollPage() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
               {/* Status sub-tabs */}
               {activeTab === "master" ? (
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div data-tour="hr-payroll-status-filters" className="flex flex-wrap items-center gap-1.5">
                   {([
                     { key: "all", label: "All" },
                     { key: "pending", label: "Pending" },
@@ -1615,6 +1615,7 @@ export default function HRPayrollPage() {
                 <div className="relative min-w-[220px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
+                    data-tour="hr-payroll-search"
                     type="text"
                     placeholder="Search employee..."
                     value={searchQuery}
@@ -1629,7 +1630,7 @@ export default function HRPayrollPage() {
             {activeTab === "master" && (
               <div className="flex flex-col flex-1">
                 {/* Cycle action banner */}
-                <div className="bg-linear-to-r from-slate-900 to-slate-800 p-4 flex flex-col sm:flex-row justify-between items-center px-8 gap-4">
+                <div data-tour="hr-payroll-cycle-actions" className="bg-linear-to-r from-slate-900 to-slate-800 p-4 flex flex-col sm:flex-row justify-between items-center px-8 gap-4">
                   <div className="text-white">
                     <p className="text-sm font-semibold">Prepare Payroll for {selectedMonth} {selectedYear}</p>
                     <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mt-0.5 flex items-center gap-2">
@@ -1725,7 +1726,7 @@ export default function HRPayrollPage() {
 
                 {/* Master table */}
                 <div className="overflow-x-auto flex-1">
-                  <table className="w-full min-w-[1120px] text-left font-pmedium">
+                  <table data-tour="hr-payroll-table" className="w-full min-w-[1120px] text-left font-pmedium">
                     <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       <tr>
                         <th className="px-5 py-4">Emp ID</th>
@@ -1842,7 +1843,7 @@ export default function HRPayrollPage() {
             {/* Payroll History Tab */}
             {activeTab === "history" && (
               <div className="overflow-x-auto flex-1">
-                    <table className="w-full min-w-[1120px] text-left font-pmedium">
+                    <table data-tour="hr-payroll-table" className="w-full min-w-[1120px] text-left font-pmedium">
                       <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                         <tr>
                           <th className="px-5 py-4">Month</th>

@@ -293,7 +293,7 @@ export default function HRDocumentsPage(): React.ReactElement {
           )}
 
           {/* ═══ MAIN PILL TABS ═══ */}
-<div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+<div data-tour="hr-docs-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
   {([
     { key: "active" as const, label: "Active Employees" },
     { key: "inactive" as const, label: "Inactive Employees" },
@@ -314,7 +314,7 @@ export default function HRDocumentsPage(): React.ReactElement {
 
 
           {/* ═══ STAT CARDS (3-col) ═══ */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
+          <div data-tour="hr-docs-summary" className="grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
             {statCards.map((card) => {
               const CardIcon = card.icon;
               return (
@@ -372,6 +372,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
+                    data-tour="hr-docs-search"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -380,6 +381,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                   />
                 </div>
                 <select
+                  data-tour="hr-docs-department-filter"
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
                   className="pl-3 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer shadow-sm min-w-[100px]"
@@ -395,7 +397,7 @@ export default function HRDocumentsPage(): React.ReactElement {
 
             {/* Table */}
             <div className="overflow-x-auto flex-1">
-              <table className="w-full border-collapse">
+              <table data-tour="hr-docs-table" className="w-full border-collapse">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4 text-left">Emp ID</th>

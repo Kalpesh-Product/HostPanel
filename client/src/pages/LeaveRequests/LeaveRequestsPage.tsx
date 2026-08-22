@@ -871,7 +871,7 @@ export function LeaveRequestsPage() {
 
             {/* 2. MAIN TABS (Pill-Style Navigation) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â above cards per DESIGN.md */}
             {mainTabs.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <div data-tour="leaves-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
                 {mainTabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -888,7 +888,7 @@ export function LeaveRequestsPage() {
             )}
 
             {/* 3. STAT CARDS ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â per-tab contextual cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            <div data-tour="leaves-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {tabCards.map((card) => {
                 const Icon = card.icon;
                 return (
@@ -905,7 +905,7 @@ export function LeaveRequestsPage() {
 
             {/* 4. DEPARTMENT ABSENCE CARDS */}
             {showDepartmentCards && (
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-4">
+              <div data-tour="leaves-department-cards" className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-4">
                 {allDepartments.map((dept: string, idx: number) => {
                   const accentColors = ['border-l-rose-500', 'border-l-amber-500', 'border-l-yellow-500', 'border-l-indigo-500', 'border-l-blue-500', 'border-l-emerald-500', 'border-l-slate-500'];
                   return (
@@ -924,7 +924,7 @@ export function LeaveRequestsPage() {
               {/* Toolbar: status sub-tabs + search + filter + action */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                 {activeTab === 'leave-requests' && showApprovalTabs && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  <div data-tour="leaves-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     {['all', 'pending', 'approved', 'rejected'].map((status) => (
                       <button
                         key={status}
@@ -938,7 +938,7 @@ export function LeaveRequestsPage() {
                   </div>
                 )}
                 {activeTab === 'my-leaves' && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  <div data-tour="leaves-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     {['all', 'pending', 'approved', 'rejected'].map((status) => (
                       <button
                         key={status}
@@ -959,6 +959,7 @@ export function LeaveRequestsPage() {
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
+                      data-tour="leaves-search"
                       type="text" placeholder="Search employee..."
                       className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -969,6 +970,7 @@ export function LeaveRequestsPage() {
                       <div className="relative">
                         <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                         <select
+                          data-tour="leaves-department-filter"
                           className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                           value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}
                         >
@@ -980,6 +982,7 @@ export function LeaveRequestsPage() {
                       <div className="relative">
                         <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                         <select
+                          data-tour="leaves-status-select"
                           className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                           value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                         >
@@ -994,6 +997,7 @@ export function LeaveRequestsPage() {
                   )}
                   {!isActingManagerView && activeTab === 'my-leaves' && (
                     <button
+                      data-tour="leaves-apply-btn"
                       onClick={() => {
                         if (leaveTypes.length === 0) {
                           toast.error('Leave types are not configured. Contact your HR manager to enable them.');
@@ -1012,7 +1016,7 @@ export function LeaveRequestsPage() {
               {/* Table (Desktop) / Cards (Mobile) */}
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
                 {/* Desktop Table */}
-                <table className={`hidden lg:table w-full text-left ${isMyLeavesTab ? 'min-w-[1080px]' : 'min-w-[1200px]'}`}>
+                <table data-tour="leaves-table" className={`hidden lg:table w-full text-left ${isMyLeavesTab ? 'min-w-[1080px]' : 'min-w-[1200px]'}`}>
                   <thead className="bg-slate-50/80 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       {isMyLeavesTab ? (
@@ -1111,7 +1115,7 @@ export function LeaveRequestsPage() {
                 </table>
 
                 {/* Mobile Cards */}
-                <div className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
+                <div data-tour="leaves-table" className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
                   {filteredData.map((item) => (
                     <div key={item.recordId || item.id} className="bg-white border border-slate-200/60 shadow-sm rounded-[20px] p-4 sm:p-5 flex flex-col gap-3">
                       <div className="flex justify-between items-start">

@@ -2368,7 +2368,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
           </div>
 
           {/* ═══ COMPANY MANAGEMENT TABS ═══ */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-emp-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {companyTabList.map((tab) => (
               <button
                 key={tab.key}
@@ -2395,7 +2395,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
           )}
 
           {/* ═══ STAT CARDS ═══ */}
-          <div className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+          <div data-tour="hr-emp-summary" className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
             {employeeSummaryCards.map((card) => {
               const CardIcon = card.icon;
               return (
@@ -2809,7 +2809,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 {/* Header: status sub-tabs + filters + search + add button, all in one line */}
                 <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex items-center gap-3 bg-slate-50/50 overflow-x-auto">
                   {/* Status Sub-Tabs (Pill Filters) */}
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div data-tour="hr-emp-status-filters" className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => setStatusFilter("all")}
                       className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
@@ -2842,6 +2842,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <div className="relative shrink-0">
                     <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
+                      data-tour="hr-emp-department-filter"
                       value={deptFilter}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
                       className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
@@ -2858,6 +2859,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <div className="relative shrink-0">
                     <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
+                      data-tour="hr-emp-role-filter"
                       value={roleFilter}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
                       className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
@@ -2874,6 +2876,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <div className="relative w-44 sm:w-52 shrink-0">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
+                      data-tour="hr-emp-search"
                       type="text"
                       value={searchQuery}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
@@ -2884,6 +2887,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
                   {/* Add Employee button */}
                   <button
+                    data-tour="hr-emp-add-btn"
                     onClick={() => { setIsAddModalOpen(true); resetAddForm(); }}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap shrink-0"
                   >
@@ -2893,7 +2897,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
                 {/* Table */}
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
+                  <table data-tour="hr-emp-table" className="w-full border-collapse">
                     <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-5 py-4 text-left">Employee ID</th>
