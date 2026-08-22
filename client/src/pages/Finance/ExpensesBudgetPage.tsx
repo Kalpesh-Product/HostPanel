@@ -201,7 +201,13 @@ const FALLBACK_DEPARTMENTS = ["HR", "Administration", "Finance", "Sales", "Tech"
 
 function formatDateLabel(value?: string | Date | null): string {
   if (!value) return "-";
-  const date = value instanceof Date ? value : new Date(String(value).slice(0, 10));
+  const rawValue = String(value).trim();
+  const numericValue = Number(rawValue);
+  const date = value instanceof Date
+    ? value
+    : Number.isFinite(numericValue) && numericValue > 20000
+      ? new Date(Date.UTC(1899, 11, 30) + numericValue * 24 * 60 * 60 * 1000)
+      : new Date(rawValue.slice(0, 10));
   if (isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -577,7 +583,7 @@ function buildProjectedBudgetReportRows(budgets: Budget[], selectedFY: string, d
           value: [
             `Projected: ${formatCurrency(getBudgetExpenseAmount(expense))}`,
             expense.actualAmount != null ? `Actual: ${formatCurrency(expense.actualAmount || 0)}` : '',
-            expense.dueDate ? `Due: ${expense.dueDate}` : '',
+            expense.dueDate ? `Due: ${formatDateLabel(expense.dueDate)}` : '',
             expense.paymentStatus ? `Payment: ${expense.paymentStatus}` : '',
             expense.invoiceNumber ? `Invoice: ${expense.invoiceNumber}` : '',
             expense.vendorName ? `Vendor: ${expense.vendorName}` : '',
@@ -1693,7 +1699,7 @@ export function ExpensesBudgetPage() {
                                       <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(getBudgetExpenseAmount(expense))}</p>
                                     </td>
                                     <td className="px-4 py-4 align-top">
-                                      <p className="text-xs font-bold text-slate-600">{expense.dueDate || '—'}</p>
+                                      <p className="text-xs font-bold text-slate-600">{expense.dueDate ? formatDateLabel(expense.dueDate) : '—'}</p>
                                     </td>
                                     {viewingBudget.status === 'Active' && <>
                                       <td className="px-4 py-4 align-top">
