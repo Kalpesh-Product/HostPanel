@@ -307,11 +307,14 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
   } = input;
 
   const existing = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
-  if (existing) {
+  const existingAnnualRequest = existing
+    ? await AnnualFinanceRequest.findOne({ workspaceId, fiscalYear, department }).select("_id").lean().exec()
+    : null;
+  if (existingAnnualRequest) {
     throw Object.assign(new Error("Department finance plan already exists for this fiscal year."), { statusCode: 409 });
   }
 
-  const plan = await DepartmentFinancePlan.create({
+  const planFields = {
     snapshotId: new mongoose.Types.ObjectId(),
     workspaceId,
     planKey: new mongoose.Types.ObjectId().toString(),
@@ -350,7 +353,22 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
       dueDate: safeString(m.dueDate, ""),
     })),
     reminders: [],
-  });
+  };
+
+  // Bulk import bootstraps a Draft plan so its rows have a planId. When the
+  // manager later submits that imported draft, promote the same plan instead
+  // of treating it as an already-submitted annual budget.
+  const plan = existing || await DepartmentFinancePlan.create(planFields);
+  if (existing) {
+    existing.set({
+      ...planFields,
+      snapshotId: existing.snapshotId,
+      planKey: existing.planKey,
+      reminders: existing.reminders || [],
+    });
+    await existing.save();
+    await FinanceExpense.deleteMany({ workspaceId, planId: existing._id });
+  }
 
   const expenseDocuments = monthlyPlan.flatMap((month, monthIndex) =>
     (Array.isArray(month.expenses) ? month.expenses : []).map((expense, expenseIndex) => ({
