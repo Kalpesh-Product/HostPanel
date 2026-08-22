@@ -10,6 +10,7 @@ import useDashboardAccess from "../hooks/useDashboardAccess";
 import { getBasicPageTour } from "./basicPageTours";
 import type { BasicPageTourStep } from "./basicPageTours";
 import { getProfessionalPageTour } from "./professionalPageTours";
+import { getCustomPageTour } from "./customPageTours";
 
 type TourStatus = "completed" | "skipped";
 
@@ -184,6 +185,7 @@ export default function usePageTour() {
       if (user?.tenantRole) return null;
       if (access.plan === "basic") return getBasicPageTour(location.pathname);
       if (access.plan === "professional") return getProfessionalPageTour(location.pathname);
+      if (access.plan === "custom") return getCustomPageTour(location.pathname);
       return null;
     },
     [access.plan, location.pathname, user?.tenantRole],
@@ -196,7 +198,7 @@ export default function usePageTour() {
       return response?.data?.data?.progress || {};
     },
     enabled:
-      (access.plan === "basic" || access.plan === "professional") &&
+      (access.plan === "basic" || access.plan === "professional" || access.plan === "custom") &&
       !access.isLoading &&
       !auth?.impersonation &&
       !user?.tenantRole,
@@ -231,7 +233,7 @@ export default function usePageTour() {
 
   const startCurrentTour = useCallback(
     (automatic = false, allowIntroOnly = false) => {
-      if (!currentTour || (access.plan !== "basic" && access.plan !== "professional") || auth?.impersonation) return false;
+      if (!currentTour || (access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") || auth?.impersonation) return false;
 
       const saved = progress[currentTour.id];
       if (automatic && saved && saved.version >= currentTour.version) return false;
@@ -296,7 +298,7 @@ export default function usePageTour() {
     if (
       access.isLoading ||
       isProgressLoading ||
-      (access.plan !== "basic" && access.plan !== "professional") ||
+      (access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") ||
       !currentTour ||
       auth?.impersonation
     ) return;
@@ -338,7 +340,7 @@ export default function usePageTour() {
   return {
     isTourAvailable: Boolean(
       currentTour &&
-      (access.plan === "basic" || access.plan === "professional") &&
+      (access.plan === "basic" || access.plan === "professional" || access.plan === "custom") &&
       !auth?.impersonation,
     ),
     startCurrentTour: () => startCurrentTour(false, true),
