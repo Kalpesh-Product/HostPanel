@@ -19,6 +19,7 @@ import verifyJwt from "./middlewares/verifyJwt.js";
 import blockWriteIfImpersonating from "./middlewares/blockWriteIfImpersonating.js";
 import activityLogger from "./middlewares/activityLogger.js";
 import websiteTemplateRoutes from "./routes/websiteTemplateRoutes.js";
+import nomadListingStatusProxyRoutes from "./routes/nomadListingStatusProxyRoutes.js";
 import serviceRoutes from "./routes/serviceRoutes.js";
 import leadsRoutes from "./routes/leadsRoutes.js";
 import { createWebsiteLead } from "./controllers/leadsControllers.js";
@@ -57,6 +58,7 @@ import taskRoutes from "./routes/taskRoutes.js";
 import financeRoutes from "./routes/financeRoutes.js";
 import departmentDocumentRoutes from "./routes/departmentDocumentRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
@@ -145,6 +147,7 @@ app.get("/api/review/public", getApprovedWebsiteReviews);
 app.get("/api/editor/get-jobs/:workspaceId", getPublicRecruitmentJobOpenings);
 app.use("/api/recruitment", recruitmentPublicRoutes);
 app.use("/api/editor", verifyJwt, blockWriteIfImpersonating, websiteTemplateRoutes);
+app.use("/api/nomad-listing-status", verifyJwt, blockWriteIfImpersonating, nomadListingStatusProxyRoutes);
 app.use("/api/services", verifyJwt, blockWriteIfImpersonating, serviceRoutes);
 app.use("/api/leads", verifyJwt, blockWriteIfImpersonating, leadsRoutes);
 app.use("/api/listings", verifyJwt, blockWriteIfImpersonating, listingRoutes);
@@ -175,6 +178,7 @@ app.use("/api/v1/resources", verifyJwt, blockWriteIfImpersonating, resourceRoute
 app.use("/api/v1/pricing-packages", verifyJwt, blockWriteIfImpersonating, plansPricingRoutes);
 app.use("/api/v1/tenant-companies", verifyJwt, blockWriteIfImpersonating, tenantCompanyRoutes);
 app.use("/api/reports", verifyJwt, blockWriteIfImpersonating, reportRoutes);
+app.use("/api/analytics", verifyJwt, blockWriteIfImpersonating, analyticsRoutes);
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {

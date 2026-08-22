@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useWebsiteTemplateData } from "./useWebsiteTemplateData";
+import React, { useState, useEffect, useCallback } from "react";
+import { useWebsiteTemplateData, resolveSectionFromSlug } from "./useWebsiteTemplateData";
 import TemplateServicesDropdown from "./TemplateServicesDropdown";
 import { isProductsNavItem } from "./templateNavigation";
 import { getInclusionMeta } from "./inclusionIcons";
@@ -24,11 +24,21 @@ const MUTED = "#5A4A3C";
 const SERIF = "font-['Fraunces',ui-serif,Georgia,serif]";
 const SANS = "font-['Karla',ui-sans-serif,system-ui,sans-serif]";
 
-const WRAP = "mx-auto w-full max-w-6xl";
-const EYEBROW = `text-[11.5px] font-semibold uppercase tracking-[0.12em] ${SANS}`;
+const WRAP = "mx-auto w-full max-w-7xl";
+const EYEBROW = `text-[13.5px] font-semibold uppercase tracking-[0.12em] ${SANS}`;
 const PAGE_WRAP = `${WRAP} px-6 py-12 md:px-11 md:py-16`;
 const INPUT = "w-full rounded-xl px-4 py-2.5 text-[14px] outline-none bg-white";
 const inputStyle = { border: `1px solid ${BROWN}33` };
+
+function LinedHeading({ title, className = "" }: { title: string; className?: string }) {
+  return (
+    <div className={`flex items-center gap-4 mb-6 ${className}`}>
+      <div className="flex-1 h-px" style={{ backgroundColor: RUST }} />
+      <h2 className={`text-sm font-semibold uppercase tracking-[0.15em] sm:text-base md:text-xl lg:text-[26px] ${SANS}`} style={{ color: RUST }}>{title}</h2>
+      <div className="flex-1 h-px" style={{ backgroundColor: RUST }} />
+    </div>
+  );
+}
 
 const SOCIAL_LABEL: Record<string, string> = {
   instagram: "Instagram",
@@ -93,6 +103,32 @@ const SOCIAL_ICON: Record<string, React.ReactNode> = {
   ),
 };
 
+const CONTACT_ICON_CIRCLE = ({ children }: { children: React.ReactNode }) => (
+  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ border: `2px solid ${RUST}`, color: RUST }}>
+    {children}
+  </span>
+);
+
+const ContactMailIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 7l9 6 9-6" />
+  </svg>
+);
+
+const ContactPhoneIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.08 4.18 2 2 0 0 1 4.07 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.64 2.6a2 2 0 0 1-.45 2.11L8 9.69a16 16 0 0 0 6.31 6.31l1.26-1.26a2 2 0 0 1 2.11-.45c.83.31 1.7.52 2.6.64A2 2 0 0 1 22 16.92Z" />
+  </svg>
+);
+
+const ContactMapIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z" />
+    <circle cx="12" cy="11" r="2.25" />
+  </svg>
+);
+
 // product cards carry the description under different keys depending on
 // where they came from — a home-level productDropdownPage stores it as
 // homeCardSubText, a sub-product under a page stores it as description, and
@@ -116,48 +152,54 @@ const ProductGrid = ({
     {products.map((product: any, idx: number) => {
       const description = getProductCardDescription(product);
       return (
-        <button
+        <article
           key={idx}
-          type="button"
-          onClick={() => onSelect(product)}
-          className="flex flex-col items-center gap-3 rounded-[22px] p-6 text-center transition hover:-translate-y-0.5"
+          className="flex flex-col overflow-hidden rounded-2xl transition hover:-translate-y-0.5"
           style={{
             backgroundColor: CREAM,
             boxShadow: "0 14px 28px -18px rgba(43,33,26,0.35)",
           }}
         >
-          <div
-            className="h-24 w-full overflow-hidden rounded-2xl"
-            style={{
-              background: `linear-gradient(140deg, ${tints[idx % tints.length]}, ${tints[idx % tints.length]}AA)`,
-            }}
-          >
+          <div className="w-full overflow-hidden rounded-t-2xl" style={{ backgroundColor: `${BROWN}0D` }}>
             {product?.cardImage ? (
               <img
                 src={product.cardImage}
-                alt=""
-                className="h-full w-full object-cover"
+                alt={product?.heading || product?.name}
+                className="h-[200px] w-full object-cover md:h-[230px]"
               />
-            ) : null}
+            ) : (
+              <div
+                className="h-[200px] w-full md:h-[230px]"
+                style={{
+                  background: `linear-gradient(140deg, ${tints[idx % tints.length]}, ${tints[idx % tints.length]}AA)`,
+                }}
+              />
+            )}
           </div>
-          <h4 className={`text-[17px] font-normal ${SERIF}`}>
-            {product?.name || product?.heading || "Service"}
-          </h4>
-          {description ? (
-            <p
-              className="line-clamp-2 text-[12.5px] leading-relaxed"
-              style={{ color: MUTED }}
-            >
-              {description}
-            </p>
-          ) : null}
-          <span
-            className="mt-1 text-[12px] font-semibold"
-            style={{ color: RUST }}
-          >
-            View details →
-          </span>
-        </button>
+          <div className="flex flex-1 flex-col items-center gap-3 px-5 py-5 text-center">
+            <h3 className={`text-[16px] font-normal ${SERIF}`}>
+              {product?.name || product?.heading || "Service"}
+            </h3>
+            {description ? (
+              <p
+                className="line-clamp-2 text-[12.5px] leading-relaxed"
+                style={{ color: MUTED }}
+              >
+                {description}
+              </p>
+            ) : null}
+            <div className="mt-auto pt-1">
+              <button
+                type="button"
+                onClick={() => onSelect(product)}
+                className="rounded-full px-6 py-2 text-[11px] font-semibold uppercase tracking-widest transition hover:opacity-80"
+                style={{ border: `1px solid ${RUST}`, color: RUST }}
+              >
+                View details
+              </button>
+            </div>
+          </div>
+        </article>
       );
     })}
   </div>
@@ -199,20 +241,18 @@ const LogoCarousel = ({
 
   return (
     <section className={PAGE_WRAP}>
-      <span className={EYEBROW} style={{ color: RUST }}>
-        {title || "Trusted by"}
-      </span>
+          <LinedHeading title={"Trusted by"} className="justify-center" />
       <div className="mt-8 overflow-hidden">
-        <div className="flex items-center justify-center gap-8 md:gap-16">
+        <div className="flex items-center justify-center gap-8 md:gap-16 transition-all duration-700">
           {displayed.map((src, idx) => (
             <div
               key={`logo-${offset}-${idx}`}
-              className="flex h-[50px] w-[120px] shrink-0 items-center justify-center opacity-70 md:h-[70px] md:w-[180px]"
+              className="flex h-[60px] w-[140px] shrink-0 items-center justify-center opacity-70 md:h-[80px] md:w-[220px]"
             >
               <img
                 src={src}
                 alt={`Partner logo ${idx + 1}`}
-                className="max-h-full max-w-full object-contain"
+                className="max-h-full max-w-full object-contain transition duration-300"
               />
             </div>
           ))}
@@ -260,9 +300,7 @@ const FaqList = ({
   if (!faqs.length) return null;
   return (
     <section className={PAGE_WRAP}>
-      <span className={EYEBROW} style={{ color: RUST }}>
-        FAQs
-      </span>
+      <LinedHeading title="FAQs" className="justify-center" />
       <div className="mt-6 flex flex-col gap-3">
         {faqs.map((faq, idx) => {
           const isOpen = open === idx;
@@ -335,6 +373,233 @@ const FaqList = ({
   );
 };
 
+const StarIcon = ({ filled, size = 14 }: { filled: boolean; size?: number }) => (
+  <svg viewBox="0 0 20 20" className={`inline-block`} style={{ width: size, height: size, color: filled ? "#B85C38" : "#D4C5B0", fill: "currentColor" }}>
+    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.538 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.783.57-1.838-.197-1.538-1.118l1.287-3.957a1 1 0 00-.364-1.118L3.063 9.39c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
+  </svg>
+);
+
+const OverallRating = ({ testimonials }: { testimonials: any[] }) => {
+  const ratings = testimonials
+    .map((t) => Number(t?.rating || 0))
+    .filter((r) => r > 0);
+  if (!ratings.length) return null;
+  const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+  const rounded = Math.round(average);
+  return (
+    <div className="flex flex-col items-center gap-1 mb-8">
+      <span className="text-5xl font-bold" style={{ color: BROWN }}>
+        {average.toFixed(1)}
+      </span>
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <StarIcon key={i} filled={i < rounded} size={20} />
+        ))}
+      </div>
+      <span className="text-sm" style={{ color: MUTED }}>
+        {ratings.length} review{ratings.length !== 1 ? "s" : ""}
+      </span>
+    </div>
+  );
+};
+
+const TESTIMONIAL_MAX_CHARS = 200;
+
+const WarmTestimonialCard = ({ item, idx }: { item: any; idx: number }) => {
+  const rating = Number(item?.rating || 0);
+  const text = String(item?.text || item?.testimony || "").trim();
+  const isLong = text.length > TESTIMONIAL_MAX_CHARS;
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      className="h-full rounded-sm p-6"
+      style={{
+        backgroundColor: CREAM,
+        boxShadow: "0 16px 30px -20px rgba(43,33,26,0.4)",
+        transform: `rotate(${idx % 2 === 0 ? -1.5 : 1}deg)`,
+      }}
+    >
+      <span className="text-[13px] font-bold block mb-1" style={{ color: BROWN }}>
+        {item.name}
+      </span>
+      {rating > 0 ? (
+        <div className="flex items-center gap-0.5 mb-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <StarIcon key={i} filled={i < rating} size={14} />
+          ))}
+        </div>
+      ) : null}
+      <p className={`text-[15px] italic leading-relaxed ${SERIF}`} style={{ color: MUTED }}>
+        "{expanded || !isLong ? text || "Great experience." : `${text.slice(0, TESTIMONIAL_MAX_CHARS).trimEnd()}...`}"
+      </p>
+      {isLong ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="mt-2 text-[11px] font-semibold transition hover:opacity-70"
+          style={{ color: RUST }}
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      ) : null}
+    </div>
+  );
+};
+
+const getTestimonialsPerView = () => {
+  if (typeof window === "undefined") return 3;
+  if (window.innerWidth < 768) return 1;
+  return 3;
+};
+
+const TestimonialsCarousel = ({
+  testimonials,
+  showWriteReview,
+  onOpenReview,
+}: {
+  testimonials: any[];
+  showWriteReview?: boolean;
+  onOpenReview?: () => void;
+}) => {
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [perView, setPerView] = useState(getTestimonialsPerView);
+  const [isPaused, setIsPaused] = useState(false);
+  const [transition, setTransition] = useState(true);
+  const total = testimonials.length;
+  const isCarousel = total > perView;
+  const extended = [...testimonials, ...testimonials.slice(0, perView)];
+
+  useEffect(() => {
+    const handleResize = () => setPerView(getTestimonialsPerView());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isCarousel) return;
+    setSlideIndex(0);
+  }, [perView, isCarousel]);
+
+  const slide = useCallback(() => {
+    setSlideIndex((prev) => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!isCarousel || isPaused) return;
+    const timer = window.setInterval(slide, 3000);
+    return () => window.clearInterval(timer);
+  }, [isCarousel, isPaused, slide]);
+
+  useEffect(() => {
+    if (slideIndex >= total) {
+      const jump = window.setTimeout(() => {
+        setTransition(false);
+        setSlideIndex(0);
+      }, 500);
+      return () => window.clearTimeout(jump);
+    }
+  }, [slideIndex, total]);
+
+  useEffect(() => {
+    if (!transition) {
+      const restore = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setTransition(true));
+      });
+      return () => cancelAnimationFrame(restore);
+    }
+  }, [transition]);
+
+  if (!total) return null;
+
+  const slideWidth = 100 / perView;
+  const dotIndex = slideIndex % total;
+
+  if (!isCarousel) {
+    return (
+      <div>
+        <OverallRating testimonials={testimonials} />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {testimonials.map((item, idx) => (
+            <div key={item?.key || idx} className="h-full">
+              <WarmTestimonialCard item={item} idx={idx} />
+            </div>
+          ))}
+        </div>
+        {showWriteReview && onOpenReview ? (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={onOpenReview}
+              className="rounded-full px-6 py-2 text-[12px] font-semibold uppercase tracking-wider transition hover:opacity-80"
+              style={{ border: `1px solid ${FOREST}`, color: FOREST }}
+            >
+              Write a review
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <OverallRating testimonials={testimonials} />
+      <div className="overflow-hidden">
+        <div
+          className="flex"
+          style={{
+            transform: `translateX(-${slideIndex * slideWidth}%)`,
+            transition: transition ? "transform 500ms ease-in-out" : "none",
+          }}
+        >
+          {extended.map((item, idx) => (
+            <div
+              key={`${item?.key || item?.name}-${idx}`}
+              className="shrink-0 px-3"
+              style={{ width: `${slideWidth}%` }}
+            >
+              <WarmTestimonialCard item={item} idx={idx} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex justify-center gap-2">
+        {Array.from({ length: total }).map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => {
+              setTransition(true);
+              setSlideIndex(i);
+            }}
+            aria-label={`Go to testimonial ${i + 1}`}
+            className="h-2 w-2 rounded-full transition-all"
+            style={{
+              width: i === dotIndex ? 20 : 8,
+              backgroundColor: i === dotIndex ? RUST : `${BROWN}33`,
+            }}
+          />
+        ))}
+      </div>
+      {showWriteReview && onOpenReview ? (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={onOpenReview}
+            className="rounded-full px-6 py-2 text-[12px] font-semibold uppercase tracking-wider transition hover:opacity-80"
+            style={{ border: `1px solid ${FOREST}`, color: FOREST }}
+          >
+            Write a review
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const Inclusions = ({
   inclusions,
   title,
@@ -346,9 +611,7 @@ const Inclusions = ({
   if (!enabled.length) return null;
   return (
     <section className={PAGE_WRAP}>
-      <span className={EYEBROW} style={{ color: RUST }}>
-        {title}
-      </span>
+      <LinedHeading title={title} className="justify-center" />
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6 md:gap-6">
         {enabled.map((item, index) => {
           const { label, icon } = getInclusionMeta(item);
@@ -398,6 +661,67 @@ const WarmOrganicTemplate: React.FC = () => {
       )
     : [];
 
+  const navLabelForSection = (sectionKey: string, fallback: string) => {
+    const match = (t.navItems || []).find(
+      (item: any) => resolveSectionFromSlug(item.slug) === sectionKey,
+    );
+    return String(match?.name || "").trim() || fallback;
+  };
+
+  const breadcrumbItems: Array<{ label: string; onClick?: () => void }> = [
+    { label: navLabelForSection("home", "Home"), onClick: () => t.goToSection("home") },
+  ];
+
+  if (section !== "home") {
+    const label = navLabelForSection(
+      section,
+      section === "partner"
+        ? "Partner"
+        : section === "testimonials"
+          ? "Testimonials"
+          : section === "products"
+            ? "Services"
+            : section.charAt(0).toUpperCase() + section.slice(1),
+    );
+    breadcrumbItems.push({
+      label,
+      onClick: () => t.goToSection(section),
+    });
+  }
+
+  if (section === "products" && t.selectedProductPage) {
+    breadcrumbItems.push({
+      label: String(
+        t.selectedProductPage?.heading ||
+          t.selectedProductPage?.name ||
+          "Service",
+      ).trim(),
+      onClick: t.selectedDetailItem
+        ? () =>
+            t.goToProductPage(
+              t.selectedProductPage?.slug ||
+                t.selectedProductPage?.name ||
+                "",
+            )
+        : undefined,
+    });
+  }
+
+  if (section === "products" && t.selectedDetailItem) {
+    breadcrumbItems.push({
+      label: String(
+        t.selectedDetailItem?.title ||
+          t.selectedDetailItem?.name ||
+          t.selectedDetailItem?.heading ||
+          "Details",
+      ).trim(),
+    });
+  }
+
+  if (breadcrumbItems.length > 1) {
+    breadcrumbItems[breadcrumbItems.length - 1].onClick = undefined;
+  }
+
   return (
     <div
       className={`wo-template min-h-screen ${SANS}`}
@@ -417,8 +741,8 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Header */}
       <header
         ref={t.headerRef}
-        className="sticky top-0 z-30"
-        style={{ backgroundColor: `${SAND}F2`, backdropFilter: "blur(4px)" }}
+        className="sticky top-0 z-30 bg-white border-b border-black/5"
+        style={{ backdropFilter: "blur(4px)" }}
       >
         <div
           className={`${WRAP} flex items-center justify-between gap-4 px-6 py-5 md:px-11`}
@@ -460,7 +784,7 @@ const WarmOrganicTemplate: React.FC = () => {
           <nav className="hidden items-center gap-7 md:flex">
             {t.navItems.map((item: any) => {
               const isActive =
-                t.currentSection === item.slug ||
+                t.currentSection === resolveSectionFromSlug(item.slug) ||
                 (isHome && item.slug === "home");
               if (isProductsNavItem(item) && t.productsPageEnabled)
                 return (
@@ -480,10 +804,13 @@ const WarmOrganicTemplate: React.FC = () => {
                   key={item.slug}
                   type="button"
                   onClick={() => t.goToSection(item.slug)}
-                  className="text-[13px]"
+                  className={`text-[13px] border-b-2 pb-1 transition-colors duration-150 ${
+                    isActive
+                      ? "border-current font-semibold"
+                      : "border-transparent font-normal"
+                  }`}
                   style={{
                     color: isActive ? RUST : MUTED,
-                    fontWeight: isActive ? 600 : 400,
                   }}
                 >
                   {item.name}
@@ -544,64 +871,17 @@ const WarmOrganicTemplate: React.FC = () => {
         ) : null}
       </header>
 
-      {(() => {
-        const breadcrumbItems: Array<{ label: string; onClick?: () => void }> = [
-          { label: "Home", onClick: () => t.goToSection("home") },
-        ];
-        if (section !== "home") {
-          const label =
-            section === "partner"
-              ? "Partner"
-              : section === "testimonials"
-                ? "Testimonials"
-                : section === "products"
-                  ? "Services"
-                  : section.charAt(0).toUpperCase() + section.slice(1);
-          breadcrumbItems.push({
-            label,
-            onClick: () => t.goToSection(section),
-          });
-        }
-        if (section === "products" && t.selectedProductPage) {
-          breadcrumbItems.push({
-            label: String(
-              t.selectedProductPage?.heading ||
-                t.selectedProductPage?.name ||
-                "Service",
-            ).trim(),
-            onClick: t.selectedDetailItem
-              ? () =>
-                  t.goToProductPage(
-                    t.selectedProductPage?.slug ||
-                      t.selectedProductPage?.name ||
-                      "",
-                  )
-              : undefined,
-          });
-        }
-        if (section === "products" && t.selectedDetailItem) {
-          breadcrumbItems.push({
-            label: String(
-              t.selectedDetailItem?.title ||
-                t.selectedDetailItem?.name ||
-                t.selectedDetailItem?.heading ||
-                "Details",
-            ).trim(),
-          });
-        }
-        if (breadcrumbItems.length > 1) {
-          breadcrumbItems[breadcrumbItems.length - 1].onClick = undefined;
-        }
-        if (breadcrumbItems.length <= 1) return null;
-        return (
-          <div style={{ backgroundColor: SAND }}>
-            <div className={`${WRAP} flex items-center gap-2 py-2 px-6 md:px-11 text-[12px]`}>
-              {breadcrumbItems.map((item, index) => (
-                <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+      {breadcrumbItems.length > 1 ? (
+        <div style={{ backgroundColor: SAND }}>
+          <div className={`${WRAP} flex items-center gap-3 py-2 px-4 md:px-6 text-[12px]`}>
+            {breadcrumbItems.map((item, index) => {
+              const isCurrent = index === breadcrumbItems.length - 1;
+              return (
+                <div key={`${item.label}-${index}`} className="flex items-center gap-3">
                   {index > 0 ? (
-                    <span style={{ color: `${BROWN}40` }}>/</span>
+                    <span aria-hidden="true" style={{ color: `${BROWN}40` }}>&rsaquo;</span>
                   ) : null}
-                  {item.onClick ? (
+                  {item.onClick && !isCurrent ? (
                     <button
                       type="button"
                       onClick={item.onClick}
@@ -613,18 +893,18 @@ const WarmOrganicTemplate: React.FC = () => {
                   ) : (
                     <span
                       aria-current="page"
-                      className="font-bold"
+                      className="inline-block border-b-2 border-current pb-0.5 font-semibold"
                       style={{ color: RUST }}
                     >
                       {item.label}
                     </span>
                   )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        );
-      })()}
+        </div>
+      ) : null}
 
       {isHome ? (
         <>
@@ -646,7 +926,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     <span className={EYEBROW} style={{ color: RUST }}>
                       {draft?.vertical
                         ? String(draft.vertical).replace(/-/g, " ")
-                        : "Welcome"}
+                        : "Welcome Back,"}
                     </span>
                     <h1
                       className={`text-[36px] md:text-[50px] font-medium leading-[1.08] ${SERIF}`}
@@ -722,17 +1002,12 @@ const WarmOrganicTemplate: React.FC = () => {
           t.isSectionEnabled("home_about") &&
           t.aboutIntroBlocks.length ? (
             <section className={PAGE_WRAP}>
-              <span className={EYEBROW} style={{ color: RUST }}>
-                About
-              </span>
-              <h2 className={`mt-2 mb-6 text-[26px] font-normal ${SERIF}`}>
-                The space, the story
-              </h2>
-              <div className="flex flex-col gap-4">
+              <LinedHeading title={String(draft?.aboutTitle || "").trim() || "About Our Vision"} className="justify-center" />
+              <div className="flex flex-col gap-4 text-center mx-auto max-w-2xl">
                 {t.aboutIntroBlocks.map((text: string, idx: number) => (
                   <p
                     key={idx}
-                    className="max-w-2xl text-[15.5px] leading-relaxed"
+                    className="text-[15.5px] leading-relaxed"
                     style={{ color: MUTED }}
                   >
                     {text}
@@ -746,12 +1021,7 @@ const WarmOrganicTemplate: React.FC = () => {
           t.isSectionEnabled("home_products") &&
           productPages.length ? (
             <section className={`${WRAP} px-6 pb-4 pt-2 md:px-11`}>
-              <span className={EYEBROW} style={{ color: RUST }}>
-                What we offer
-              </span>
-              <h2 className={`mt-2 mb-7 text-[26px] font-normal ${SERIF}`}>
-                Spaces to suit your day
-              </h2>
+              <LinedHeading title={String(draft?.productTitle || "").trim() || "Our Services"} className="justify-center" />
               <ProductGrid
                 products={productPages}
                 onSelect={t.handleProductCardAction}
@@ -768,12 +1038,7 @@ const WarmOrganicTemplate: React.FC = () => {
           {t.galleryPageEnabled && t.isSectionEnabled("home_gallery") ? (
             <section className={PAGE_WRAP}>
               <div>
-                <span className={EYEBROW} style={{ color: RUST }}>
-                  Gallery
-                </span>
-                <h2 className={`mt-2 text-[26px] font-normal ${SERIF}`}>
-                  A look inside
-                </h2>
+                <LinedHeading title={draft?.galleryTitle || "Gallery"} className="justify-center" />
               </div>
               <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3">
                 {t.homeGalleryItems.map((src: string, idx: number) => (
@@ -809,62 +1074,20 @@ const WarmOrganicTemplate: React.FC = () => {
 
           {t.isSectionEnabled("home_testimonials") && t.testimonials.length ? (
             <section className={PAGE_WRAP}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className={EYEBROW} style={{ color: RUST }}>
-                    What people say
-                  </span>
-                  <h2 className={`mt-2 text-[26px] font-normal ${SERIF}`}>
-                    Kind words
-                  </h2>
-                </div>
-                {t.showWriteReview ? (
-                  <button
-                    type="button"
-                    onClick={t.openReviewModal}
-                    className="text-[12.5px] font-semibold underline underline-offset-4"
-                    style={{ color: FOREST }}
-                  >
-                    Write a review
-                  </button>
-                ) : null}
-              </div>
-              <div className="mt-8 flex flex-wrap gap-6">
-                {t.visibleTestimonials.map((item: any, idx: number) => (
-                  <div
-                    key={item.key}
-                    className="flex-1 min-w-[240px] rounded-sm p-6"
-                    style={{
-                      backgroundColor: CREAM,
-                      boxShadow: "0 16px 30px -20px rgba(43,33,26,0.4)",
-                      transform: `rotate(${idx % 2 === 0 ? -2 : 1.5}deg)`,
-                    }}
-                  >
-                    <p
-                      className={`mb-3 text-[15px] italic leading-relaxed ${SERIF}`}
-                    >
-                      "{item.text}"
-                    </p>
-                    <span
-                      className="text-[12px] font-bold"
-                      style={{ color: RUST }}
-                    >
-                      {item.name}
-                    </span>
-                  </div>
-                ))}
+              <LinedHeading title={draft?.testimonialTitle || "Testimonials"} className="justify-center" />
+              <div className="mt-8">
+                <TestimonialsCarousel
+                  testimonials={t.testimonials}
+                  showWriteReview={t.showWriteReview}
+                  onOpenReview={t.openReviewModal}
+                />
               </div>
             </section>
           ) : null}
 
           {t.contactPageEnabled && t.isSectionEnabled("home_contact") ? (
             <section className={PAGE_WRAP}>
-              <span className={EYEBROW} style={{ color: RUST }}>
-                Contact
-              </span>
-              <h2 className={`mt-2 mb-7 text-[26px] font-normal ${SERIF}`}>
-                Come say hello
-              </h2>
+              <LinedHeading title={draft?.contactTitle || "Contact"} className="justify-center" />
               <div className="grid grid-cols-1 gap-6 md:grid-cols-[0.62fr_0.38fr]">
                 {draft?.mapUrl ? (
                   <iframe
@@ -880,34 +1103,49 @@ const WarmOrganicTemplate: React.FC = () => {
                   />
                 )}
                 <div
-                  className="flex flex-col justify-center gap-4 rounded-3xl p-7 text-[15px]"
+                  className="flex flex-col gap-5 rounded-3xl p-7 text-[15px]"
                   style={{ backgroundColor: CREAM, color: MUTED }}
                 >
                   {draft?.companyLogo ? (
                     <img
                       src={draft.companyLogo}
                       alt={draft.companyName || "Company"}
-                      className="mb-1 h-11 w-auto object-contain"
+                      className="mb-3 h-16 w-auto object-contain md:h-20"
                     />
                   ) : null}
                   {t.contactEmail ? (
                     <a
                       href={`mailto:${t.contactEmail}`}
-                      className="hover:opacity-70"
+                      className="flex items-center gap-4 transition hover:opacity-70 md-10px"
                       style={{ color: BROWN }}
                     >
-                      {t.contactEmail}
+                      <CONTACT_ICON_CIRCLE>
+                        <ContactMailIcon />
+                      </CONTACT_ICON_CIRCLE>
+                      <span className="min-w-0 break-words">{t.contactEmail}</span>
                     </a>
                   ) : null}
                   {t.contactPhone ? (
                     <a
                       href={`tel:${t.contactPhone.replace(/[^\d+]/g, "")}`}
-                      className="hover:opacity-70"
+                      className="flex items-center gap-4 transition hover:opacity-70"
+                      style={{ color: BROWN }}
                     >
-                      {t.contactPhone}
+                      <CONTACT_ICON_CIRCLE>
+                        <ContactPhoneIcon />
+                      </CONTACT_ICON_CIRCLE>
+                      <span className="min-w-0 break-words">{t.contactPhone}</span>
                     </a>
                   ) : null}
-                  {t.contactAddress ? <span>{t.contactAddress}</span> : null}
+                  {t.contactAddress ? (
+                    <div className="flex items-start gap-4">
+                      
+                      <CONTACT_ICON_CIRCLE>
+                        <ContactMapIcon />
+                      </CONTACT_ICON_CIRCLE>
+                      <span className="min-w-0 break-words pt-0.5">{t.contactAddress}</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -933,16 +1171,8 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* About page */}
       {section === "about" && t.aboutPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            About
-          </span>
-          <h2 className={`mt-2 text-[32px] font-normal ${SERIF} text-center`}>
-            {draft?.aboutTitle || "About us"}
-          </h2>
-          <div className="mt-6 flex max-w-2xl flex-col gap-4">
+          <LinedHeading title={String(draft?.aboutTitle || "").trim() || "About Our Vision"} className="justify-center" />
+          <div className="mt-6 flex max-w-2xl flex-col gap-4 mx-auto">
             {t.aboutIntroBlocks.map((text: string, idx: number) => (
               <p
                 key={idx}
@@ -979,12 +1209,7 @@ const WarmOrganicTemplate: React.FC = () => {
           ) : null}
           {t.founders.length ? (
             <div className="mt-16 flex flex-col gap-12">
-              <span
-                className={`${EYEBROW} block text-center`}
-                style={{ color: RUST }}
-              >
-                Founders
-              </span>
+              <LinedHeading title="Our Founders" className="justify-center" />
               {t.founders.map((founder: any, idx: number) => (
                 <div
                   key={idx}
@@ -1113,23 +1338,25 @@ const WarmOrganicTemplate: React.FC = () => {
                             <span className={`${EYEBROW} block text-center`} style={{ color: RUST }}>
                               Enquire now
                             </span>
-                            {leadFormFields.map((field: any) => (
-                              <input
-                                key={field.key}
-                                type={field.type === "date" ? "date" : field.type}
-                                required={field.required}
-                                placeholder={field.label}
-                                value={(t.leadForm as any)[field.key] ?? ""}
-                                onChange={(e) =>
-                                  t.setLeadForm((prev: any) => ({
-                                    ...prev,
-                                    [field.key]: e.target.value,
-                                  }))
-                                }
-                                className={INPUT}
-                                style={inputStyle}
-                              />
-                            ))}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              {leadFormFields.map((field: any) => (
+                                <input
+                                  key={field.key}
+                                  type={field.type === "date" ? "date" : field.type}
+                                  required={field.required}
+                                  placeholder={field.label}
+                                  value={(t.leadForm as any)[field.key] ?? ""}
+                                  onChange={(e) =>
+                                    t.setLeadForm((prev: any) => ({
+                                      ...prev,
+                                      [field.key]: e.target.value,
+                                    }))
+                                  }
+                                  className={INPUT}
+                                  style={inputStyle}
+                                />
+                              ))}
+                            </div>
                             {t.leadSubmitError ? (
                               <p className="text-[12px] text-red-600">{t.leadSubmitError}</p>
                             ) : null}
@@ -1165,27 +1392,27 @@ const WarmOrganicTemplate: React.FC = () => {
             <>
               {(t.selectedProductPage as any)?.heroEnabled !== false ? (
                 <section
-                  className="relative h-[50svh] min-h-[320px] overflow-hidden md:h-[60vh] md:min-h-[400px]"
+                  className="relative h-[50svh] min-h-[320px] overflow-hidden md:h-[85vh] md:min-h-[400px]"
                   style={{ backgroundColor: `${BROWN}0D` }}
                 >
                   {t.selectedProductHeroImage ? (
                     <img
                       src={t.selectedProductHeroImage}
                       alt={t.selectedProductPage?.name || "Service"}
-                      className="absolute inset-0 h-full w-full object-cover opacity-50"
+                      className="absolute inset-0 h-full w-full object-cover opacity-100"
                     />
                   ) : null}
                   <div
                     className="absolute inset-0"
-                    style={{
-                      background: `linear-gradient(180deg, ${SAND}40 0%, ${SAND} 92%)`,
-                    }}
+                    // style={{
+                    //   background: `linear-gradient(180deg, ${SAND}A0 0%, ${SAND} 90%)`,
+                    // }}
                   />
                   <div className="absolute inset-0 flex flex-col items-center justify-end gap-2 px-6 pb-10 text-center md:pb-14">
-                    <span className={EYEBROW} style={{ color: RUST }}>
-                      {t.selectedProductPage?.name}
-                    </span>
-                    <h1 className={`text-[28px] font-normal ${SERIF} md:text-[38px]`}>
+                    <h1
+                      className={`text-[28px] font-normal ${SERIF} md:text-[38px]`}
+                      style={{ color: "white" }}
+                    >
                       {(t.selectedProductPage as any)?.heroHeading ||
                         (t.selectedProductPage as any)?.name}
                     </h1>
@@ -1197,7 +1424,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     {(t.selectedProductPage as any)?.heroButtonText ? (
                       <button
                         type="button"
-                        className="mt-2 self-start rounded-full px-7 py-3 text-[13px] font-semibold transition duration-200 hover:opacity-90"
+                        className="mt-2 self-center rounded-full px-7 py-3 text-[13px] font-semibold transition duration-200 hover:opacity-90"
                         style={{ backgroundColor: FOREST, color: CREAM }}
                       >
                         {(t.selectedProductPage as any).heroButtonText}
@@ -1228,12 +1455,10 @@ const WarmOrganicTemplate: React.FC = () => {
                 </section>
               ) : null}
               <section className={PAGE_WRAP}>
-                <h2
-                  className={`mb-7 text-[26px] font-normal ${SERIF} text-center`}
-                  style={{ color: RUST }}
-                >
-                  {`${String((t.selectedProductPage as any)?.heading || t.selectedProductPage?.name || "").trim() || "Our"} ${t.isMenuProductSlug(t.selectedProductPage?.slug || "") ? "Menu" : "Services"}`}
-                </h2>
+                <LinedHeading
+                  title={`${String((t.selectedProductPage as any)?.heading || t.selectedProductPage?.name || "").trim() || "Our"} ${t.isMenuProductSlug(t.selectedProductPage?.slug || "") ? "Menu" : "Services"}`}
+                  className="justify-center"
+                />
                 <div className="mt-8">
                   {t.isMenuProductSlug(t.selectedProductPage?.slug || "") ? (
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
@@ -1299,24 +1524,66 @@ const WarmOrganicTemplate: React.FC = () => {
               ) : null}
             </>
           ) : (
-            <section className={PAGE_WRAP}>
-              <span
-                className={`${EYEBROW} block text-center`}
-                style={{ color: RUST }}
-              >
-                What we offer
-              </span>
-              <h2
-                className={`mt-2 mb-7 text-[26px] font-normal ${SERIF} text-center`}
-              >
-                {String(draft?.productTitle || "").trim() || "Our services"}
-              </h2>
-              <ProductGrid
-                products={productPages}
-                onSelect={t.handleProductCardAction}
-                tints={cardTints}
-              />
-            </section>
+            <>
+              <section className={PAGE_WRAP}>
+                <LinedHeading title={String(draft?.productTitle || "").trim() || "Our Services"} className="justify-center" />
+                <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {productPages.map((product: any, idx: number) => {
+                    const description = getProductCardDescription(product);
+                    return (
+                      <article
+                        key={idx}
+                        className="flex flex-col overflow-hidden rounded-2xl transition hover:-translate-y-0.5"
+                        style={{
+                          backgroundColor: CREAM,
+                          boxShadow: "0 14px 28px -18px rgba(43,33,26,0.35)",
+                        }}
+                      >
+                        <div className="w-full overflow-hidden rounded-t-2xl" style={{ backgroundColor: `${BROWN}0D` }}>
+                          {product?.cardImage ? (
+                            <img
+                              src={product.cardImage}
+                              alt={product?.heading || product?.name}
+                              className="h-[200px] w-full object-cover md:h-[230px]"
+                            />
+                          ) : (
+                            <div
+                              className="h-[200px] w-full md:h-[230px]"
+                              style={{
+                                background: `linear-gradient(140deg, ${cardTints[idx % cardTints.length]}, ${cardTints[idx % cardTints.length]}AA)`,
+                              }}
+                            />
+                          )}
+                        </div>
+                        <div className="flex flex-1 flex-col items-center gap-3 px-5 py-5 text-center">
+                          <h3 className={`text-[16px] font-normal ${SERIF}`}>
+                            {product?.name || product?.heading || "Service"}
+                          </h3>
+                          {description ? (
+                            <p
+                              className="line-clamp-2 text-[12.5px] leading-relaxed"
+                              style={{ color: MUTED }}
+                            >
+                              {description}
+                            </p>
+                          ) : null}
+                          <div className="mt-auto pt-1">
+                            <button
+                              type="button"
+                              onClick={() => t.handleProductCardAction(product)}
+                              className="rounded-full px-6 py-2 text-[11px] font-semibold uppercase tracking-widest transition hover:opacity-80"
+                              style={{ border: `1px solid ${RUST}`, color: RUST }}
+                            >
+                              View details
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
           )}
         </>
       ) : null}
@@ -1324,18 +1591,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Gallery page */}
       {section === "gallery" && t.galleryPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            Gallery
-          </span>
-          <h2
-            className={`text-[30px] font-normal ${SERIF} text-center mt-3`}
-            style={{ color: BROWN }}
-          >
-            Gallery
-          </h2>
+          <LinedHeading title={draft?.galleryTitle || "Gallery"} className="justify-center" />
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3">
             {t.galleryItems.map((src: string, idx: number) => (
               <button
@@ -1359,86 +1615,21 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Testimonials page */}
       {section === "testimonials" ? (
         <section className={PAGE_WRAP}>
-          <div className="flex flex-col items-center gap-4 text-center">
-            <span
-              className={`${EYEBROW} block text-center`}
-              style={{ color: RUST }}
-            >
-              What people say
-            </span>
-            <h2
-              className={`text-[30px] font-normal ${SERIF} text-center mt-3`}
-              style={{ color: BROWN }}
-            >
-              Testimonials
-            </h2>
-            {t.showWriteReview ? (
-              <button
-                type="button"
-                onClick={t.openReviewModal}
-                className="text-[12.5px] font-semibold underline underline-offset-4"
-                style={{ color: FOREST }}
-              >
-                Write a review
-              </button>
-            ) : null}
+          <LinedHeading title={draft?.testimonialTitle || "Testimonials"} className="justify-center" />
+          <div className="mt-8">
+            <TestimonialsCarousel
+              testimonials={t.testimonials}
+              showWriteReview={t.showWriteReview}
+              onOpenReview={t.openReviewModal}
+            />
           </div>
-          <div className="mt-8 flex flex-wrap gap-6">
-            {t.visibleTestimonials.map((item: any, idx: number) => (
-              <div
-                key={item.key}
-                className="flex-1 min-w-[240px] rounded-sm p-6"
-                style={{
-                  backgroundColor: CREAM,
-                  boxShadow: "0 16px 30px -20px rgba(43,33,26,0.4)",
-                  transform: `rotate(${idx % 2 === 0 ? -2 : 1.5}deg)`,
-                }}
-              >
-                <p
-                  className={`mb-3 text-[15px] italic leading-relaxed ${SERIF}`}
-                >
-                  "{item.text}"
-                </p>
-                <span className="text-[12px] font-bold" style={{ color: RUST }}>
-                  {item.name}
-                </span>
-              </div>
-            ))}
-          </div>
-          {t.testimonialPages > 1 ? (
-            <div className="mt-8 flex gap-2">
-              {Array.from({ length: t.testimonialPages }).map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => t.setTestimonialIndex(idx)}
-                  className="h-1.5 rounded-full transition-all"
-                  style={{
-                    width: t.testimonialIndex === idx ? 28 : 6,
-                    backgroundColor:
-                      t.testimonialIndex === idx ? RUST : `${BROWN}33`,
-                  }}
-                />
-              ))}
-            </div>
-          ) : null}
         </section>
       ) : null}
 
       {/* Partner page */}
       {section === "partner" && t.partnerPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            Partner
-          </span>
-          <h2
-            className={`mt-2 mb-6 text-[28px] font-normal ${SERIF} text-center`}
-          >
-            {t.partnerPageHeading || "Become a partner"}
-          </h2>
+          <LinedHeading title={t.partnerPageHeading || "Become A Partner"} className="justify-center" />
           <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
             <div
               className="text-[14.5px] leading-relaxed"
@@ -1458,13 +1649,13 @@ const WarmOrganicTemplate: React.FC = () => {
             </div>
             <div className="rounded-2xl p-6" style={{ backgroundColor: CREAM }}>
               <h3
-                className={`text-[16px] font-normal ${SERIF}`}
+                className={`text-center text-[18px] font-semibold md:text-[20px] ${SERIF}`}
                 style={{ color: RUST }}
               >
                 {t.partnerFormTitle ||
                   `Partner with ${draft?.companyName || "us"}`}
               </h3>
-              <div className="mt-4 flex flex-col gap-3">
+              <div className="mt-6 flex flex-col gap-3">
                 <input
                   type="text"
                   placeholder="Your name"
@@ -1536,19 +1727,7 @@ const WarmOrganicTemplate: React.FC = () => {
         <section className={PAGE_WRAP}>
           {!t.careersApplyJob ? (
             <>
-              <span
-                className={`${EYEBROW} block text-center`}
-                style={{ color: RUST }}
-              >
-                Careers
-              </span>
-              <h2
-                className={`mt-2 mb-6 text-[28px] font-normal ${SERIF} text-center`}
-              >
-                {draft?.companyName
-                  ? `Join ${draft.companyName}`
-                  : "Join our team"}
-              </h2>
+              <LinedHeading title={draft?.companyName ? `Join Our Team - ${draft.companyName}` : "Join Our Team - Company Name"} className="justify-center" />
               <div
                 className="mx-auto max-w-2xl text-center text-[14.5px] leading-relaxed"
                 style={{ color: MUTED }}
@@ -1612,7 +1791,7 @@ const WarmOrganicTemplate: React.FC = () => {
                                   className="text-[11px] font-semibold uppercase tracking-wider"
                                   style={{ color: RUST }}
                                 >
-                                  Apply →
+                                  {draft?.careersApplyButtonText || "Apply →"}
                                 </span>
                               </button>
                             ))}
@@ -1627,8 +1806,22 @@ const WarmOrganicTemplate: React.FC = () => {
                     className="mt-4 self-start rounded-full px-6 py-3 text-[13px] font-semibold"
                     style={{ backgroundColor: FOREST, color: CREAM }}
                   >
-                    General application
+                    {draft?.careersApplyButtonText || "General application"}
                   </button>
+                  {(draft?.careersClosingText || draft?.careersClosingHeading) && (
+                    <div className="mt-12 text-center">
+                      {draft?.careersClosingHeading && (
+                        <p className={`text-[18px] font-normal ${SERIF}`} style={{ color: BROWN }}>
+                          {draft.careersClosingHeading}
+                        </p>
+                      )}
+                      {draft?.careersClosingText && (
+                        <p className="mt-2 text-[14px] leading-relaxed" style={{ color: MUTED }}>
+                          {draft.careersClosingText}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -1651,7 +1844,7 @@ const WarmOrganicTemplate: React.FC = () => {
               </h2>
               {!t.careersDirectApply ? (
                 <div
-                  className="mt-6 flex gap-6"
+                  className="mt-6 flex justify-center gap-6"
                   style={{ borderBottom: `1px solid ${BROWN}22` }}
                 >
                   <button
@@ -1687,7 +1880,7 @@ const WarmOrganicTemplate: React.FC = () => {
               ) : null}
               {t.careersDetailTab === "description" && !t.careersDirectApply ? (
                 <div
-                  className="mt-8 flex max-w-2xl flex-col gap-6 text-[14px] leading-relaxed"
+                  className="mt-8 flex flex-col gap-6 text-[14px] leading-relaxed"
                   style={{ color: MUTED }}
                 >
                   {t.careersApplyJob?.aboutTheJob ? (
@@ -1723,7 +1916,7 @@ const WarmOrganicTemplate: React.FC = () => {
                 </div>
               ) : null}
               {t.careersDetailTab === "apply" || t.careersDirectApply ? (
-                <div className="mt-8 max-w-2xl">
+                <div className="mt-8">
                   {t.careersApplySubmitted ? (
                     <div
                       className="rounded-2xl p-6 text-center"
@@ -1739,7 +1932,8 @@ const WarmOrganicTemplate: React.FC = () => {
                   ) : (
                     <form
                       onSubmit={t.submitCareersApplication}
-                      className="grid grid-cols-1 gap-3 md:grid-cols-2"
+                      className="grid grid-cols-1 gap-3 rounded-2xl p-6 md:grid-cols-2"
+                      style={{ backgroundColor: CREAM }}
                     >
                       <input
                         type="text"
@@ -1869,8 +2063,8 @@ const WarmOrganicTemplate: React.FC = () => {
                         />
                       </div>
                       <label
-                        className="flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-[13px]"
-                        style={{ border: `1px dashed ${BROWN}44` }}
+                        className="flex cursor-pointer items-center justify-between rounded-xl bg-white px-3 py-2.5 text-[13px]"
+                        style={{ border: `1px solid ${BROWN}44` }}
                       >
                         <span>
                           {t.careersResumeFile
@@ -1938,7 +2132,7 @@ const WarmOrganicTemplate: React.FC = () => {
                       <button
                         type="submit"
                         disabled={t.careersApplySubmitting}
-                        className="md:col-span-2 rounded-full py-3 text-[13px] font-semibold disabled:opacity-50"
+                        className="md:col-span-2 rounded-full py-3 text-[13px] mt-5 font-semibold disabled:opacity-50"
                         style={{ backgroundColor: FOREST, color: CREAM }}
                       >
                         {t.careersApplySubmitting
@@ -1957,17 +2151,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Contact page */}
       {section === "contact" && t.contactPageEnabled ? (
         <section className={PAGE_WRAP}>
-          <span
-            className={`${EYEBROW} block text-center`}
-            style={{ color: RUST }}
-          >
-            Contact
-          </span>
-          <h2
-            className={`mt-2 mb-6 text-[26px] font-normal ${SERIF} text-center`}
-          >
-            {draft?.contactTitle || "Get in touch"}
-          </h2>
+          <LinedHeading title={draft?.contactTitle || "Contact"} className="justify-center" />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[0.6fr_0.4fr]">
             {draft?.mapUrl ? (
               <iframe
@@ -1983,34 +2167,48 @@ const WarmOrganicTemplate: React.FC = () => {
               />
             )}
             <div
-              className="flex flex-col gap-4 rounded-3xl p-7 text-[15px]"
+              className="flex flex-col gap-5 rounded-3xl p-7 text-[15px]"
               style={{ backgroundColor: CREAM, color: MUTED }}
             >
               {draft?.companyLogo ? (
                 <img
                   src={draft.companyLogo}
                   alt={draft.companyName || "Company"}
-                  className="mb-1 h-11 w-auto object-contain"
+                  className="mb-3 h-16 w-auto object-contain md:h-20"
                 />
               ) : null}
               {t.contactEmail ? (
                 <a
                   href={`mailto:${t.contactEmail}`}
-                  className="hover:opacity-70"
+                  className="flex items-center gap-4 transition hover:opacity-70"
                   style={{ color: BROWN }}
                 >
-                  {t.contactEmail}
+                  <CONTACT_ICON_CIRCLE>
+                    <ContactMailIcon />
+                  </CONTACT_ICON_CIRCLE>
+                  <span className="min-w-0 break-words">{t.contactEmail}</span>
                 </a>
               ) : null}
               {t.contactPhone ? (
                 <a
                   href={`tel:${t.contactPhone.replace(/[^\d+]/g, "")}`}
-                  className="hover:opacity-70"
+                  className="flex items-center gap-4 transition hover:opacity-70"
+                  style={{ color: BROWN }}
                 >
-                  {t.contactPhone}
+                  <CONTACT_ICON_CIRCLE>
+                    <ContactPhoneIcon />
+                  </CONTACT_ICON_CIRCLE>
+                  <span className="min-w-0 break-words">{t.contactPhone}</span>
                 </a>
               ) : null}
-              {t.contactAddress ? <span>{t.contactAddress}</span> : null}
+              {t.contactAddress ? (
+                <div className="flex items-start gap-4">
+                  <CONTACT_ICON_CIRCLE>
+                    <ContactMapIcon />
+                  </CONTACT_ICON_CIRCLE>
+                  <span className="min-w-0 break-words pt-0.5">{t.contactAddress}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -2058,14 +2256,14 @@ const WarmOrganicTemplate: React.FC = () => {
       ) : null}
 
       {/* Footer */}
-      <footer style={{ backgroundColor: FOREST, color: CREAM }}>
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-14 text-center md:grid-cols-[1.35fr_1fr_1fr_1fr] md:px-11 md:text-left">
-          <div>
+      <footer className="bg-white border-t border-black/5" style={{ color: BROWN }}>
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 py-14 text-center md:grid-cols-[1.35fr_1fr_1fr_1fr] md:text-left">
+          <div className="flex flex-col items-center md:items-start">
             {draft?.companyLogo ? (
               <img
                 src={draft.companyLogo}
                 alt={draft.companyName || "Company"}
-                className="mx-auto h-10 w-auto object-contain brightness-0 invert md:mx-0 md:h-12"
+                className="h-12 w-auto object-contain md:h-14"
               />
             ) : null}
             {t.footerCompanyName ? (
@@ -2086,7 +2284,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     rel="noreferrer"
                     aria-label={SOCIAL_LABEL[social.key] || social.key}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full transition hover:opacity-75"
-                    style={{ backgroundColor: `${CREAM}22`, color: CREAM }}
+                    style={{ backgroundColor: `${RUST}15`, color: RUST }}
                   >
                     {SOCIAL_ICON[social.key]}
                   </a>
@@ -2148,7 +2346,7 @@ const WarmOrganicTemplate: React.FC = () => {
         </div>
         <div
           className="px-6 py-4 text-center text-[11.5px] opacity-60"
-          style={{ borderTop: `1px solid ${CREAM}22` }}
+          style={{ borderTop: `1px solid ${BROWN}15` }}
         >
           {t.footerCopyrightText}
         </div>
@@ -2266,6 +2464,35 @@ const WarmOrganicTemplate: React.FC = () => {
                 className={INPUT}
                 style={inputStyle}
               />
+              <div className="flex items-center gap-3">
+                <span className="text-[13px]" style={{ color: MUTED }}>Your rating</span>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() =>
+                        t.setReviewForm((prev: any) => ({
+                          ...prev,
+                          rating: String(star),
+                        }))
+                      }
+                      className="transition hover:scale-110"
+                    >
+                      <svg
+                        viewBox="0 0 20 20"
+                        className="h-5 w-5"
+                        style={{
+                          color: star <= Number(t.reviewForm.rating || 5) ? "#B85C38" : "#D4C5B0",
+                          fill: "currentColor",
+                        }}
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.538 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.783.57-1.838-.197-1.538-1.118l1.287-3.957a1 1 0 00-.364-1.118L3.063 9.39c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <textarea
                 placeholder="Your review"
                 value={t.reviewForm.review}

@@ -35,6 +35,7 @@ import DormsSection from "./DormsSection";
 import MenuSection from "./MenuSection";
 import Skeleton from "../../../../components/ui/Skeleton";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import TemplateChangeRequestControl from "./TemplateChangeRequestControl";
 
 const defaultProduct = {
   type: "",
@@ -51,6 +52,32 @@ const defaultSubProduct = {
   description: "",
   cost: "",
   images: [],
+};
+
+const buildDefaultProductPage = (name = "Service Page 1") => {
+  const slug = toSlug(name || "service-page-1");
+  return {
+    name,
+    slug,
+    enabled: true,
+    heroEnabled: true,
+    inclusionsEnabled: true,
+    faqEnabled: true,
+    heroHeading: name,
+    heroSubHeading: "",
+    heroMode: "single",
+    heroImage: null,
+    heroImages: [],
+    heroButtonText: "View More",
+    homeCardHeading: name,
+    homeCardSubText: "",
+    homeCardImage: null,
+    leadEnabled: true,
+    leadFormLabel: "View More / Get Details",
+    faqs: [],
+    inclusions: [],
+    subProducts: [{ ...defaultSubProduct, images: [] }],
+  };
 };
 
 const MAX_SUB_PRODUCTS_PER_PAGE = 12;
@@ -148,7 +175,11 @@ const DEFAULT_PAGE_NAV_ITEMS = [
 
 const buildDefaultPageNavItems = () =>
   DEFAULT_PAGE_NAV_ITEMS.map((name) => {
-    const slug = String(name).toLowerCase().replace(/\s+/g, "-");
+    // "Services" is displayed as the label, but the Services page settings
+    // panel and its lookups throughout this file key off the legacy
+    // "products" slug (see migrateNavItems), so keep that slug here too.
+    const slug =
+      name === "Services" ? "products" : String(name).toLowerCase().replace(/\s+/g, "-");
     return {
       name,
       slug,
@@ -709,7 +740,9 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   logoCarousel: {
     enabled: formValues?.logoCarousel?.enabled === true,
     title: String(formValues?.logoCarousel?.title || "").trim(),
-    logos: Array.isArray(formValues?.logoCarousel?.logos) ? formValues.logoCarousel.logos : [],
+    logos: (Array.isArray(formValues?.logoCarousel?.logos) ? formValues.logoCarousel.logos : [])
+      .map((item: unknown) => getMediaUrlForPreview(item))
+      .filter(Boolean),
   },
   aboutPageIntro: String(formValues?.aboutPageIntro || "").trim(),
   aboutPageOverview: String(formValues?.aboutPageOverview || "").trim(),
@@ -977,6 +1010,15 @@ const PageVisibilityBanner = ({
   />
 );
 
+// Shown as a plain numbered list (no per-step done/not-done tracking — that
+// data isn't reliably knowable from here, see the dialog using this) whenever
+// a company hasn't been transferred into Nomads' Companies collection yet.
+const NOMAD_LISTING_STEPS = [
+  "Add at least one Nomads listing",
+  "Submit a request to be listed",
+  "WoNo Team will review then Leads & Reviews will work",
+];
+
 // Products belonging to one specific product page. Rendered with
 // `key={<that page's stable id>}` by the caller so switching the active
 // page tab forces a full remount — a fresh, correctly-scoped useFieldArray
@@ -1114,6 +1156,8 @@ const CreateWebsite = () => {
   const [creditsResetDate, setCreditsResetDate] = useState(null);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [showHiddenPagesWarning, setShowHiddenPagesWarning] = useState(false);
+  const [showNomadListingWarning, setShowNomadListingWarning] = useState(false);
+  const [isCheckingNomadListing, setIsCheckingNomadListing] = useState(false);
   // Follows the direction the user is actively scrolling, not just their
   // absolute position: scrolling up shows an up arrow (jump to top), scrolling
   // down shows a down arrow (jump to bottom). Pinned to "up" at the very
@@ -1251,7 +1295,7 @@ const CreateWebsite = () => {
       copyrightText: "",
       socials: buildDefaultSocials(),
       pageNavItems: buildDefaultPageNavItems(),
-      productDropdownPages: [],
+      productDropdownPages: [buildDefaultProductPage()],
       aboutPageIntro: "",
       aboutPageOverview: "",
       aboutPageStory: "",
@@ -1438,6 +1482,11 @@ const CreateWebsite = () => {
   const contactPageNavIndex = pageNavItemsForVisibility.findIndex(
     (item: any) => String(item?.slug || "").trim().toLowerCase() === "contact-us",
   );
+  // Lets builder section headers (e.g. "Services Page Settings") echo a
+  // renamed page's custom nav label instead of staying stuck on the default,
+  // so the settings panel below a tab always matches the tab's own name.
+  const pageNavLabel = (index: number, fallback: string) =>
+    String(pageNavItemsForVisibility[index]?.name || "").trim() || fallback;
   // Pages currently toggled off via PageVisibilityBanner; surfaced in a warning
   // before publish so a hidden page isn't a silent surprise.
   const hiddenPageNavEntries = pageNavItemsForVisibility
@@ -1447,6 +1496,44 @@ const CreateWebsite = () => {
       enabled: item?.enabled !== false,
     }))
     .filter((entry: any) => !entry.enabled);
+  // Publish still succeeds either way — this only warns the host that
+  // contact-form leads on the live site won't work until their Nomads
+  // listing is fully transferred, same "warn but allow" pattern as the
+  // hidden-pages check above. Proxied through HostPanel's own backend
+  // (/api/nomad-listing-status) so the client never needs cross-origin
+  // access to MasterPanel directly.
+  const checkNomadListingThenConfirm = async () => {
+    const companyId = String(values.companyId || prefillCompanyId || "").trim();
+    if (!companyId) {
+      setShowConfirmPopup(true);
+      return;
+    }
+    setIsCheckingNomadListing(true);
+    try {
+      const { data } = await axios.get(
+        `/api/nomad-listing-status/${encodeURIComponent(companyId)}`,
+      );
+      const transferred = Boolean(
+        data?.alreadyInCompanies || data?.linkedNomadsCompanyId,
+      );
+      if (transferred) {
+        setShowConfirmPopup(true);
+      } else {
+        setShowNomadListingWarning(true);
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        // No record at all — definitely not transferred.
+        setShowNomadListingWarning(true);
+      } else {
+        // Status check itself failed (network/service down) — don't block
+        // publishing over a diagnostics call that isn't working right now.
+        setShowConfirmPopup(true);
+      }
+    } finally {
+      setIsCheckingNomadListing(false);
+    }
+  };
   const CHAR_LIMITS = {
     heroTitle: 100,
     heroSubTitle: 200,
@@ -1616,8 +1703,17 @@ const CreateWebsite = () => {
           } catch {
             // ignore
           }
-          setHasExistingWebsite(true);
-          if (found?.isPublished === true || found?.deployedUrl || found?.publishedProjectUrl) {
+          // An unpublished autosave draft record existing is NOT the same as
+          // the site having actually been published before — hasExistingWebsite
+          // drives whether Publish goes through create-website (free) or
+          // edit-website (deducts a credit), so it must only flip once the
+          // site is genuinely published, not merely once a draft exists.
+          const isActuallyPublished =
+            found?.isPublished === true ||
+            Boolean(found?.deployedUrl) ||
+            Boolean(found?.publishedProjectUrl);
+          if (isActuallyPublished) {
+            setHasExistingWebsite(true);
             setPublishedWebsiteUrl(
               String(found?.deployedUrl || found?.publishedProjectUrl || "").trim(),
             );
@@ -2861,14 +2957,18 @@ const CreateWebsite = () => {
       });
       setValue("founders", mergedFounders, { shouldDirty: false });
     }
-    // Logo carousel logos
+    // Logo carousel logos — merge keyed off the current form state (like
+    // founders/sub-product images above/below), not off the server response.
+    // Keying off the response instead silently truncated the array to
+    // whatever length that particular save/autosave happened to return,
+    // dropping any logos picked after that request was already in flight.
     if (Array.isArray(savedTemplate.logoCarousel?.logos)) {
       const currentLogos = getValues("logoCarousel.logos") || [];
-      const mergedLogos = savedTemplate.logoCarousel.logos.map((saved: any, idx: number) => {
-        const current = currentLogos[idx];
+      const savedLogos = savedTemplate.logoCarousel.logos;
+      const mergedLogos = currentLogos.map((current: any, idx: number) => {
         // Keep File objects if they're newer than saved; otherwise use saved S3 object
         if (current instanceof File) return current;
-        return saved;
+        return savedLogos[idx] || current;
       });
       setValue("logoCarousel.logos", mergedLogos, { shouldDirty: false });
     }
@@ -3290,6 +3390,7 @@ const CreateWebsite = () => {
       copyrightText: "",
       socials: buildDefaultSocials(),
       pageNavItems: buildDefaultPageNavItems(),
+      productDropdownPages: [buildDefaultProductPage()],
     });
 
     setActiveMainPageTab(0);
@@ -3432,6 +3533,20 @@ const CreateWebsite = () => {
     values?.__legacyHomeProductsEditorEnabled,
   );
 
+  const hasSeededDefaultServicesPageRef = useRef(false);
+
+  useEffect(() => {
+    const currentPages = getValues("productDropdownPages");
+    if (Array.isArray(currentPages) && currentPages.length > 0) {
+      hasSeededDefaultServicesPageRef.current = true;
+      return;
+    }
+    if (hasSeededDefaultServicesPageRef.current) return;
+    setValue("productDropdownPages", [buildDefaultProductPage()], { shouldDirty: false });
+    setActiveProductPageTab(0);
+    hasSeededDefaultServicesPageRef.current = true;
+  }, [getValues, setValue, setActiveProductPageTab]);
+
   if (isCheckingExistingWebsite) {
     return <WebsiteBuilderEditorSkeleton />;
   }
@@ -3495,7 +3610,7 @@ const CreateWebsite = () => {
                     {selectedVerticalBadgeText}
                   </span>
                   <span
-                    title="The template was chosen when this website was created and can't be changed here."
+                    title="The current website template. Use Change Template below to request a different one."
                     className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700"
                   >
                     Template: {TEMPLATE_REGISTRY[watch("themeVariant") || DEFAULT_TEMPLATE_ID]?.name || "Classic"}
@@ -3530,8 +3645,15 @@ const CreateWebsite = () => {
               className="min-w-0 w-full"
             >
             <div className="mb-4 min-w-0 overflow-hidden">
-            <div className="border-b-default border-borderGray py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b-default border-borderGray py-3">
               <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Website Pages <SectionPreviewInfo section="pages" /></span>
+              {effectiveEditMode && draftTemplateId ? (
+                <TemplateChangeRequestControl
+                  websiteId={draftTemplateId}
+                  companyId={String(companyId || prefillCompanyId || "")}
+                  workspaceId={String(workspaceId || "")}
+                />
+              ) : null}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm" data-tour="wb-editor-page-tabs" data-editor-page={activeMainPageSlug}>
               {pageNavFields.map((item, index) => {
@@ -3572,13 +3694,46 @@ const CreateWebsite = () => {
               })}
             </div>
 
+            <div className="mt-3 max-w-sm">
+              <Controller
+                name={`pageNavItems.${activeMainPageTab}.name`}
+                control={control}
+                render={({ field }) => (
+                  <WebsiteFormField
+                    field={{
+                      ...field,
+                      onBlur: () => {
+                        const trimmed = String(field.value || "").trim();
+                        if (!trimmed) {
+                          field.onChange(
+                            DEFAULT_PAGE_NAV_ITEMS[activeMainPageTab] ||
+                              `Page ${activeMainPageTab + 1}`,
+                          );
+                        }
+                        field.onBlur();
+                      },
+                    }}
+                    label="Page Name (shown in navbar)"
+                    placeholder={`Page ${activeMainPageTab + 1}`}
+                    maxLength={30}
+                    disabled={activeMainPageSlug === "products"}
+                    helperText={
+                      activeMainPageSlug === "products"
+                        ? "The Services page name isn't editable yet."
+                        : "Renames this tab here and its label in your website's navbar."
+                    }
+                  />
+                )}
+              />
+            </div>
+
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "products" ? (
               <div className="mt-4 min-w-0 overflow-hidden">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-products-page-settings">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Services Page Settings <SectionPreviewInfo section="productsPage" /></span>
+                    <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(productsPageNavIndex, "Services")} Page Settings <SectionPreviewInfo section="productsPage" /></span>
                     <div className="min-w-[200px]">
                       <WebsiteFormField
                         select
@@ -4030,7 +4185,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "about-us" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-about-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">About Us Hero Section <SectionPreviewInfo section="aboutPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(aboutPageNavIndex, "About Us")} Hero Section <SectionPreviewInfo section="aboutPage" /></span>
                 {aboutPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4042,6 +4197,20 @@ const CreateWebsite = () => {
                 ) : null}
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
+                  <div>
+                    <Controller
+                      name="aboutTitle"
+                      control={control}
+                      render={({ field }) => (
+                        <WebsiteFormField
+                          field={{ ...field, value: field.value || "" }}
+                          label="About Section Heading (Synced with Home)"
+                          placeholder="About Our Vision"
+                        />
+                      )}
+                    />
+                  </div>
+
                   <div>
                     <Controller
                       name="aboutPageIntro"
@@ -4319,7 +4488,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "gallery" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-gallery-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Gallery Hero Section <SectionPreviewInfo section="galleryPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(galleryPageNavIndex, "Gallery")} Hero Section <SectionPreviewInfo section="galleryPage" /></span>
                 {galleryPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4376,7 +4545,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "partner" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-partner-page-header">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Partner Page Section <SectionPreviewInfo section="partnerPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(partnerPageNavIndex, "Partner")} Page Section <SectionPreviewInfo section="partnerPage" /></span>
                 {partnerPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4435,7 +4604,7 @@ const CreateWebsite = () => {
               .toLowerCase() === "careers" ? (
               <div className="mt-4">
                 <div className="border-b-default border-borderGray py-4" data-tour="wb-editor-careers-page-hero">
-                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Careers Hero Section <SectionPreviewInfo section="careersPage" /></span>
+                  <span className="text-subtitle font-pmedium inline-flex items-center gap-2">{pageNavLabel(careersPageNavIndex, "Careers")} Hero Section <SectionPreviewInfo section="careersPage" /></span>
                 {careersPageNavIndex >= 0 ? (
                   <div className="mt-3">
                     <PageVisibilityBanner
@@ -4774,21 +4943,25 @@ const CreateWebsite = () => {
                   )}
                 />
 
-                {/* mainHeroImage (single) — templates that pair a rotating
-                    background carousel with one fixed foreground shot (e.g.
-                    Fresh Studio) use this; ignored by templates that don't. */}
-                <Controller
-                  name="mainHeroImage"
-                  control={control}
-                  render={({ field }) => (
-                    <UploadFileInput
-                      id="mainHeroImage"
-                      value={field.value}
-                      label="Main Hero Image (Fresh Studio template)"
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
+                {/* mainHeroImage (single) — only Fresh Studio pairs a
+                    rotating background carousel with one fixed foreground
+                    shot, so this field is template-specific and hidden for
+                    every other template instead of showing a field that
+                    would be silently ignored. */}
+                {watch("themeVariant") === "fresh-studio" && (
+                  <Controller
+                    name="mainHeroImage"
+                    control={control}
+                    render={({ field }) => (
+                      <UploadFileInput
+                        id="mainHeroImage"
+                        value={field.value}
+                        label="Main Hero Image"
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                )}
 
                 <Controller
                   name="title"
@@ -5850,15 +6023,17 @@ const CreateWebsite = () => {
                     if (hiddenPageNavEntries.length > 0) {
                       setShowHiddenPagesWarning(true);
                     } else {
-                      setShowConfirmPopup(true);
+                      checkNomadListingThenConfirm();
                     }
                   }}
-                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
+                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate || isCheckingNomadListing}
                   data-tour="wb-editor-publish"
                   className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                 >
                   {isWebsiteSubmitting ? (
                     <>{effectiveEditMode ? "Submitting..." : "Publishing..."}</>
+                  ) : isCheckingNomadListing ? (
+                    <>Checking...</>
                   ) : (
                     <>{effectiveEditMode ? "Submit" : "Publish"}</>
                   )}
@@ -5928,7 +6103,7 @@ const CreateWebsite = () => {
                   type="button"
                   onClick={() => {
                     setShowHiddenPagesWarning(false);
-                    setShowConfirmPopup(true);
+                    checkNomadListingThenConfirm();
                   }}
                   className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                 >
@@ -5941,11 +6116,64 @@ const CreateWebsite = () => {
                       setValue(`pageNavItems.${entry.index}.enabled`, true, { shouldDirty: true });
                     });
                     setShowHiddenPagesWarning(false);
-                    setShowConfirmPopup(true);
+                    checkNomadListingThenConfirm();
                   }}
                   className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
                 >
                   Enable All &amp; Continue
+                </button>
+              </DialogActions>
+            </Dialog>
+
+              <Dialog
+              open={showNomadListingWarning}
+              onClose={() => setShowNomadListingWarning(false)}
+              fullWidth
+              maxWidth="sm"
+              PaperProps={{
+                sx: { borderRadius: 3, overflow: "hidden" },
+              }}
+            >
+              <DialogTitle sx={{ pb: 1 }}>
+                <span className="text-lg font-semibold text-slate-900">Nomads listing not complete</span>
+              </DialogTitle>
+              <DialogContent>
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                  <p className="text-sm font-pmedium text-amber-900">
+                    Your website will still publish, but contact-form enquiries won&apos;t reach you until this is done:
+                  </p>
+                  <ul className="mt-3 flex flex-col gap-2">
+                    {NOMAD_LISTING_STEPS.map((label, index) => (
+                      <li key={index} className="flex items-center gap-2 text-xs font-pmedium">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-400 bg-white text-[11px] font-bold text-amber-500">
+                          {index + 1}
+                        </span>
+                        <span className="text-amber-900">{label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs text-amber-800">
+                    You can publish now and complete this later — it doesn&apos;t affect the rest of your site.
+                  </p>
+                </div>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowNomadListingWarning(false)}
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNomadListingWarning(false);
+                    setShowConfirmPopup(true);
+                  }}
+                  className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
+                >
+                  Continue Anyway
                 </button>
               </DialogActions>
             </Dialog>

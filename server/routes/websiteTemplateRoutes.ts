@@ -19,6 +19,10 @@ import {
   saveTemplateDraft,
   publishWebsite,
 } from "../controllers/websiteControllers/websiteTemplateControllers.js";
+import {
+  createTemplateChangeRequest,
+  getTemplateChangeSummary,
+} from "../controllers/websiteTemplateChangeController.js";
 
 const router = Router();
 router.post("/editing-lock/acquire", acquireWebsiteEditLock);
@@ -42,6 +46,8 @@ router.get("/get-inactive-website", getInActiveTemplate);
 router.get("/get-inactive-websites", getInActiveTemplates);
 router.post("/save-website-draft", uploadImages.any(), saveTemplateDraft);
 router.post("/publish-website", publishWebsite);
+router.get("/template-change/summary", getTemplateChangeSummary);
+router.post("/template-change/requests", createTemplateChangeRequest);
 
 export default router;
 
