@@ -894,55 +894,62 @@ export async function submitVendorForDepartmentInternal(input: {
   ).exec();
 
   const expenseId = safeString(payload?.expenseId || "", "");
+  const actualAmount = payload?.actualAmount !== undefined ? safeNumber(payload.actualAmount, 0) : undefined;
+  const vendorFieldSet = {
+    vendorId: vendorKey,
+    vendorName: name,
+    vendorContactPerson: safeString(payload?.contactPerson, ""),
+    vendorEmail: safeString(payload?.email, ""),
+    vendorPhone: safeString(payload?.phone, ""),
+    vendorAddress: safeString(payload?.address, ""),
+    vendorPaymentTerms: safeString(payload?.paymentTerms, ""),
+    vendorCategory: safeString(payload?.category, ""),
+    vendorGstin: safeString(payload?.gstin, ""),
+    vendorPanNumber: safeString(payload?.panNumber, ""),
+    vendorBankName: safeString(payload?.bankName, ""),
+    vendorAccountName: safeString(payload?.accountName, ""),
+    vendorAccountNumber: safeString(payload?.accountNumber, ""),
+    vendorIfscCode: safeString(payload?.ifscCode, ""),
+    vendorUpiId: safeString(payload?.upiId, ""),
+    vendorWebsite: safeString(payload?.website, ""),
+  };
+
   if (expenseId && monthKey) {
+    const set: any = { ...vendorFieldSet };
+    if (actualAmount !== undefined) {
+      const existingExpense = await FinanceExpense.findOne(
+        { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) }
+      ).exec();
+      if (existingExpense) {
+        set.actualAmount = actualAmount;
+        set.savings = Math.max(0, safeNumber(existingExpense.projectedAmount, 0) - actualAmount);
+      }
+    }
     await FinanceExpense.updateOne(
       { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) },
-      {
-        $set: {
-          vendorId: vendorKey,
-          vendorName: name,
-          vendorContactPerson: safeString(payload?.contactPerson, ""),
-          vendorEmail: safeString(payload?.email, ""),
-          vendorPhone: safeString(payload?.phone, ""),
-          vendorAddress: safeString(payload?.address, ""),
-          vendorPaymentTerms: safeString(payload?.paymentTerms, ""),
-          vendorCategory: safeString(payload?.category, ""),
-          vendorGstin: safeString(payload?.gstin, ""),
-          vendorPanNumber: safeString(payload?.panNumber, ""),
-          vendorBankName: safeString(payload?.bankName, ""),
-          vendorAccountName: safeString(payload?.accountName, ""),
-          vendorAccountNumber: safeString(payload?.accountNumber, ""),
-          vendorIfscCode: safeString(payload?.ifscCode, ""),
-          vendorUpiId: safeString(payload?.upiId, ""),
-          vendorWebsite: safeString(payload?.website, ""),
-        },
-      }
+      { $set: set }
     );
   } else if (monthKey) {
     // best-effort: apply vendor to all planned invoices for the month in this plan if vendorName is empty
-    await FinanceExpense.updateMany(
-      { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
-      {
-        $set: {
-          vendorId: vendorKey,
-          vendorName: name,
-          vendorContactPerson: safeString(payload?.contactPerson, ""),
-          vendorEmail: safeString(payload?.email, ""),
-          vendorPhone: safeString(payload?.phone, ""),
-          vendorAddress: safeString(payload?.address, ""),
-          vendorPaymentTerms: safeString(payload?.paymentTerms, ""),
-          vendorCategory: safeString(payload?.category, ""),
-          vendorGstin: safeString(payload?.gstin, ""),
-          vendorPanNumber: safeString(payload?.panNumber, ""),
-          vendorBankName: safeString(payload?.bankName, ""),
-          vendorAccountName: safeString(payload?.accountName, ""),
-          vendorAccountNumber: safeString(payload?.accountNumber, ""),
-          vendorIfscCode: safeString(payload?.ifscCode, ""),
-          vendorUpiId: safeString(payload?.upiId, ""),
-          vendorWebsite: safeString(payload?.website, ""),
-        },
-      }
-    );
+    if (actualAmount !== undefined) {
+      await FinanceExpense.updateMany(
+        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
+        [
+          {
+            $set: {
+              ...vendorFieldSet,
+              actualAmount,
+              savings: { $max: [0, { $subtract: ["$projectedAmount", actualAmount] }] },
+            },
+          },
+        ]
+      );
+    } else {
+      await FinanceExpense.updateMany(
+        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
+        { $set: vendorFieldSet }
+      );
+    }
   }
 
   const reminderMonthKey = monthKey || "general";

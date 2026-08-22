@@ -291,7 +291,7 @@ export async function submitVendor(req: Request, res: Response, next: NextFuncti
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { planId, monthKey, name, vendorId, contactPerson, phone, email, address, paymentTerms, category, gstin, panNumber, bankName, accountName, accountNumber, ifscCode, upiId, website, notes, expenseId } = req.body || {};
+    const { planId, monthKey, name, vendorId, contactPerson, phone, email, address, paymentTerms, category, gstin, panNumber, bankName, accountName, accountNumber, ifscCode, upiId, website, notes, expenseId, actualAmount } = req.body || {};
 
     const result = await submitVendorForDepartmentInternal({
       workspaceId,
@@ -302,6 +302,7 @@ export async function submitVendor(req: Request, res: Response, next: NextFuncti
         name,
         vendorId,
         expenseId,
+        actualAmount: actualAmount !== undefined ? Number(actualAmount) : undefined,
         contactPerson,
         phone,
         email,
