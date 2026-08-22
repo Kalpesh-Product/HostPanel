@@ -317,7 +317,15 @@ function mergeVendorDetails(expense: any = {}, vendor: any = null): any {
 function enrichMonthlyBreakdownWithDepartmentPlan(monthlyBreakdown: any[] = [], departmentPlan: any = null): MonthlyBreakdown[] {
   const vendorLookup = buildVendorLookup(departmentPlan || {});
   const sourceMonthlyPlan = Array.isArray(departmentPlan?.monthlyPlan) ? departmentPlan.monthlyPlan : [];
-  return (Array.isArray(monthlyBreakdown) ? monthlyBreakdown : []).map((month: any) => {
+  const requestMonths = Array.isArray(monthlyBreakdown) ? monthlyBreakdown : [];
+  const months = [...requestMonths];
+  sourceMonthlyPlan.forEach((sourceMonth: any) => {
+    const sourceKey = normalizeLookupKey(sourceMonth?.monthKey || sourceMonth?.month || '');
+    if (sourceKey && !months.some((month: any) => normalizeLookupKey(month?.monthKey || month?.month || '') === sourceKey)) {
+      months.push(sourceMonth);
+    }
+  });
+  return months.map((month: any) => {
     const monthKey = normalizeLookupKey(month?.monthKey || month?.month || '');
     const sourceMonth = sourceMonthlyPlan.find((candidate: any) => {
       const candidateKey = normalizeLookupKey(candidate?.monthKey || candidate?.month || '');
@@ -335,7 +343,14 @@ function enrichMonthlyBreakdownWithDepartmentPlan(monthlyBreakdown: any[] = [], 
       const lookupKeys = [expense?.id, expense?.vendorId, expense?.vendorName, expense?.title].map(normalizeLookupKey).filter(Boolean);
       const sourceExpense = lookupKeys.map((key) => sourceExpenseLookup.get(key)).find(Boolean);
       const vendorRecord = lookupKeys.map((key) => vendorLookup.get(key)).find(Boolean);
-      return mergeVendorDetails(sourceExpense ? { ...sourceExpense, ...expense } : expense, vendorRecord);
+      const mergedExpense = sourceExpense ? { ...sourceExpense, ...expense } : expense;
+      // The annual request can contain an older zero/missing actualAmount.
+      // Prefer the current department-plan value when it has been recorded.
+      if (sourceExpense && Number(sourceExpense.actualAmount || 0) > Number(mergedExpense.actualAmount || 0)) {
+        mergedExpense.actualAmount = Number(sourceExpense.actualAmount);
+        mergedExpense.paymentStatus = sourceExpense.paymentStatus || mergedExpense.paymentStatus;
+      }
+      return mergeVendorDetails(mergedExpense, vendorRecord);
     });
     return { ...month, expenses: mergedExpenses };
   });
