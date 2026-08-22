@@ -201,7 +201,13 @@ const FALLBACK_DEPARTMENTS = ["HR", "Administration", "Finance", "Sales", "Tech"
 
 function formatDateLabel(value?: string | Date | null): string {
   if (!value) return "-";
-  const date = value instanceof Date ? value : new Date(String(value).slice(0, 10));
+  const rawValue = String(value).trim();
+  const numericValue = Number(rawValue);
+  const date = value instanceof Date
+    ? value
+    : Number.isFinite(numericValue) && numericValue > 20000
+      ? new Date(Date.UTC(1899, 11, 30) + numericValue * 24 * 60 * 60 * 1000)
+      : new Date(rawValue.slice(0, 10));
   if (isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -317,7 +323,15 @@ function mergeVendorDetails(expense: any = {}, vendor: any = null): any {
 function enrichMonthlyBreakdownWithDepartmentPlan(monthlyBreakdown: any[] = [], departmentPlan: any = null): MonthlyBreakdown[] {
   const vendorLookup = buildVendorLookup(departmentPlan || {});
   const sourceMonthlyPlan = Array.isArray(departmentPlan?.monthlyPlan) ? departmentPlan.monthlyPlan : [];
-  return (Array.isArray(monthlyBreakdown) ? monthlyBreakdown : []).map((month: any) => {
+  const requestMonths = Array.isArray(monthlyBreakdown) ? monthlyBreakdown : [];
+  const months = [...requestMonths];
+  sourceMonthlyPlan.forEach((sourceMonth: any) => {
+    const sourceKey = normalizeLookupKey(sourceMonth?.monthKey || sourceMonth?.month || '');
+    if (sourceKey && !months.some((month: any) => normalizeLookupKey(month?.monthKey || month?.month || '') === sourceKey)) {
+      months.push(sourceMonth);
+    }
+  });
+  return months.map((month: any) => {
     const monthKey = normalizeLookupKey(month?.monthKey || month?.month || '');
     const sourceMonth = sourceMonthlyPlan.find((candidate: any) => {
       const candidateKey = normalizeLookupKey(candidate?.monthKey || candidate?.month || '');
@@ -335,7 +349,14 @@ function enrichMonthlyBreakdownWithDepartmentPlan(monthlyBreakdown: any[] = [], 
       const lookupKeys = [expense?.id, expense?.vendorId, expense?.vendorName, expense?.title].map(normalizeLookupKey).filter(Boolean);
       const sourceExpense = lookupKeys.map((key) => sourceExpenseLookup.get(key)).find(Boolean);
       const vendorRecord = lookupKeys.map((key) => vendorLookup.get(key)).find(Boolean);
-      return mergeVendorDetails(sourceExpense ? { ...sourceExpense, ...expense } : expense, vendorRecord);
+      const mergedExpense = sourceExpense ? { ...sourceExpense, ...expense } : expense;
+      // The annual request can contain an older zero/missing actualAmount.
+      // Prefer the current department-plan value when it has been recorded.
+      if (sourceExpense && Number(sourceExpense.actualAmount || 0) > Number(mergedExpense.actualAmount || 0)) {
+        mergedExpense.actualAmount = Number(sourceExpense.actualAmount);
+        mergedExpense.paymentStatus = sourceExpense.paymentStatus || mergedExpense.paymentStatus;
+      }
+      return mergeVendorDetails(mergedExpense, vendorRecord);
     });
     return { ...month, expenses: mergedExpenses };
   });
@@ -562,7 +583,7 @@ function buildProjectedBudgetReportRows(budgets: Budget[], selectedFY: string, d
           value: [
             `Projected: ${formatCurrency(getBudgetExpenseAmount(expense))}`,
             expense.actualAmount != null ? `Actual: ${formatCurrency(expense.actualAmount || 0)}` : '',
-            expense.dueDate ? `Due: ${expense.dueDate}` : '',
+            expense.dueDate ? `Due: ${formatDateLabel(expense.dueDate)}` : '',
             expense.paymentStatus ? `Payment: ${expense.paymentStatus}` : '',
             expense.invoiceNumber ? `Invoice: ${expense.invoiceNumber}` : '',
             expense.vendorName ? `Vendor: ${expense.vendorName}` : '',
@@ -1358,7 +1379,7 @@ export function ExpensesBudgetPage() {
                         return (
                           <tr key={budget.id} className="hover:bg-blue-50/30 transition-all">
                             <td className="px-6 py-5 space-y-0.5">
-                              <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-600 uppercase">{budget.id}</p>
+                              {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-600 uppercase">{budget.id}</p> */}
                               <p className="text-[10px] sm:text-xs font-bold text-slate-500">{budget.date}</p>
                             </td>
                             <td className="px-6 py-5">
@@ -1415,7 +1436,7 @@ export function ExpensesBudgetPage() {
                       {visibleExtraBudgets.map((extra) => (
                         <tr key={extra.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 space-y-0.5">
-                            <p className="text-[9px] sm:text-[10px] font-pmedium text-amber-600 uppercase">{extra.id}</p>
+                            {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-amber-600 uppercase">{extra.id}</p> */}
                             <p className="text-[10px] sm:text-xs font-bold text-slate-500">{extra.date}</p>
                           </td>
                           <td className="px-6 py-5">
@@ -1460,7 +1481,7 @@ export function ExpensesBudgetPage() {
                       {visibleLedger.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 space-y-0.5">
-                            <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase">{log.id}</p>
+                            {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase">{log.id}</p> */}
                             <p className="text-[10px] sm:text-xs font-bold text-slate-900 flex items-center gap-1">
                               <CheckCircle2 size={10} className="sm:w-3 sm:h-3 text-green-500" />
                               <span className="leading-snug">{log.dateLabel || log.paidDate}</span>
@@ -1678,7 +1699,7 @@ export function ExpensesBudgetPage() {
                                       <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(getBudgetExpenseAmount(expense))}</p>
                                     </td>
                                     <td className="px-4 py-4 align-top">
-                                      <p className="text-xs font-bold text-slate-600">{expense.dueDate || '—'}</p>
+                                      <p className="text-xs font-bold text-slate-600">{expense.dueDate ? formatDateLabel(expense.dueDate) : '—'}</p>
                                     </td>
                                     {viewingBudget.status === 'Active' && <>
                                       <td className="px-4 py-4 align-top">

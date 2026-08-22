@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
+import { exportRowsAsCsv, exportRowsAsPdf, type ExportColumn } from '@/utils/exportTable';
 
 interface Member {
   userId?: string;
@@ -719,6 +720,30 @@ export function AssetsPage() {
     });
   }, [scopedAssets, searchQuery, selectedDeptFilter, statusFilter]);
 
+  const handleExportAssets = (format: 'PDF' | 'Excel') => {
+    const columns: ExportColumn[] = [
+      { header: 'Asset', key: 'name', width: 2 },
+      { header: 'Code', key: 'id' },
+      { header: 'Category', key: 'category' },
+      { header: 'Department', key: 'department' },
+      { header: 'Status', key: 'status' },
+      { header: 'Quantity', key: 'quantity' },
+      { header: 'Allocated', key: 'allocatedQuantity' },
+      { header: 'Available', key: 'availableQuantity' },
+      { header: 'Assigned To', key: 'assignedTo', width: 1.5 },
+      { header: 'Location', key: 'location', width: 1.5 },
+    ];
+    const rows = displayedAssets.map((asset) => ({
+      ...asset,
+      quantity: asset.quantity,
+      allocatedQuantity: asset.allocatedQuantity,
+      availableQuantity: asset.availableQuantity,
+    })) as Record<string, any>[];
+    const filename = `assets-${new Date().toISOString().slice(0, 10)}`;
+    if (format === 'PDF') exportRowsAsPdf(filename, 'Assets Report', columns, rows);
+    else exportRowsAsCsv(filename, columns, rows);
+  };
+
   const statsBase = useMemo(() => {
     return scopedAssets.filter((a) => selectedDeptFilter === 'All' || normalizeDepartmentName(a.department || '') === normalizeDepartmentName(selectedDeptFilter) ||
       a.allocations.some((allocation) => normalizeDepartmentName(allocation.department || '') === normalizeDepartmentName(selectedDeptFilter)));
@@ -784,14 +809,14 @@ function AssetsSkeleton() {
                 <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 type="button"
-                                // onClick={handleExportPDF}
+                                onClick={() => handleExportAssets('PDF')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
-                                // onClick={handleExportExcel}
+                                onClick={() => handleExportAssets('Excel')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>

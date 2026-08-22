@@ -93,6 +93,18 @@ interface BookingRecord {
   invoiceSentAt?: string;
 }
 
+function isInternalMeetingRoomBooking(booking: BookingRecord): boolean {
+  const bookingType = String(booking.bookingType || '').trim().toLowerCase();
+  const bookingSource = String(booking.bookingSource || '').trim().toLowerCase();
+  if (bookingType === 'external' || bookingType === 'tenant') return false;
+  if (bookingType.includes('internal')) return true;
+  if (bookingSource === 'frontdesk' || bookingSource.includes('external') || bookingSource.includes('tenant')) return false;
+  if (bookingSource.includes('internal')) return true;
+  // Match the booking-management classifier: records without an explicit type
+  // are internal unless they originated from the external/front-desk flow.
+  return !bookingType;
+}
+
 interface PayrollEmployee {
   id: string;
   name: string;
@@ -533,7 +545,8 @@ export function BillingPaymentsPage() {
 
         if (bookingRes.status === 'fulfilled') {
           const data = bookingRes.value?.data?.data || bookingRes.value?.data || bookingRes.value || {};
-          setBookingRecords(Array.isArray(data) ? data : Array.isArray(data?.bookings) ? data.bookings : []);
+          const bookings = Array.isArray(data) ? data : Array.isArray(data?.bookings) ? data.bookings : [];
+          setBookingRecords(bookings.filter((booking: BookingRecord) => !isInternalMeetingRoomBooking(booking)));
         }
 
         if (payrollRes.status === 'fulfilled') {

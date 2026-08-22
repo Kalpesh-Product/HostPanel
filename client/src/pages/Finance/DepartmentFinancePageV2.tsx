@@ -201,6 +201,7 @@ export function DepartmentFinancePageV2() {
   const [showExtraBudgetForm, setShowExtraBudgetForm] = useState(false);
   const [showVendorList, setShowVendorList] = useState(false);
   const [selectedVendorToLink, setSelectedVendorToLink] = useState('');
+  const [actualAmountToPay, setActualAmountToPay] = useState('');
   const [isLinkingVendor, setIsLinkingVendor] = useState(false);
 
   // Draft annual budget builder (month-by-month, pre-submission)
@@ -624,9 +625,11 @@ export function DepartmentFinancePageV2() {
         upiId: vendor.upiId,
         website: vendor.website,
         notes: vendor.notes,
+        actualAmount: Number(actualAmountToPay || 0),
       });
       toast.success(`${vendor.name} linked to this expense.`);
       setSelectedVendorToLink('');
+      setActualAmountToPay('');
       setViewingExpense(null);
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
@@ -1427,7 +1430,7 @@ export function DepartmentFinancePageV2() {
                   {viewingExpense.expense.vendorName ? (
                     <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.vendorName}</p>
                   ) : vendors.length > 0 ? (
-                    <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="flex flex-col gap-2">
                       <select
                         value={selectedVendorToLink}
                         onChange={(e) => setSelectedVendorToLink(e.target.value)}
@@ -1438,9 +1441,24 @@ export function DepartmentFinancePageV2() {
                           <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
                         ))}
                       </select>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                          Actual Vendor Cost / Amount to Pay
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={actualAmountToPay}
+                          onChange={(e) => setActualAmountToPay(e.target.value)}
+                          placeholder={`Projected: ${formatCurrency(viewingExpense.expense.projectedAmount || viewingExpense.expense.amount || 0)}`}
+                          className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                        />
+                        <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
+                      </div>
                       <button
                         type="button"
-                        disabled={!selectedVendorToLink || isLinkingVendor}
+                        disabled={!selectedVendorToLink || !actualAmountToPay || Number(actualAmountToPay) < 0 || isLinkingVendor}
                         onClick={() => handleLinkVendor(viewingExpense.month, viewingExpense.expense)}
                         className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                       >
