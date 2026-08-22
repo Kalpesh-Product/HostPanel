@@ -874,7 +874,7 @@ export default function AccountingPage(): React.ReactElement {
                           <p className="flex items-center gap-1 text-xs font-bold text-gray-900">
                             <Calendar size={10} /> {entry.date}
                           </p>
-                          <p className="text-[8px] font-black uppercase text-gray-500 sm:text-[9px]">{entry.id}</p>
+                          {/* <p className="text-[8px] font-black uppercase text-gray-500 sm:text-[9px]">{entry.id}</p> */}
                         </td>
                         <td className="px-4 py-4 sm:px-6 sm:py-5">
                           <span className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[8px] font-pmedium uppercase tracking-wider ${entry.type === 'Income' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>

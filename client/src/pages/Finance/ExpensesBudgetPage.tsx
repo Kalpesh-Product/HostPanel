@@ -1373,7 +1373,7 @@ export function ExpensesBudgetPage() {
                         return (
                           <tr key={budget.id} className="hover:bg-blue-50/30 transition-all">
                             <td className="px-6 py-5 space-y-0.5">
-                              <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-600 uppercase">{budget.id}</p>
+                              {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-600 uppercase">{budget.id}</p> */}
                               <p className="text-[10px] sm:text-xs font-bold text-slate-500">{budget.date}</p>
                             </td>
                             <td className="px-6 py-5">
@@ -1430,7 +1430,7 @@ export function ExpensesBudgetPage() {
                       {visibleExtraBudgets.map((extra) => (
                         <tr key={extra.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 space-y-0.5">
-                            <p className="text-[9px] sm:text-[10px] font-pmedium text-amber-600 uppercase">{extra.id}</p>
+                            {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-amber-600 uppercase">{extra.id}</p> */}
                             <p className="text-[10px] sm:text-xs font-bold text-slate-500">{extra.date}</p>
                           </td>
                           <td className="px-6 py-5">
@@ -1475,7 +1475,7 @@ export function ExpensesBudgetPage() {
                       {visibleLedger.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 space-y-0.5">
-                            <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase">{log.id}</p>
+                            {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase">{log.id}</p> */}
                             <p className="text-[10px] sm:text-xs font-bold text-slate-900 flex items-center gap-1">
                               <CheckCircle2 size={10} className="sm:w-3 sm:h-3 text-green-500" />
                               <span className="leading-snug">{log.dateLabel || log.paidDate}</span>
