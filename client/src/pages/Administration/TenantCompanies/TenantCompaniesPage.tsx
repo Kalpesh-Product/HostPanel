@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/layout/AppShell';
 import PageFrame from '@/components/Pages/PageFrame';
@@ -6,16 +7,11 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
 import {
-  addTenantCompanyEmployee,
-  deleteTenantCompanyEmployee,
   getTenantCompanies,
   getTenantCompanySectors,
   renewTenantCompany,
   uploadTenantCompanyAgreementDocuments,
-  updateTenantCompanyEmployee,
   updateTenantCompany,
-  updateTenantCompanyManager,
-  updateTenantCompanyEmployeeStatus,
 } from '@/services/tenant-companies';
 import { getPricingPackages } from '@/services/pricing-packages';
 import {
@@ -27,18 +23,14 @@ import {
   Building2,
   Users,
   CreditCard,
-  LayoutGrid,
   Calendar,
   Phone,
   Mail,
   ShieldCheck,
-  Plus,
   CheckCircle2,
   AlertTriangle,
+  XCircle,
   Save,
-  History,
-  MapPin,
-  Briefcase,
   FileText,
   FileDown,
   FileSpreadsheet,
@@ -325,6 +317,11 @@ interface EditFormCreditConfiguration {
 }
 
 interface EditForm {
+  companyName: string;
+  businessType: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
   customerDetails: EditFormCustomerDetails;
   companyDetails: EditFormCompanyDetails;
   agreementDetails: EditFormAgreementDetails;
@@ -768,6 +765,11 @@ function normalizeTenantCompany(company: Record<string, unknown> = {}, packageLo
 
 function buildEditForm(company: TenantCompany): EditForm {
   return {
+    companyName: company.name || '',
+    businessType: company.businessType || '',
+    contactPerson: company.contactPerson || '',
+    email: company.email || '',
+    phone: company.phone || '',
     customerDetails: {
       clientName: company.customerDetails?.clientName || company.name || '',
       sector: company.customerDetails?.sector || company.businessType || '',
@@ -835,22 +837,18 @@ function getStatusBadge(status: string): string {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function AdministrationTenantCompaniesPage() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [packageFilter, setPackageFilter] = useState('All Packages');
   const [companies, setCompanies] = useState<TenantCompany[]>([]);
-  const [viewingCompany, setViewingCompany] = useState<TenantCompany | null>(null);
-  const [activeDetailTab, setActiveDetailTab] = useState('summary');
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [tenantPackages, setTenantPackages] = useState<Array<Record<string, unknown>>>([]);
   const [editingCompany, setEditingCompany] = useState<TenantCompany | null>(null);
   const [renewingContract, setRenewingContract] = useState<TenantCompany | null>(null);
-  const [addingEmployeeTo, setAddingEmployeeTo] = useState<TenantCompany | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
-  const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '', role: 'Employee' });
-  const [employeeEditForm, setEmployeeEditForm] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
   const [renewForm, setRenewForm] = useState({ extendMonths: '12', addCredits: '1000' });
   const [agreementFiles, setAgreementFiles] = useState<File[]>([]);
   const [isAgreementUploading, setIsAgreementUploading] = useState(false);
@@ -882,9 +880,9 @@ export default function AdministrationTenantCompaniesPage() {
         : Array.isArray(tenantPayload.packages)
           ? tenantPayload.packages
           : [];
+      const nextTenantPackages = nextAvailablePackages.filter((item) => item.category === 'Tenant');
       const nextPackageLookup = new Map<string, Record<string, unknown>>(
-        nextAvailablePackages
-          .filter((item) => item.category === 'Tenant')
+        nextTenantPackages
           .flatMap((item) => {
             const keys = [item._id, item.recordId, item.id, item.packageCode]
               .map((value) => String(value || '').trim())
@@ -892,6 +890,7 @@ export default function AdministrationTenantCompaniesPage() {
             return keys.map((key) => [key, item as Record<string, unknown>] as [string, Record<string, unknown>]);
           }),
       );
+      setTenantPackages(nextTenantPackages);
       const nextCompanies = Array.isArray(tenantPayload.tenants)
         ? tenantPayload.tenants.map((company) => normalizeTenantCompany(company, nextPackageLookup))
         : [];
@@ -918,21 +917,17 @@ export default function AdministrationTenantCompaniesPage() {
     const query = searchQuery.toLowerCase();
     return companies.filter((company) => (
       (statusFilter === 'All Status' || company.status === statusFilter) &&
+      (packageFilter === 'All Packages' || company.packageName === packageFilter || company.planType === packageFilter) &&
       (company.name.toLowerCase().includes(query) || company.contactPerson.toLowerCase().includes(query) || company.id.toLowerCase().includes(query))
     ));
-  }, [companies, searchQuery, statusFilter]);
+  }, [companies, searchQuery, statusFilter, packageFilter]);
 
   const stats = useMemo(() => ({
     totalTenants: companies.length,
     activeContracts: companies.filter((company) => company.status === 'Active').length,
     expiringSoon: companies.filter((company) => company.status === 'Expiring Soon').length,
-    totalCreditsIssued: companies.reduce((sum, company) => sum + Number(company.creditsAllocated || 0), 0),
+    expiredContracts: companies.filter((company) => company.status === 'Expired').length,
   }), [companies]);
-
-  const viewingCompanyEmployees = useMemo(
-    () => normalizeTenantEmployees(viewingCompany?.employees, viewingCompany?.managerEmployeeId),
-    [viewingCompany?.employees, viewingCompany?.managerEmployeeId],
-  );
 
   // ── Handlers (commented out backend calls) ──
 
@@ -1012,8 +1007,8 @@ export default function AdministrationTenantCompaniesPage() {
     }
   };
 
-  const openEditModal = (company: TenantCompany) => { setEditingCompany(company); setEditForm(buildEditForm(company)); setShowCustomSector(false); };
-  const closeEditModal = () => { setEditingCompany(null); setEditForm(null); };
+  const openEditModal = (company: TenantCompany) => { setEditingCompany(company); setEditForm(buildEditForm(company)); setShowCustomSector(false); setAgreementFiles([]); };
+  const closeEditModal = () => { setEditingCompany(null); setEditForm(null); setAgreementFiles([]); };
 
   useEffect(() => {
     if (editingCompany) {
@@ -1024,13 +1019,6 @@ export default function AdministrationTenantCompaniesPage() {
   }, [editingCompany]);
   const openRenewModal = (company: TenantCompany) => { setRenewingContract(company); setRenewForm({ extendMonths: '12', addCredits: '1000' }); };
   const closeRenewModal = () => { setRenewingContract(null); setRenewForm({ extendMonths: '12', addCredits: '1000' }); };
-  const openAddEmployeeModal = (company: TenantCompany) => { setAddingEmployeeTo(company); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); };
-  const closeAddEmployeeModal = () => { setAddingEmployeeTo(null); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); };
-  const openEditEmployeeModal = (employee: Employee) => {
-    setEditingEmployee(employee);
-    setEmployeeEditForm({ name: employee?.name || '', phone: employee?.phone || '', designation: employee?.designation || '', role: employee?.role || 'Employee' });
-  };
-  const closeEditEmployeeModal = () => { setEditingEmployee(null); setEmployeeEditForm({ name: '', phone: '', designation: '', role: 'Employee' }); };
   const updateEditSection = (section: keyof EditForm, field: string, value: string) => {
     setEditForm((current) => {
       if (!current) return current;
@@ -1080,98 +1068,24 @@ export default function AdministrationTenantCompaniesPage() {
     }
   };
 
-  const handleAddEmployee = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!addingEmployeeTo || isSaving) return;
-    setIsSaving(true);
-    try {
-      await addTenantCompanyEmployee(addingEmployeeTo.recordId || addingEmployeeTo.id, employeeForm);
-      await loadTenantCompanies({ silent: true });
-      toast.success('Employee added successfully.');
-      closeAddEmployeeModal();
-      setViewingCompany(null);
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to add employee.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleEmployeeEditSave = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!viewingCompany || !editingEmployee || isSaving) return;
-    setIsSaving(true);
-    try {
-      await updateTenantCompanyEmployee(viewingCompany.recordId || viewingCompany.id, editingEmployee.id || '', employeeEditForm);
-      await loadTenantCompanies({ silent: true });
-      toast.success('Employee details updated successfully.');
-      closeEditEmployeeModal();
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to update employee details.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleAgreementFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setAgreementFiles(Array.from(event.target.files || []));
   };
 
   const handleUploadAgreementDocuments = async () => {
-    if (!viewingCompany || agreementFiles.length === 0 || isAgreementUploading) return;
+    if (!editingCompany || agreementFiles.length === 0 || isAgreementUploading) return;
     setIsAgreementUploading(true);
     try {
-      await uploadTenantCompanyAgreementDocuments(viewingCompany.recordId || viewingCompany.id, agreementFiles);
+      await uploadTenantCompanyAgreementDocuments(editingCompany.recordId || editingCompany.id, agreementFiles);
       toast.success('Agreement documents uploaded successfully.');
       setAgreementFiles([]);
-      loadTenantCompanies({ silent: true });
+      const refreshed = await loadTenantCompanies({ silent: true });
+      const updated = refreshed.find((company) => (company.recordId || company.id) === (editingCompany.recordId || editingCompany.id));
+      if (updated) setEditingCompany(updated);
     } catch (error) {
       toast.error((error as Error).message || 'Unable to upload agreement documents.');
     } finally {
       setIsAgreementUploading(false);
-    }
-  };
-
-  const handleAssignManager = async (employeeId: string) => {
-    if (!viewingCompany || isSaving) return;
-    setIsSaving(true);
-    try {
-      await updateTenantCompanyManager(viewingCompany.recordId || viewingCompany.id, { employeeId });
-      await loadTenantCompanies({ silent: true });
-      toast.success('Manager updated successfully.');
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to update manager.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeactivateEmployee = async (employeeId: string) => {
-    if (!viewingCompany || isSaving) return;
-    setIsSaving(true);
-    try {
-      await updateTenantCompanyEmployeeStatus(viewingCompany.recordId || viewingCompany.id, employeeId, { status: 'Inactive' });
-      await loadTenantCompanies({ silent: true });
-      toast.success('Employee status updated.');
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to update employee status.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteEmployee = async (employeeId: string) => {
-    if (!viewingCompany || isSaving) return;
-    setIsSaving(true);
-    try {
-      await deleteTenantCompanyEmployee(viewingCompany.recordId || viewingCompany.id, employeeId);
-      await loadTenantCompanies({ silent: true });
-      toast.success('Employee removed successfully.');
-      setSelectedEmployee(null);
-    } catch (error) {
-      toast.error((error as Error).message || 'Unable to remove employee.');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -1187,7 +1101,7 @@ export default function AdministrationTenantCompaniesPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Administration Tenant Companies
               </h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">View Added Tenant Companies and Add its Employees</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Manage client contracts, allocations and company profiles.</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
                               <button
@@ -1195,61 +1109,35 @@ export default function AdministrationTenantCompaniesPage() {
                                 onClick={() => handleExportCompaniesReport('PDF')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleExportCompaniesReport('Excel')}
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
-                              
                             </div>
-          </div>
-
-          {/* Pill Tabs */}
-          <div data-tour="admin-tenant-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {[
-              { key: 'all', label: 'All Companies' },
-              { key: 'active', label: 'Active' },
-              { key: 'expiring', label: 'Expiring Soon' },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setStatusFilter(tab.key === 'all' ? 'All Status' : tab.key === 'active' ? 'Active' : 'Expiring Soon')}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                  (tab.key === 'all' && statusFilter === 'All Status') ||
-                  (tab.key === 'active' && statusFilter === 'Active') ||
-                  (tab.key === 'expiring' && statusFilter === 'Expiring Soon')
-                    ? 'bg-[#2563EB] text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
           </div>
 
           {/* Stat Cards */}
           <div data-tour="admin-tenant-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
-              { key: 'total', label: 'Total Tenants', value: String(stats.totalTenants), icon: Building2 },
-              { key: 'active', label: 'Active Contracts', value: String(stats.activeContracts), icon: CheckCircle2 },
-              { key: 'expiring', label: 'Expiring Soon', value: String(stats.expiringSoon), icon: AlertTriangle },
-              { key: 'credits', label: 'Total Credits Issued', value: String(stats.totalCreditsIssued), icon: CreditCard },
-            ].map((card, idx) => {
+              { key: 'total', label: 'Total Tenants', value: String(stats.totalTenants), icon: Building2, borderClass: '', iconClass: 'bg-slate-50 text-slate-600' },
+              { key: 'active', label: 'Active Contracts', value: String(stats.activeContracts), icon: CheckCircle2, borderClass: 'border-l-4 border-l-green-500', iconClass: 'bg-green-50 text-green-600' },
+              { key: 'expiring', label: 'Expiring Soon', value: String(stats.expiringSoon), icon: AlertTriangle, borderClass: 'border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+              { key: 'expired', label: 'Expired Contracts', value: String(stats.expiredContracts), icon: XCircle, borderClass: 'border-l-4 border-l-red-500', iconClass: 'bg-red-50 text-red-600' },
+            ].map((card) => {
               const Icon = card.icon;
-              const borderColors = ['', 'border-l-4 border-l-green-500', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-blue-500'];
-              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-green-50 text-green-600', 'bg-amber-50 text-amber-600', 'bg-blue-50 text-blue-600'];
+              const labelToneClass = card.borderClass ? (card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400') : 'text-slate-400';
               return (
-                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
-                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                  <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>
                     <Icon size={16} />
                   </div>
                 </div>
@@ -1260,599 +1148,147 @@ export default function AdministrationTenantCompaniesPage() {
           {/* Data Panel */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* Panel Header */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                <select
-                  data-tour="admin-tenant-status-select"
-                  className="w-full sm:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                >
-                  <option>All Status</option>
-                  <option>Active</option>
-                  <option>Expiring Soon</option>
-                  <option>Expired</option>
-                </select>
+            <div data-tour="admin-tenant-tabs" className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {['All Status', 'Active', 'Expiring Soon', 'Expired'].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusFilter(status)}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-pmedium transition-all ${
+                      statusFilter === status
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {status === 'All Status' ? 'All' : status}
+                  </button>
+                ))}
               </div>
-                <div className="flex flex-wrap items-center gap-2">
-                <div className="relative min-w-[200px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+
+              <div className="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap xl:w-auto">
+                <div className="relative min-w-[180px] flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     data-tour="admin-tenant-search"
                     type="text"
                     placeholder="Search company or contact..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
+                <select
+                  data-tour="admin-tenant-status-select"
+                  className="min-w-[140px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50"
+                  value={packageFilter}
+                  onChange={(event) => setPackageFilter(event.target.value)}
+                >
+                  <option>All Packages</option>
+                  {tenantPackages.map((pkg) => (
+                    <option key={String(pkg.recordId || pkg.id)} value={String(pkg.name)}>{String(pkg.name)}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <table data-tour="admin-tenant-table" className="w-full table-auto text-left">
-              <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                <tr>
-                  <th className="px-3 py-4 text-left whitespace-nowrap">Tenant Company</th>
-                  <th className="px-3 py-4 text-left whitespace-nowrap">Plan & Contract Dates</th>
-                  <th className="px-3 py-4 text-center whitespace-nowrap">Credits (Used / Total)</th>
-                  <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
-                  <th className="px-3 py-4 text-center whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100/60">
-                {filteredCompanies.map((company) => {
-                  const progress = company.creditsAllocated > 0 ? company.creditsUsed / company.creditsAllocated : 0;
-                  return (
-                    <tr key={company.recordId || company.id} className="hover:bg-blue-50/30 transition-all group">
-                      <td className="px-3 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">{company.initials}</div><div><div className="font-pmedium text-primary text-sm">{company.name}</div></div></div></td>
-                      <td className="px-3 py-4"><span className="text-xs font-bold text-slate-700">{company.planType}</span><p className="mt-1 flex items-center gap-1 text-[10px] font-pmedium text-slate-500"><Calendar size={10} />{company.contractStart} - {company.contractEnd}</p></td>
-                      <td className="px-3 py-4"><div className="flex items-center justify-center gap-2"><span className="text-sm font-black text-slate-900">{company.creditsUsed}</span><span className="text-[10px] font-pmedium text-slate-600">/ {company.creditsAllocated}</span></div><div className="mx-auto mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${progress > 0.9 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(progress * 100, 100)}%` }} /></div></td>
-                      <td className="px-3 py-4 text-center"><span className={`inline-block px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-wider ${getStatusBadge(company.status)}`}>{company.status}</span></td>
-                      <td className="px-3 py-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button onClick={() => { setViewingCompany(company); setActiveDetailTab('summary'); setAgreementFiles([]); }} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm" title="View Details"><Eye size={14} /></button>
+            <div className="overflow-x-auto flex-1">
+              <table data-tour="admin-tenant-table" className="w-full min-w-[1120px] text-left font-pmedium">
+                <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                  <tr>
+                    <th className="px-5 py-4">Company Info</th>
+                    <th className="px-5 py-4">Contact Details</th>
+                    <th className="px-5 py-4">Contract Period</th>
+                    <th className="px-5 py-4">Package & Credits</th>
+                    <th className="px-5 py-4 text-center">Status</th>
+                    <th className="px-5 py-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {filteredCompanies.map((company) => (
+                    <tr key={company.recordId || company.id} className="group transition-colors hover:bg-blue-50/30">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-pmedium shadow-sm shrink-0 border border-slate-200">
+                            {company.initials}
+                          </div>
+                          <div>
+                            <p className="font-pmedium text-primary text-sm max-w-[150px] truncate" title={company.name}>{company.name}</p>
+                            <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{company.id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 space-y-1">
+                        <p className="font-pmedium text-slate-800 text-xs">{company.contactPerson}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> {company.email}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Phone size={10} /> {company.phone}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="w-2 h-2 rounded-full bg-green-500" />
+                          <p className="text-xs font-pmedium text-slate-700">{company.contractStart}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-red-500" />
+                          <p className="text-xs font-pmedium text-slate-700">{company.contractEnd}</p>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 space-y-1.5">
+                        <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-pmedium uppercase tracking-wider">
+                          {company.packageName || company.planType}
+                        </span>
+                        <div className="flex items-center gap-1 text-[10px] font-pmedium text-slate-600">
+                          <CreditCard size={12} className="text-slate-400" /> {company.creditsUsed} / {company.creditsAllocated} Cr
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-wider ${getStatusBadge(company.status)}`}>{company.status}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          <button onClick={() => navigate(`/administration/tenant-companies/${company.recordId || company.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Details">
+                            <Eye size={14} />
+                          </button>
+                          <button onClick={() => openEditModal(company)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-lg transition-all shadow-sm" title="Edit Company Record">
+                            <Edit size={14} />
+                          </button>
+                          <button onClick={() => openRenewModal(company)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 rounded-lg transition-all shadow-sm" title="Renew Contract">
+                            <RefreshCw size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
-                {filteredCompanies.length === 0 && <tr><td colSpan={5} className="px-3 py-20 text-center font-bold text-slate-400">No tenant companies found matching your filters.</td></tr>}
-              </tbody>
-            </table>
+                  ))}
+                  {filteredCompanies.length === 0 && (
+                    <tr><td colSpan={6} className="py-16 text-center font-pmedium text-slate-400">No tenant companies found matching your filters.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           </div>
         </PageFrame>
       </div>
 
-        {viewingCompany && (
-          <div className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
-                    <Building2 className="text-blue-600" size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-pmedium text-primary">{viewingCompany.name}</h2>
-                    <div className="mt-0.5 flex items-center gap-2">
-                      <span className={`inline-flex rounded-md border px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${getStatusBadge(viewingCompany.status)}`}>{viewingCompany.status}</span>
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500"><Briefcase size={10} /> {viewingCompany.businessType || 'Tenant Company'}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                type="button"
-                onClick={() => handleExportCompaniesReport('PDF')}
-                disabled={Boolean(isExportingReport)}
-                title="Export PDF"
-                className="px-3 py-2 bg-white text-[#f10505] rounded-xl font-pmedium text-[9px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileDown size={12} /> {isExportingReport === 'PDF' ? '...' : ''}
-                
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExportCompaniesReport('Excel')}
-                disabled={Boolean(isExportingReport)}
-                title="Export Excel"
-                className="px-3 py-2 bg-[#ffffff] text-[#1fd628] rounded-xl font-pmedium text-[9px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileSpreadsheet size={12} /> {isExportingReport === 'Excel' ? '...' : ''}
-                
-              </button>
-                  <button onClick={() => { setViewingCompany(null); setSelectedEmployee(null); setEditingEmployee(null); setAgreementFiles([]); }} className="rounded-xl border border-slate-200 bg-red-500 p-1.5 text-white transition-colors hover:bg-red-600">
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-4 border-b border-slate-100 bg-white px-4 pt-3">
-                {[
-                  { id: 'summary', label: 'Company Summary', icon: <LayoutGrid size={16} /> },
-                  { id: 'employees', label: 'Employees', icon: <Users size={16} /> },
-                  { id: 'credits', label: 'Credit Usage', icon: <History size={16} /> },
-                  { id: 'space', label: 'Space Assignment', icon: <MapPin size={16} /> },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveDetailTab(tab.id)}
-                    className={`flex items-center gap-2 border-b-2 pb-4 text-sm font-bold transition-all ${
-                      activeDetailTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex-1 overflow-y-auto bg-slate-50/30 p-4">
-                {activeDetailTab === 'summary' && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
-                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Start</p>
-                        <p className="text-xs font-bold text-slate-900">{viewingCompany.contractStart || 'N/A'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract End</p>
-                        <p className="text-xs font-bold text-slate-900">{viewingCompany.contractEnd || 'N/A'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Base Credits</p>
-                        <p className="text-base font-black text-blue-600">{viewingCompany.baseCreditsAllocated ?? viewingCompany.creditConfiguration?.monthlyTotalCredits ?? viewingCompany.packageDetails?.monthlyTotalCredits ?? viewingCompany.creditsAllocated}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-violet-500">Purchased</p>
-                        <p className="text-base font-black text-violet-600">+{viewingCompany.purchasedCredits ?? viewingCompany.addOnCredits?.purchasedCredits ?? 0}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-500">Credits Used</p>
-                        <p className="text-base font-black text-emerald-600">{viewingCompany.creditsUsed}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Credits Remaining</p>
-                        <p className="text-base font-black text-slate-900">{Math.max(0, Number((viewingCompany.totalCreditsAllocated ?? viewingCompany.creditsAllocated) || 0) - Number(viewingCompany.creditsUsed || 0))}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <p className="mb-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Area</p>
-                        <p className="text-xs font-bold text-slate-900">{viewingCompany.spaceAssigned?.area || viewingCompany.space?.floor || 'Unassigned'}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Sales Package Summary</h3>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900">{viewingCompany.planType || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Package Name</p><p className="text-xs font-bold text-slate-900">{viewingCompany.packageName || viewingCompany.packageDetails?.packageName || viewingCompany.planType || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Location Blocks</p><p className="text-xs font-bold text-slate-900">{viewingCompany.packageLocationLabels?.length ? viewingCompany.packageLocationLabels.join(', ') : 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900">{formatInteger(viewingCompany.packageDetails?.totalSeats || 0)}</p></div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Billing Snapshot</h3>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.monthlyRent || viewingCompany.billingDetails?.monthlyRent || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Total Contract Amount</p><p className="text-xs font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.totalContractAmount || viewingCompany.billingDetails?.totalContractAmount || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.securityDepositAmount || viewingCompany.billingDetails?.securityDepositAmount || 0)}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900">{viewingCompany.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Customer Profile</h3>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Company Name</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.clientName || viewingCompany.name}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.sector || viewingCompany.businessType || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.hoCountry || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.hoState || 'N/A'}</p></div>
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.hoCity || 'N/A'}</p></div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Manager Assignment</h3>
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="text-[10px] font-pmedium text-slate-400">Current Manager</p>
-                            <p className="text-xs font-bold text-slate-900">{viewingCompany.managerEmployee?.name || 'No manager assigned'}</p>
-                            <p className="text-[10px] text-slate-500">{viewingCompany.managerEmployee?.email || 'Assign one manager from the employee list below.'}</p>
-                          </div>
-                          <span className="inline-flex w-max rounded-xl border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-pmedium uppercase tracking-wider text-blue-600">
-                            {viewingCompany.managerEmployeeId ? 'Manager Active' : 'Pending Assignment'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Company Details</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Building</p><p className="text-sm font-bold text-slate-900">{viewingCompany.companyDetails?.buildingName || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Unit No.</p><p className="text-sm font-bold text-slate-900">{viewingCompany.companyDetails?.unitNo || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Open Desks</p><p className="text-sm font-bold text-slate-900">{(viewingCompany.livePricingSummary?.openDesks ?? viewingCompany.companyDetails?.openDesks) || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Cabin Desks</p><p className="text-sm font-bold text-slate-900">{(viewingCompany.livePricingSummary?.cabinDesks ?? viewingCompany.companyDetails?.cabinDesks) || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Open Desk Rate</p><p className="text-sm font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.ratePerOpenDesk || viewingCompany.companyDetails?.ratePerOpenDesk || 0)}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Cabin Desk Rate</p><p className="text-sm font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.ratePerCabinDesk || viewingCompany.companyDetails?.ratePerCabinDesk || 0)}</p></div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Package & Credits</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Plan Type</p><p className="text-sm font-bold text-slate-900">{viewingCompany.planType || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Package Name</p><p className="text-sm font-bold text-slate-900">{viewingCompany.packageDetails?.packageName || viewingCompany.planType || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Monthly Credits</p><p className="text-sm font-bold text-slate-900">{viewingCompany.packageDetails?.monthlyTotalCredits || viewingCompany.creditConfiguration?.monthlyTotalCredits || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Credits / Seat</p><p className="text-sm font-bold text-slate-900">{viewingCompany.packageDetails?.creditsPerSeat || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Credit Reset</p><p className="text-sm font-bold text-slate-900">{viewingCompany.creditConfiguration?.creditResetCycle || 'Monthly'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Usage Tracking</p><p className="text-sm font-bold text-slate-900">{viewingCompany.creditConfiguration?.creditUsageTracking || 'N/A'}</p></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">POC Details</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Name</p><p className="text-sm font-bold text-slate-900">{viewingCompany.pocDetails?.localPocName || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Email</p><p className="text-sm font-bold text-slate-900 break-all">{viewingCompany.pocDetails?.localPocEmail || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Phone</p><p className="text-sm font-bold text-slate-900">{viewingCompany.pocDetails?.localPocPhone || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Name</p><p className="text-sm font-bold text-slate-900">{viewingCompany.pocDetails?.hoPocName || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Email</p><p className="text-sm font-bold text-slate-900 break-all">{viewingCompany.pocDetails?.hoPocEmail || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Phone</p><p className="text-sm font-bold text-slate-900">{viewingCompany.pocDetails?.hoPocPhone || 'N/A'}</p></div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Agreement Details</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Annual Increment</p><p className="text-sm font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.annualIncrement || viewingCompany.agreementDetails?.annualIncrement || 0)}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Meeting Credits</p><p className="text-sm font-bold text-slate-900">{viewingCompany.agreementDetails?.totalMeetingCredits || 0}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Lock-in Period</p><p className="text-sm font-bold text-slate-900">{viewingCompany.agreementDetails?.lockInPeriod || viewingCompany.contractDurationMonths || 0} Months</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Status</p><p className="text-sm font-bold text-slate-900">{viewingCompany.companyDetails?.status || viewingCompany.status}</p></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                      <div className="mb-3 flex flex-col gap-2 border-b border-slate-100 pb-2 lg:flex-row lg:items-end lg:justify-between">
-                        <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Agreement Documents</h3>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <label className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
-                            Choose File(s)
-                            <input type="file" multiple accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg" className="hidden" onChange={handleAgreementFilesChange} />
-                          </label>
-                          <button type="button" onClick={handleUploadAgreementDocuments} disabled={!agreementFiles.length || isAgreementUploading}
-                            className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                          >{isAgreementUploading ? 'Uploading...' : 'Upload'}</button>
-                        </div>
-                      </div>
-                      {agreementFiles.length > 0 && (
-                        <p className="mb-3 text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Selected {agreementFiles.length} file{agreementFiles.length > 1 ? 's' : ''}</p>
-                      )}
-                      {(viewingCompany.agreementDocuments || []).length > 0 ? (
-                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                          {(viewingCompany.agreementDocuments || []).map((document) => (
-                            <a key={`${document.publicId || document.url || document.name}`} href={document.url} target="_blank" rel="noreferrer"
-                              className="rounded-xl border border-slate-200 bg-slate-50 p-3 transition-all hover:border-blue-200 hover:bg-blue-50/50"
-                            >
-                              <div className="flex items-start gap-2">
-                                <div className="rounded-xl bg-blue-50 p-1.5 text-blue-600"><FileText size={14} /></div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-bold text-slate-900">{document.name}</p>
-                                  <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
-                                </div>
-                              </div>
-                            </a>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-medium text-slate-400">No agreement documents uploaded yet.</div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-pmedium text-slate-500">Contract details are view-only for administration.</span>
-                    </div>
-                  </div>
-                )}
-
-                {activeDetailTab === 'employees' && (
-                  <div className="space-y-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Managed Employees</h3>
-                      <button onClick={() => openAddEmployeeModal(viewingCompany)} className="flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium text-blue-600 transition-all hover:bg-blue-100">
-                        <Plus size={12} /> Add Employee
-                      </button>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Employee Directory</p>
-                          <p className="mt-0.5 text-xs font-bold text-slate-900">{viewingCompanyEmployees.length} managed {viewingCompanyEmployees.length === 1 ? 'employee' : 'employees'}</p>
-                        </div>
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-600"><Users size={11} /> Active roster</span>
-                      </div>
-
-                      {viewingCompanyEmployees.length > 0 ? (
-                        <div className="grid gap-2">
-                          {viewingCompanyEmployees.map((employee) => {
-                            const statusMeta = getTenantEmployeeStatusMeta(employee);
-                            const isManager = employee.role === 'Manager';
-                            return (
-                              <div key={employee.id || employee.email || employee.name} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-                                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                  <div className="flex min-w-0 items-start gap-2">
-                                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${isManager ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                                      {getEmployeeInitials(employee)}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="flex flex-wrap items-center gap-1.5">
-                                        <h4 className="text-xs font-black text-slate-950">{buildEmployeeName(employee)}</h4>
-                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${isManager ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{employee.role || 'Employee'}</span>
-                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${statusMeta.className}`}>{statusMeta.label}</span>
-                                      </div>
-                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-pmedium text-slate-500">
-                                        <span className="inline-flex items-center gap-1"><Mail size={11} /> {employee.email || 'No email'}</span>
-                                        {employee.phone && <span className="inline-flex items-center gap-1"><Phone size={11} /> {employee.phone}</span>}
-                                        <span className="inline-flex items-center gap-1"><Briefcase size={11} /> {employee.designation || 'No designation'}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
-                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
-                                    {employee.status === 'Active' && !isManager && (
-                                      <button onClick={() => handleAssignManager(employee.id!)} className="rounded-xl border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
-                                    )}
-                                    {employee.status === 'Active' && isManager && (
-                                      <span className="inline-flex items-center rounded-xl border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-blue-700">Current Manager</span>
-                                    )}
-                                    {employee.status === 'Active' && (
-                                      <button onClick={() => handleDeactivateEmployee(employee.id!)} className="rounded-xl border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-8 text-center">
-                          <Users className="mx-auto mb-2 text-slate-300" size={24} />
-                          <p className="text-xs font-bold text-slate-500">No employees found for this tenant company.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {activeDetailTab === 'credits' && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-slate-500">Base Allocated</p><p className="text-base font-black text-slate-900">{viewingCompany.baseCreditsAllocated ?? viewingCompany.creditConfiguration?.monthlyTotalCredits ?? viewingCompany.packageDetails?.monthlyTotalCredits ?? viewingCompany.creditsAllocated}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-violet-500">Purchased Add-ons</p><p className="text-base font-black text-violet-600">+{viewingCompany.purchasedCredits ?? viewingCompany.addOnCredits?.purchasedCredits ?? 0}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-blue-500">Credits Used</p><p className="text-base font-black text-blue-600">{viewingCompany.creditsUsed}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-green-500">Remaining Balance</p><p className="text-base font-black text-green-600">{Math.max(0, Number((viewingCompany.totalCreditsAllocated ?? viewingCompany.creditsAllocated) || 0) - Number(viewingCompany.creditsUsed || 0))}</p></div>
-                    </div>
-
-                    {Array.isArray(viewingCompany.creditHistory) && viewingCompany.creditHistory.length > 0 && (
-                      <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 shadow-sm">
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Latest Credit Entry</p>
-                            <h4 className="mt-0.5 text-sm font-black text-blue-950">{viewingCompany.creditHistory[0]?.roomName || viewingCompany.creditHistory[0]?.resource || viewingCompany.creditHistory[0]?.type || 'Meeting Room Booking'}</h4>
-                          </div>
-                          <span className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">{viewingCompany.creditHistory[0]?.bookingCode || 'No code'}</span>
-                        </div>
-                        <div className="mt-2 grid gap-2 md:grid-cols-4 text-[10px] font-pmedium text-blue-900">
-                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Scheduled Date: {viewingCompany.creditHistory[0]?.scheduledDate || viewingCompany.creditHistory[0]?.date || '—'}</div>
-                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Booked By: {viewingCompany.creditHistory[0]?.bookedBy || '—'}</div>
-                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Schedule: {viewingCompany.creditHistory[0]?.startTime || '—'} - {viewingCompany.creditHistory[0]?.endTime || '—'}</div>
-                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Location: {viewingCompany.creditHistory[0]?.location || '—'}{viewingCompany.creditHistory[0]?.wing ? ` • Wing ${viewingCompany.creditHistory[0]?.wing}` : ''}</div>
-                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Credits: {formatCreditDelta(viewingCompany.creditHistory[0])}</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {Array.isArray(viewingCompany.creditHistory) && viewingCompany.creditHistory.length > 0 ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                        <table className="w-full text-left">
-                          <thead className="border-b border-slate-200 bg-slate-50 text-[9px] font-pmedium uppercase text-slate-500">
-                            <tr>
-                              <th className="px-3 py-2">Booked On</th>
-                              <th className="px-3 py-2">Booking / Room</th>
-                              <th className="px-3 py-2">Scheduled For</th>
-                              <th className="px-3 py-2">Location / Wing</th>
-                              <th className="px-3 py-2">Status</th>
-                              <th className="px-3 py-2 text-right">Credits</th>
-                              <th className="px-3 py-2 text-right">Remaining</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {viewingCompany.creditHistory.map((history) => (
-                              <tr key={history.id}>
-                                <td className="px-3 py-2 text-[10px] font-pmedium text-slate-500">{history.date}</td>
-                                <td className="px-3 py-2">
-                                  <p className="text-xs font-bold text-slate-900">{history.roomName || history.resource || history.type}</p>
-                                  <p className="text-[10px] text-slate-500">{history.bookingCode || history.type}</p>
-                                  <p className="text-[10px] text-slate-400">{history.resource ? `Resource: ${history.resource}` : 'Meeting room credit entry'}</p>
-                                </td>
-                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">
-                                  <p className="font-semibold text-slate-800">{history.scheduledDate || history.date || '—'}</p>
-                                  <p className="font-semibold text-slate-800">{history.startTime || '—'} - {history.endTime || '—'}</p>
-                                  <p className="text-[10px] text-slate-500">{history.bookedBy || '—'}</p>
-                                </td>
-                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">{history.location || '—'}{history.wing ? ` • Wing ${history.wing}` : ''}</td>
-                                <td className="px-3 py-2">
-                                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${getCreditHistoryStatusBadge(history.status || '')}`}>{history.status || 'Booked'}</span>
-                                </td>
-                                <td className={`px-3 py-2 text-right text-xs font-black ${Number(history.credited || 0) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatCreditDelta(history)}</td>
-                                <td className="px-3 py-2 text-right text-xs font-black text-emerald-600">{history.remainingCredits ?? Math.max(0, Number(viewingCompany.creditsAllocated || 0) - Number(viewingCompany.creditsUsed || 0))}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-8 text-center"><p className="text-xs font-bold text-slate-500">No credit usage recorded yet.</p></div>
-                    )}
-                  </div>
-                )}
-
-                {activeDetailTab === 'space' && (
-                  <div className="space-y-3">
-                    <h3 className="mb-1 text-xs font-pmedium uppercase tracking-wider text-slate-900">Tenant Occupied Area</h3>
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
-                        <MapPin className="mb-1 text-amber-500" size={18} />
-                        <p className="px-2 text-xs font-bold text-slate-900">{viewingCompany.spaceAssigned?.area || 'Unassigned'}</p>
-                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Area</p>
-                      </div>
-                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
-                        <LayoutGrid className="mb-1 text-blue-500" size={18} />
-                        <p className="text-2xl font-black text-slate-900">{viewingCompany.spaceAssigned?.openDesks ?? 0}</p>
-                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Open Desks</p>
-                      </div>
-                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
-                        <Building2 className="mb-1 text-purple-500" size={18} />
-                        <p className="text-2xl font-black text-slate-900">{viewingCompany.spaceAssigned?.cabinDesks ?? 0}</p>
-                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Cabin Desks</p>
-                      </div>
-                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
-                        <Users className="mb-1 text-sky-500" size={18} />
-                        <p className="text-2xl font-black text-slate-900">{viewingCompany.spaceAssigned?.totalSeats ?? 0}</p>
-                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Total Seats</p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Assigned Space Breakdown</h3>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div><p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Assigned Date</p><p className="text-xs font-bold text-slate-900">{viewingCompany.spaceAssigned?.assignedDate || 'N/A'}</p></div>
-                          <div>
-                            <p className="mb-0.5 text-[10px] font-pmedium text-slate-400">Assigned Seats</p>
-                            <div className="mt-0.5 flex flex-wrap gap-1.5">
-                              {Array.isArray(viewingCompany.spaceAssigned?.assignedSeats) && viewingCompany.spaceAssigned.assignedSeats.length > 0 ? viewingCompany.spaceAssigned.assignedSeats.map((seat) => (
-                                <span key={seat} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">{seat}</span>
-                              )) : (
-                                <span className="text-xs font-bold text-slate-300">N/A</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-pmedium uppercase tracking-wider text-slate-900">Location Labels</h3>
-                        <div className="flex flex-wrap gap-1.5">
-                          {Array.isArray(viewingCompany.spaceAssigned?.locationLabels) && viewingCompany.spaceAssigned.locationLabels.length > 0 ? viewingCompany.spaceAssigned.locationLabels.map((label) => (
-                            <span key={label} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">{label}</span>
-                          )) : (
-                            <span className="text-xs font-medium text-slate-400">No assigned location labels.</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {selectedEmployee && (
-          <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-4">
-                <div>
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Employee Profile</p>
-                  <h3 className="mt-0.5 text-xl font-black text-slate-900">{selectedEmployee.name}</h3>
-                  <p className="mt-0.5 text-xs font-bold text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
-                </div>
-                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition-colors hover:bg-slate-100"><X size={16} /></button>
-              </div>
-
-              <div className="grid gap-3 p-4 md:grid-cols-2">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{selectedEmployee.email}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.tenantCompanyName || viewingCompany?.name || 'Tenant Company'}</p></div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-4">
-                <button onClick={() => openEditEmployeeModal(selectedEmployee)} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
-                <button onClick={() => { if (selectedEmployee?.status === 'Active') handleDeactivateEmployee(selectedEmployee.id!); }}
-                  disabled={selectedEmployee?.status !== 'Active'}
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >Deactivate</button>
-                <button onClick={() => handleDeleteEmployee(selectedEmployee.id!)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
-                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {editingEmployee && (
-          <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 p-5">
-                <h3 className="text-lg font-black text-slate-900">Edit Employee</h3>
-                <button onClick={closeEditEmployeeModal} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
-              </div>
-              <form onSubmit={handleEmployeeEditSave} className="space-y-4 p-6">
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Full Name</label>
-                  <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.name} onChange={(event) => setEmployeeEditForm({ ...employeeEditForm, name: event.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Phone (Optional)</label>
-                  <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.phone} onChange={(event) => setEmployeeEditForm({ ...employeeEditForm, phone: event.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Designation</label>
-                  <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.designation} onChange={(event) => setEmployeeEditForm({ ...employeeEditForm, designation: event.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Tenant Role</label>
-                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.role} onChange={(event) => setEmployeeEditForm({ ...employeeEditForm, role: event.target.value })}>
-                    <option value="Employee">Employee</option>
-                    <option value="Manager">Manager</option>
-                  </select>
-                </div>
-                <button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-pmedium text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
-              </form>
-            </div>
-          </div>
-        )}
 
         {renewingContract && (
           <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 p-4">
-                <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><RefreshCw size={16} className="text-blue-600" /> Renew Contract</h3>
-                <button onClick={closeRenewModal} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+            <div className="w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-blue-50/30 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><RefreshCw size={18} /></div>
+                  <h3 className="text-base font-pmedium text-slate-800">Renew Contract</h3>
+                </div>
+                <button onClick={closeRenewModal} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors"><X size={16} /></button>
               </div>
-              <form onSubmit={handleRenewSave} className="space-y-4 p-4">
+              <form onSubmit={handleRenewSave} className="space-y-4 p-5">
                 <div className="flex items-start gap-1.5 rounded-xl bg-blue-50 p-2.5 text-[10px] font-pmedium text-blue-800">
                   <ShieldCheck size={14} className="mt-0.5 shrink-0" />
                   <p>Finance gets notified automatically upon saving. Contract dates will be updated from the tenant company API.</p>
                 </div>
                 <div>
                   <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Extend Duration</label>
-                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold outline-none" value={renewForm.extendMonths} onChange={(event) => setRenewForm({ ...renewForm, extendMonths: event.target.value })}>
+                  <select className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={renewForm.extendMonths} onChange={(event) => setRenewForm({ ...renewForm, extendMonths: event.target.value })}>
                     <option value="6">6 Months</option>
                     <option value="12">12 Months (1 Year)</option>
                     <option value="24">24 Months (2 Years)</option>
@@ -1860,46 +1296,9 @@ export default function AdministrationTenantCompaniesPage() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Add More Credits</label>
-                  <input type="number" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold outline-none" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
+                  <input type="number" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
                 </div>
-                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-pmedium text-white transition-all hover:bg-blue-700"><Save size={14} /> Update Contract</button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {addingEmployeeTo && (
-          <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 p-4">
-                <h3 className="text-base font-black text-slate-900">Add Employee</h3>
-                <button onClick={closeAddEmployeeModal} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
-              </div>
-              <form onSubmit={handleAddEmployee} className="space-y-3 p-4">
-                <div>
-                  <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Full Name</label>
-                  <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.name} onChange={(event) => setEmployeeForm({ ...employeeForm, name: event.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Email Address</label>
-                  <input required type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.email} onChange={(event) => setEmployeeForm({ ...employeeForm, email: event.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Phone (Optional)</label>
-                  <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.phone} onChange={(event) => setEmployeeForm({ ...employeeForm, phone: event.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Designation</label>
-                  <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.designation} onChange={(event) => setEmployeeForm({ ...employeeForm, designation: event.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Tenant Role</label>
-                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.role} onChange={(event) => setEmployeeForm({ ...employeeForm, role: event.target.value })}>
-                    <option value="Employee">Employee</option>
-                    <option value="Manager">Manager</option>
-                  </select>
-                </div>
-                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-pmedium text-white transition-all hover:bg-blue-700"><Mail size={14} /> Send Invite Link</button>
+                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90"><Save size={14} /> Update Contract</button>
               </form>
             </div>
           </div>
@@ -1907,29 +1306,96 @@ export default function AdministrationTenantCompaniesPage() {
 
         {editingCompany && editForm && (
           <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4">
-                <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><Edit size={16} className="text-amber-500" /> Edit Company Record</h3>
-                <button onClick={closeEditModal} className="rounded-xl border border-slate-200 bg-white p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-blue-50/30 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><Edit size={18} /></div>
+                  <div>
+                    <h3 className="text-base font-pmedium text-slate-800">Edit Tenant Details</h3>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">Editing: {editingCompany.name}</p>
+                  </div>
+                </div>
+                <button onClick={closeEditModal} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors"><X size={16} /></button>
               </div>
-              <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto p-4">
+              <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto p-4 bg-slate-50/30">
                 <div className="grid gap-4">
-                  <section className="space-y-3">
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
-                      <h4 className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Customer Details</h4>
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Client Profile</span>
-                    </div>
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Profile & Contact</span></h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
                         <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Company Name</label>
-                        <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.customerDetails.clientName} onChange={(event) => updateEditSection('customerDetails', 'clientName', event.target.value)} />
+                        <input required type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyName} onChange={(event) => setEditForm((current) => current && ({ ...current, companyName: event.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Business Type</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.businessType} onChange={(event) => setEditForm((current) => current && ({ ...current, businessType: event.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Contact Person</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.contactPerson} onChange={(event) => setEditForm((current) => current && ({ ...current, contactPerson: event.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Email</label>
+                        <input type="email" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.email} onChange={(event) => setEditForm((current) => current && ({ ...current, email: event.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Phone</label>
+                        <input type="tel" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.phone} onChange={(event) => setEditForm((current) => current && ({ ...current, phone: event.target.value }))} />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Company Details</span></h4>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Building Name</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.buildingName} onChange={(event) => updateEditSection('companyDetails', 'buildingName', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Unit No</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.unitNo} onChange={(event) => updateEditSection('companyDetails', 'unitNo', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Cabin Desks</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.cabinDesks} onChange={(event) => updateEditSection('companyDetails', 'cabinDesks', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Rate Per Cabin Desk</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.ratePerCabinDesk} onChange={(event) => updateEditSection('companyDetails', 'ratePerCabinDesk', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Open Desks</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.openDesks} onChange={(event) => updateEditSection('companyDetails', 'openDesks', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Rate Per Open Desk</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.ratePerOpenDesk} onChange={(event) => updateEditSection('companyDetails', 'ratePerOpenDesk', event.target.value)} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Status</label>
+                        <select className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.companyDetails.status} onChange={(event) => updateEditSection('companyDetails', 'status', event.target.value)}>
+                          <option>Active</option>
+                          <option>Expiring Soon</option>
+                          <option>Expired</option>
+                        </select>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Customer Details</span></h4>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Client Name</label>
+                        <input required type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.clientName} onChange={(event) => updateEditSection('customerDetails', 'clientName', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Sector</label>
                         {!showCustomSector ? (
                           <div className="space-y-1.5">
                             <select
-                              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none"
+                              className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
                               value={allSectorOptions.includes(editForm.customerDetails.sector) ? editForm.customerDetails.sector : ''}
                               onChange={(event) => { setShowCustomSector(false); updateEditSection('customerDetails', 'sector', event.target.value); }}
                             >
@@ -1950,7 +1416,7 @@ export default function AdministrationTenantCompaniesPage() {
                               required
                               type="text"
                               placeholder="Type new sector name"
-                              className="w-full rounded-xl border border-indigo-200 bg-slate-50 p-2.5 text-sm font-bold outline-none"
+                              className="w-full rounded-xl border border-indigo-200 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                               value={editForm.customerDetails.sector}
                               onChange={(event) => updateEditSection('customerDetails', 'sector', event.target.value)}
                             />
@@ -1964,84 +1430,176 @@ export default function AdministrationTenantCompaniesPage() {
                           </div>
                         )}
                       </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">HO Country</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.hoCountry} onChange={(event) => updateEditSection('customerDetails', 'hoCountry', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">HO State</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.hoState} onChange={(event) => updateEditSection('customerDetails', 'hoState', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">HO City</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.hoCity} onChange={(event) => updateEditSection('customerDetails', 'hoCity', event.target.value)} />
+                      </div>
                     </div>
                   </section>
 
-                  <section className="space-y-3">
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
-                      <h4 className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">POC Details</h4>
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Primary Contact</span>
-                    </div>
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Phone size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">POC Details</span></h4>
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="md:col-span-3">
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Local POC Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.localPocName} onChange={(event) => updateEditSection('pocDetails', 'localPocName', event.target.value)} />
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.localPocName} onChange={(event) => updateEditSection('pocDetails', 'localPocName', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Local POC Email</label>
-                        <input type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.localPocEmail} onChange={(event) => updateEditSection('pocDetails', 'localPocEmail', event.target.value)} />
+                        <input type="email" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.localPocEmail} onChange={(event) => updateEditSection('pocDetails', 'localPocEmail', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Local POC Phone</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.localPocPhone} onChange={(event) => updateEditSection('pocDetails', 'localPocPhone', event.target.value)} />
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.localPocPhone} onChange={(event) => updateEditSection('pocDetails', 'localPocPhone', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">HO POC Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.hoPocName} onChange={(event) => updateEditSection('pocDetails', 'hoPocName', event.target.value)} />
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.hoPocName} onChange={(event) => updateEditSection('pocDetails', 'hoPocName', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">HO POC Email</label>
+                        <input type="email" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.hoPocEmail} onChange={(event) => updateEditSection('pocDetails', 'hoPocEmail', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">HO POC Phone</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.hoPocPhone} onChange={(event) => updateEditSection('pocDetails', 'hoPocPhone', event.target.value)} />
                       </div>
                     </div>
                   </section>
 
-                  <section className="space-y-3">
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
-                      <h4 className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Agreement Details</h4>
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-amber-600">Contract Timeline</span>
-                    </div>
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Agreement Details</span></h4>
                     <div className="grid gap-3 md:grid-cols-3">
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Start Date</label>
-                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.agreementDetails.startDate} onChange={(event) => updateEditSection('agreementDetails', 'startDate', event.target.value)} />
+                        <input type="date" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.startDate} onChange={(event) => updateEditSection('agreementDetails', 'startDate', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">End Date</label>
-                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-100 p-2 text-xs font-bold text-slate-500 outline-none" value={editForm.agreementDetails.endDate} readOnly />
+                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-100 p-2.5 text-xs font-pmedium text-slate-500 outline-none" value={editForm.agreementDetails.endDate} readOnly />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Lock-in Period</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.agreementDetails.lockInPeriod} onChange={(event) => updateEditSection('agreementDetails', 'lockInPeriod', event.target.value)} />
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Lock-in Period (Months)</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.lockInPeriod} onChange={(event) => updateEditSection('agreementDetails', 'lockInPeriod', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Annual Increment</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.annualIncrement} onChange={(event) => updateEditSection('agreementDetails', 'annualIncrement', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Per Desk Meeting Credits</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.perDeskMeetingCredits} onChange={(event) => updateEditSection('agreementDetails', 'perDeskMeetingCredits', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Total Meeting Credits</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.totalMeetingCredits} onChange={(event) => updateEditSection('agreementDetails', 'totalMeetingCredits', event.target.value)} />
                       </div>
                     </div>
                   </section>
 
-                  <section className="space-y-3">
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
-                      <h4 className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Package & Credits</h4>
-                      <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-violet-600">Allocation</span>
-                    </div>
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Package & Credits</span></h4>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <div>
+                      <div className="md:col-span-2">
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Package Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.packageDetails.packageName} onChange={(event) => updateEditSection('packageDetails', 'packageName', event.target.value)} />
+                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.packageName} onChange={(event) => updateEditSection('packageDetails', 'packageName', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Open Desks</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.openDesks} onChange={(event) => updateEditSection('packageDetails', 'openDesks', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Cabin Desks</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.cabinDesks} onChange={(event) => updateEditSection('packageDetails', 'cabinDesks', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Credits Per Seat</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.creditsPerSeat} onChange={(event) => updateEditSection('packageDetails', 'creditsPerSeat', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Monthly Total Credits</label>
-                        <input type="number" className="w-full rounded-xl border border-sky-200 bg-sky-50 p-2 text-xs font-black text-sky-700 outline-none" value={calculatePackageMonthlyCredits(editForm.packageDetails)} readOnly />
+                        <input type="number" className="w-full rounded-xl border border-sky-200 bg-sky-50 p-2.5 text-xs font-pmedium text-sky-700 outline-none" value={calculatePackageMonthlyCredits(editForm.packageDetails)} readOnly />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Credit Reset Cycle</label>
+                        <select className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.creditConfiguration.creditResetCycle} onChange={(event) => { updateEditSection('creditConfiguration', 'creditResetCycle', event.target.value); updateEditSection('packageDetails', 'creditResetCycle', event.target.value); }}>
+                          <option>Monthly</option>
+                          <option>Quarterly</option>
+                          <option>Yearly</option>
+                        </select>
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Purchased Credits</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.addOnCredits.purchasedCredits} onChange={(event) => updateEditSection('addOnCredits', 'purchasedCredits', event.target.value)} />
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.addOnCredits.purchasedCredits} onChange={(event) => updateEditSection('addOnCredits', 'purchasedCredits', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Remaining Credits</label>
-                        <input type="number" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 p-2 text-xs font-black text-emerald-700 outline-none" value={calculateRemainingCredits(editForm)} readOnly />
+                        <input type="number" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-pmedium text-emerald-700 outline-none" value={calculateRemainingCredits(editForm)} readOnly />
                       </div>
+                      <div className="md:col-span-2">
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Credit Usage Tracking</label>
+                        <textarea rows={3} className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.creditUsageTracking} onChange={(event) => { updateEditSection('packageDetails', 'creditUsageTracking', event.target.value); updateEditSection('creditConfiguration', 'creditUsageTracking', event.target.value); }} placeholder="Track monthly usage, add-on consumption, and renewal notes here." />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Upload Document</span></h4>
+                    <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                      <label className="block text-[10px] font-pmedium text-amber-700 uppercase tracking-widest mb-2">Upload Agreement Document</label>
+                      <div className="rounded-xl border border-amber-200 bg-white p-3 shadow-sm">
+                        <input
+                          type="file"
+                          multiple
+                          accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg"
+                          onChange={handleAgreementFilesChange}
+                          className="block w-full text-xs font-pmedium text-slate-700 border-none outline-none focus:ring-0 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-[10px] file:font-pmedium file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
+                        />
+                      </div>
+                      {agreementFiles.length > 0 && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {agreementFiles.map((file) => (
+                            <span key={`${file.name}-${file.lastModified}`} className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">{file.name}</span>
+                          ))}
+                          <button type="button" onClick={handleUploadAgreementDocuments} disabled={isAgreementUploading} className="rounded-xl bg-amber-600 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60">
+                            {isAgreementUploading ? 'Uploading...' : 'Upload'}
+                          </button>
+                        </div>
+                      )}
+                      {(editingCompany.agreementDocuments || []).length > 0 ? (
+                        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                          {(editingCompany.agreementDocuments || []).map((document) => (
+                            <a key={`${document.publicId || document.url || document.name}`} href={document.url} target="_blank" rel="noreferrer"
+                              className="rounded-xl border border-slate-200 bg-white p-3 transition-all hover:border-blue-200 hover:bg-blue-50/50"
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="rounded-xl bg-blue-50 p-1.5 text-blue-600"><FileText size={14} /></div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-pmedium text-slate-900">{document.name}</p>
+                                  <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
+                                </div>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-[10px] font-pmedium uppercase tracking-widest text-amber-600">No agreement documents uploaded yet.</p>
+                      )}
                     </div>
                   </section>
                 </div>
 
-                <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3 sticky bottom-0 bg-slate-50/30">
                   <button type="button" onClick={closeEditModal} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
-                  <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-pmedium text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60">
                     <Save size={14} /> Save Changes
                   </button>
                 </div>

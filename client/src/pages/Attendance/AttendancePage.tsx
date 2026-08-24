@@ -1153,7 +1153,7 @@ export function AttendancePage() {
 
           {/* MAIN TABS */}
           {mainTabs.length > 0 && (
-            <div data-tour="attendance-main-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="attendance-main-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {mainTabs.map((tab) => (
                 <button
                   key={tab.id}

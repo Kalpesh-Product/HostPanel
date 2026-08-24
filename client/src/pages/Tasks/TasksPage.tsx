@@ -108,8 +108,11 @@ export function TasksPage() {
     [storedUser?.firstName, storedUser?.lastName].filter(Boolean).join(' ') ||
     storedUser?.name ||
     'Founder';
-  const normalizedRole = (storedUser?.workspaceMembership?.role || storedUser?.role || 'owner').toLowerCase();
-  const isOwnerProfile = normalizedRole === 'owner';
+  // The DB's canonical founder role name is "founder" ("owner" is only a
+  // legacy alias — see server/config/seedRoles.ts), so both spellings must
+  // resolve to the owner profile everywhere below.
+  const normalizedRole = (storedUser?.workspaceMembership?.role || storedUser?.role || 'owner').trim().toLowerCase();
+  const isOwnerProfile = normalizedRole === 'owner' || normalizedRole === 'founder';
   const isSuperAdminProfile = normalizedRole === 'super_admin' || normalizedRole === 'super-admin';
   const isAdminProfile = normalizedRole === 'admin';
   const isAdminTaskProfile = canAccessAdminDashboard(storedUser) || isAdminProfile;
@@ -174,7 +177,7 @@ export function TasksPage() {
 
   function getRolePriority(role: string): number {
     const normalized = normalizeRoleValue(role);
-    if (normalized === 'owner') return 5;
+    if (normalized === 'owner' || normalized === 'founder') return 5;
     if (normalized === 'super_admin') return 4;
     if (normalized === 'admin') return 3;
     if (normalized === 'manager') return 2;
@@ -208,7 +211,7 @@ export function TasksPage() {
     }
 
     if (isOwnerProfile) {
-      const ownerAliases = ['owner', 'company owner', 'company-owner'];
+      const ownerAliases = ['owner', 'founder', 'company owner', 'company-owner'];
       if (ownerAliases.includes(normalizedName) || ownerAliases.includes(normalizedNameBase)) {
         return true;
       }
@@ -327,7 +330,7 @@ export function TasksPage() {
 
   function isOwnerDepartmentName(value: string): boolean {
     const normalized = normalizeDepartmentKey(value);
-    return normalized === 'owner' || normalized === 'companyowner';
+    return normalized === 'owner' || normalized === 'founder' || normalized === 'companyowner';
   }
 
   function isSuperAdminDepartmentName(value: string): boolean {
@@ -602,7 +605,7 @@ export function TasksPage() {
       return true;
     }
     const raisedBy = normalizeIdentity(stripRoleSuffix(task?.raisedBy || ''));
-    return raisedBy === 'owner' || raisedBy === 'company owner' || raisedBy === 'company-owner' || /\(owner\)/i.test(task?.raisedBy || '');
+    return raisedBy === 'owner' || raisedBy === 'founder' || raisedBy === 'company owner' || raisedBy === 'company-owner' || /\((owner|founder)\)/i.test(task?.raisedBy || '');
   }
 
   function isSuperAdminRaisedTask(task: Task): boolean {
@@ -814,13 +817,13 @@ export function TasksPage() {
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (isOwnerProfile) {
-      return 'department_tasks';
+      return 'my_assigned';
     }
     if (isAdminTaskProfile) {
-      return 'assigned_dept_tasks';
+      return 'from_super_admin';
     }
-    if (isDepartmentManagerProfile || isEmployeeTaskProfile) {
-      return 'my_assigned';
+    if (isDepartmentManagerProfile) {
+      return 'my_tasks';
     }
     return 'my_assigned';
   });
@@ -1025,7 +1028,7 @@ export function TasksPage() {
     if (isAdminTaskProfile) {
       return getMembersForDepartment(taskForm.department).filter((member) => {
         const role = normalizeRoleValue(member?.role || '');
-        if (role === 'owner') {
+        if (role === 'owner' || role === 'founder') {
           return false;
         }
         return role === 'employee' || role === 'manager' || role.endsWith('_manager');
@@ -1053,18 +1056,18 @@ export function TasksPage() {
     const filteredSource = source.filter((member) => {
       const role = normalizeRoleValue(member?.role || '');
       if (isOwnerProfile) {
-        return role !== 'owner';
+        return role !== 'owner' && role !== 'founder';
       }
       if (isSuperAdminProfile) {
         if (isSuperAdminDepartment) {
           return role === 'super_admin' || role === 'admin';
         }
-        return role !== 'owner' && role !== 'super_admin';
+        return role !== 'owner' && role !== 'founder' && role !== 'super_admin';
       }
       return true;
     });
 
-    if (isOwnerProfile && normalizedRole === 'owner' && normalizeRoleValue(taskForm.department) !== 'super_admin') {
+    if (isOwnerProfile && normalizeRoleValue(taskForm.department) !== 'super_admin') {
       const superAdminPool = Array.isArray(superAdminMembers) ? superAdminMembers : [];
       const merged = [...filteredSource];
       const seen = new Set(
@@ -1800,32 +1803,32 @@ export function TasksPage() {
             <div data-tour="tasks-page-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {isOwnerProfile ? (
                 <>
+                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Tasks
+                  </button>
                   <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department Tasks
-                  </button>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Assigned Tasks
                   </button>
                 </>
               ) : isAdminTaskProfile ? (
                 <>
+                  <button onClick={() => { setActiveTab('from_super_admin'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'from_super_admin' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Tasks
+                  </button>
                   <button onClick={() => { setActiveTab('assigned_dept_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'assigned_dept_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Assigned Dept Tasks
+                    Department Tasks
                   </button>
                   <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('from_super_admin'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'from_super_admin' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Tasks
-                  </button>
                 </>
               ) : isDepartmentManagerProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Department Tasks
-                  </button>
                   <button onClick={() => { setActiveTab('my_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Tasks
+                  </button>
+                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    Department Tasks
                   </button>
                   <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned Tasks
@@ -1833,9 +1836,6 @@ export function TasksPage() {
                 </>
               ) : isEmployeeTaskProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Department Tasks
-                  </button>
                   <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Tasks
                   </button>

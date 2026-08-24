@@ -52,6 +52,22 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
     ],
     matches: exact("/calendar"),
   },
+  {
+    id: "custom-tasks",
+    version: CUSTOM_TOUR_VERSION,
+    title: "Tasks",
+    description: "Delegate work across your workspace's full department structure and follow every task from assignment through acceptance, execution, completion, and approval.",
+    steps: [
+      { selector: '[data-tour="tasks-page-tabs"]', title: "Task queues", description: "My Tasks opens first with everything assigned to you personally. Department Tasks collects work routed to the departments you manage or belong to, and leadership roles also see the tasks they raised for others. Employees see the My Tasks queue only." },
+      { selector: '[data-tour="tasks-page-summary"]', title: "Counts at a glance", description: "The cards total every task in the active queue and break them down by Pending, In Progress, and Resolved / Done so the state of the workload is readable instantly." },
+      { selector: '[data-tour="tasks-page-status-filter"]', title: "Filter by status", description: "Focus the queue on All, Pending, In Progress, Completed, or Approved tasks without leaving the tab." },
+      { selector: '[data-tour="tasks-page-search"]', title: "Search tasks", description: "Find tasks by their title or by the people involved — results narrow as you type." },
+      { selector: '[data-tour="tasks-page-department-filter"]', title: "Filter by department", description: "Narrow the queue to one department. On the Custom plan every department you have created is available here." },
+      { selector: '[data-tour="tasks-page-assign-btn"]', title: "Assign a new task", description: "Opens the Delegate Task form. Choose Standard Execution for direct work or Formal Approval Request when sign-off is needed first, write the title and detailed instructions, route it to a department, optionally pick a specific assignee, set the deadline, and attach reference files." },
+      { selector: '[data-tour="tasks-page-table"]', title: "Task list and full workflow", description: "Each row shows type and department, who raised and who received it, priority with live progress, due date, and an overdue warning. Open any task to read instructions, accept it, update progress as work advances, complete it with a note and attachments, comment for clarification, and approve or reject formal approval requests.", side: "top" },
+    ],
+    matches: exact("/extra-common-modules/tasks"),
+  },
 ];
 
 const customCopy = (value: string) =>

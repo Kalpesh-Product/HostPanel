@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
 import WidgetSection from "../../components/WidgetSection";
-import { ChartCard, BarDiagram, DistributionDonut } from "./charts";
+import BarGraph from "../../components/graphs/BarGraph";
+import { BarDiagram, DistributionDonut } from "./charts";
 import type { ChartRow } from "./charts";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getAnalyticsOverview } from "../../services/analytics";
@@ -503,6 +504,31 @@ const AnalyticsPage = () => {
     };
   }, [trend]);
 
+  const trendSeries = useMemo(
+    () => [{ name: "New records", data: trend.map((point) => point.count) }],
+    [trend],
+  );
+
+  const trendOptions = {
+    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+    colors: ["#80bf01"],
+    xaxis: { categories: trend.map((point) => point.label) },
+    plotOptions: { bar: { borderRadius: 4, columnWidth: "55%" } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: "#f0f0f0" },
+    tooltip: { theme: "light" },
+  };
+
+  const activityOptions = {
+    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+    colors: ["#80bf01"],
+    xaxis: { categories: activityBars.categories },
+    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "55%" } },
+    dataLabels: { enabled: true },
+    grid: { borderColor: "#f0f0f0" },
+    tooltip: { theme: "light", y: { formatter: (value: number) => `${value}/100` } },
+  };
+
   const statValues: Record<string, string | number> = {
     modules: data?.totals?.trackedModules ?? 0,
     activity: `${data?.totals?.avgActivityScore ?? 0}/100`,
@@ -623,9 +649,15 @@ const AnalyticsPage = () => {
 
       {/* 3. Overview charts — two per line */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <div className="flex flex-col gap-2">
-          <BarDiagram bars={trend.map((point) => ({ label: point.label, value: point.count }))} title="Platform Activity Trend" />
-          <div className="grid grid-cols-2 gap-2">
+        <div className="border-default rounded-xl overflow-hidden bg-white">
+          <div className="p-4 border-b-2 border-borderGray uppercase">
+            <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Platform Activity Trend</span>
+            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">How much new work your unit creates each month (last 6 months)</p>
+          </div>
+          <div className="p-2">
+            <BarGraph chartId="analytics-trend" data={trendSeries} options={trendOptions} height={260} />
+          </div>
+          <div className="px-3 pb-3 grid grid-cols-2 gap-2">
             {[
               { label: "This month", value: formatNumber(trendSummary.thisMonth) },
               { label: "Last month", value: formatNumber(trendSummary.lastMonth) },
@@ -643,16 +675,24 @@ const AnalyticsPage = () => {
           </div>
         </div>
 
-        {activityBars.categories.length > 0 ? (
-          <BarDiagram
-            bars={activityBars.categories.map((label, index) => ({ label, value: activityBars.values[index] }))}
-            title="Module Activity Scores"
-          />
-        ) : (
-          <ChartCard title="Module Activity Scores">
-            <div className="h-48 flex items-center justify-center text-gray-400 text-content">No tracked modules yet</div>
-          </ChartCard>
-        )}
+        <div className="border-default rounded-xl overflow-hidden bg-white">
+          <div className="p-4 border-b-2 border-borderGray uppercase">
+            <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Module Activity Scores</span>
+            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">Which modules your team actually uses — score out of 100 (top 10)</p>
+          </div>
+          <div className="p-2">
+            {activityBars.categories.length > 0 ? (
+              <BarGraph
+                chartId="analytics-activity"
+                data={[{ name: "Activity score", data: activityBars.values }]}
+                options={activityOptions}
+                height={Math.max(260, activityBars.categories.length * 42)}
+              />
+            ) : (
+              <div className="h-48 flex items-center justify-center text-gray-400 text-content">No tracked modules yet</div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 4. Module-wise deep dive — section dropdowns with module tabs inside. */}

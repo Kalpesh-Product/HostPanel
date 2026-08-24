@@ -35,18 +35,18 @@ import { formatTime12h } from '@/utils/time';
 import { statusPillClass } from '../../../lib/status-pill';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency, getWorkspaceDateKey, getWorkspaceTime } from '../../../lib/workspaceLocalization';
-// Backend services - uncomment when backend is ready:
-// import { getMeetingRoomBookings, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
-// import { getTenantCompanies } from '@/services/tenant-companies';
+import { getMeetingRoomBookings, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
+import { getTenantCompanies } from '@/services/tenant-companies';
 import { createReport } from '@/services/reports';
 import { downloadReportFile } from '@/utils/report-download';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const scopeTabs = [
-  { key: 'internal', label: 'Internal Department Bookings' },
+  { key: 'department', label: 'Department Bookings' },
+  { key: 'internal', label: 'Internal Bookings' },
   { key: 'external', label: 'External Bookings' },
-  { key: 'tenant', label: 'Tenant Companies' },
+  { key: 'tenant', label: 'Tenant Bookings' },
   { key: 'history', label: 'Booking History' },
 ] as const;
 
@@ -482,6 +482,7 @@ function bookingScopeKey(value: string): string {
   const category = roleCategory(value);
   if (category === 'owner') return 'owner';
   if (category === 'superAdmin') return 'super-admin';
+  if (category === 'admin') return 'admin';
   return 'department';
 }
 
@@ -489,13 +490,19 @@ function bookingScopeLabel(value: string): string {
   const scope = bookingScopeKey(value);
   if (scope === 'owner') return 'Founder booking';
   if (scope === 'super-admin') return 'Super admin booking';
+  if (scope === 'admin') return 'Admin booking';
   return 'Department booking';
 }
 
 function bookingScopeBadge(scope: string): string {
   if (scope === 'owner') return 'bg-violet-50 text-violet-700 border-violet-200';
   if (scope === 'super-admin') return 'bg-blue-50 text-blue-700 border-blue-200';
+  if (scope === 'admin') return 'bg-indigo-50 text-indigo-700 border-indigo-200';
   return 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+function isTopManagementBookingScope(scope: string): boolean {
+  return scope === 'owner' || scope === 'super-admin' || scope === 'admin';
 }
 
 function bookingTypeBadgeClass(type: string): string {
@@ -951,14 +958,23 @@ export default function BookingsPage() {
     );
   }, [tenantCompanies]);
 
-  // Backend service - uncomment when backend is ready:
-  /*
   const syncBookings = useCallback(async () => {
     setLoadingInternal(true);
     try {
-      const [bookingResponse, tenantResponse] = await Promise.allSettled([getMeetingRoomBookings(), getTenantCompanies()]);
-      const bookings = bookingResponse.status === 'fulfilled' ? (bookingResponse.value as any)?.data?.bookings || [] : [];
-      const rooms = bookingResponse.status === 'fulfilled' ? (bookingResponse.value as any)?.data?.roomDetails || [] : [];
+      const workspaceId = String(
+        (storedUser as any)?.workspaceMembership?.workspaceId ||
+        (storedUser as any)?.workspaceMembership?.workspace ||
+        (storedUser as any)?.primaryWorkspace ||
+        (storedUser as any)?.workspace?.id ||
+        (storedUser as any)?.workspaceId ||
+        (storedUser as any)?.workspace?.workspaceId ||
+        (storedUser as any)?.accessibleWorkspaces?.[0]?.id ||
+        '',
+      );
+      const [bookingResponse, tenantResponse] = await Promise.allSettled([getMeetingRoomBookings(workspaceId), getTenantCompanies()]);
+      const bookingPayload = bookingResponse.status === 'fulfilled' ? ((bookingResponse.value as any)?.data || bookingResponse.value || {}) : {};
+      const bookings = bookingPayload.bookings || [];
+      const rooms = bookingPayload.roomDetails || bookingPayload.rooms || [];
       const tenantPayload = tenantResponse.status === 'fulfilled' ? ((tenantResponse.value as any)?.data || {}) : {};
       const nextTenantCompanies = Array.isArray(tenantPayload.tenants)
         ? tenantPayload.tenants.map((item: Record<string, unknown>) => normalizeTenantCompanyRow(item)).filter((company: TenantCompanyRow) => company.id)
@@ -989,7 +1005,6 @@ export default function BookingsPage() {
       window.clearInterval(syncTimer);
     };
   }, [syncBookings]);
-  */
 
   const internalRows = useMemo(
     () =>
@@ -1095,9 +1110,19 @@ export default function BookingsPage() {
     () => internalRows.filter((row) => row.bookingType === 'External'),
     [internalRows],
   );
+  // "internalDepartmentRows" = every non-External/non-Tenant booking (both top-management and
+  // regular department staff bookings). Split further below for the Internal vs Department tabs.
   const internalDepartmentRows = useMemo(
     () => internalRows.filter((row) => row.bookingType !== 'External' && row.bookingType !== 'Tenant'),
     [internalRows],
+  );
+  const internalTopManagementRows = useMemo(
+    () => internalDepartmentRows.filter((row) => isTopManagementBookingScope(row.bookingScope)),
+    [internalDepartmentRows],
+  );
+  const departmentScopedRows = useMemo(
+    () => internalDepartmentRows.filter((row) => !isTopManagementBookingScope(row.bookingScope)),
+    [internalDepartmentRows],
   );
   const externalRows = useMemo(() => backendExternalRows, [backendExternalRows]);
   const tenantRows = useMemo(() => internalRows.filter((row) => normalize(row.bookingType) === 'tenant'), [internalRows]);
@@ -1342,7 +1367,13 @@ export default function BookingsPage() {
       });
     }
 
-    const source = activeScope === 'history' ? historyRows : (activeScope === 'internal' ? internalDepartmentRows : externalRows);
+    const source = activeScope === 'history'
+      ? historyRows
+      : activeScope === 'department'
+        ? departmentScopedRows
+        : activeScope === 'internal'
+          ? internalTopManagementRows
+          : externalRows;
     return source.filter((row) => {
       const matchesSearch = !query || [
         row.id,
@@ -1364,7 +1395,7 @@ export default function BookingsPage() {
       const matchesStatus = activeTab === 'All' || row.status === statusLabel(activeTab);
       return matchesSearch && matchesResource && matchesType && matchesStatus;
     });
-  }, [activeScope, activeTab, externalRows, historyRows, internalDepartmentRows, bookingTypeFilter, resourceFilter, searchQuery, tenantRows]);
+  }, [activeScope, activeTab, externalRows, historyRows, internalTopManagementRows, departmentScopedRows, bookingTypeFilter, resourceFilter, searchQuery, tenantRows]);
 
   const stats = useMemo(() => {
     if (activeScope === 'tenant') {
@@ -1378,14 +1409,20 @@ export default function BookingsPage() {
         { label: 'Completed', value: tenantCompleted, icon: CheckCircle2 },
       ] as StatItem[];
     }
-    const source = activeScope === 'history' ? historyRows : (activeScope === 'internal' ? internalDepartmentRows : externalRows);
+    const source = activeScope === 'history'
+      ? historyRows
+      : activeScope === 'department'
+        ? departmentScopedRows
+        : activeScope === 'internal'
+          ? internalTopManagementRows
+          : externalRows;
     return [
       { label: 'Upcoming Bookings', value: source.filter((b) => b.category === 'upcoming').length, icon: CalendarDays },
       { label: 'Completed', value: source.filter((b) => b.category === 'completed').length, icon: CheckCircle2 },
       { label: 'History', value: source.filter((b) => b.category === 'history').length, icon: Clock },
       { label: 'Resource Types', value: new Set(source.map((b) => b.resourceType)).size, icon: LayoutGrid },
     ] as StatItem[];
-  }, [activeScope, externalRows, historyRows, internalDepartmentRows, tenantRows]);
+  }, [activeScope, externalRows, historyRows, internalTopManagementRows, departmentScopedRows, tenantRows]);
 
   const handleExportBookingsReport = async (format = 'PDF') => {
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
@@ -1396,19 +1433,20 @@ export default function BookingsPage() {
 
     setIsExportingReport(reportFormat);
     try {
+      const scopeLabel = scopeTabs.find((tab) => tab.key === activeScope)?.label || 'Bookings';
       const response = await createReport({
-        title: `Administration ${activeScope === 'tenant' ? 'Tenant Companies' : activeScope === 'external' ? 'External Bookings' : activeScope === 'history' ? 'Booking History' : 'Internal Department Bookings'}`,
+        title: `Administration ${scopeLabel}`,
         department: 'Administration',
         category: 'Other',
         dataWindow: 'Custom',
         reportMonth: new Date().toISOString().slice(0, 7),
-        period: activeScope === 'tenant' ? 'Tenant Companies' : activeScope === 'external' ? 'External Bookings' : activeScope === 'history' ? 'Booking History' : 'Internal Department Bookings',
+        period: scopeLabel,
         generatedBy: (storedUser as any)?.fullName || (storedUser as any)?.name || 'Administration Manager',
         format: reportFormat,
         description: 'Administration bookings export for the current filtered view.',
         sourceType: 'custom',
         sourceRef: `administration-bookings-${activeScope}`,
-        reportRows: buildBookingExportRows(visibleRows, activeScope === 'tenant' ? 'Tenant Companies' : activeScope === 'external' ? 'External Bookings' : activeScope === 'history' ? 'Booking History' : 'Internal Department Bookings', {
+        reportRows: buildBookingExportRows(visibleRows, scopeLabel, {
           activeTab,
           resourceFilter,
           bookingTypeFilter,
@@ -1565,8 +1603,6 @@ export default function BookingsPage() {
     return buildBookingTimeOptions(minutesToTimeString(startMinutes + BOOKING_MIN_DURATION_MINUTES), '23:55', BOOKING_SLOT_STEP_MINUTES);
   }, [rescheduleForm.newStartTime]);
 
-  // Backend service - uncomment when backend is ready:
-  /*
   const handleCancelBooking = async () => {
     if (!cancellingBooking || !cancelForm.reason) return;
 
@@ -1600,18 +1636,7 @@ export default function BookingsPage() {
       setSavingBookingUpdate(false);
     }
   };
-  */
 
-  const handleCancelBooking = async () => {
-    if (!cancellingBooking || !cancelForm.reason) return;
-    alert('Cancel UI only - Backend integration pending.');
-    setCancellingBooking(null);
-    setCancelForm({ reason: '', refundType: 'Full' });
-    setSavingBookingUpdate(false);
-  };
-
-  // Backend service - uncomment when backend is ready:
-  /*
   const handleRescheduleBooking = async () => {
     if (!reschedulingBooking || !bookingActionPreview?.available) return;
 
@@ -1651,17 +1676,6 @@ export default function BookingsPage() {
     } finally {
       setSavingBookingUpdate(false);
     }
-  };
-  */
-
-  const handleRescheduleBooking = async () => {
-    if (!reschedulingBooking || !bookingActionPreview?.available) return;
-    alert('Reschedule/Extend UI only - Backend integration pending.');
-    setReschedulingBooking(null);
-    setBookingActionMode('reschedule');
-    setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' });
-    setExtendForm({ extraMinutes: '30' });
-    setSavingBookingUpdate(false);
   };
 
   const handleMasterCalendarPrevMonth = () => {
@@ -1764,8 +1778,8 @@ export default function BookingsPage() {
               })}
             </div>
 
-            {/* ── Department Tracker (internal scope) ──────────────── */}
-            {activeScope === 'internal' && trackerPeriods.length > 0 && (
+            {/* ── Department Tracker (internal / department scope) ──── */}
+            {(activeScope === 'internal' || activeScope === 'department') && trackerPeriods.length > 0 && (
               <div className="mb-3 rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xs font-pmedium uppercase tracking-widest text-slate-500">
@@ -1858,12 +1872,12 @@ export default function BookingsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative min-w-[200px]">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       data-tour="admin-bookings-search"
                       type="text"
                       placeholder={activeScope === 'tenant' ? 'Search company, resource, date...' : 'Search bookings...'}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-xs font-pmedium outline-none placeholder:text-slate-400 transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -1872,7 +1886,8 @@ export default function BookingsPage() {
               </div>
 
               {/* ── Bookings Table ──────────────────────────────────── */}
-              <table data-tour="admin-bookings-table" className="w-full table-auto text-left">
+              <div className="overflow-x-auto">
+              <table data-tour="admin-bookings-table" className="w-full min-w-[1120px] table-auto text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-3 py-4 whitespace-nowrap">Resource</th>
@@ -1898,6 +1913,7 @@ export default function BookingsPage() {
                       const actionMode = getInternalActionMode(row as unknown as Record<string, unknown>);
                       const isExternal = isExternalBooking(row as unknown as Record<string, unknown>);
                       const canManage = canManageExternalBooking(row as unknown as Record<string, unknown>);
+                      const isInternalLikeScope = activeScope === 'internal' || activeScope === 'department' || activeScope === 'history';
                       return (
                         <tr key={row.id || row.bookingCode} className="hover:bg-blue-50/30 transition-all group">
                           <td className="px-3 py-4">
@@ -1926,6 +1942,11 @@ export default function BookingsPage() {
                             <div className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5">
                               {row.role || 'Manager'}
                             </div>
+                            {isInternalLikeScope && row.bookingType !== 'External' && row.bookingType !== 'Tenant' && (
+                              <span className={`mt-1 inline-flex px-1.5 py-0.5 rounded text-[8px] font-pmedium uppercase tracking-wider border ${bookingScopeBadge(row.bookingScope)}`}>
+                                {bookingScopeLabel(row.role)}
+                              </span>
+                            )}
                           </td>
                           {activeScope !== 'tenant' && (
                             <td className="px-3 py-4">
@@ -1953,7 +1974,7 @@ export default function BookingsPage() {
                               >
                                 <Eye size={14} />
                               </button>
-                              {activeScope === 'internal' && actionMode && (
+                              {isInternalLikeScope && actionMode && (
                                 <button
                                   onClick={() => { setReschedulingBooking(row); setBookingActionMode(actionMode); }}
                                   className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
@@ -1962,7 +1983,7 @@ export default function BookingsPage() {
                                   <Clock size={14} />
                                 </button>
                               )}
-                              {(activeScope === 'internal' || isExternal) && (canManage || (activeScope === 'internal' && liveStatus !== 'Completed' && liveStatus !== 'Cancelled')) && (
+                              {(isInternalLikeScope || isExternal) && (canManage || (isInternalLikeScope && liveStatus !== 'Completed' && liveStatus !== 'Cancelled')) && (
                                 <button
                                   onClick={() => setCancellingBooking(row)}
                                   className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
@@ -1987,6 +2008,7 @@ export default function BookingsPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
             </div>
           </PageFrame>
@@ -1996,14 +2018,14 @@ export default function BookingsPage() {
       {/* ── View Details Modal ───────────────────────────────────────── */}
       {viewingDetails && (
         <div className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-6">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
                   <Building2 className="text-blue-600" size={28} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900">{viewingDetails.resourceName || 'Booking Details'}</h2>
+                  <h2 className="text-2xl font-pmedium text-slate-900">{viewingDetails.resourceName || 'Booking Details'}</h2>
                   <div className="mt-1 flex items-center gap-3">
                     <span className={statusPillClass(viewingDetails.status)}>{viewingDetails.status}</span>
                     <span className="flex items-center gap-1 text-xs font-bold text-slate-500">
@@ -2149,13 +2171,13 @@ export default function BookingsPage() {
       {/* ── Cancel Booking Modal ─────────────────────────────────────── */}
       {cancellingBooking && (
         <div className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+          <div className="w-full max-w-lg rounded-[2rem] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
                   <AlertTriangle size={20} />
                 </div>
-                <h2 className="text-xl font-black text-slate-900">Cancel Booking</h2>
+                <h2 className="text-xl font-pmedium text-slate-900">Cancel Booking</h2>
               </div>
               <button
                 type="button"
@@ -2206,13 +2228,13 @@ export default function BookingsPage() {
       {/* ── Reschedule / Extend Modal ────────────────────────────────── */}
       {reschedulingBooking && (
         <div className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+          <div className="w-full max-w-lg rounded-[2rem] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
                   <Clock size={20} />
                 </div>
-                <h2 className="text-xl font-black text-slate-900">
+                <h2 className="text-xl font-pmedium text-slate-900">
                   {bookingActionMode === 'extend' ? 'Extend Booking' : 'Reschedule Booking'}
                 </h2>
               </div>
@@ -2348,14 +2370,14 @@ export default function BookingsPage() {
       {/* ── Master Availability Calendar Modal ───────────────────────── */}
       {viewingCalendar && (
         <div className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-          <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 p-6">
               <div className="flex items-center gap-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                   <CalendarDays size={20} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-900">Master Availability Calendar</h2>
+                  <h2 className="text-xl font-pmedium text-slate-900">Master Availability Calendar</h2>
                   <p className="text-[10px] font-pmedium text-slate-500">{masterCalendarScopeSummary}</p>
                 </div>
               </div>

@@ -120,6 +120,7 @@ import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
 import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
+import AdministrationTenantCompanyDetailPage from "../pages/Administration/TenantCompanies/TenantCompanyDetailPage";
 import AdministrationBookingsPage from "../pages/Administration/Bookings/BookingsPage";
 import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
@@ -1095,6 +1096,10 @@ export const routes = createBrowserRouter([
                       {
                         path: "tenant-companies",
                         element: <AdministrationTenantCompaniesPage />,
+                      },
+                      {
+                        path: "tenant-companies/:id",
+                        element: <AdministrationTenantCompanyDetailPage />,
                       },
                       {
                         path: "bookings",
