@@ -270,6 +270,23 @@ export function DepartmentFinancePageV2() {
     return () => { isMounted = false; };
   }, [selectedFY, departmentLabel, refreshKey]);
 
+  // Keep an open expense popup in sync after vendor link / invoice upload /
+  // mark-paid actions so users can chain steps without it closing. If the
+  // expense disappears from the refreshed data (e.g. budget reset), close it.
+  useEffect(() => {
+    setViewingExpense((current) => {
+      if (!current) return current;
+      const monthKey = String(current.month?.monthKey || current.month?.month || '');
+      const expenseId = String(current.expense?.id || '');
+      const freshMonth = monthlyExpenses.find(
+        (m) => String(m.monthKey || m.month || '') === monthKey,
+      );
+      const freshExpense = freshMonth?.expenses?.find((e) => String(e.id) === expenseId);
+      if (!freshMonth || !freshExpense) return null;
+      return { month: freshMonth, expense: freshExpense };
+    });
+  }, [monthlyExpenses]);
+
   // ─── Computed ───────────────────────────────────────────────────────────
 
   const totalProjected = useMemo(
@@ -587,7 +604,6 @@ export function DepartmentFinancePageV2() {
         paymentStatus: 'Paid',
       });
       toast.success('Expense marked as paid.');
-      setViewingExpense(null);
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update payment status.');
@@ -630,7 +646,6 @@ export function DepartmentFinancePageV2() {
       toast.success(`${vendor.name} linked to this expense.`);
       setSelectedVendorToLink('');
       setActualAmountToPay('');
-      setViewingExpense(null);
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to link vendor.');
@@ -683,7 +698,6 @@ export function DepartmentFinancePageV2() {
       formData.append('invoiceNumber', expense.invoiceNumber || file.name);
       await uploadInvoice(formData);
       toast.success('Invoice uploaded successfully.');
-      setViewingExpense(null);
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to upload invoice.');
