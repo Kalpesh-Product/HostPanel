@@ -1071,7 +1071,7 @@ export function ExpensesBudgetPage() {
   /* ── Approval / Rejection handlers ── */
 
   const handleApproveEstimated = (req: Budget) => {
-    applyFinanceApprovalDecision('annual', req.id, { status: 'Approved', scope: 'financeManager', fiscalYear: selectedFY })
+    applyFinanceApprovalDecision('annual', req.id, { status: 'Approved', fiscalYear: selectedFY })
       .then(async () => {
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
@@ -1088,7 +1088,7 @@ export function ExpensesBudgetPage() {
 
   const handleApproveExtra = () => {
     if (!viewingExtra?.id) return;
-    applyFinanceApprovalDecision('extra', viewingExtra.id, { status: 'Approved', scope: 'financeManager', fiscalYear: selectedFY })
+    applyFinanceApprovalDecision('extra', viewingExtra.id, { status: 'Approved', fiscalYear: selectedFY })
       .then(async () => {
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
@@ -1108,7 +1108,7 @@ export function ExpensesBudgetPage() {
     if (!rejectingRequest) return;
     if (rejectingRequest.modalType === 'estimated') {
       try {
-        await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
+        await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: 'Rejected', fiscalYear: selectedFY });
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
@@ -1122,7 +1122,7 @@ export function ExpensesBudgetPage() {
       } catch (error: any) { toast.error(error?.message || 'Failed to reject annual budget.'); }
     } else if (rejectingRequest.modalType === 'extra') {
       try {
-        await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
+        await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: 'Rejected', fiscalYear: selectedFY });
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
