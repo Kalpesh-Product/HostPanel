@@ -1,7 +1,9 @@
 // @ts-nocheck
 import mongoose from "mongoose";
 import { Task } from "../models/Task.js";
+import { Department } from "../models/Department.js";
 import { createNotification } from "../utils/notify.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 const getCurrentWorkspaceId = (req) => {
   return (
@@ -17,6 +19,75 @@ const getCurrentWorkspaceId = (req) => {
 
 const getCurrentUserId = (req) => {
   return req.user?._id || req.user?.id || req.user || null;
+};
+
+const getCurrentUserName = (req) => {
+  const user = req.user || {};
+  return (
+    user.fullName ||
+    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+    user.name ||
+    user.email ||
+    "A team member"
+  );
+};
+
+// Lean queries bypass mongoose toJSON transforms, so documents reach the
+// client with only `_id`. TasksPage addresses every task through `task.id`
+// (view drawer, accept/complete calls, React keys), so expose `id` — plus a
+// readable `department` name and comment `time` — alongside the raw fields.
+const serializeTask = (task) => {
+  if (!task) return task;
+
+  const departmentDoc = task.departmentId;
+  const departmentName =
+    typeof departmentDoc === "object" && departmentDoc !== null
+      ? departmentDoc.name || ""
+      : "";
+
+  return {
+    ...task,
+    id: String(task._id),
+    department: departmentName,
+    comments: (task.comments || []).map((comment) => ({
+      ...comment,
+      time: comment.time || comment.timeLabel || "",
+    })),
+  };
+};
+
+const serializeTasks = (tasks) => (Array.isArray(tasks) ? tasks.map(serializeTask) : []);
+
+const TASKS_ROUTE_URL = "/extra-common-modules/tasks";
+
+const formatFileSize = (sizeInBytes) => {
+  const bytes = Number(sizeInBytes) || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// The Delegate Task form submits a department NAME (dropdown label); resolve
+// it to the workspace's Department document so department-scoped queues work.
+const resolveDepartmentId = async (workspaceId, departmentId, departmentName) => {
+  if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
+    const department = await Department.findOne({
+      _id: departmentId,
+      workspaceId,
+    })
+      .select("_id")
+      .lean();
+    if (department) return department._id;
+  }
+
+  const name = String(departmentName || "").trim();
+  if (!name) return null;
+
+  const department = await Department.findOne({ workspaceId, name })
+    .collation({ locale: "en", strength: 2 })
+    .select("_id")
+    .lean();
+  return department?._id || null;
 };
 
 const sanitizeTaskUpdate = (body = {}) => {
@@ -73,6 +144,7 @@ export async function createTask(req, res, next) {
       title,
       description,
       departmentId,
+      department,
       raisedBy,
       raisedByUserId,
       raisedByDeptId,
@@ -95,6 +167,8 @@ export async function createTask(req, res, next) {
     if (dueDate === undefined || dueDate === null)
       return res.status(400).json({ message: "dueDate is required" });
 
+    const resolvedDepartmentId = await resolveDepartmentId(workspaceId, departmentId, department);
+
     // If taskNumber/taskCode not provided, auto-generate within workspace.
     let resolvedTaskNumber = taskNumber;
     let resolvedTaskCode = taskCode;
@@ -116,7 +190,7 @@ export async function createTask(req, res, next) {
       type: type || "Standard",
       title: String(title).trim(),
       description: String(description).trim(),
-      departmentId: departmentId || null,
+      departmentId: resolvedDepartmentId || null,
       raisedBy: String(raisedBy).trim(),
       raisedByUserId: raisedByUserId || null,
       raisedByDeptId: raisedByDeptId || null,
@@ -143,7 +217,7 @@ export async function createTask(req, res, next) {
         entityType: "task",
         entityId: String(doc._id),
         entityCode: doc.taskCode,
-        targetUrl: `/app/tasks`,
+        targetUrl: TASKS_ROUTE_URL,
         data: { taskCode: doc.taskCode, title: doc.title, priority: doc.priority, dueDate: doc.dueDate },
         priority: doc.priority === "High" ? "high" : "normal",
         isActionRequired: true,
@@ -151,7 +225,7 @@ export async function createTask(req, res, next) {
       });
     }
 
-    return res.status(201).json({ message: "Task created successfully", data: { task: doc } });
+    return res.status(201).json({ message: "Task created successfully", data: { task: serializeTask(doc) } });
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(409).json({ message: "Task number or code already exists in this workspace" });
@@ -213,6 +287,7 @@ export async function listTasks(req, res, next) {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNumber)
+        .populate("departmentId", "name")
         .lean()
         .exec(),
       Task.countDocuments(filter),
@@ -221,7 +296,7 @@ export async function listTasks(req, res, next) {
     return res.status(200).json({
       message: "Tasks loaded successfully",
       data: {
-        tasks,
+        tasks: serializeTasks(tasks),
         pagination: {
           total,
           page: pageNumber,
@@ -243,10 +318,13 @@ export async function getTaskById(req, res, next) {
     if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
     if (!mongoose.Types.ObjectId.isValid(taskId)) return res.status(400).json({ message: "Invalid task id" });
 
-    const task = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
+    const task = await Task.findOne({ _id: taskId, workspaceId })
+      .populate("departmentId", "name")
+      .lean()
+      .exec();
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    return res.status(200).json({ message: "Task loaded successfully", data: { task } });
+    return res.status(200).json({ message: "Task loaded successfully", data: { task: serializeTask(task) } });
   } catch (error) {
     next(error);
   }
@@ -262,15 +340,22 @@ export async function updateTask(req, res, next) {
     if (!mongoose.Types.ObjectId.isValid(taskId)) return res.status(400).json({ message: "Invalid task id" });
     if (!userId) return res.status(401).json({ message: "User is required" });
 
-    const existingTask = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
+    const existingTask = await Task.findOne({ _id: taskId, workspaceId })
+      .populate("departmentId", "name")
+      .lean()
+      .exec();
 
     const update = sanitizeTaskUpdate(req.body);
 
-    const task = await Task.findOneAndUpdate(
-      { _id: taskId, workspaceId, ownerId: userId },
-      update,
-      { new: true, runValidators: true }
-    ).lean().exec();
+    // Workspace-scoped, not owner-restricted: assignees update progress and
+    // raisers act on approval requests from the task drawer.
+    const task = await Task.findOneAndUpdate({ _id: taskId, workspaceId }, update, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("departmentId", "name")
+      .lean()
+      .exec();
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
@@ -293,7 +378,7 @@ export async function updateTask(req, res, next) {
           entityType: "task",
           entityId: String(task._id),
           entityCode: task.taskCode,
-          targetUrl: `/app/tasks`,
+          targetUrl: TASKS_ROUTE_URL,
           data: { taskCode: task.taskCode, title: task.title, priority: task.priority },
           priority: task.priority === "High" ? "high" : "normal",
           isActionRequired: true,
@@ -314,7 +399,7 @@ export async function updateTask(req, res, next) {
           entityType: "task",
           entityId: String(task._id),
           entityCode: task.taskCode,
-          targetUrl: `/app/tasks`,
+          targetUrl: TASKS_ROUTE_URL,
           data: { taskCode: task.taskCode, title: task.title, oldStatus: existingTask.status, newStatus: task.status },
           priority: task.status === "Completed" ? "normal" : "low",
           dedupeKey: `task-status:${task._id}:${existingTask.ownerId}:${Date.now()}`,
@@ -334,7 +419,7 @@ export async function updateTask(req, res, next) {
           entityType: "task",
           entityId: String(task._id),
           entityCode: task.taskCode,
-          targetUrl: `/app/tasks`,
+          targetUrl: TASKS_ROUTE_URL,
           data: { taskCode: task.taskCode, title: task.title, progress: task.progress },
           priority: "low",
           dedupeKey: `task-progress:${task._id}:${existingTask.ownerId}:${Date.now()}`,
@@ -342,7 +427,7 @@ export async function updateTask(req, res, next) {
       }
     }
 
-    return res.status(200).json({ message: "Task updated successfully", data: { task } });
+    return res.status(200).json({ message: "Task updated successfully", data: { task: serializeTask(task) } });
   } catch (error) {
     next(error);
   }
@@ -382,8 +467,9 @@ export async function addTaskComment(req, res, next) {
 
     const existingTask = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
 
+    // Workspace-scoped so assignees can comment too, not just the owner.
     const task = await Task.findOneAndUpdate(
-      { _id: taskId, workspaceId, ownerId: userId },
+      { _id: taskId, workspaceId },
       {
         $push: {
           comments: {
@@ -394,7 +480,10 @@ export async function addTaskComment(req, res, next) {
         },
       },
       { new: true, runValidators: true }
-    ).lean().exec();
+    )
+      .populate("departmentId", "name")
+      .lean()
+      .exec();
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
@@ -418,7 +507,7 @@ export async function addTaskComment(req, res, next) {
           entityType: "task",
           entityId: String(task._id),
           entityCode: task.taskCode,
-          targetUrl: `/app/tasks`,
+          targetUrl: TASKS_ROUTE_URL,
           data: { taskCode: task.taskCode, title: task.title, comment: String(text).trim().slice(0, 200) },
           priority: "normal",
           dedupeKey: `task-comment:${task._id}:${recipientId}:${Date.now()}`,
@@ -426,7 +515,7 @@ export async function addTaskComment(req, res, next) {
       }
     }
 
-    return res.status(200).json({ message: "Comment added successfully", data: { task } });
+    return res.status(200).json({ message: "Comment added successfully", data: { task: serializeTask(task) } });
   } catch (error) {
     next(error);
   }
@@ -445,8 +534,9 @@ export async function addTaskAttachment(req, res, next) {
     const { name, size, url, publicId, mimeType } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ message: "name is required" });
 
+    // Workspace-scoped so assignees can attach files too.
     const task = await Task.findOneAndUpdate(
-      { _id: taskId, workspaceId, ownerId: userId },
+      { _id: taskId, workspaceId },
       {
         $push: {
           attachments: {
@@ -459,11 +549,206 @@ export async function addTaskAttachment(req, res, next) {
         },
       },
       { new: true, runValidators: true }
-    ).lean().exec();
+    )
+      .populate("departmentId", "name")
+      .lean()
+      .exec();
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    return res.status(200).json({ message: "Attachment added successfully", data: { task } });
+    return res
+      .status(200)
+      .json({ message: "Attachment added successfully", data: { task: serializeTask(task) } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// POST /api/tasks/:taskId/accept — the assignee takes the task on. Moves a
+// Pending task to In Progress and stamps who accepted it and when.
+export async function acceptTask(req, res, next) {
+  try {
+    const workspaceId = getCurrentWorkspaceId(req);
+    const userId = getCurrentUserId(req);
+    const { taskId } = req.params;
+
+    if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
+    if (!mongoose.Types.ObjectId.isValid(taskId)) return res.status(400).json({ message: "Invalid task id" });
+    if (!userId) return res.status(401).json({ message: "User is required" });
+
+    const existingTask = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
+    if (!existingTask) return res.status(404).json({ message: "Task not found" });
+
+    // Only the assignee (or the task's owner) can accept it.
+    const isAssignee =
+      existingTask.assigneeUserId && String(existingTask.assigneeUserId) === String(userId);
+    const isOwner = existingTask.ownerId && String(existingTask.ownerId) === String(userId);
+    if (!isAssignee && !isOwner) {
+      return res.status(403).json({ message: "Only the assigned user can accept this task" });
+    }
+
+    const terminalStatuses = ["Completed", "Approved", "Rejected"];
+    if (terminalStatuses.includes(existingTask.status)) {
+      return res
+        .status(409)
+        .json({ message: `Task is already ${existingTask.status.toLowerCase()} and cannot be accepted` });
+    }
+
+    const now = new Date();
+    const update = {
+      acceptedBy: getCurrentUserName(req),
+      acceptedByUserId: userId,
+      acceptedAt: now,
+      startedAt: existingTask.startedAt || now,
+      status: existingTask.status === "Pending" ? "In Progress" : existingTask.status,
+    };
+
+    const task = await Task.findOneAndUpdate({ _id: taskId, workspaceId }, update, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("departmentId", "name")
+      .lean()
+      .exec();
+
+    // Let the raiser/owner know their task has been picked up.
+    if (existingTask.ownerId && String(existingTask.ownerId) !== String(userId)) {
+      createNotification({
+        workspaceId,
+        recipientUserId: String(existingTask.ownerId),
+        actorUserId: userId,
+        type: "task_accepted",
+        category: "task",
+        title: "Task Accepted",
+        description: `${update.acceptedBy} accepted task ${task.taskCode} "${task.title}".`,
+        entityType: "task",
+        entityId: String(task._id),
+        entityCode: task.taskCode,
+        targetUrl: TASKS_ROUTE_URL,
+        data: { taskCode: task.taskCode, title: task.title },
+        priority: "normal",
+        dedupeKey: `task-accepted:${task._id}:${existingTask.ownerId}`,
+      });
+    }
+
+    return res.status(200).json({ message: "Task accepted successfully", data: { task: serializeTask(task) } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// POST /api/tasks/:taskId/complete — the assignee marks the work done with an
+// optional note + attachment entries. Sets progress to 100% and notifies the owner.
+export async function completeTask(req, res, next) {
+  try {
+    const workspaceId = getCurrentWorkspaceId(req);
+    const userId = getCurrentUserId(req);
+    const { taskId } = req.params;
+
+    if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
+    if (!mongoose.Types.ObjectId.isValid(taskId)) return res.status(400).json({ message: "Invalid task id" });
+    if (!userId) return res.status(401).json({ message: "User is required" });
+
+    const existingTask = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
+    if (!existingTask) return res.status(404).json({ message: "Task not found" });
+
+    const isAssignee =
+      existingTask.assigneeUserId && String(existingTask.assigneeUserId) === String(userId);
+    const isOwner = existingTask.ownerId && String(existingTask.ownerId) === String(userId);
+    if (!isAssignee && !isOwner) {
+      return res.status(403).json({ message: "Only the assigned user can complete this task" });
+    }
+
+    if (["Completed", "Approved", "Rejected"].includes(existingTask.status)) {
+      return res
+        .status(409)
+        .json({ message: `Task is already ${existingTask.status.toLowerCase()}` });
+    }
+
+    const { note, attachments } = req.body || {};
+
+    const pushAttachments = Array.isArray(attachments)
+      ? attachments
+          .filter((item) => item?.name)
+          .map((item) => ({
+            name: String(item.name).trim(),
+            size: item.size || "",
+            url: item.url || "",
+            publicId: item.publicId || "",
+            mimeType: item.mimeType || "",
+          }))
+      : [];
+
+    const update = {
+      status: "Completed",
+      progress: 100,
+      completedAt: new Date(),
+      ...(note && String(note).trim() ? { completionNote: String(note).trim().slice(0, 2000) } : {}),
+      ...(pushAttachments.length ? { $push: { attachments: { $each: pushAttachments } } } : {}),
+    };
+
+    const task = await Task.findOneAndUpdate({ _id: taskId, workspaceId }, update, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("departmentId", "name")
+      .lean()
+      .exec();
+
+    if (existingTask.ownerId && String(existingTask.ownerId) !== String(userId)) {
+      createNotification({
+        workspaceId,
+        recipientUserId: String(existingTask.ownerId),
+        actorUserId: userId,
+        type: "task_completed",
+        category: "task",
+        title: "Task Completed",
+        description: `Task ${task.taskCode} "${task.title}" was marked completed by ${getCurrentUserName(req)}.`,
+        entityType: "task",
+        entityId: String(task._id),
+        entityCode: task.taskCode,
+        targetUrl: TASKS_ROUTE_URL,
+        data: { taskCode: task.taskCode, title: task.title },
+        priority: "normal",
+        dedupeKey: `task-completed:${task._id}:${existingTask.ownerId}:${Date.now()}`,
+      });
+    }
+
+    return res.status(200).json({ message: "Task completed successfully", data: { task: serializeTask(task) } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// POST /api/tasks/attachments — bulk file upload used before creating a task.
+// Stores each file in S3 under tasks/<workspaceId>/ and returns attachment
+// entries ready to be sent as createTask's `attachments` payload field.
+export async function uploadTaskAttachmentFiles(req, res, next) {
+  try {
+    const workspaceId = getCurrentWorkspaceId(req);
+    if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (files.length === 0) return res.status(400).json({ message: "No files were uploaded" });
+
+    const uploadedAttachments = [];
+    for (const file of files) {
+      const cleanName = String(file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
+      const route = `tasks/${workspaceId}/${Date.now()}-${cleanName}`;
+      const uploadResult = await uploadFileToS3(route, file);
+
+      uploadedAttachments.push({
+        name: cleanName,
+        size: formatFileSize(file.size),
+        url: uploadResult.url,
+        publicId: route,
+        mimeType: file.mimetype || "",
+      });
+    }
+
+    return res
+      .status(201)
+      .json({ message: "Attachments uploaded successfully", data: { attachments: uploadedAttachments } });
   } catch (error) {
     next(error);
   }

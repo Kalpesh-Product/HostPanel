@@ -15,6 +15,10 @@ export interface BasicPageTourStep {
   title: string;
   description: string;
   editorPage?: string;
+  // Tab-aware pages (e.g. Attendance): only show this step while the page's
+  // element carrying data-active-tab reports this value, so replaying the
+  // guide from a specific tab walks through that tab's own controls.
+  tabPage?: string;
   selector?: string;
   text?: string;
   exactText?: boolean;
@@ -463,21 +467,34 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-attendance",
-    version: 1,
+    version: 2,
     autoStart: false,
     title: "Attendance",
-    description: "Clock in and out with selfie verification, watch your hours build up live, review team attendance when you manage people, and request corrections for wrong punches.",
+    description: "Clock in and out with selfie verification, watch your hours build up live, review team attendance when you manage people, and request corrections for wrong punches. Switch to a tab, then select Guide — the walkthrough follows whichever tab is open.",
     steps: [
-      { selector: '[data-tour="attendance-main-tabs"]', title: "Attendance areas", description: "My Attendance tracks your own day. Team Attendance appears for managers, HR, and admins to review members. Corrections lists punch fixes that were requested." },
-      { selector: '[data-tour="attendance-summary"]', title: "Counts for the active tab", description: "These cards summarize the selected tab — present, absent, and late days plus weekly hours, or correction-request states." },
-      { selector: '[data-tour="attendance-clock-actions"]', title: "Clock in and out", description: "Clock In opens selfie capture with automatic location detection. While clocked in you can Start Break, End Break, and Clock Out. Clock-in opens one hour before your assigned shift." },
-      { selector: '[data-tour="attendance-calculations"]', title: "Today's calculations", description: "Total Time, Total Break, Current Break, and Working Hours update live while your day is in progress." },
-      { selector: '[data-tour="attendance-daily-target"]', title: "Daily target progress", description: "The bar compares worked hours against the daily target from HR's shift settings and shows how far you are through it." },
-      { selector: '[data-tour="attendance-status-filters"]', title: "Filter by status", description: "Switch between All, Present, Absent, and Late records for the selected month." },
-      { selector: '[data-tour="attendance-month-select"]', title: "Choose the month", description: "Select any of the last twelve months to load that month's attendance records." },
-      { selector: '[data-tour="attendance-view-month"]', title: "Open the monthly overview", description: "Shows a color-coded calendar — green days completed the full target, amber days were clocked but short, red is absent, blue is leave, and violet is a holiday." },
-      { selector: '[data-tour="attendance-search"]', title: "Search employees", description: "Find people by name or department when reviewing shared attendance views." },
-      { selector: '[data-tour="attendance-table"]', title: "Records and row actions", description: "Each row shows date, punches, status, and hours. The eye button opens that day's timeline and calculations; the pencil button requests a correction and locks while a request is pending or approved.", side: "top" },
+      { selector: '[data-tour="attendance-main-tabs"]', title: "Three areas, one guide", description: "My Attendance tracks your own day. Team Attendance appears for managers, HR, and admins to review members, and Corrections lists punch fixes that were requested. The steps after this one always describe the tab you currently have open." },
+      // ── My Attendance ──
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-summary"]', title: "Your month at a glance", description: "These cards count your present, absent, and late days for the selected month, plus your worked hours against the weekly target." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-clock-card"]', title: "Your day, live", description: "This card follows today's progress — current state (not clocked in, working, or on break), your punches so far, and the shift you are working against." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-clock-actions"]', title: "Clock in and out", description: "Clock In opens selfie capture with automatic location detection. While clocked in you can Start Break, End Break, and Clock Out. Clock-in opens one hour before your assigned shift." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-calculations"]', title: "Today's calculations", description: "Total Time, Total Break, Current Break, and Working Hours update live while your day is in progress." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-daily-target"]', title: "Daily target progress", description: "The bar compares worked hours against the daily target from HR's shift settings and shows how far you are through it." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-status-filters"]', title: "Filter by status", description: "Switch between All, Present, Absent, and Late records for the selected month." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-month-select"]', title: "Choose the month", description: "Select any of the last twelve months to load that month's attendance records." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-view-month"]', title: "Open the monthly overview", description: "Shows a color-coded calendar — green days completed the full target, amber days were clocked but short, red is absent, blue is leave, and violet is a holiday." },
+      { tabPage: "my-attendance", selector: '[data-tour="attendance-table"]', title: "Your daily records", description: "Each row shows date, punches, status, and hours. The eye button opens that day's timeline with breaks and calculations; the pencil button requests a correction and locks while a request is pending or approved.", side: "top" },
+      // ── Team Attendance ──
+      { tabPage: "team-attendance", selector: '[data-tour="attendance-summary"]', title: "Team counts for the selected scope", description: "These cards total present, absent, and late members across the team view you are filtering, so coverage problems stand out immediately." },
+      { tabPage: "team-attendance", selector: '[data-tour="attendance-status-filters"]', title: "Filter by status", description: "Focus the list on All, Present, Absent, or Late members for the chosen day and department." },
+      { tabPage: "team-attendance", selector: '[data-tour="attendance-month-select"]', title: "Pick the period", description: "Move between months to review how team attendance trends over time." },
+      { tabPage: "team-attendance", selector: '[data-tour="attendance-search"]', title: "Search employees", description: "Find a specific member by name instead of scrolling the roster." },
+      { tabPage: "team-attendance", selector: '[data-tour="attendance-department-filter"]', title: "Narrow by department", description: "Limit the roster to one department — only departments you are allowed to review appear here." },
+      { tabPage: "team-attendance", selector: '[data-tour="attendance-table"]', title: "Member rows", description: "Every row shows an employee's date, punches, status, and hours for the period. The eye button opens their complete timeline — breaks, locations, and clock selfies.", side: "top" },
+      // ── Corrections ──
+      { tabPage: "corrections", selector: '[data-tour="attendance-summary"]', title: "Correction requests at a glance", description: "These cards track correction activity — how many fixes were requested, which are still pending, and how many were approved or rejected." },
+      { tabPage: "corrections", selector: '[data-tour="attendance-status-filters"]', title: "Filter requests by state", description: "Separate pending, approved, and rejected correction requests so open work is never missed." },
+      { tabPage: "corrections", selector: '[data-tour="attendance-search"]', title: "Find a request", description: "Locate a correction by employee name when reviewing specific cases." },
+      { tabPage: "corrections", selector: '[data-tour="attendance-table"]', title: "Requests and outcomes", description: "Each row shows what was asked for versus the original punch times, who requested it, and its current state. Approved fixes update the underlying attendance record automatically.", side: "top" },
     ],
     matches: exact("/extra-common-modules/attendance"),
   },
@@ -488,7 +505,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     title: "Tasks",
     description: "Track work routed between departments and people, assign new tasks when your role permits, and move each task through accept, progress, completion, and approval.",
     steps: [
-      { selector: '[data-tour="tasks-page-tabs"]', title: "Task queues", description: "The tabs reflect your role — department queues you can see, tasks assigned to you, and items raised toward you or by you. Only queues relevant to your role appear here." },
+      { selector: '[data-tour="tasks-page-tabs"]', title: "Task queues", description: "My Tasks opens first with everything assigned to you personally. Department Tasks collects work routed to the departments you manage or belong to, and leadership roles also see the tasks they raised for others. Employees see the My Tasks queue only." },
       { selector: '[data-tour="tasks-page-summary"]', title: "Task counts at a glance", description: "These cards total the tasks in the active queue and break them down into Pending, In Progress, and Resolved / Done." },
       { selector: '[data-tour="tasks-page-status-filter"]', title: "Filter by status", description: "Focus the list on All, Pending, In Progress, Completed, or Approved tasks." },
       { selector: '[data-tour="tasks-page-search"]', title: "Search tasks", description: "Find tasks by their title or the people involved. Results update as you type." },

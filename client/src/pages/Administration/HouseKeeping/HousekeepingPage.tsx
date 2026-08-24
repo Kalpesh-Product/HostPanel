@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import PageFrame from '@/components/Pages/PageFrame';
 import { HousekeepingSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
+import WebsiteFormField from '@/components/WebsiteFormField';
 import {
   bulkUploadHousekeepingWorkbook,
   completeHousekeepingTask,
@@ -28,6 +29,7 @@ import {
   Trash2,
   Upload,
   User,
+  UserCheck,
   Users,
   X,
   Zap,
@@ -117,6 +119,7 @@ interface ModalProps {
 
 interface TasksTableProps {
   tasks: Task[];
+  onView: (task: Task) => void;
   onEdit: (task: Task) => void;
   onCancel: (task: Task) => Promise<void>;
   emptyText: string;
@@ -238,16 +241,16 @@ class HousekeepingErrorBoundary extends React.Component<ErrorBoundaryProps, Erro
         <AppShell>
           <div className="p-2 lg:p-2.5">
             <PageFrame>
-              <div className="mx-auto max-w-4xl rounded-3xl border border-red-200 bg-white p-6 shadow-sm">
+              <div className="mx-auto max-w-4xl rounded-[2rem] border border-red-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start gap-4">
                   <div className="rounded-2xl bg-red-50 p-3 text-red-600">
                     <ShieldAlert size={28} />
                   </div>
                   <div className="flex-1">
-                    <h1 className="text-2xl font-black tracking-tight text-red-900">
+                    <h1 className="text-2xl font-pmedium tracking-tight text-red-900">
                       Housekeeping crashed while rendering
                     </h1>
-                    <p className="mt-2 text-sm font-medium text-slate-600">
+                    <p className="mt-2 text-sm font-pmedium text-slate-600">
                       The page hit a render-time error. The details below should help us identify the
                       cause immediately.
                     </p>
@@ -258,7 +261,7 @@ class HousekeepingErrorBoundary extends React.Component<ErrorBoundaryProps, Erro
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-red-600">
                     Error message
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-red-900">
+                  <p className="mt-2 text-sm font-pmedium text-red-900">
                     {this.state.error?.message || 'Unknown error'}
                   </p>
                 </div>
@@ -318,6 +321,7 @@ function HousekeepingPageInner() {
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [isStaffListOpen, setIsStaffListOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isTaskViewOnly, setIsTaskViewOnly] = useState(false);
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
   const [taskForm, setTaskForm] = useState<TaskFormState>(taskFormState());
   const [staffForm, setStaffForm] = useState<StaffFormState>(staffFormState());
@@ -441,7 +445,7 @@ function HousekeepingPageInner() {
     }
   }
 
-  function editTask(task: Task): void {
+  function editTask(task: Task, viewOnly = false): void {
     setEditingTask(task);
     setTaskForm({
       taskName: task.taskName || '',
@@ -456,7 +460,12 @@ function HousekeepingPageInner() {
       startTaskTime: task.startTaskTime || task.timeSlotLabel || '',
       status: task.status || 'Pending',
     });
+    setIsTaskViewOnly(viewOnly);
     setIsTaskModalOpen(true);
+  }
+
+  function viewTask(task: Task): void {
+    editTask(task, true);
   }
 
   async function cancelTask(task: Task): Promise<void> {
@@ -587,44 +596,27 @@ function HousekeepingPageInner() {
           <div className="flex flex-col gap-4">
 
           {/* Header */}
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">Housekeeping</h1>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Core Module - Administration Manager
               </p>
             </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+              >
+                <Upload size={13} />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+              </button>
+            </div>
           </div>
 
-          {/* Staff Registry Summary */}
-          {/* <div className="mb-6 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-500">Housekeeping Staff Registry</p>
-                
-                <p className="mt-1 text-xs font-medium text-slate-500">Add staff here. Managers can mark them present or absent before assigning daily tasks.</p>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-black text-slate-900">{activeStaff.length}</p>
-                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Registered staff</p>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {activeStaff.length > 0
-                ? activeStaff.map((item) => (
-                    <span key={item.id} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">
-                      {item.label}
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-pmedium uppercase tracking-widest">
-                        {item.attendanceStatus || 'Present'}
-                      </span>
-                    </span>
-                  ))
-                : <div className="text-sm font-medium text-slate-400">No housekeeping staff added yet.</div>}
-            </div>
-          </div> */}
-
-          {errorMessage ? <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</div> : null}
-          {bulkUploadMessage ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{bulkUploadMessage}</div> : null}
+          {errorMessage ? <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-pmedium text-red-700">{errorMessage}</div> : null}
+          {bulkUploadMessage ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-pmedium text-emerald-700">{bulkUploadMessage}</div> : null}
 
           {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
           <div data-tour="admin-housekeeping-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
@@ -684,25 +676,30 @@ function HousekeepingPageInner() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
               <div data-tour="admin-housekeeping-filters" className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                 {activeTab === 'scheduled' ? (
-                  <select
-                    className="w-full sm:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value)}
-                  >
-                    <option>All Status</option>
-                    <option>Pending</option>
-                    <option>Assigned</option>
-                    <option>In Progress</option>
-                    <option>Completed</option>
-                  </select>
+                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                    {['All Status', 'Pending', 'Assigned', 'In Progress', 'Completed'].map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setStatusFilter(status)}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-pmedium transition-all ${
+                          statusFilter === status
+                            ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                            : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                        }`}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
                 ) : null}
 
                 {activeTab === 'history' ? (
                   <>
-                    <select className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer" value={historyMonth} onChange={(event) => setHistoryMonth(event.target.value)}>
+                    <select className="px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer" value={historyMonth} onChange={(event) => setHistoryMonth(event.target.value)}>
                       {MONTHS.map((m) => <option key={m}>{m}</option>)}
                     </select>
-                    <select className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer" value={historyYear} onChange={(event) => setHistoryYear(event.target.value)}>
+                    <select className="px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer" value={historyYear} onChange={(event) => setHistoryYear(event.target.value)}>
                       {YEARS.map((y) => <option key={y}>{y}</option>)}
                     </select>
                   </>
@@ -710,41 +707,34 @@ function HousekeepingPageInner() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative min-w-[200px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     data-tour="admin-housekeeping-search"
                     type="text"
                     placeholder="Search task or area..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-xs font-pmedium outline-none placeholder:text-slate-400 transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
                 <button
                   onClick={() => setIsStaffListOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 whitespace-nowrap"
                 >
-                  <Eye size={16} />
+                  <Eye size={13} />
                   Show Staff
                 </button>
                 <button
                   onClick={() => { setStaffForm(staffFormState()); setIsStaffModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 whitespace-nowrap"
                 >
-                  <Users size={16} />
+                  <Users size={13} />
                   Add Staff
                 </button>
                 <button
-                  onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 whitespace-nowrap"
-                >
-                  <Upload size={16} />
-                  Bulk Upload
-                </button>
-                <button
-                  onClick={() => { setEditingTask(null); setTaskForm(taskFormState()); setIsTaskModalOpen(true); }}
+                  onClick={() => { setEditingTask(null); setTaskForm(taskFormState()); setIsTaskViewOnly(false); setIsTaskModalOpen(true); }}
                   data-tour="admin-housekeeping-add-btn"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition-all hover:bg-[#2563EB]/90 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} />
                   Add Scheduled Task
@@ -755,7 +745,7 @@ function HousekeepingPageInner() {
             {isLoading ? <HousekeepingSkeleton /> : null}
 
             {!isLoading && activeTab === 'scheduled' ? (
-              <TasksTable tasks={manualTasks} onEdit={editTask} onCancel={cancelTask} emptyText="No scheduled tasks found." />
+              <TasksTable tasks={manualTasks} onView={viewTask} onEdit={(task) => editTask(task, false)} onCancel={cancelTask} emptyText="No scheduled tasks found." />
             ) : null}
 
             {!isLoading && activeTab === 'auto' ? (
@@ -776,16 +766,19 @@ function HousekeepingPageInner() {
         {/* -- Task Modal --------------------------------------------------- */}
         {isTaskModalOpen ? (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex h-full max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary">
-                    {editingTask ? 'Edit Scheduled Task' : 'New Scheduled Task'}
-                  </h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Routine Housekeeping Assignment</p>
+            <div className="flex h-full max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/30 px-6 py-5 lg:px-8 lg:py-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><Sparkles size={18} /></div>
+                  <div>
+                    <h2 className="text-xl font-pmedium text-slate-800">
+                      {isTaskViewOnly ? 'View Scheduled Task' : editingTask ? 'Edit Scheduled Task' : 'New Scheduled Task'}
+                    </h2>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Routine Housekeeping Assignment</p>
+                  </div>
                 </div>
                 <button
-                  onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }}
+                  onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); setIsTaskViewOnly(false); }}
                   className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"
                 >
                   <X size={18} />
@@ -794,74 +787,104 @@ function HousekeepingPageInner() {
 
               <form onSubmit={saveTask} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Task Type *</label>
-                    <select
+                  <WebsiteFormField
+                    select
+                    required
+                    disabled={isTaskViewOnly}
+                    label="Task Type"
+                    value={taskForm.taskType}
+                    onChange={(event) => setTaskForm({ ...taskForm, taskType: event.target.value })}
+                  >
+                    {TASK_TYPES.map((type) => <option key={type}>{type}</option>)}
+                  </WebsiteFormField>
+
+                  <WebsiteFormField
+                    required
+                    disabled={isTaskViewOnly}
+                    label={taskForm.taskType === 'Custom' ? 'Custom Task Name' : 'Task Name'}
+                    value={taskForm.taskName}
+                    onChange={(event) => setTaskForm({ ...taskForm, taskName: event.target.value })}
+                  />
+
+                  <WebsiteFormField
+                    required
+                    disabled={isTaskViewOnly}
+                    label="Area / Zone"
+                    value={taskForm.area}
+                    onChange={(event) => setTaskForm({ ...taskForm, area: event.target.value })}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <WebsiteFormField
+                      select
                       required
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={taskForm.taskType}
-                      onChange={(event) => setTaskForm({ ...taskForm, taskType: event.target.value })}
+                      disabled={isTaskViewOnly}
+                      label="Floor"
+                      value={taskForm.floor}
+                      onChange={(event) => setTaskForm({ ...taskForm, floor: event.target.value })}
                     >
-                      {TASK_TYPES.map((type) => <option key={type}>{type}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
-                      {taskForm.taskType === 'Custom' ? 'Custom Task Name *' : 'Task Name *'}
-                    </label>
-                    <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={taskForm.taskName} onChange={(event) => setTaskForm({ ...taskForm, taskName: event.target.value })} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Area / Zone *</label>
-                    <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={taskForm.area} onChange={(event) => setTaskForm({ ...taskForm, area: event.target.value })} />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
-                      <select required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.floor} onChange={(event) => setTaskForm({ ...taskForm, floor: event.target.value })}>
-                        <option value="">Select Floor...</option>
-                        {FLOOR_OPTIONS.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing *</label>
-                      <select required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.wing} onChange={(event) => setTaskForm({ ...taskForm, wing: event.target.value })}>
-                        <option value="">Select Wing...</option>
-                        {WING_OPTIONS.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
-                      </select>
-                    </div>
+                      <option value="">Select Floor...</option>
+                      {FLOOR_OPTIONS.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
+                    </WebsiteFormField>
+                    <WebsiteFormField
+                      select
+                      required
+                      disabled={isTaskViewOnly}
+                      label="Wing"
+                      value={taskForm.wing}
+                      onChange={(event) => setTaskForm({ ...taskForm, wing: event.target.value })}
+                    >
+                      <option value="">Select Wing...</option>
+                      {WING_OPTIONS.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
+                    </WebsiteFormField>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Assign To (Staff)</label>
-                      <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.assigneeEmployeeProfileId} onChange={(event) => { const next = presentStaff.find((item) => item.id === event.target.value); setTaskForm({ ...taskForm, assigneeEmployeeProfileId: event.target.value, assignedTo: next?.label || '' }); }}>
-                        <option value="">Select Staff...</option>
-                        {presentStaff.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Start Task Time *</label>
-                      <input required type="time" step="300" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.startTaskTime} onChange={(event) => setTaskForm({ ...taskForm, startTaskTime: event.target.value })} />
-                    </div>
+                    <WebsiteFormField
+                      select
+                      disabled={isTaskViewOnly}
+                      label="Assign To (Staff)"
+                      value={taskForm.assigneeEmployeeProfileId}
+                      onChange={(event) => { const next = presentStaff.find((item) => item.id === event.target.value); setTaskForm({ ...taskForm, assigneeEmployeeProfileId: event.target.value, assignedTo: next?.label || '' }); }}
+                    >
+                      <option value="">Select Staff...</option>
+                      {presentStaff.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                    </WebsiteFormField>
+                    <WebsiteFormField
+                      required
+                      disabled={isTaskViewOnly}
+                      type="time"
+                      step={300}
+                      label="Start Task Time"
+                      value={taskForm.startTaskTime}
+                      onChange={(event) => setTaskForm({ ...taskForm, startTaskTime: event.target.value })}
+                    />
                   </div>
 
                   {editingTask ? (
-                    <div className="space-y-2 border-t border-slate-100 pt-6">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Update Status</label>
-                      <select className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none" value={taskForm.status} onChange={(event) => setTaskForm({ ...taskForm, status: event.target.value })}>
+                    <div className="border-t border-slate-100 pt-6">
+                      <WebsiteFormField
+                        select
+                        disabled={isTaskViewOnly}
+                        label="Update Status"
+                        value={taskForm.status}
+                        onChange={(event) => setTaskForm({ ...taskForm, status: event.target.value })}
+                      >
                         <option>Pending</option><option>Assigned</option><option>In Progress</option><option>Completed</option><option>Cancelled</option>
-                      </select>
+                      </WebsiteFormField>
                     </div>
                   ) : null}
                 </div>
 
-                <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700"><Plus size={18} />{editingTask ? 'Update Task' : 'Save Task'}</button>
+                <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-5 lg:px-8">
+                  {isTaskViewOnly ? (
+                    <button type="button" onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); setIsTaskViewOnly(false); }} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Close</button>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
+                      <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90"><Plus size={14} />{editingTask ? 'Update Task' : 'Save Task'}</button>
+                    </>
+                  )}
                 </div>
               </form>
             </div>
@@ -871,40 +894,52 @@ function HousekeepingPageInner() {
         {/* -- Staff Modal -------------------------------------------------- */}
         {isStaffModalOpen ? (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Users size={20} /> Add Housekeeping Staff</h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Basic details for task assignment</p>
+            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/30 px-6 py-5 lg:px-8 lg:py-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><Users size={18} /></div>
+                  <div>
+                    <h2 className="text-xl font-pmedium text-slate-800">Add Housekeeping Staff</h2>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Basic details for task assignment</p>
+                  </div>
                 </div>
                 <button onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
               <form onSubmit={saveStaff} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Full Name *</label>
-                      <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.fullName} onChange={(event) => setStaffForm({ ...staffForm, fullName: event.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Address *</label>
-                      <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.address} onChange={(event) => setStaffForm({ ...staffForm, address: event.target.value })} />
-                    </div>
+                    <WebsiteFormField
+                      required
+                      label="Full Name"
+                      value={staffForm.fullName}
+                      onChange={(event) => setStaffForm({ ...staffForm, fullName: event.target.value })}
+                    />
+                    <WebsiteFormField
+                      required
+                      label="Address"
+                      value={staffForm.address}
+                      onChange={(event) => setStaffForm({ ...staffForm, address: event.target.value })}
+                    />
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Email</label>
-                      <input type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.email} onChange={(event) => setStaffForm({ ...staffForm, email: event.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Phone *</label>
-                      <input required type="tel" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={staffForm.phone} onChange={(event) => setStaffForm({ ...staffForm, phone: event.target.value })} />
-                    </div>
+                    <WebsiteFormField
+                      type="email"
+                      label="Email"
+                      value={staffForm.email}
+                      onChange={(event) => setStaffForm({ ...staffForm, email: event.target.value })}
+                    />
+                    <WebsiteFormField
+                      required
+                      type="tel"
+                      label="Phone"
+                      value={staffForm.phone}
+                      onChange={(event) => setStaffForm({ ...staffForm, phone: event.target.value })}
+                    />
                   </div>
                 </div>
-                <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700"><Users size={18} /> Save Staff</button>
+                <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-5 lg:px-8">
+                  <button type="button" onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
+                  <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90"><Users size={14} /> Save Staff</button>
                 </div>
               </form>
             </div>
@@ -914,30 +949,36 @@ function HousekeepingPageInner() {
         {/* -- Staff List Modal ---------------------------------------------- */}
         {isStaffListOpen ? (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Users size={20} /> Housekeeping Staff</h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Present or absent is managed here</p>
+            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/30 px-6 py-5 lg:px-8 lg:py-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><Users size={18} /></div>
+                  <div>
+                    <h2 className="text-xl font-pmedium text-slate-800">Housekeeping Staff</h2>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Present or absent is managed here</p>
+                  </div>
                 </div>
                 <button onClick={() => setIsStaffListOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
                 {activeStaff.length > 0 ? activeStaff.map((member) => (
-                  <div key={member.id} className="rounded-2xl border border-slate-200 p-5 shadow-sm">
+                  <div key={member.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 shadow-sm">
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-black text-slate-900">{member.fullName}</h3>
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest`}>
-                            {member.attendanceStatus || 'Present'}
-                          </span>
-                          {member.sourceType === 'legacy-employee-profile' ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Legacy</span> : null}
-                        </div>
-                        <div className="mt-2 space-y-1 text-sm text-slate-600">
-                          <p>{member.address || 'No address'}</p>
-                          <p>{member.phone || 'No phone'}</p>
-                          {member.email ? <p>{member.email}</p> : <p>No email</p>}
+                      <div className="flex items-start gap-2">
+                        <UserCheck size={16} className="mt-0.5 text-slate-400 shrink-0" />
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-sm font-pmedium text-slate-900">{member.fullName}</h3>
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest`}>
+                              {member.attendanceStatus || 'Present'}
+                            </span>
+                            {member.sourceType === 'legacy-employee-profile' ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Legacy</span> : null}
+                          </div>
+                          <div className="mt-1 space-y-0.5 text-[10px] font-pmedium text-slate-500">
+                            <p>{member.address || 'No address'}</p>
+                            <p>{member.phone || 'No phone'}</p>
+                            {member.email ? <p>{member.email}</p> : <p>No email</p>}
+                          </div>
                         </div>
                       </div>
                       {member.sourceType === 'registry' ? (
@@ -948,7 +989,7 @@ function HousekeepingPageInner() {
                       ) : null}
                     </div>
                   </div>
-                )) : <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-medium text-slate-400">No housekeeping staff added yet.</div>}
+                )) : <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-pmedium text-slate-400">No housekeeping staff added yet.</div>}
               </div>
             </div>
           </div>
@@ -957,20 +998,20 @@ function HousekeepingPageInner() {
         {/* -- Bulk Upload Modal -------------------------------------------- */}
         {isBulkUploadModalOpen ? (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Upload size={20} /> Bulk Upload</h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">One workbook with staff and scheduled tasks</p>
+            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/30 px-6 py-5 lg:px-8 lg:py-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><Upload size={18} /></div>
+                  <div>
+                    <h2 className="text-xl font-pmedium text-slate-800">Bulk Upload</h2>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">One workbook with staff and scheduled tasks</p>
+                  </div>
                 </div>
                 <button onClick={() => setIsBulkUploadModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
               <form onSubmit={handleBulkUpload} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
-                  {/* <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
-                    Download the workbook template, fill only the required fields shown in the <strong>Instructions</strong> sheet, then upload the completed file here.
-                  </div> */}
-                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border bg-blue-600 bg-slate-100 px-5 py-4 text-sm font-pmedium text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
+                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-5 py-4 text-sm font-pmedium text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
                     <Download size={16} /> Download Template
                   </button>
                   <div className="space-y-2">
@@ -978,15 +1019,15 @@ function HousekeepingPageInner() {
                     <input
                       type="file"
                       accept=".xlsx,.xls,.csv"
-                      className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium text-slate-700 outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:border-emerald-300"
+                      className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm font-pmedium text-slate-700 outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-xs file:font-pmedium file:uppercase file:tracking-wider file:text-white hover:file:bg-blue-700"
                       onChange={(event) => setBulkUploadFile(event.target.files?.[0] || null)}
                     />
                     {bulkUploadFile ? <p className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Selected: {bulkUploadFile.name}</p> : <p className="text-xs font-pmedium uppercase tracking-widest text-slate-400">Choose the completed Excel workbook.</p>}
                   </div>
                 </div>
-                <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" disabled={isBulkUploading} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60">
+                <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-5 lg:px-8">
+                  <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
+                  <button type="submit" disabled={isBulkUploading} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:opacity-60">
                     {isBulkUploading ? 'Importing...' : 'Import Workbook'}
                   </button>
                 </div>
@@ -998,29 +1039,31 @@ function HousekeepingPageInner() {
         {/* -- Assign Task Modal -------------------------------------------- */}
         {assigningTask ? (
           <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-md flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-red-50/70 px-6 py-5">
+            <div className="flex w-full max-w-md flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-red-50/30 px-6 py-5">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-red-100 p-3 text-red-600"><User size={24} /></div>
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-red-600 text-white"><User size={18} /></div>
                   <div>
-                    <h2 className="text-xl font-black text-red-900">Assign Staff</h2>
+                    <h2 className="text-xl font-pmedium text-slate-800">Assign Staff</h2>
                     <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-red-500">{assigningTask.roomName || assigningTask.taskName}</p>
                   </div>
                 </div>
                 <button onClick={() => { setAssigningTask(null); setTaskForm(taskFormState()); }} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
               <div className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Select Housekeeping Staff</label>
-                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={taskForm.assigneeEmployeeProfileId} onChange={(event) => { const next = presentStaff.find((item) => item.id === event.target.value); setTaskForm({ ...taskForm, assigneeEmployeeProfileId: event.target.value, assignedTo: next?.label || '' }); }}>
-                    <option value="">Select...</option>
-                    {presentStaff.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                  </select>
-                </div>
+                <WebsiteFormField
+                  select
+                  label="Select Housekeeping Staff"
+                  value={taskForm.assigneeEmployeeProfileId}
+                  onChange={(event) => { const next = presentStaff.find((item) => item.id === event.target.value); setTaskForm({ ...taskForm, assigneeEmployeeProfileId: event.target.value, assignedTo: next?.label || '' }); }}
+                >
+                  <option value="">Select...</option>
+                  {presentStaff.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </WebsiteFormField>
               </div>
-              <div className="flex gap-4 border-t border-slate-100 bg-slate-50/30 px-6 py-5">
-                <button onClick={() => { setAssigningTask(null); setTaskForm(taskFormState()); }} className="flex-1 rounded-2xl bg-white py-4 font-black text-slate-500 transition-all hover:text-slate-900">Cancel</button>
-                <button disabled={!taskForm.assigneeEmployeeProfileId} onClick={assignTask} className="flex-1 rounded-2xl bg-red-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-red-700 disabled:bg-slate-300 disabled:shadow-none">Assign</button>
+              <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/30 px-6 py-5">
+                <button onClick={() => { setAssigningTask(null); setTaskForm(taskFormState()); }} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
+                <button disabled={!taskForm.assigneeEmployeeProfileId} onClick={assignTask} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">Assign</button>
               </div>
             </div>
           </div>
@@ -1032,55 +1075,58 @@ function HousekeepingPageInner() {
 
 // -- Sub-components ---------------------------------------------------------
 
-function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
+function TasksTable({ tasks, onView, onEdit, onCancel, emptyText }: TasksTableProps) {
   return (
-    <div className="flex-1">
-      <table data-tour="admin-housekeeping-table" className="w-full text-left table-auto">
-        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+    <div className="flex-1 overflow-x-auto">
+      <table data-tour="admin-housekeeping-table" className="w-full min-w-[1120px] text-left font-pmedium">
+        <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
           <tr>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Task Name & ID</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Area / Zone</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Floor / Wing</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Assigned To</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Start Time</th>
-            <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
-            <th className="px-3 py-4 text-center whitespace-nowrap w-28">Actions</th>
+            <th className="px-5 py-4">Task Name & ID</th>
+            <th className="px-5 py-4">Area / Zone</th>
+            <th className="px-5 py-4">Floor / Wing</th>
+            <th className="px-5 py-4">Assigned To</th>
+            <th className="px-5 py-4">Start Time</th>
+            <th className="px-5 py-4 text-center">Status</th>
+            <th className="px-5 py-4 text-center w-28">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100/60">
           {tasks.map((task) => (
-            <tr key={task.id} className="transition-colors hover:bg-blue-50/30">
-              <td className="px-3 py-4 align-middle">
-                <div className="text-xs font-black tracking-tight text-slate-900">{task.taskName}</div>
-                <div className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{task.taskCode}</div>
+            <tr key={task.id} className="group transition-colors hover:bg-slate-50/50">
+              <td className="px-5 py-4">
+                <div className="text-xs font-pmedium text-slate-900">{task.taskName}</div>
+                <div className="mt-0.5 text-[10px] font-pmedium text-slate-400">{task.taskCode}</div>
               </td>
-              <td className="px-3 py-4 align-middle text-xs font-bold text-slate-700">{task.area || 'General'}</td>
-              <td className="px-3 py-4 align-middle text-xs font-bold text-slate-700">
+              <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{task.area || 'General'}</td>
+              <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">
                 {task.floor || 'Any'}
                 {task.wing ? ` / ${task.wing}` : ''}
               </td>
-              <td className="px-3 py-4 align-middle">
-                <span className="inline-flex items-center gap-1.5 text-xs font-pmedium uppercase tracking-wider text-slate-600">
-                  <User size={12} /> {task.assignedTo}
-                </span>
+              <td className="px-5 py-4">
+                <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                  <UserCheck size={14} className="text-slate-400" />{task.assignedTo || 'Unassigned'}
+                </div>
               </td>
-              <td className="px-3 py-4 align-middle">
-                <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600">
+              <td className="px-5 py-4">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-pmedium text-slate-600">
                   <Clock size={12} /> {task.startTaskTime ? formatTime12h(task.startTaskTime) : task.timeSlotLabel ? formatTime12h(task.timeSlotLabel) : 'Anytime'}
                 </span>
               </td>
-              <td className="px-3 py-4 align-middle text-center">
-                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${statusBadge(task.status)}`}>
+              <td className="px-5 py-4 text-center">
+                <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider border ${statusBadge(task.status)}`}>
                   {task.status}
                 </span>
               </td>
-              <td className="px-3 py-4 align-middle">
-                <div className="flex items-center justify-center gap-1">
-                  <button onClick={() => onEdit(task)} className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-600" title="Edit Task">
-                    <Edit size={13} />
+              <td className="px-5 py-4">
+                <div className="flex items-center justify-center gap-1.5">
+                  <button onClick={() => onView(task)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-blue-100 hover:text-blue-700" title="View">
+                    <Eye size={14} strokeWidth={2.5} />
                   </button>
-                  <button onClick={() => onCancel(task)} className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600" title="Cancel Task">
-                    <Trash2 size={13} />
+                  <button onClick={() => onEdit(task)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-amber-100 hover:text-amber-700" title="Edit Task">
+                    <Edit size={14} strokeWidth={2.5} />
+                  </button>
+                  <button onClick={() => onCancel(task)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-red-100 hover:text-red-700" title="Cancel Task">
+                    <Trash2 size={14} strokeWidth={2.5} />
                   </button>
                 </div>
               </td>
@@ -1088,10 +1134,7 @@ function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
           ))}
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-3 py-20 text-center">
-                <ShieldAlert size={32} className="mx-auto text-slate-300 mb-3" />
-                <p className="text-sm font-pmedium uppercase tracking-widest text-slate-500">{emptyText}</p>
-              </td>
+              <td colSpan={7} className="py-16 text-center font-pmedium text-slate-400">{emptyText}</td>
             </tr>
           ) : null}
         </tbody>
@@ -1106,7 +1149,7 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
       <div className="p-8">
         <div className="mx-auto mb-6 flex max-w-5xl items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
           <Zap className="mt-0.5 shrink-0 text-red-500" size={20} />
-          <div className="text-xs font-medium leading-relaxed text-red-800">
+          <div className="text-xs font-pmedium leading-relaxed text-red-800">
             <strong>Automated System Trigger:</strong> Tasks below are generated from meeting room bookings and keep the room blocked until the clean-up is marked complete.
           </div>
         </div>
@@ -1119,13 +1162,13 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="text-lg font-black text-slate-900">{task.roomName || task.taskName}</h3>
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700">Requires Cleaning</span>
+                    <h3 className="text-sm font-pmedium text-slate-900">{task.roomName || task.taskName}</h3>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-amber-700">Requires Cleaning</span>
                   </div>
-                  <p className="mt-1 text-xs font-bold text-slate-500">
+                  <p className="mt-1 text-xs font-pmedium text-slate-500">
                     Floor / Wing: <span className="text-slate-700">{task.floor || 'Any'}{task.wing ? ` / ${task.wing}` : ''}</span>
                   </p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">Booking Ended At: <span className="text-red-500">{task.bookingEndTimeLabel || 'Pending'}</span></p>
+                  <p className="mt-1 text-xs font-pmedium text-slate-500">Booking Ended At: <span className="text-red-500">{task.bookingEndTimeLabel || 'Pending'}</span></p>
                   <p className="mt-2 flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Source: {task.sourceBookingCode || task.taskCode}</p>
                 </div>
               </div>
@@ -1133,9 +1176,9 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
                 <div className="flex flex-col items-end">
                   <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Assigned To</p>
                   {task.assignedTo === 'Unassigned' ? (
-                    <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-bold text-red-500">Needs Assignment</span>
+                    <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-pmedium text-red-500">Needs Assignment</span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs font-bold text-slate-900"><User size={12} /> {task.assignedTo}</span>
+                    <div className="flex items-center gap-1.5 font-pmedium text-slate-900"><UserCheck size={14} className="text-slate-400" /> {task.assignedTo}</div>
                   )}
                 </div>
                 <div className="mx-2 hidden h-10 w-px bg-slate-200 md:block" />
@@ -1149,7 +1192,7 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
             </div>
           ))}
           {tasks.length === 0 ? (
-            <div className="py-20 text-center text-sm font-bold text-slate-400">No booking-based tasks pending.</div>
+            <div className="py-16 text-center font-pmedium text-slate-400">No booking-based tasks pending.</div>
           ) : null}
         </div>
       </div>
@@ -1159,38 +1202,38 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
 
 function HistoryTable({ tasks, month, year }: HistoryTableProps) {
   return (
-    <div className="flex-1">
-      <table data-tour="admin-housekeeping-table" className="w-full text-left table-auto">
-        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+    <div className="flex-1 overflow-x-auto">
+      <table data-tour="admin-housekeeping-table" className="w-full min-w-[1120px] text-left font-pmedium">
+        <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
           <tr>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Date</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Task Name & Details</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Area / Location</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Completed By</th>
-            <th className="px-3 py-4 text-left whitespace-nowrap">Completion Time</th>
-            <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
+            <th className="px-5 py-4">Date</th>
+            <th className="px-5 py-4">Task Name & Details</th>
+            <th className="px-5 py-4">Area / Location</th>
+            <th className="px-5 py-4">Completed By</th>
+            <th className="px-5 py-4">Completion Time</th>
+            <th className="px-5 py-4 text-center">Status</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100/60">
           {tasks.map((task) => (
-            <tr key={task.id} className="transition-colors hover:bg-blue-50/30">
-              <td className="px-3 py-4 align-middle">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+            <tr key={task.id} className="group transition-colors hover:bg-slate-50/50">
+              <td className="px-5 py-4">
+                <div className="flex items-center gap-1.5 text-xs font-pmedium text-slate-900">
                   <CalendarDays size={14} className="text-slate-400 shrink-0" />
                   {task.completedAtLabel || task.dueAtLabel || task.bookingDateLabel || 'Today'}
                 </div>
-                <div className="ml-5 mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{task.taskCode}</div>
+                <div className="ml-5 mt-0.5 text-[10px] font-pmedium text-slate-400">{task.taskCode}</div>
               </td>
-              <td className="px-3 py-4 align-middle text-xs font-bold text-slate-800">{task.taskName}</td>
-              <td className="px-3 py-4 align-middle text-xs font-medium text-slate-600">{task.area || task.roomName || 'General'}</td>
-              <td className="px-3 py-4 align-middle">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-                  <User size={14} className="text-slate-400 shrink-0" /> {task.completedBy || task.assignedTo || 'Admin'}
-                </span>
+              <td className="px-5 py-4 text-[11px] font-pmedium text-slate-700">{task.taskName}</td>
+              <td className="px-5 py-4 text-[11px] font-pmedium text-slate-600">{task.area || task.roomName || 'General'}</td>
+              <td className="px-5 py-4">
+                <div className="flex items-center gap-2 font-pmedium text-slate-900">
+                  <UserCheck size={14} className="text-slate-400" />{task.completedBy || task.assignedTo || 'Admin'}
+                </div>
               </td>
-              <td className="px-3 py-4 align-middle text-xs font-black text-blue-600">{task.completedAt ? formatTime12h(task.completedAt) : 'Verbal'}</td>
-              <td className="px-3 py-4 align-middle text-center">
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] text-green-600 whitespace-nowrap">
+              <td className="px-5 py-4 text-[11px] font-pmedium text-blue-600">{task.completedAt ? formatTime12h(task.completedAt) : 'Verbal'}</td>
+              <td className="px-5 py-4 text-center">
+                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-green-600 whitespace-nowrap">
                   <Check size={12} /> Done
                 </span>
               </td>
@@ -1198,9 +1241,7 @@ function HistoryTable({ tasks, month, year }: HistoryTableProps) {
           ))}
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-3 py-20 text-center">
-                <p className="text-sm font-pmedium uppercase tracking-widest text-slate-500">No historical data found for {month} {year}.</p>
-              </td>
+              <td colSpan={6} className="py-16 text-center font-pmedium text-slate-400">No historical data found for {month} {year}.</td>
             </tr>
           ) : null}
         </tbody>

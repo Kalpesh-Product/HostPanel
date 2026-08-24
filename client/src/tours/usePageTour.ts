@@ -63,6 +63,11 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
   const activeEditorPage = document
     .querySelector('[data-tour="wb-editor-page-tabs"]')
     ?.getAttribute("data-editor-page") || "";
+  // Tab-aware pages (Attendance) expose their open tab on the tabs container,
+  // so guide replays only walks through the controls of the visible tab.
+  const activeTabPage = document
+    .querySelector("[data-active-tab]")
+    ?.getAttribute("data-active-tab") || "";
   const isEditorTour = tour.id === "basic-website-builder-editor";
   const pageContent = findVisible('[data-tour="page-content"]');
   const pageHeading = findVisible(
@@ -89,6 +94,7 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
   if (tour.steps?.length) {
     tour.steps
       .filter((tourStep) => !tourStep.editorPage || tourStep.editorPage === activeEditorPage)
+      .filter((tourStep) => !tourStep.tabPage || tourStep.tabPage === activeTabPage)
       .forEach((tourStep) => {
         const target = findStepTarget(tourStep);
         if (!target) return;
