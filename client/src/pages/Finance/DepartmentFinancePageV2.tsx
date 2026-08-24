@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
@@ -60,6 +60,7 @@ interface ExpenseData {
   importKey: string;
   title: string;
   description: string;
+  dueDate: string;
   details: string;
   justificationDetails: string;
   projectedAmount: number;
@@ -158,6 +159,22 @@ const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase(
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
+// Friendly month status labels (UnitFlow-style) for the projected budget table.
+function getFriendlyMonthStatus(monthStatus: string | undefined, planStatus: string | undefined) {
+  const plan = String(planStatus || '').toLowerCase();
+  if (!plan || plan === 'pending' || plan === 'draft' || plan === 'discuss') {
+    return { label: 'Waiting for Approval', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-amber-50 text-amber-700 border-amber-200' };
+  }
+  switch (String(monthStatus || '').toLowerCase()) {
+    case 'current':
+      return { label: 'Current Month', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-blue-50 text-blue-700 border-blue-200' };
+    case 'completed':
+      return { label: 'Completed/Paid', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-green-50 text-green-700 border-green-200' };
+    default:
+      return { label: 'Upcoming Month', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-purple-50 text-purple-700 border-purple-200' };
+  }
+}
+
 export function DepartmentFinancePageV2() {
   const currentUser = getStoredUser();
   const userRole = normalizeUserRole(currentUser?.workspaceMembership?.role || currentUser?.role || '');
@@ -182,6 +199,20 @@ export function DepartmentFinancePageV2() {
   const formatCurrency = (amount: number) =>
     formatWorkspaceCurrency(Number(amount || 0), currency, { maximumFractionDigits: 0 });
 
+  // Payments are Finance-only (segregation of duties). Hide the Mark-as-Paid
+  // action from department members; Finance-side roles and managers of the
+  // Finance department still see it.
+  const FINANCE_PAYMENT_ROLES = ['owner', 'founder', 'super_admin', 'admin', 'finance_manager', 'finance'];
+  const memberDepartmentNames = (Array.isArray(currentUser?.workspaceMembership?.departments)
+    ? currentUser.workspaceMembership.departments
+    : [storedDepartment]
+  )
+    .map((d: any) => String(typeof d === 'string' ? d : d?.name || d?.label || '').trim().toLowerCase())
+    .filter(Boolean);
+  const canManagePayments =
+    FINANCE_PAYMENT_ROLES.includes(userRole) ||
+    (userRole === 'manager' && memberDepartmentNames.some((name) => name.includes('finance')));
+
   const [selectedFY, setSelectedFY] = useState(DEFAULT_FISCAL_YEAR);
   const [activeTab, setActiveTab] = useState('projected');
   const [isLoading, setIsLoading] = useState(true);
@@ -203,6 +234,7 @@ export function DepartmentFinancePageV2() {
   const [selectedVendorToLink, setSelectedVendorToLink] = useState('');
   const [actualAmountToPay, setActualAmountToPay] = useState('');
   const [isLinkingVendor, setIsLinkingVendor] = useState(false);
+  const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
 
   // Draft annual budget builder (month-by-month, pre-submission)
   const [draftMonths, setDraftMonths] = useState<DraftMonth[]>([]);
@@ -1234,62 +1266,143 @@ export function DepartmentFinancePageV2() {
                 <table data-tour="dept-finance-table" className="w-full text-left min-w-[900px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-5 py-4">Month</th>
-                      <th className="px-5 py-4">Expense Title</th>
-                      <th className="px-5 py-4">Projected</th>
-                      <th className="px-5 py-4">Actual</th>
+                      <th className="px-5 py-4">Month Info</th>
+                      <th className="px-5 py-4">Count</th>
+                      <th className="px-5 py-4">Projected Total</th>
+                      <th className="px-5 py-4">Actual Total</th>
                       <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Payment</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {filteredMonthlyExpenses.flatMap((month) =>
-                      month.expenses && month.expenses.length > 0
-                        ? month.expenses.map((expense) => (
-                            <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
-                              <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
-                              <td className="px-5 py-4">
-                                <div className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</div>
-                                {expense.invoiceNumber && (
-                                  <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">
-                                    INV: {expense.invoiceNumber}
+                    {filteredMonthlyExpenses.map((month) => {
+                      const monthExpenses = month.expenses || [];
+                      const status = getFriendlyMonthStatus(month.status, financeData?.status);
+                      const monthKeyNorm = String(month.monthKey || month.month || '').trim().toLowerCase();
+                      const isExpanded = expandedMonthKey === monthKeyNorm;
+                      const toggleExpand = () => setExpandedMonthKey(isExpanded ? null : monthKeyNorm);
+                      // Older records may store the month name ("May") instead of the
+                      // key ("may") — match against every known alias of the month.
+                      const monthAliases = new Set(
+                        [month.monthKey, month.month, monthLabels[month.monthKey], month.title]
+                          .filter(Boolean)
+                          .map((v) => String(v).trim().toLowerCase()),
+                      );
+                      const projectedTotal = month.projectedBudget || monthExpenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0);
+                      const actualTotal = month.actualSpent || monthExpenses.reduce((s, e) => s + Number(e.actualSpent || 0), 0);
+                      const monthExtraRequests = extraRequests.filter(
+                        (request) =>
+                          monthAliases.has(String(request.monthKey || '').trim().toLowerCase()) ||
+                          monthAliases.has(String(request.month || '').trim().toLowerCase()),
+                      );
+                      return (
+                        <Fragment key={month.monthKey || month.month}>
+                          <tr className="hover:bg-blue-50/30 transition-all align-top">
+                            <td className="px-5 py-4">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0"><Building2 size={14} /></div>
+                                <div className="min-w-0">
+                                  <div className="font-pmedium text-slate-900 leading-tight truncate">
+                                    {monthLabels[month.monthKey] || month.month}{month.title ? ` (${month.title})` : ''}
                                   </div>
-                                )}
-                              </td>
-                              <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(expense.projectedAmount)}</td>
-                              <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(expense.actualSpent)}</td>
-                              <td className="px-5 py-4">
-                                <span className={statusPillClass(expense.status)}>{expense.status || 'Pending'}</span>
-                              </td>
-                              <td className="px-5 py-4">
-                                <span className={statusPillClass(expense.paymentStatus)}>{expense.paymentStatus || 'Unpaid'}</span>
-                              </td>
-                              <td className="px-5 py-4 text-center">
+                                  <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">{month.monthKey}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 font-pmedium text-slate-500">{monthExpenses.length} Item{monthExpenses.length === 1 ? '' : 's'}</td>
+                            <td className="px-5 py-4 font-pmedium text-slate-900 whitespace-nowrap">{formatCurrency(projectedTotal)}</td>
+                            <td className="px-5 py-4 font-pmedium text-emerald-600 whitespace-nowrap">{formatCurrency(actualTotal)}</td>
+                            <td className="px-5 py-4">
+                              <span className={status.className}>{status.label}</span>
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              {monthExpenses.length + monthExtraRequests.length > 0 ? (
                                 <button
-                                  onClick={() => setViewingExpense({ month, expense })}
-                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                                  title="View Details"
+                                  onClick={toggleExpand}
+                                  className="px-3 py-1.5 bg-white border border-slate-200/60 rounded-lg shadow-sm hover:bg-slate-50 text-[9px] font-pmedium uppercase tracking-widest text-slate-600 transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
+                                  title="View All Expenses"
                                 >
-                                  <Eye size={15} strokeWidth={2.5} />
+                                  <Eye size={12} /> {isExpanded ? 'Hide' : 'Details'}
                                 </button>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && (monthExpenses.length + monthExtraRequests.length) > 0 && (
+                            <tr>
+                              <td colSpan={6} className="px-5 pb-4 bg-slate-50/40">
+                                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                  <table className="w-full text-left">
+                                    <thead className="bg-slate-50 text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">
+                                      <tr>
+                                        <th className="px-4 py-2.5">Expense</th>
+                                        <th className="px-4 py-2.5">Projected</th>
+                                        <th className="px-4 py-2.5">Actual</th>
+                                        <th className="px-4 py-2.5">Payment</th>
+                                        <th className="px-4 py-2.5 text-right">Action</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                      {monthExpenses.map((expense) => (
+                                        <tr key={`expanded-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
+                                          <td className="px-4 py-2.5">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</span>
+                                              {String(expense.expenseTag || '').toLowerCase() === 'add-on' && (
+                                                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra Budget</span>
+                                              )}
+                                            </div>
+                                            {expense.invoiceNumber && (
+                                              <div className="text-[8px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">INV: {expense.invoiceNumber}</div>
+                                            )}
+                                          </td>
+                                          <td className="px-4 py-2.5 font-pmedium text-slate-700">{formatCurrency(expense.projectedAmount)}</td>
+                                          <td className="px-4 py-2.5 font-pmedium text-slate-700">{formatCurrency(expense.actualSpent)}</td>
+                                          <td className="px-4 py-2.5">
+                                            <span className={statusPillClass(expense.paymentStatus)}>{expense.paymentStatus || 'Unpaid'}</span>
+                                          </td>
+                                          <td className="px-4 py-2.5 text-right">
+                                            <button
+                                              onClick={() => setViewingExpense({ month, expense })}
+                                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                              title="View Details"
+                                            >
+                                              <Eye size={14} strokeWidth={2.5} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                      {monthExtraRequests.map((request) => (
+                                        <tr key={`extra-${request.id}`} className="bg-amber-50/40 hover:bg-amber-50/70 transition-all">
+                                          <td className="px-4 py-2.5">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <TrendingUp size={12} className="text-amber-600 shrink-0" />
+                                              <span className="font-pmedium text-slate-900">{request.reason || 'Extra budget request'}</span>
+                                              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra Requested</span>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-2.5 font-pmedium text-amber-700 whitespace-nowrap">+{formatCurrency(request.amount)}</td>
+                                          <td className="px-4 py-2.5 text-slate-400">—</td>
+                                          <td className="px-4 py-2.5">
+                                            <span className={statusPillClass(request.status)}>{request.status}</span>
+                                          </td>
+                                          <td className="px-4 py-2.5" />
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
                               </td>
                             </tr>
-                          ))
-                        : [
-                            <tr key={`empty-${month.monthKey}`} className="hover:bg-blue-50/30 transition-all">
-                              <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
-                              <td colSpan={5} className="px-5 py-4 text-slate-400 font-pmedium text-xs">No expenses recorded</td>
-                              <td className="px-5 py-4 text-center">
-                                <span className={statusPillClass(month.status)}>{month.status}</span>
-                              </td>
-                            </tr>,
-                          ]
-                    )}
+                          )}
+                        </Fragment>
+                      );
+                    })}
                     {filteredMonthlyExpenses.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                          No expenses found.
+                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                          No monthly plan found for this fiscal year.
                         </td>
                       </tr>
                     )}
@@ -1338,37 +1451,64 @@ export function DepartmentFinancePageV2() {
             {/* Tab 3: History */}
             {activeTab === 'history' && (
               <div className="flex-1 overflow-x-auto">
-                <table data-tour="dept-finance-table" className="w-full text-left min-w-[800px]">
+                <table data-tour="dept-finance-table" className="w-full text-left min-w-[850px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Month</th>
-                      <th className="px-5 py-4">Expense Title</th>
-                      <th className="px-5 py-4">Actual Paid</th>
+                      <th className="px-5 py-4">Expense & Vendor</th>
+                      <th className="px-5 py-4">Projected</th>
+                      <th className="px-5 py-4">Actual Paid & Saved</th>
                       <th className="px-5 py-4">Invoice</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {paidExpenseHistory.map(({ month, expense }) => (
-                      <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
-                        <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
-                        <td className="px-5 py-4 font-pmedium text-slate-900">{expense.title || 'Untitled'}</td>
-                        <td className="px-5 py-4 font-pmedium text-emerald-600">{formatCurrency(expense.actualSpent)}</td>
-                        <td className="px-5 py-4 font-pmedium text-slate-700">{expense.invoiceNumber || '-'}</td>
-                        <td className="px-5 py-4 text-center">
-                          <button
-                            onClick={() => setViewingExpense({ month, expense })}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                            title="View Details"
-                          >
-                            <Eye size={15} strokeWidth={2.5} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {paidExpenseHistory.map(({ month, expense }) => {
+                      const invoiceUrl = expense.invoiceUrl || expense.invoiceFile || '';
+                      const saved = Math.max(0, Number(expense.projectedAmount || 0) - Number(expense.actualSpent || 0));
+                      return (
+                        <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all align-top">
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
+                          <td className="px-5 py-4">
+                            <div className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</div>
+                            <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">Vendor: {expense.vendorName || 'Unknown'}</div>
+                          </td>
+                          <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(expense.projectedAmount)}</td>
+                          <td className="px-5 py-4">
+                            <div className="font-pmedium text-emerald-600">{formatCurrency(expense.actualSpent)}</div>
+                            {saved > 0 && (
+                              <div className="text-[9px] font-pmedium text-emerald-600 uppercase tracking-widest mt-0.5">Saved: {formatCurrency(saved)}</div>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            {invoiceUrl ? (
+                              <a
+                                href={invoiceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-[9px] font-pmedium text-emerald-600 hover:text-emerald-700 uppercase tracking-widest hover:underline"
+                              >
+                                <FileText size={12} /> View invoice
+                              </a>
+                            ) : (
+                              <span className="font-pmedium text-slate-700">{expense.invoiceNumber || '-'}</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <button
+                              onClick={() => setViewingExpense({ month, expense })}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                              title="View Details"
+                            >
+                              <Eye size={15} strokeWidth={2.5} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {paidExpenseHistory.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
                           No paid expenses yet.
                         </td>
                       </tr>
@@ -1486,7 +1626,7 @@ export function DepartmentFinancePageV2() {
               </div>
             </div>
             <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-              {viewingExpense.expense.paymentStatus !== 'Paid' && (
+              {canManagePayments && viewingExpense.expense.paymentStatus !== 'Paid' && (
                 <button
                   onClick={() => handleMarkPaid(viewingExpense.month, viewingExpense.expense)}
                   className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all flex items-center gap-1.5"

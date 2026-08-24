@@ -28,6 +28,7 @@ function normalizeFinanceRoleName(value: any) {
 async function getFinanceActorMembership(workspaceId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) {
   const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: userId })
     .populate("departments", "name")
+    .populate("role", "name")
     .lean()
     .exec();
   if (!membership) {
@@ -73,76 +74,6 @@ function getPaymentStatusRank(value: string) {
   if (v.includes("done") || v.includes("paid")) return 2;
   if (v.includes("pending")) return 1;
   return 0;
-}
-
-async function getApprovedExtraBudgetTotal(
-  workspaceId: mongoose.Types.ObjectId,
-  department: string,
-  fiscalYear: string
-) {
-  const rows = await ExtraFinanceRequest.find({ workspaceId, department, fiscalYear, status: "Approved" })
-    .select("amount")
-    .lean()
-    .exec();
-  return (rows as any[]).reduce((sum, row) => sum + safeNumber(row.amount, 0), 0);
-}
-
-// Improvement over UnitFlow: a department member may pay their own department's
-// expenses directly, but only after the annual budget is approved, only moving
-// the payment lifecycle forward, only with a vendor invoice on record, and only
-// within the remaining approved budget. Finance/owner roles bypass these rules.
-async function enforceDepartmentManagedPaymentRules(input: {
-  workspaceId: mongoose.Types.ObjectId;
-  membership: any;
-  plan: any;
-  expense: any;
-  requestedStatus: string;
-  requestedAmount?: number;
-}) {
-  const { workspaceId, membership, plan, expense, requestedStatus, requestedAmount } = input;
-
-  const planDeptKey = normalizeDepartmentKey(safeString(plan.department));
-  if (!planDeptKey || !getOwnDepartmentKeys(membership).includes(planDeptKey)) {
-    throw Object.assign(new Error("Only Finance or the owning department can update this expense."), { statusCode: 403 });
-  }
-
-  if (safeString(plan.status).toLowerCase() !== "approved") {
-    throw Object.assign(new Error("Expenses can be marked as paid only after the annual budget is approved."), { statusCode: 409 });
-  }
-
-  const currentRank = getPaymentStatusRank(String(expense.paymentStatus || "Planned"));
-  const targetRank = getPaymentStatusRank(requestedStatus);
-  if (targetRank < currentRank) {
-    throw Object.assign(new Error("Departments cannot revert a payment status. Ask Finance to make corrections."), { statusCode: 409 });
-  }
-
-  if (targetRank >= 2) {
-    const hasInvoice =
-      safeString(expense.invoiceNumber) &&
-      (safeString(expense.invoiceUrl) || safeString(expense.invoiceFile));
-    if (!hasInvoice) {
-      throw Object.assign(new Error("Upload the vendor invoice before marking this expense as paid."), { statusCode: 409 });
-    }
-  }
-
-  const newActual = requestedAmount !== undefined ? safeNumber(requestedAmount, 0) : safeNumber(expense.actualAmount, 0);
-  if (newActual > 0) {
-    const [approvedExtras, otherExpenses] = await Promise.all([
-      getApprovedExtraBudgetTotal(workspaceId, safeString(plan.department), safeString(plan.fiscalYear)),
-      FinanceExpense.find({ workspaceId, planId: plan._id, _id: { $ne: expense._id } })
-        .select("actualAmount")
-        .lean()
-        .exec(),
-    ]);
-    const spentOthers = (otherExpenses as any[]).reduce((sum, row) => sum + safeNumber(row.actualAmount, 0), 0);
-    const budgetLimit = safeNumber(plan.approvedAnnualBudget, 0) + approvedExtras;
-    if (spentOthers + newActual > budgetLimit + 0.01) {
-      throw Object.assign(
-        new Error(`Payment exceeds the remaining approved budget for ${plan.department} (${Math.max(0, budgetLimit - spentOthers).toFixed(2)} left).`),
-        { statusCode: 409 }
-      );
-    }
-  }
 }
 
 function asObjectId(value: any): mongoose.Types.ObjectId | null {
@@ -745,12 +676,14 @@ export async function updateMonthlyExpenseStatusInternal(input: {
 
   const membership = await getFinanceActorMembership(workspaceId, input.userId);
 
+  // Segregation of duties (matches UnitFlow): only finance-side roles execute
+  // payments. Departments request and document; Finance pays.
+  if (!canManageAllFinancePayments(membership)) {
+    throw Object.assign(new Error("Only Finance can mark an expense's payment status."), { statusCode: 403 });
+  }
+
   const expense = await FinanceExpense.findOne({ workspaceId, planId, expenseKey }).exec();
   if (!expense) throw Object.assign(new Error("Expense not found."), { statusCode: 404 });
-
-  if (!canManageAllFinancePayments(membership)) {
-    await enforceDepartmentManagedPaymentRules({ workspaceId, membership, plan, expense, requestedStatus: paymentStatus, requestedAmount: actualAmount });
-  }
 
   const actual = actualAmount !== undefined ? safeNumber(actualAmount, 0) : expense.actualAmount;
   const projected = safeNumber(expense.projectedAmount, 0);
