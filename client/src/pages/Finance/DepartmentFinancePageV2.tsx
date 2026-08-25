@@ -1662,10 +1662,24 @@ export function DepartmentFinancePageV2() {
                     <p className="text-lg font-black text-slate-900">{formatCurrency(viewingExpense.expense.actualSpent)}</p>
                   </div>
                 </div>
-                {viewingExpense.expense.invoiceNumber && (
+                {(viewingExpense.expense.invoiceNumber || viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile) && (
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Invoice Number</p>
-                    <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.invoiceNumber}</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Invoice</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {viewingExpense.expense.invoiceNumber && (
+                        <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.invoiceNumber}</p>
+                      )}
+                      {(viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile) && (
+                        <a
+                          href={viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"
+                        >
+                          <FileText size={12} /> View Invoice
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
                 <div>
