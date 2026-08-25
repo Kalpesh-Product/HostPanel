@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
   Send, Plus, Eye, Receipt, UserPlus, UploadCloud,
-  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar
+  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -175,6 +175,23 @@ function getFriendlyMonthStatus(monthStatus: string | undefined, planStatus: str
   }
 }
 
+// ─── Vendor form validation ─────────────────────────────────────────────────
+function validateVendorForm(form: Record<string, any>): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const v = (key: string) => String(form?.[key] ?? '').trim();
+
+  if (!v('name')) errors.name = 'Vendor name is required.';
+  if (v('phone') && !/^[0-9+\-\s()]{7,15}$/.test(v('phone'))) errors.phone = 'Enter a valid phone number (7-15 digits).';
+  if (v('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v('email'))) errors.email = 'Enter a valid email address.';
+  if (v('gstin') && !/^[0-9A-Z]{15}$/.test(v('gstin').toUpperCase())) errors.gstin = 'GSTIN must be exactly 15 letters/digits (e.g. 27ABCDE1234F1Z5).';
+  if (v('panNumber') && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(v('panNumber').toUpperCase())) errors.panNumber = 'PAN format is ABCDE1234F.';
+  if (v('ifscCode') && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(v('ifscCode').toUpperCase())) errors.ifscCode = 'IFSC format is HDFC0001234.';
+  if (v('accountNumber') && !/^\d{9,18}$/.test(v('accountNumber'))) errors.accountNumber = 'Account number must be 9-18 digits.';
+  if (v('upiId') && !/^[\w.-]{2,}@[a-zA-Z]{2,}$/.test(v('upiId'))) errors.upiId = 'UPI format is name@bank.';
+
+  return errors;
+}
+
 export function DepartmentFinancePageV2() {
   const currentUser = getStoredUser();
   const userRole = normalizeUserRole(currentUser?.workspaceMembership?.role || currentUser?.role || '');
@@ -250,6 +267,52 @@ export function DepartmentFinancePageV2() {
     website: '', notes: '',
   });
   const [isSubmittingVendor, setIsSubmittingVendor] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<VendorData | null>(null);
+  const [vendorFormErrors, setVendorFormErrors] = useState<Record<string, string>>({});
+
+  const openAddVendor = () => {
+    setEditingVendor(null);
+    setVendorForm({
+      name: '', contactPerson: '', phone: '', email: '', address: '',
+      paymentTerms: '', category: '', gstin: '', panNumber: '',
+      bankName: '', accountName: '', accountNumber: '', ifscCode: '', upiId: '',
+      website: '', notes: '',
+    });
+    setVendorFormErrors({});
+    setShowVendorList(false);
+    setShowVendorForm(true);
+  };
+
+  const openEditVendor = (vendor: VendorData) => {
+    setEditingVendor(vendor);
+    setVendorForm({
+      name: vendor.name || '',
+      contactPerson: vendor.contactPerson || '',
+      phone: vendor.phone || '',
+      email: vendor.email || '',
+      address: vendor.address || '',
+      paymentTerms: vendor.paymentTerms || '',
+      category: vendor.category || '',
+      gstin: vendor.gstin || '',
+      panNumber: vendor.panNumber || '',
+      bankName: vendor.bankName || '',
+      accountName: vendor.accountName || '',
+      accountNumber: vendor.accountNumber || '',
+      ifscCode: vendor.ifscCode || '',
+      upiId: vendor.upiId || '',
+      website: vendor.website || '',
+      notes: vendor.notes || '',
+    });
+    setVendorFormErrors({});
+    setShowVendorList(false);
+    setShowVendorForm(true);
+  };
+
+  const closeVendorForm = () => {
+    setShowVendorForm(false);
+    setEditingVendor(null);
+    setVendorFormErrors({});
+  };
 
   const [isImporting, setIsImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -535,20 +598,26 @@ export function DepartmentFinancePageV2() {
   };
 
   const handleSubmitVendor = async () => {
-    if (!vendorForm.name.trim()) {
-      toast.error('Vendor name is required.');
+    const errors = validateVendorForm(vendorForm as any);
+    if (Object.keys(errors).length > 0) {
+      setVendorFormErrors(errors);
+      toast.error(Object.values(errors)[0]);
       return;
     }
+    setVendorFormErrors({});
     setIsSubmittingVendor(true);
     try {
       await submitVendor({
         planId: financeData?.plan?._id,
         fiscalYear: selectedFY,
         department: departmentLabel,
+        // Pass the existing vendor key so the server upserts (edit) instead of
+        // creating a duplicate vendor entry.
+        ...(editingVendor ? { vendorId: editingVendor.id, vendorKey: editingVendor.id } : {}),
         ...vendorForm,
       });
-      toast.success('Vendor registered successfully.');
-      setShowVendorForm(false);
+      toast.success(editingVendor ? 'Vendor updated successfully.' : 'Vendor registered successfully.');
+      closeVendorForm();
       setVendorForm({
         name: '', contactPerson: '', phone: '', email: '', address: '',
         paymentTerms: '', category: '', gstin: '', panNumber: '',
@@ -557,7 +626,7 @@ export function DepartmentFinancePageV2() {
       });
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to register vendor.');
+      toast.error(error?.message || (editingVendor ? 'Failed to update vendor.' : 'Failed to register vendor.'));
     } finally {
       setIsSubmittingVendor(false);
     }
@@ -1656,12 +1725,12 @@ export function DepartmentFinancePageV2() {
         </div>
       )}
 
-      {/* Vendor Detail Modal */}
+      {/* Vendor Detail Modal — sits above the vendor list (both would tie at z-100) */}
       <AnimatePresence>
         {viewingVendor && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/55 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/55 p-4 backdrop-blur-sm"
             onClick={() => setViewingVendor(null)}
           >
             <motion.div
@@ -1826,7 +1895,7 @@ export function DepartmentFinancePageV2() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => { setShowVendorList(false); setShowVendorForm(true); }}
+                    onClick={openAddVendor}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700"
                   >
                     <Plus size={13} /> Add Vendor
@@ -1864,13 +1933,22 @@ export function DepartmentFinancePageV2() {
                         <td className="px-5 py-4 text-slate-700">{vendor.category || '-'}</td>
                         <td className="px-5 py-4 text-slate-700">{vendor.paymentTerms || '-'}</td>
                         <td className="px-5 py-4 text-center">
-                          <button
-                            onClick={() => setViewingVendor(vendor)}
-                            className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-all hover:bg-blue-100 hover:text-blue-700"
-                            title="View Details"
-                          >
-                            <Eye size={15} strokeWidth={2.5} />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => openEditVendor(vendor)}
+                              className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-all hover:bg-emerald-100 hover:text-emerald-700"
+                              title="Edit Vendor"
+                            >
+                              <Pencil size={15} strokeWidth={2.5} />
+                            </button>
+                            <button
+                              onClick={() => setViewingVendor(vendor)}
+                              className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-all hover:bg-blue-100 hover:text-blue-700"
+                              title="View Details"
+                            >
+                              <Eye size={15} strokeWidth={2.5} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1895,7 +1973,7 @@ export function DepartmentFinancePageV2() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
-            onClick={() => setShowVendorForm(false)}
+            onClick={closeVendorForm}
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
@@ -1904,12 +1982,14 @@ export function DepartmentFinancePageV2() {
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
                 <div>
-                  <h2 className="text-lg font-pmedium text-slate-900">Add Vendor</h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Register a new vendor for this department</p>
+                  <h2 className="text-lg font-pmedium text-slate-900">{editingVendor ? 'Edit Vendor' : 'Add Vendor'}</h2>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
+                    {editingVendor ? `Update details for ${editingVendor.name}` : 'Register a new vendor for this department'}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowVendorForm(false)}
+                  onClick={closeVendorForm}
                   className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700"
                 >
                   <X size={15} />
@@ -1938,9 +2018,23 @@ export function DepartmentFinancePageV2() {
                       <input
                         type={field.type}
                         value={(vendorForm as any)[field.key]}
-                        onChange={(e) => setVendorForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setVendorForm((prev) => ({ ...prev, [field.key]: next }));
+                          if (vendorFormErrors[field.key]) {
+                            const fieldError = validateVendorForm({ ...vendorForm, [field.key]: next })[field.key];
+                            setVendorFormErrors((prev) => ({ ...prev, [field.key]: fieldError || '' }));
+                          }
+                        }}
+                        className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none transition-all focus:ring-2 ${
+                          vendorFormErrors[field.key]
+                            ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                            : 'border-slate-200 focus:border-[#2563EB] focus:ring-blue-100'
+                        }`}
                       />
+                      {vendorFormErrors[field.key] && (
+                        <p className="mt-1 text-[9px] font-pmedium uppercase tracking-wider text-red-500">{vendorFormErrors[field.key]}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1965,7 +2059,7 @@ export function DepartmentFinancePageV2() {
                 <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
                   <button
                     type="button"
-                    onClick={() => setShowVendorForm(false)}
+                    onClick={closeVendorForm}
                     className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-100"
                   >
                     Cancel
@@ -1976,7 +2070,7 @@ export function DepartmentFinancePageV2() {
                     className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubmittingVendor ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                    {isSubmittingVendor ? 'Registering...' : 'Register Vendor'}
+                    {isSubmittingVendor ? 'Saving...' : editingVendor ? 'Update Vendor' : 'Register Vendor'}
                   </button>
                 </div>
               </form>
