@@ -28,6 +28,8 @@ import {
   updateMeetingRoomBooking,
 } from '../../services/meeting-room-bookings';
 import { toast } from 'sonner';
+import { createReport } from '../../services/reports';
+import { downloadReportFile } from '../../utils/report-download';
 import {
   Search, Check, X, Eye, Clock, Building, User,
   AlertCircle, ChevronDown, CreditCard, CheckCircle2,
@@ -39,7 +41,7 @@ import {
 import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
-import { exportRowsAsCsv, exportRowsAsPdf } from '../../utils/exportTable';
+import { rowsToReportRows } from '../../utils/exportTable';
 
 function formatTimeLabel(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) return '';
@@ -1806,17 +1808,52 @@ export default function VisitorsManagementPage() {
     { header: 'Status', key: 'status' },
   ];
 
+  // Server-side report pipeline: generates on backend, stores in S3 and
+  // archives under the Reports module (consistent with other modules).
+  const exportViaReportService = async (
+    title: string,
+    period: string,
+    columns: { header: string; key: string }[],
+    rows: Record<string, any>[],
+    format: 'pdf' | 'excel',
+    sourceRef: string
+  ) => {
+    try {
+      const response = await createReport({
+        title,
+        department: 'General',
+        category: 'Other',
+        dataWindow: 'Custom',
+        period,
+        description: `${title} (${rows.length} records).`,
+        format: format === 'pdf' ? 'PDF' : 'Excel',
+        sourceType: 'visitors',
+        sourceRef,
+        reportRows: rowsToReportRows(columns, rows),
+      });
+      const downloadUrl = response?.data?.download?.url;
+      if (!downloadUrl) throw new Error('Download URL missing.');
+      await downloadReportFile(downloadUrl, { openInNewTab: false });
+      toast.success(`${title} exported and saved to Reports.`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to export report.');
+    }
+  };
+
   const handleExportHistory = (format) => {
     if (displayedHistory.length === 0) {
       toast.error('No visitor history to export for this period.');
       return;
     }
-    const filenameBase = `Visitor-History_${historyMonth}-${historyYear}`.replace(/\s+/g, '-');
-    if (format === 'pdf') {
-      exportRowsAsPdf(filenameBase, `Visitor History — ${historyMonth} ${historyYear}`, HISTORY_EXPORT_COLUMNS, displayedHistory);
-    } else {
-      exportRowsAsCsv(filenameBase, HISTORY_EXPORT_COLUMNS, displayedHistory);
-    }
+    const title = `Visitor History — ${historyMonth} ${historyYear}`;
+    void exportViaReportService(
+      title,
+      `${historyMonth} ${historyYear}`,
+      HISTORY_EXPORT_COLUMNS,
+      displayedHistory,
+      format,
+      'visitor-history'
+    );
   };
 
   const handleExportClients = (format) => {
@@ -1829,12 +1866,14 @@ export default function VisitorsManagementPage() {
       sourceLabel: normalizeText(client.source) === 'visitor-conversion' ? 'Converted' : 'Walk-in',
       totalValueLabel: formatCurrency(client.totalBookedAmount || 0),
     }));
-    const filenameBase = `Booking-Clients_${clientSourceTab}`;
-    if (format === 'pdf') {
-      exportRowsAsPdf(filenameBase, 'Booking Clients Report', CLIENT_EXPORT_COLUMNS, rows);
-    } else {
-      exportRowsAsCsv(filenameBase, CLIENT_EXPORT_COLUMNS, rows);
-    }
+    void exportViaReportService(
+      `Booking Clients Report — ${toTitleCase(clientSourceTab)}`,
+      clientSourceTab,
+      CLIENT_EXPORT_COLUMNS,
+      rows,
+      format,
+      'booking-clients'
+    );
   };
 
   const handleExportBookings = (format) => {
@@ -1846,12 +1885,14 @@ export default function VisitorsManagementPage() {
       ...bkg,
       totalValueLabel: formatCurrency(bkg.totalAmount || bkg.amountDue || 0),
     }));
-    const filenameBase = `Meeting-Room-Bookings_${bookingStatusTab}`;
-    if (format === 'pdf') {
-      exportRowsAsPdf(filenameBase, 'Meeting Room Bookings Report', BOOKING_EXPORT_COLUMNS, rows);
-    } else {
-      exportRowsAsCsv(filenameBase, BOOKING_EXPORT_COLUMNS, rows);
-    }
+    void exportViaReportService(
+      `Meeting Room Bookings Report — ${toTitleCase(bookingStatusTab)}`,
+      bookingStatusTab,
+      BOOKING_EXPORT_COLUMNS,
+      rows,
+      format,
+      'meeting-room-bookings'
+    );
   };
 
   const selectedBookingClient = useMemo(

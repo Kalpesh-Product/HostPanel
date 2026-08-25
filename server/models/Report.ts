@@ -130,7 +130,7 @@ const reportSchema = new Schema<IReport>(
         },
         sourceType: {
             type: String,
-            enum: ["employee-profile", "attendance-summary", "department-roster", "custom"],
+            enum: ["employee-profile", "attendance-summary", "department-roster", "custom", "assets", "visitors", "inventory"],
             default: "custom",
             index: true,
         },

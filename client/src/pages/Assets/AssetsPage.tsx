@@ -16,7 +16,10 @@ import {
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
-import { exportRowsAsCsv, exportRowsAsPdf, type ExportColumn } from '@/utils/exportTable';
+import { exportRowsAsCsv, exportRowsAsPdf, rowsToReportRows, type ExportColumn } from '@/utils/exportTable';
+import { downloadReportFile } from '@/utils/report-download';
+import { createReport } from '@/services/reports';
+import { toast } from 'sonner';
 
 interface Member {
   userId?: string;
@@ -720,28 +723,53 @@ export function AssetsPage() {
     });
   }, [scopedAssets, searchQuery, selectedDeptFilter, statusFilter]);
 
-  const handleExportAssets = (format: 'PDF' | 'Excel') => {
-    const columns: ExportColumn[] = [
-      { header: 'Asset', key: 'name', width: 2 },
-      { header: 'Code', key: 'id' },
-      { header: 'Category', key: 'category' },
-      { header: 'Department', key: 'department' },
-      { header: 'Status', key: 'status' },
-      { header: 'Quantity', key: 'quantity' },
-      { header: 'Allocated', key: 'allocatedQuantity' },
-      { header: 'Available', key: 'availableQuantity' },
-      { header: 'Assigned To', key: 'assignedTo', width: 1.5 },
-      { header: 'Location', key: 'location', width: 1.5 },
-    ];
+  const ASSET_EXPORT_COLUMNS: ExportColumn[] = [
+    { header: 'Asset', key: 'name', width: 2 },
+    { header: 'Code', key: 'id' },
+    { header: 'Category', key: 'category' },
+    { header: 'Department', key: 'department' },
+    { header: 'Status', key: 'status' },
+    { header: 'Quantity', key: 'quantity' },
+    { header: 'Allocated', key: 'allocatedQuantity' },
+    { header: 'Available', key: 'availableQuantity' },
+    { header: 'Assigned To', key: 'assignedTo', width: 1.5 },
+    { header: 'Location', key: 'location', width: 1.5 },
+  ];
+
+  // Server-side report pipeline: file is generated on the backend, stored in
+  // S3 and archived in the Reports module (same as Finance/HR exports).
+  const handleExportAssets = async (format: 'PDF' | 'Excel') => {
     const rows = displayedAssets.map((asset) => ({
       ...asset,
       quantity: asset.quantity,
       allocatedQuantity: asset.allocatedQuantity,
       availableQuantity: asset.availableQuantity,
     })) as Record<string, any>[];
-    const filename = `assets-${new Date().toISOString().slice(0, 10)}`;
-    if (format === 'PDF') exportRowsAsPdf(filename, 'Assets Report', columns, rows);
-    else exportRowsAsCsv(filename, columns, rows);
+    if (rows.length === 0) {
+      toast.error('No assets to export.');
+      return;
+    }
+
+    try {
+      const response = await createReport({
+        title: 'Assets Report',
+        department: 'General',
+        category: 'Other',
+        dataWindow: 'Custom',
+        period: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        description: `Asset inventory export (${rows.length} assets).`,
+        format,
+        sourceType: 'assets',
+        sourceRef: 'assets-page',
+        reportRows: rowsToReportRows(ASSET_EXPORT_COLUMNS, rows),
+      });
+      const downloadUrl = response?.data?.download?.url;
+      if (!downloadUrl) throw new Error('Download URL missing.');
+      await downloadReportFile(downloadUrl, { openInNewTab: false });
+      toast.success('Assets report exported and saved to Reports.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to export assets report.');
+    }
   };
 
   const statsBase = useMemo(() => {

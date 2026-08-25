@@ -6,6 +6,30 @@ export interface ExportColumn {
   width?: number;
 }
 
+/**
+ * Converts a table (columns + rows) into the Label/Value shape the server-side
+ * report generator accepts, so client-side exports can be migrated onto the
+ * report pipeline (S3 + Reports module) without changing their column sets.
+ */
+export function rowsToReportRows(
+  columns: ExportColumn[],
+  rows: Record<string, any>[]
+): { label: string; value: string }[] {
+  return rows.map((row) => {
+    const first = columns[0];
+    const label = String(row?.[first?.key] ?? "").trim() || "—";
+    const parts = columns
+      .slice(1)
+      .map((col) => {
+        const raw = row?.[col.key];
+        if (raw === null || raw === undefined || String(raw).trim() === "") return null;
+        return `${col.header}: ${raw}`;
+      })
+      .filter(Boolean);
+    return { label, value: parts.length > 0 ? parts.join(" | ") : "—" };
+  });
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

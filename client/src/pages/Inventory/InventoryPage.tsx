@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
+import { toast } from 'sonner';
+import { createReport } from '@/services/reports';
+import { downloadReportFile } from '@/utils/report-download';
+import { rowsToReportRows, type ExportColumn } from '@/utils/exportTable';
 
 interface InventoryItem {
   recordId?: string;
@@ -564,6 +568,49 @@ export function InventoryPage() {
 
   if (isInitialLoading) return <TablePageSkeleton rows={5} />;
 
+  const INVENTORY_EXPORT_COLUMNS: ExportColumn[] = [
+    { header: 'Item', key: 'name', width: 2 },
+    { header: 'Code', key: 'inventoryCode' },
+    { header: 'Category', key: 'category' },
+    { header: 'Tracking', key: 'trackingType' },
+    { header: 'Status', key: 'status' },
+    { header: 'Department', key: 'department' },
+    { header: 'Location', key: 'location' },
+    { header: 'Total Qty', key: 'totalQuantity' },
+    { header: 'Available', key: 'availableQuantity' },
+    { header: 'Allocated', key: 'allocatedQuantity' },
+  ];
+
+  const handleExportInventory = async (format: 'PDF' | 'Excel') => {
+    if (inventory.length === 0) {
+      toast.error('No inventory items to export.');
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: 'Inventory Report',
+        department: 'General',
+        category: 'Other',
+        dataWindow: 'Custom',
+        period: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        description: `Inventory stock export (${inventory.length} items).`,
+        format,
+        sourceType: 'inventory',
+        sourceRef: 'inventory-page',
+        reportRows: rowsToReportRows(
+          INVENTORY_EXPORT_COLUMNS,
+          inventory.map((item) => ({ ...item, location: item.location || '' }))
+        ),
+      });
+      const downloadUrl = response?.data?.download?.url;
+      if (!downloadUrl) throw new Error('Download URL missing.');
+      await downloadReportFile(downloadUrl, { openInNewTab: false });
+      toast.success('Inventory report exported and saved to Reports.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to export inventory report.');
+    }
+  };
+
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -584,14 +631,18 @@ export function InventoryPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
+                onClick={() => handleExportInventory('PDF')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                title="Export PDF"
               >
                 <FileDown size={16} className="text-red-500"/>
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
               </button>
               <button
                 type="button"
+                onClick={() => handleExportInventory('Excel')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                title="Export Excel"
               >
                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
