@@ -2000,7 +2000,7 @@ export function DepartmentFinancePageV2() {
                   {[
                     { key: 'name', label: 'Vendor Name *', type: 'text' },
                     { key: 'contactPerson', label: 'Contact Person', type: 'text' },
-                    { key: 'phone', label: 'Phone', type: 'text' },
+                    { key: 'phone', label: 'Phone', type: 'tel' },
                     { key: 'email', label: 'Email', type: 'email' },
                     { key: 'category', label: 'Category', type: 'text' },
                     { key: 'paymentTerms', label: 'Payment Terms', type: 'text' },
@@ -2019,7 +2019,9 @@ export function DepartmentFinancePageV2() {
                         type={field.type}
                         value={(vendorForm as any)[field.key]}
                         onChange={(e) => {
-                          const next = e.target.value;
+                          const next = field.key === 'phone'
+                            ? e.target.value.replace(/[^0-9]/g, '')
+                            : e.target.value;
                           setVendorForm((prev) => ({ ...prev, [field.key]: next }));
                           if (vendorFormErrors[field.key]) {
                             const fieldError = validateVendorForm({ ...vendorForm, [field.key]: next })[field.key];
