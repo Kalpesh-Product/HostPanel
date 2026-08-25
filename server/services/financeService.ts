@@ -1090,11 +1090,8 @@ export async function submitVendorForDepartmentInternal(input: {
   const membership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
   assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
 
-  if (payload?.actualAmount !== undefined && safeNumber(payload.actualAmount, 0) > 0) {
-    throw Object.assign(
-      new Error("Actual amounts are managed on the expense, not while registering a vendor."),
-      { statusCode: 400 }
-    );
+  if (payload?.actualAmount !== undefined && safeNumber(payload.actualAmount, 0) < 0) {
+    throw Object.assign(new Error("Actual amount cannot be negative."), { statusCode: 400 });
   }
 
   const vendorKey = vendorId || `VND-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Math.floor(Math.random() * 900) + 100}`;
@@ -1152,6 +1149,16 @@ export async function submitVendorForDepartmentInternal(input: {
         { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) }
       ).exec();
       if (existingExpense) {
+        // Actual spend can never exceed the expense's own projection; going
+        // over requires an approved extra budget request instead.
+        if (actualAmount > safeNumber(existingExpense.projectedAmount, 0)) {
+          throw Object.assign(
+            new Error(
+              `Actual cost cannot exceed the projected amount (${safeNumber(existingExpense.projectedAmount, 0).toLocaleString()}). File an extra budget request for additional funds.`
+            ),
+            { statusCode: 409 }
+          );
+        }
         set.actualAmount = actualAmount;
         set.savings = Math.max(0, safeNumber(existingExpense.projectedAmount, 0) - actualAmount);
       }
@@ -1163,6 +1170,17 @@ export async function submitVendorForDepartmentInternal(input: {
   } else if (monthKey) {
     // best-effort: apply vendor to all planned invoices for the month in this plan if vendorName is empty
     if (actualAmount !== undefined) {
+      const targetExpenses = await FinanceExpense.find(
+        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
+        "projectedAmount"
+      ).lean();
+      const overProjected = targetExpenses.some((t) => actualAmount > safeNumber(t.projectedAmount, 0));
+      if (overProjected) {
+        throw Object.assign(
+          new Error("Actual cost cannot exceed the projected amount of the expense. File an extra budget request for additional funds."),
+          { statusCode: 409 }
+        );
+      }
       await FinanceExpense.updateMany(
         { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
         [

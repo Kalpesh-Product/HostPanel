@@ -884,6 +884,14 @@ export function DepartmentFinancePageV2() {
   const isBudgetRejected = financeData?.status?.toLowerCase() === 'rejected';
   const isBudgetPending = financeData?.status?.toLowerCase() === 'pending';
   const isBudgetApproved = financeData?.status?.toLowerCase() === 'approved';
+  // Departments can only link vendors / record actuals once the annual budget
+  // is approved; finance-privileged roles keep access for corrections.
+  const canRecordSpend = isBudgetApproved || FINANCE_PAYMENT_ROLES.includes(userRole);
+  // Inline guard: the linked vendor's actual cost can never exceed this expense's projection.
+  const expenseDetail = viewingExpense?.expense;
+  const expenseProjected = Number(expenseDetail?.projectedAmount ?? (expenseDetail as any)?.amount ?? 0);
+  const actualOverProjected =
+    !!expenseDetail && actualAmountToPay !== '' && Number(actualAmountToPay) > expenseProjected;
   const isDraftBudget = !financeData?.annualRequest;
   const draftTotalProjected = draftMonths.reduce(
     (sum, m) => sum + m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
@@ -1666,10 +1674,16 @@ export function DepartmentFinancePageV2() {
                     <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.vendorName}</p>
                   ) : vendors.length > 0 ? (
                     <div className="flex flex-col gap-2">
+                      {!canRecordSpend && (
+                        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-amber-700">
+                          Budget must be approved before linking a vendor.
+                        </p>
+                      )}
                       <select
                         value={selectedVendorToLink}
                         onChange={(e) => setSelectedVendorToLink(e.target.value)}
-                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                        disabled={!canRecordSpend}
+                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                       >
                         <option value="">Select a registered vendor…</option>
                         {vendors.map((vendor) => (
@@ -1686,14 +1700,25 @@ export function DepartmentFinancePageV2() {
                           step="0.01"
                           value={actualAmountToPay}
                           onChange={(e) => setActualAmountToPay(e.target.value)}
+                          disabled={!canRecordSpend}
                           placeholder={`Projected: ${formatCurrency(viewingExpense.expense.projectedAmount || viewingExpense.expense.amount || 0)}`}
-                          className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                          className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none transition-all focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
+                            actualOverProjected
+                              ? 'border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100'
+                              : 'border-blue-200 bg-blue-50 focus:border-[#2563EB] focus:ring-blue-100'
+                          }`}
                         />
-                        <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
+                        {actualOverProjected ? (
+                          <p className="text-[10px] font-pmedium text-red-500">
+                            Actual cannot exceed the projected amount ({formatCurrency(expenseProjected)}). File an extra budget request for additional funds.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
+                        )}
                       </div>
                       <button
                         type="button"
-                        disabled={!selectedVendorToLink || !actualAmountToPay || Number(actualAmountToPay) < 0 || isLinkingVendor}
+                        disabled={!selectedVendorToLink || !actualAmountToPay || Number(actualAmountToPay) < 0 || isLinkingVendor || !canRecordSpend || actualOverProjected}
                         onClick={() => handleLinkVendor(viewingExpense.month, viewingExpense.expense)}
                         className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                       >
