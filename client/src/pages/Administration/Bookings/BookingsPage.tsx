@@ -1779,7 +1779,7 @@ export default function BookingsPage() {
             </div>
 
             {/* ── Department Tracker (internal / department scope) ──── */}
-            {(activeScope === 'internal' || activeScope === 'department') && trackerPeriods.length > 0 && (
+            {/* {(activeScope === 'internal' || activeScope === 'department') && trackerPeriods.length > 0 && (
               <div className="mb-3 rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xs font-pmedium uppercase tracking-widest text-slate-500">
@@ -1823,7 +1823,7 @@ export default function BookingsPage() {
                   </tfoot>
                 </table>
               </div>
-            )}
+            )} */}
 
             {/* ── Data Panel ──────────────────────────────────────── */}
             <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">

@@ -28,7 +28,9 @@ import {
 import { getRecruitmentOverview } from "@/services/recruitment";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
-import { getCountries, getStates, getCities } from "@/utils/locationApi";
+import { getCountries, getStates, getCities, getCountryIsoCode } from "@/utils/locationApi";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import type { CountryCode } from "libphonenumber-js";
 import { uploadEmployeeDocuments } from "@/services/hr";
 import {
   DEFAULT_WORKSPACE_CURRENCY,
@@ -361,6 +363,73 @@ function normalizeDepartmentSelection(role: string = "", departments: string[] =
 
 function isValidIfscCode(value: string = ""): boolean {
   return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(String(value || "").trim().toUpperCase());
+}
+
+const FULL_NAME_PATTERN = /^[\p{L}][\p{L}\s.'-]*$/u;
+
+function isValidFullName(value: string = ""): boolean {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return false;
+  if (/\d/.test(trimmed)) return false;
+  return FULL_NAME_PATTERN.test(trimmed);
+}
+
+function isValidEmailFormat(value: string = ""): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function applyFieldError(prev: Record<string, string>, field: string, message: string): Record<string, string> {
+  const next = { ...prev };
+  if (message) next[field] = message;
+  else delete next[field];
+  return next;
+}
+
+const REQUIRED_FIELD_LABELS: Record<string, string> = {
+  fullName: "Full Name", email: "Email", phone: "Phone", role: "Role",
+  departments: "Departments", joiningDate: "Joining Date", country: "Country",
+  state: "State", city: "City", shiftId: "Shift", salaryAmount: "Annual CTC",
+  ifscCode: "Bank Details",
+};
+
+function buildMissingFieldsMessage(errors: Record<string, string>): string {
+  const keys = Object.keys(errors);
+  if (keys.length === 0) return "";
+  if (keys.length === 1) return errors[keys[0]];
+  const labels = keys.map((key) => REQUIRED_FIELD_LABELS[key] || key);
+  return `Missing required fields: ${labels.join(", ")}`;
+}
+
+function scrollToFirstInvalidField(container: HTMLElement | null) {
+  if (!container) return;
+  requestAnimationFrame(() => {
+    const target = container.querySelector<HTMLElement>(".border-red-300");
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (typeof (target as HTMLInputElement).focus === "function") {
+      (target as HTMLInputElement).focus({ preventScroll: true });
+    }
+  });
+}
+
+function validatePhoneForCountry(phone: string, country: string): { valid: boolean; message?: string } {
+  const trimmedPhone = String(phone || "").trim();
+  if (!trimmedPhone) return { valid: false, message: "Phone is required" };
+  const isoCode = getCountryIsoCode(country) as CountryCode | "";
+  if (!isoCode) {
+    const normalized = trimmedPhone.replace(/[^\d+]/g, "");
+    return normalized.length >= 10
+      ? { valid: true }
+      : { valid: false, message: "Enter a valid phone number" };
+  }
+  const parsed = parsePhoneNumberFromString(trimmedPhone, isoCode);
+  if (!parsed || !parsed.isValid()) {
+    return { valid: false, message: `Enter a valid phone number for ${country}` };
+  }
+  if (parsed.country && parsed.country !== isoCode) {
+    return { valid: false, message: `Phone number must match the selected country (${country})` };
+  }
+  return { valid: true };
 }
 
 const DEFAULT_PROBATION_OPTIONS = [
@@ -1293,6 +1362,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [viewTab, setViewTab] = useState<"personal" | "employment" | "documents">("personal");
   const bulkSpreadsheetInputRef = useRef<HTMLInputElement | null>(null);
+  const addFormContainerRef = useRef<HTMLFormElement | null>(null);
+  const editFormContainerRef = useRef<HTMLFormElement | null>(null);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [bulkSpreadsheetName, setBulkSpreadsheetName] = useState("");
   const [bulkSpreadsheetRows, setBulkSpreadsheetRows] = useState<Record<string, unknown>[]>([]);
@@ -1310,12 +1381,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
   const buildEmployeeFormErrors = (form: EmployeeFormState, selectedDepartments: string[] = [], bankVerification: BankVerificationState = { status: "idle" }): Record<string, string> => {
     const errors: Record<string, string> = {};
-    const normalizedPhone = String(form.phone || "").replace(/[^\d+]/g, "");
     if (!form.fullName.trim()) errors.fullName = "Full name is required";
+    else if (!isValidFullName(form.fullName)) errors.fullName = "Full name cannot contain numbers";
     if (!form.email.trim()) errors.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = "Invalid email format";
+    else if (!isValidEmailFormat(form.email)) errors.email = "Invalid email format";
     if (!form.phone.trim()) errors.phone = "Phone is required";
-    else if (normalizedPhone.length < 10) errors.phone = "Enter a valid phone number";
+    else {
+      const phoneCheck = validatePhoneForCountry(form.phone, form.country);
+      if (!phoneCheck.valid) errors.phone = phoneCheck.message || "Enter a valid phone number";
+    }
     if (!form.role.trim()) errors.role = "Role is required";
     if (!form.joiningDate.trim()) errors.joiningDate = "Joining date is required";
     if (form.role.trim()) {
@@ -1352,14 +1426,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     return errors;
   };
 
-  const validateAddForm = (): boolean => {
-    const errors = buildEmployeeFormErrors(addForm, addForm.departments, addBankVerification);
-    setAddFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const submitAddForm = async (sendInvite: boolean) => {
-    if (!validateAddForm()) { toast.error("Please fix the form errors"); return; }
+    const errors = buildEmployeeFormErrors(addForm, addForm.departments, addBankVerification);
+    if (Object.keys(errors).length > 0) {
+      setAddFormErrors(errors);
+      toast.error(buildMissingFieldsMessage(errors));
+      scrollToFirstInvalidField(addFormContainerRef.current);
+      return;
+    }
+    setAddFormErrors({});
     setAddFormSubmitting(true);
     try {
       const documents = await uploadSelectedEmployeeDocuments(addForm);
@@ -1670,8 +1745,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const validationErrors = buildEmployeeFormErrors(editForm, selectedDepartments, editBankVerification);
     if (Object.keys(validationErrors).length > 0) {
       setEditFormErrors(validationErrors);
-      const firstError = Object.values(validationErrors)[0];
-      toast.error(firstError || "Please fix the form errors");
+      toast.error(buildMissingFieldsMessage(validationErrors));
+      scrollToFirstInvalidField(editFormContainerRef.current);
       return;
     }
     setEditFormErrors({});
@@ -2419,7 +2494,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
           {/* ═══ ADD EMPLOYEE FORM ═══ */}
           {showAddForm && (
-            <form onSubmit={handleAddFormSubmit}>
+            <form onSubmit={handleAddFormSubmit} ref={addFormContainerRef}>
               <div className="flex flex-col gap-4">
 
                 {/* Section 1: Personal Details */}
@@ -3265,22 +3340,22 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={(event) => { event.preventDefault(); void handleSaveEdit(); }} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
+            <form onSubmit={(event) => { event.preventDefault(); void handleSaveEdit(); }} ref={editFormContainerRef} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
               <FormSection title="Personal Info" icon={Users}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                   <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
-                    <input type="text" value={editForm.fullName} onChange={(e) => setEditForm((p) => ({ ...p, fullName: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
+                    <input type="text" value={editForm.fullName} onChange={(e) => setEditForm((p) => ({ ...p, fullName: e.target.value }))} onBlur={() => setEditFormErrors((prev) => applyFieldError(prev, "fullName", !editForm.fullName.trim() ? "Full name is required" : !isValidFullName(editForm.fullName) ? "Full name cannot contain numbers" : ""))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.fullName && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.fullName}</span>}
                   </div>
                   <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
-                    <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
+                    <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} onBlur={() => setEditFormErrors((prev) => applyFieldError(prev, "email", !editForm.email.trim() ? "Email is required" : !isValidEmailFormat(editForm.email) ? "Invalid email format" : ""))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.email && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.email}</span>}
                   </div>
                   <div className="flex flex-col gap-1 lg:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
-                    <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
+                    <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} onBlur={() => { const check = validatePhoneForCountry(editForm.phone, editForm.country); setEditFormErrors((prev) => applyFieldError(prev, "phone", !editForm.phone.trim() ? "Phone is required" : (check.valid ? "" : check.message || "Enter a valid phone number"))); }} className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`} />
                     {editFormErrors.phone && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.phone}</span>}
                   </div>
                   <div className="flex flex-col gap-1 lg:col-span-2">
@@ -3601,7 +3676,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleAddFormSubmit} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
+            <form onSubmit={handleAddFormSubmit} ref={addFormContainerRef} className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-white">
               <FormSection title="Personal Info" icon={Users}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                   <div className="flex flex-col gap-1 lg:col-span-2">
@@ -3610,6 +3685,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="text"
                       value={addForm.fullName}
                       onChange={(e) => handleAddFieldChange("fullName", e.target.value)}
+                      onBlur={() => setAddFormErrors((prev) => applyFieldError(prev, "fullName", !addForm.fullName.trim() ? "Full name is required" : !isValidFullName(addForm.fullName) ? "Full name cannot contain numbers" : ""))}
                       className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.fullName ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     />
                     {addFormErrors.fullName && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.fullName}</span>}
@@ -3620,6 +3696,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="email"
                       value={addForm.email}
                       onChange={(e) => handleAddFieldChange("email", e.target.value)}
+                      onBlur={() => setAddFormErrors((prev) => applyFieldError(prev, "email", !addForm.email.trim() ? "Email is required" : !isValidEmailFormat(addForm.email) ? "Invalid email format" : ""))}
                       className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.email ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     />
                     {addFormErrors.email && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.email}</span>}
@@ -3630,6 +3707,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       type="tel"
                       value={addForm.phone}
                       onChange={(e) => handleAddFieldChange("phone", e.target.value)}
+                      onBlur={() => { const check = validatePhoneForCountry(addForm.phone, addForm.country); setAddFormErrors((prev) => applyFieldError(prev, "phone", !addForm.phone.trim() ? "Phone is required" : (check.valid ? "" : check.message || "Enter a valid phone number"))); }}
                       className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.phone ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                     />
                     {addFormErrors.phone && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.phone}</span>}

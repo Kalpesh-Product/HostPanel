@@ -44,6 +44,8 @@ import {
   normalizeBillingConfig,
   type WorkspaceBillingConfig,
 } from "../../lib/workspaceBilling";
+import { getCountryIsoCode } from "../../utils/locationApi";
+import WorkspaceEditModal, { EMPTY_EDIT_FORM, type EditUnitForm } from "./WorkspaceEditModal";
 
 const TIMEZONE_OPTIONS: string[] = (() => {
   try {
@@ -76,10 +78,16 @@ type WorkspaceItem = {
   id: string;
   workspaceName: string;
   businessName?: string;
+  brandName?: string;
   location?: string;
   city?: string;
   state?: string;
   country?: string;
+  countryCode?: string;
+  timezone?: string;
+  currency?: string;
+  businessType?: string;
+  businessTypes?: string[];
   address?: string;
   selectedPlan?: string;
   status?: string;
@@ -152,12 +160,7 @@ export default function WorkspaceSettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewingWorkspace, setViewingWorkspace] = useState<WorkspaceItem | null>(null);
   const [editingWorkspace, setEditingWorkspace] = useState<WorkspaceItem | null>(null);
-  const [editForm, setEditForm] = useState({
-    workspaceName: "",
-    city: "",
-    state: "",
-    country: "",
-  });
+  const [editForm, setEditForm] = useState<EditUnitForm>(EMPTY_EDIT_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [businessStart, setBusinessStart] = useState("09:00");
   const [businessEnd, setBusinessEnd] = useState("22:00");
@@ -435,9 +438,20 @@ export default function WorkspaceSettingsPage() {
     setEditingWorkspace(workspace);
     setEditForm({
       workspaceName: workspace.workspaceName || "",
+      brandName: workspace.brandName || "",
+      address: workspace.address || "",
       city: workspace.city || "",
       state: workspace.state || "",
       country: workspace.country || "",
+      countryCode: workspace.countryCode || getCountryIsoCode(workspace.country || ""),
+      timezone: workspace.timezone || "",
+      currency: workspace.currency || "",
+      businessTypes: Array.isArray(workspace.businessTypes)
+        ? workspace.businessTypes.map((item) => String(item || "").trim()).filter(Boolean)
+        : String(workspace.businessType || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
     });
   };
 
@@ -454,14 +468,21 @@ export default function WorkspaceSettingsPage() {
       await updateManagedWorkspace(axiosPrivate, editingWorkspace.id, {
         profile: {
           workspaceName: nextName,
+          brandName: editForm.brandName,
+          address: editForm.address,
           city: editForm.city,
           state: editForm.state,
           country: editForm.country,
+          countryCode: editForm.countryCode,
+          timezone: editForm.timezone,
+          currency: editForm.currency,
+          businessTypes: editForm.businessTypes,
         },
       });
       await reloadOverview();
       toast.success("Unit updated successfully.");
       setEditingWorkspace(null);
+      setEditForm(EMPTY_EDIT_FORM);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Unable to update unit.");
     } finally {
@@ -1101,8 +1122,8 @@ export default function WorkspaceSettingsPage() {
     </div>
 
       {viewingWorkspace ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit Details</p>
@@ -1116,11 +1137,26 @@ export default function WorkspaceSettingsPage() {
                 Close
               </button>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
               {[
-                { label: "Business Name", value: viewingWorkspace.businessName || "—" },
+                { label: "Unit Name", value: viewingWorkspace.workspaceName || "—" },
+                { label: "Company Name", value: viewingWorkspace.businessName || "—" },
+                { label: "Brand Name", value: viewingWorkspace.brandName || "—" },
+                { label: "Country", value: viewingWorkspace.country || "—" },
+                { label: "State", value: viewingWorkspace.state || "—" },
+                { label: "City", value: viewingWorkspace.city || "—" },
+                { label: "Address", value: viewingWorkspace.address || "—", span: true },
+                { label: "Timezone", value: viewingWorkspace.timezone || "—" },
+                { label: "Currency", value: viewingWorkspace.currency || "—" },
+                {
+                  label: "Type of Vertical",
+                  value:
+                    (Array.isArray(viewingWorkspace.businessTypes) && viewingWorkspace.businessTypes.length
+                      ? viewingWorkspace.businessTypes.join(", ")
+                      : viewingWorkspace.businessType) || "—",
+                  span: true,
+                },
                 { label: "Plan", value: (viewingWorkspace.selectedPlan || "—").toString() },
-                { label: "Location", value: viewingWorkspace.location || "—" },
                 { label: "Employees", value: String(viewingWorkspace.metrics?.totalEmployees ?? 0) },
                 {
                   label: "Status",
@@ -1139,7 +1175,10 @@ export default function WorkspaceSettingsPage() {
                     : "—",
                 },
               ].map((row) => (
-                <div key={row.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div
+                  key={row.label}
+                  className={`rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 ${row.span ? "md:col-span-2" : ""}`}
+                >
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{row.label}</p>
                   <p className="mt-1 text-[13px] font-pmedium text-slate-900 capitalize break-words">{row.value}</p>
                 </div>
@@ -1155,83 +1194,20 @@ export default function WorkspaceSettingsPage() {
       ) : null}
 
       {editingWorkspace ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
-            <div className="flex items-start gap-3">
-              <div className="rounded-2xl bg-blue-50 p-2 text-[#2563EB] shrink-0">
-                <Pencil className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-[14px] font-pmedium text-slate-950">Edit unit</p>
-                <p className="mt-1 text-[12px] font-pmedium text-slate-500">
-                  Update the unit name and location. The unit name stays the one you entered; the location (city, state, country) shows beside it in dropdowns.
-                </p>
-              </div>
-            </div>
-            <form onSubmit={handleSaveEdit} className="mt-5 space-y-4">
-              <label className="grid gap-2">
-                <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit Name</span>
-                <input
-                  value={editForm.workspaceName}
-                  onChange={(event) => setEditForm((current) => ({ ...current, workspaceName: event.target.value }))}
-                  maxLength={120}
-                  autoFocus
-                  className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-                  required
-                />
-              </label>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="grid gap-2">
-                  <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City</span>
-                  <input
-                    value={editForm.city}
-                    onChange={(event) => setEditForm((current) => ({ ...current, city: event.target.value }))}
-                    maxLength={120}
-                    className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-                  />
-                </label>
-                <label className="grid gap-2">
-                  <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State</span>
-                  <input
-                    value={editForm.state}
-                    onChange={(event) => setEditForm((current) => ({ ...current, state: event.target.value }))}
-                    maxLength={120}
-                    className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-                  />
-                </label>
-                <label className="grid gap-2">
-                  <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country</span>
-                  <input
-                    value={editForm.country}
-                    onChange={(event) => setEditForm((current) => ({ ...current, country: event.target.value }))}
-                    maxLength={120}
-                    className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-                  />
-                </label>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isSavingEdit) setEditingWorkspace(null);
-                  }}
-                  disabled={isSavingEdit}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingEdit}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-[#1e4fd1] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  {isSavingEdit ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <WorkspaceEditModal
+          form={editForm}
+          businessName={editingWorkspace.businessName}
+          isSaving={isSavingEdit}
+          onChange={(field, value) =>
+            setEditForm((current) => ({ ...current, [field]: value }))
+          }
+          onClose={() => {
+            if (isSavingEdit) return;
+            setEditingWorkspace(null);
+            setEditForm(EMPTY_EDIT_FORM);
+          }}
+          onSubmit={handleSaveEdit}
+        />
       ) : null}
 
       {deletingWorkspace ? (

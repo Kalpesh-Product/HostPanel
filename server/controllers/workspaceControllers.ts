@@ -732,6 +732,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         id: workspaceId,
         workspaceName: item.workspaceName || "",
         businessName: item.businessName || "",
+        brandName: item.brandName || "",
         city: item.city || "",
         state: item.state || "",
         country: item.country || "",
@@ -956,6 +957,9 @@ export const updateManagedWorkspace = async (req, res, next) => {
     if (profile.address !== undefined) {
       target.address = String(profile.address || "").trim();
     }
+    if (profile.brandName !== undefined) {
+      target.brandName = String(profile.brandName || "").trim();
+    }
     // Verticals (businessTypes) are edited per-unit, so only this workspace's
     // list changes — the account-level company record is shared across units
     // and is intentionally left untouched.
@@ -994,6 +998,8 @@ export const updateManagedWorkspace = async (req, res, next) => {
         workspace: {
           id: String(target._id),
           workspaceName: target.workspaceName,
+          brandName: target.brandName || "",
+          address: target.address || "",
           city: target.city || "",
           state: target.state || "",
           country: target.country || "",
