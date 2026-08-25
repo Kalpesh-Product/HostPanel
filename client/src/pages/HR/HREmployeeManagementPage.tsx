@@ -48,7 +48,7 @@ interface EmployeeFormState {
   fullName: string; dateOfBirth: string; email: string; phone: string; gender: string;
   currentAddress: string; permanentAddress: string; country: string; state: string; city: string;
   emergencyContactName: string; emergencyContactPhone: string;
-  jobTitle: string; jobCode: string; departments: string[]; role: string;
+  jobTitle: string; jobCode: string; jobRoleSelection: string; departments: string[]; role: string;
   managerUserId: string; shiftId: string; workLocation: string; workMode: string; employmentType: string;
   internshipIsUnpaid: boolean; internshipDurationMonths: string; internshipEndDate: string;
   noticePeriodDays: string; probationDays: string; joiningDate: string; salaryAmount: string;
@@ -178,6 +178,7 @@ const ID_PROOF_PRESETS = [
   "Aadhaar", "PAN Card", "Passport", "Voter ID", "Driving License", "Provident Fund (UAN)",
 ];
 const BANK_NAME_CUSTOM_OPTION = "__custom__";
+const CUSTOM_JOB_ROLE_OPTION = "__custom__";
 const INTERNSHIP_EMPLOYMENT_TYPES = new Set(["intern", "trainee"]);
 
 function isInternshipEmploymentType(type: string): boolean {
@@ -399,7 +400,7 @@ function createEmployeeFormState(): EmployeeFormState {
   return {
     fullName: "", dateOfBirth: "", email: "", phone: "", gender: "",
     currentAddress: "", permanentAddress: "", country: "", state: "", city: "", emergencyContactName: "", emergencyContactPhone: "",
-    jobTitle: "", jobCode: "", departments: [], role: "",
+    jobTitle: "", jobCode: "", jobRoleSelection: "", departments: [], role: "",
     managerUserId: "", shiftId: "", workLocation: "", workMode: "hybrid", employmentType: "full-time",
     internshipIsUnpaid: false, internshipDurationMonths: "6", internshipEndDate: "",
     noticePeriodDays: "30", probationDays: "none", joiningDate: "", salaryAmount: "",
@@ -583,6 +584,10 @@ function buildEmployeeReportRows(employee: Record<string, unknown>, shiftLabel =
   const roleLabel = ROLE_VALUE_TO_LABEL[roleKey] || roleKey;
   const salary = (employee.salaryPackage as Record<string, unknown>) || {};
   const idProofRows = normalizeIdProofs(employee).map((entry) => ({ label: entry.type, value: entry.value || "-" }));
+  const salaryCurrency = String(salary.currency || DEFAULT_WORKSPACE_CURRENCY).trim().toUpperCase() || DEFAULT_WORKSPACE_CURRENCY;
+  const annualCtc = Number(salary.grossAnnual || salary.amount || 0);
+  const monthlySalary = annualCtc > 0 ? annualCtc / 12 : 0;
+  const dailySalary = monthlySalary > 0 ? monthlySalary / getCurrentMonthWorkingDays() : 0;
   return [
     { label: "Employee ID", value: String(employee.employeeId || employee.employeeNumber || "-") },
     { label: "Full Name", value: String((employee.fullName || employee.name || "") as string) },
@@ -608,6 +613,8 @@ function buildEmployeeReportRows(employee: Record<string, unknown>, shiftLabel =
     { label: "Manager", value: String(employee.managerName || "-") },
     { label: "Shift", value: shiftLabel || "Not assigned" },
     { label: "Salary Package", value: String(employee.salaryLabel || "-") },
+    { label: "Monthly Salary", value: monthlySalary > 0 ? formatEmployeeCurrency(monthlySalary, salaryCurrency) : "-" },
+    { label: "Daily Salary", value: dailySalary > 0 ? formatEmployeeCurrency(dailySalary, salaryCurrency) : "-" },
     { label: "Monthly Allowances", value: salary.allowances ? String(salary.allowances) : "-" },
     { label: "Monthly Deductions (Tax/PF)", value: salary.deductions ? String(salary.deductions) : "-" },
     { label: "Bank Name", value: String(employee.bankName || "-") },
@@ -1225,6 +1232,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         phone: String(prefill.phone || prev.phone || ""),
         role: String(prefill.role || prev.role || "Employee"),
         jobCode: String(prefill.jobCode || prev.jobCode || ""),
+        jobRoleSelection: String(prefill.jobCode || prev.jobCode || "") || prev.jobRoleSelection,
         jobTitle: String(prefill.jobTitle || prefill.designation || prev.jobTitle || ""),
         joiningDate: String(prefill.joiningDate || prefill.joinDate || prev.joiningDate || ""),
         departments: nextDepartments.length > 0 ? filterValidDepartments(nextDepartments) : prev.departments,
@@ -1590,6 +1598,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       emergencyContactName: employee.emergencyContactName,
       emergencyContactPhone: employee.emergencyContactPhone,
       jobTitle: employee.jobTitle, jobCode: employee.jobCode,
+      jobRoleSelection: (() => {
+        const departmentsForLookup = normalizeDepartmentSelection(employee.role, isWorkspaceLeaderRole(employee.role) ? allDepartments : employee.departments);
+        const isTrackedInRecruitment = employee.jobCode
+          ? getJobTitleSuggestions(departmentsForLookup).some((option) => option.jobCode === employee.jobCode)
+          : false;
+        if (isTrackedInRecruitment) return employee.jobCode;
+        if (employee.jobCode || employee.jobTitle) return CUSTOM_JOB_ROLE_OPTION;
+        return "";
+      })(),
       departments: normalizeDepartmentSelection(employee.role, isWorkspaceLeaderRole(employee.role) ? allDepartments : employee.departments),
       role: employee.role || "Employee",
       managerUserId: employee.managerUserId,
@@ -2165,6 +2182,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
   useEffect(() => {
     if (!isEditModalOpen) return;
+    if (editForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION) return;
     if (!editForm.jobCode) {
       setEditForm((prev) => {
         if (!prev.jobCode && !prev.jobTitle && !prev.employmentType) return prev;
@@ -2187,7 +2205,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         internshipEndDate: intMode ? calculateInternshipEndDate(prev.joiningDate, intMode ? String(currentOption.internshipDurationMonths || prev.internshipDurationMonths || "6") : prev.internshipDurationMonths) : "",
       };
     });
-  }, [editJobTitleSuggestions, editForm.jobCode, isEditModalOpen]);
+  }, [editJobTitleSuggestions, editForm.jobCode, editForm.jobRoleSelection, isEditModalOpen]);
 
   const uploadSelectedEmployeeDocuments = async (form: EmployeeFormState, existingDocuments: Array<Record<string, unknown>> = []) => {
     const fileEntries: Array<{ field: keyof Pick<EmployeeFormState, "identityProof" | "addressProof" | "bankProof" | "otherDocuments">; files: File[] }> = [
@@ -3136,7 +3154,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
       {/* ─── MODAL: View Employee ─── */}
       {viewingEmployee && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setViewingEmployee(null)}>
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-2xl mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
@@ -3231,7 +3249,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
       {/* ─── MODAL: Edit Employee ─── */}
       {isEditModalOpen && editingEmployee && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }}>
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between border-b border-blue-100 bg-blue-50/30 px-6 py-5">
               <div className="flex items-center gap-3">
@@ -3331,7 +3349,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {editFormErrors.role && <span className="text-[10px] font-pmedium text-red-500">{editFormErrors.role}</span>}
                   </div>
-                  <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-2">
+                  <div className={`flex flex-col gap-1 ${editForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION ? "" : "md:col-span-2 lg:col-span-2"}`}>
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
                     {getDepartmentSelectionMode(editForm.role) === "all" ? (
                       <>
@@ -3400,12 +3418,18 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role</label>
                     <select
-                      value={editForm.jobCode}
+                      value={editForm.jobRoleSelection}
                       onChange={(e) => {
-                        const selected = editJobTitleSuggestions.find((o) => o.jobCode === e.target.value) || null;
+                        const value = e.target.value;
+                        if (value === CUSTOM_JOB_ROLE_OPTION) {
+                          setEditForm((p) => ({ ...p, jobRoleSelection: value, jobCode: "", jobTitle: "" }));
+                          return;
+                        }
+                        const selected = editJobTitleSuggestions.find((o) => o.jobCode === value) || null;
                         setEditForm((p) => ({
                           ...p,
-                          jobCode: e.target.value,
+                          jobRoleSelection: value,
+                          jobCode: value,
                           jobTitle: selected?.designation || selected?.title || p.jobTitle,
                           employmentType: selected?.employmentType || p.employmentType,
                         }));
@@ -3418,16 +3442,33 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                           {(job.designation || job.title)} {job.jobCode ? `(${job.jobCode})` : ""} {job.department ? `- ${job.department}` : ""}
                         </option>
                       ))}
+                      <option value={CUSTOM_JOB_ROLE_OPTION}>Custom (not tracked in recruitment)</option>
                     </select>
                   </div>
+                  {editForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Job Role</label>
+                      <input
+                        type="text"
+                        value={editForm.jobTitle}
+                        onChange={(e) => setEditForm((p) => ({ ...p, jobTitle: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                        placeholder="Enter job role"
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Code</label>
                     <input
                       type="text"
                       value={editForm.jobCode}
-                      readOnly
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-[12px] font-pmedium text-slate-700 outline-none"
-                      placeholder="Auto-filled from job role"
+                      readOnly={editForm.jobRoleSelection !== CUSTOM_JOB_ROLE_OPTION}
+                      onChange={(e) => {
+                        if (editForm.jobRoleSelection !== CUSTOM_JOB_ROLE_OPTION) return;
+                        setEditForm((p) => ({ ...p, jobCode: e.target.value }));
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg text-[12px] font-pmedium outline-none ${editForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION ? "bg-white border-slate-200/60 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" : "bg-slate-50 border-slate-300 text-slate-700"}`}
+                      placeholder={editForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION ? "Enter job code" : "Auto-filled from job role"}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
@@ -3537,7 +3578,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       {isAddModalOpen && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto"
-          onClick={() => { resetAddForm(); setIsAddModalOpen(false); }}
         >
           <div
             className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden"
@@ -3711,7 +3751,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     </select>
                     {addFormErrors.role && <span className="text-[10px] font-pmedium text-red-500">{addFormErrors.role}</span>}
                   </div>
-                  <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-2">
+                  <div className={`flex flex-col gap-1 ${addForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION ? "" : "md:col-span-2 lg:col-span-2"}`}>
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Departments <span className="text-red-400">*</span></label>
                     {getDepartmentSelectionMode(addForm.role) === "all" ? (
                       <>
@@ -3797,14 +3837,21 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Role</label>
                     <select
-                      value={addForm.jobCode}
+                      value={addForm.jobRoleSelection}
                       onChange={(e) => {
-                        const selected = addFormJobTitleSuggestions.find((o) => o.jobCode === e.target.value) || null;
-                        handleAddFieldChange("jobCode", e.target.value);
-                        if (selected) {
-                          handleAddFieldChange("jobTitle", selected.designation || selected.title);
-                          handleAddFieldChange("employmentType", selected.employmentType || addForm.employmentType);
+                        const value = e.target.value;
+                        if (value === CUSTOM_JOB_ROLE_OPTION) {
+                          setAddForm((p) => ({ ...p, jobRoleSelection: value, jobCode: "", jobTitle: "" }));
+                          return;
                         }
+                        const selected = addFormJobTitleSuggestions.find((o) => o.jobCode === value) || null;
+                        setAddForm((p) => ({
+                          ...p,
+                          jobRoleSelection: value,
+                          jobCode: value,
+                          jobTitle: selected?.designation || selected?.title || p.jobTitle,
+                          employmentType: selected?.employmentType || p.employmentType,
+                        }));
                       }}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                     >
@@ -3814,16 +3861,33 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                           {(job.designation || job.title)} {job.jobCode ? `(${job.jobCode})` : ""} {job.department ? `- ${job.department}` : ""}
                         </option>
                       ))}
+                      <option value={CUSTOM_JOB_ROLE_OPTION}>Custom (not tracked in recruitment)</option>
                     </select>
                   </div>
+                  {addForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Custom Job Role</label>
+                      <input
+                        type="text"
+                        value={addForm.jobTitle}
+                        onChange={(e) => handleAddFieldChange("jobTitle", e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                        placeholder="Enter job role"
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Job Code</label>
                     <input
                       type="text"
                       value={addForm.jobCode}
-                      readOnly
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-[12px] font-pmedium text-slate-700 outline-none"
-                      placeholder="Auto-filled from job role"
+                      readOnly={addForm.jobRoleSelection !== CUSTOM_JOB_ROLE_OPTION}
+                      onChange={(e) => {
+                        if (addForm.jobRoleSelection !== CUSTOM_JOB_ROLE_OPTION) return;
+                        handleAddFieldChange("jobCode", e.target.value);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg text-[12px] font-pmedium outline-none ${addForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION ? "bg-white border-slate-300 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" : "bg-slate-50 border-slate-300 text-slate-700"}`}
+                      placeholder={addForm.jobRoleSelection === CUSTOM_JOB_ROLE_OPTION ? "Enter job code" : "Auto-filled from job role"}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
