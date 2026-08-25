@@ -27,6 +27,7 @@ import { downloadReportFile } from '@/utils/report-download';
 import { extractDepartmentLabel, titleCase } from '@/utils/user-helpers';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import { statusPillClass } from '@/lib/status-pill';
+import { ApprovalFlowBadges } from '@/components/finance/ApprovalFlowBadges';
 import PageFrame from '@/components/Pages/PageFrame';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '@/lib/workspaceLocalization';
@@ -1095,6 +1096,9 @@ export function DepartmentFinancePageV2() {
               <Clock size={18} className="shrink-0" />
               <div className="flex-1">
                 <span className="font-black">Budget Request Pending</span> — Your annual budget request is awaiting approval.
+                <div className="mt-1.5">
+                  <ApprovalFlowBadges flow={financeData?.approvalFlow} />
+                </div>
               </div>
               <button
                 onClick={handleSendReminder}
@@ -1103,6 +1107,19 @@ export function DepartmentFinancePageV2() {
               >
                 <Send size={12} /> {isSendingReminder ? 'Sending...' : 'Send Reminder'}
               </button>
+            </div>
+          )}
+
+          {/* APPROVED BANNER */}
+          {isBudgetApproved && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-xs font-bold text-emerald-700 flex items-center gap-3">
+              <CheckCircle2 size={18} className="shrink-0" />
+              <div className="flex-1">
+                <span className="font-black">Budget Approved</span> — You can record expenses and link vendors within your monthly allocations.
+                <div className="mt-1.5">
+                  <ApprovalFlowBadges flow={financeData?.approvalFlow} />
+                </div>
+              </div>
             </div>
           )}
 
@@ -1344,7 +1361,10 @@ export function DepartmentFinancePageV2() {
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Status</p>
-                        <span className={statusPillClass(financeData.annualRequest.status)}>{financeData.annualRequest.status}</span>
+                        <div className="flex flex-col items-start gap-1.5">
+                          <span className={statusPillClass(financeData.annualRequest.status)}>{financeData.annualRequest.status}</span>
+                          <ApprovalFlowBadges flow={financeData.approvalFlow} />
+                        </div>
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Submitted</p>
@@ -1745,29 +1765,39 @@ export function DepartmentFinancePageV2() {
                 </div>
               </div>
             </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-              {canManagePayments && viewingExpense.expense.paymentStatus !== 'Paid' && (
+            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex items-center justify-between gap-3 sm:gap-4 shrink-0">
+              <div className="flex gap-3 sm:gap-4">
+                {canManagePayments && viewingExpense.expense.paymentStatus !== 'Paid' && (
+                  <button
+                    onClick={() => handleMarkPaid(viewingExpense.month, viewingExpense.expense)}
+                    className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 size={14} /> Mark as Paid
+                  </button>
+                )}
                 <button
-                  onClick={() => handleMarkPaid(viewingExpense.month, viewingExpense.expense)}
-                  className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all flex items-center gap-1.5"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.pdf,.jpg,.jpeg,.png';
+                    input.onchange = (e: any) => {
+                      const file = e.target?.files?.[0];
+                      if (file) handleUploadInvoice(viewingExpense.month, viewingExpense.expense, file);
+                    };
+                    input.click();
+                  }}
+                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
-                  <CheckCircle2 size={14} /> Mark as Paid
+                  <UploadCloud size={14} />
+                  {(viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile) ? 'Replace Invoice' : 'Upload Invoice'}
                 </button>
-              )}
+              </div>
               <button
-                onClick={() => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = '.pdf,.jpg,.jpeg,.png';
-                  input.onchange = (e: any) => {
-                    const file = e.target?.files?.[0];
-                    if (file) handleUploadInvoice(viewingExpense.month, viewingExpense.expense, file);
-                  };
-                  input.click();
-                }}
-                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                type="button"
+                onClick={() => setViewingExpense(null)}
+                className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all flex items-center gap-1.5"
               >
-                <UploadCloud size={14} /> Upload Invoice
+                Submit
               </button>
             </div>
           </div>

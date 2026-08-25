@@ -32,6 +32,7 @@ import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
+import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
 
 /* ───────────────────── Types ───────────────────── */
 
@@ -1420,7 +1421,11 @@ export function ExpensesBudgetPage() {
                                 <span className="text-[9px] font-bold text-slate-400 uppercase">Pending</span>
                               )}
                             </td>
-                            <td className="px-6 py-5 text-center">{getStatusBadge(budget.status)}</td>
+                            <td className="px-6 py-5 text-center">
+                              {hasApprovalProgress(budget.approvalFlow)
+                                ? <ApprovalFlowBadges flow={budget.approvalFlow} />
+                                : getStatusBadge(budget.status)}
+                            </td>
                             <td className="px-6 py-5 text-center">
                               <button onClick={() => setViewingBudget(budget)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
                                 <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
@@ -1466,7 +1471,11 @@ export function ExpensesBudgetPage() {
                           <td className="px-6 py-5 hidden md:table-cell">
                             <p className="text-xs font-medium text-slate-600 truncate max-w-[200px]">{extra.details}</p>
                           </td>
-                          <td className="px-6 py-5 text-center">{getStatusBadge(extra.status)}</td>
+                          <td className="px-6 py-5 text-center">
+                            {hasApprovalProgress(extra.approvalFlow)
+                              ? <ApprovalFlowBadges flow={extra.approvalFlow} />
+                              : getStatusBadge(extra.status)}
+                          </td>
                           <td className="px-6 py-5 text-center">
                             <button onClick={() => setViewingExtra(extra)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
                               <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Review</span>
