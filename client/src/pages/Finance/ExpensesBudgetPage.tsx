@@ -482,12 +482,20 @@ function isExpenseAwaitingFinancePayment(expense: any = {}, resolvedExpense?: an
 function canMarkExpenseAsPaid(expense: any = {}): boolean {
   const linkedExpense = resolveLinkedExpenseForPayment(expense);
   const resolvedExpense = mergeVendorDetails(expense, linkedExpense);
-  return isExpenseAwaitingFinancePayment(resolvedExpense) && isManagerAddedVendorExpense(resolvedExpense);
+  // Show the action whenever a department documented a real vendor on an
+  // unpaid/planned expense — authorization itself is enforced server-side.
+  return isExpenseAwaitingFinancePayment(resolvedExpense);
 }
 
 function shouldIncludeExpenseInHistory(expense: any = {}): boolean {
   const paymentStatus = expense?.paymentStatus || expense?.status || '';
   return hasRealVendor(expense) && isPaidLikeStatus(paymentStatus);
+}
+
+function shouldIncludeExpenseInLedger(expense: any = {}): boolean {
+  // Paid items form the history; unpaid ones linked to a real vendor are the
+  // finance team's pending-payment queue (Mark Paid lives on their detail view).
+  return hasRealVendor(expense);
 }
 
 function resolveLinkedExpenseForPayment(expense: any = {}, viewingBudget?: any, estimatedBudgets: Budget[] = []): any {
@@ -696,7 +704,7 @@ function buildExpenseHistoryFromAnnualRequests(annualRequests: any[] = []): Ledg
       const expenses = Array.isArray(month?.expenses) ? month.expenses : [];
       const extraExpenses = Array.isArray(month?.extraExpenses) ? month.extraExpenses : [];
       const monthExpenses = [...expenses, ...extraExpenses];
-      monthExpenses.filter((expense: any) => shouldIncludeExpenseInHistory(expense)).forEach((expense: any, expenseIndex: number) => {
+      monthExpenses.filter((expense: any) => shouldIncludeExpenseInLedger(expense)).forEach((expense: any, expenseIndex: number) => {
         const invoiceNumber = expense?.invoiceNumber || '';
         const invoiceUrl = expense?.invoiceUrl || expense?.invoiceFile || '';
         const expenseDate = expense?.date || request?.submittedAtLabel || request?.date || '';
@@ -751,7 +759,7 @@ function buildExpenseHistoryFromDepartmentPlans(departmentPlans: any[] = []): Le
       const expenses = Array.isArray(month?.expenses) ? month.expenses : [];
       const extraExpenses = Array.isArray(month?.extraExpenses) ? month.extraExpenses : [];
       const monthExpenses = [...expenses, ...extraExpenses];
-      monthExpenses.filter((expense: any) => shouldIncludeExpenseInHistory(expense)).forEach((expense: any, expenseIndex: number) => {
+      monthExpenses.filter((expense: any) => shouldIncludeExpenseInLedger(expense)).forEach((expense: any, expenseIndex: number) => {
         const invoiceNumber = expense?.invoiceNumber || '';
         const invoiceUrl = expense?.invoiceUrl || expense?.invoiceFile || '';
         const expenseDate = expense?.date || month?.dueDate || '';
@@ -1018,7 +1026,9 @@ export function ExpensesBudgetPage() {
   const visibleLedger = ledger.filter((entry) => {
     const haystack = [entry.department, entry.vendor, entry.item, entry.invoice, entry.invoiceNumber, entry.monthTitle, entry.month]
       .filter(Boolean).join(' ').toLowerCase();
-    return shouldIncludeExpenseInHistory(entry) && (deptFilter === 'All' || entry.department === deptFilter) && haystack.includes(searchQuery.toLowerCase());
+    // `ledger` is already curated by shouldIncludeExpenseInLedger (paid history
+    // + pending-payment queue); here we only apply the user's view filters.
+    return (deptFilter === 'All' || entry.department === deptFilter) && haystack.includes(searchQuery.toLowerCase());
   });
 
   const statCards = useMemo(() => {
@@ -1071,7 +1081,7 @@ export function ExpensesBudgetPage() {
   /* ── Approval / Rejection handlers ── */
 
   const handleApproveEstimated = (req: Budget) => {
-    applyFinanceApprovalDecision('annual', req.id, { status: 'Approved', scope: 'financeManager', fiscalYear: selectedFY })
+    applyFinanceApprovalDecision('annual', req.id, { status: 'Approved', fiscalYear: selectedFY })
       .then(async () => {
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
@@ -1088,7 +1098,7 @@ export function ExpensesBudgetPage() {
 
   const handleApproveExtra = () => {
     if (!viewingExtra?.id) return;
-    applyFinanceApprovalDecision('extra', viewingExtra.id, { status: 'Approved', scope: 'financeManager', fiscalYear: selectedFY })
+    applyFinanceApprovalDecision('extra', viewingExtra.id, { status: 'Approved', fiscalYear: selectedFY })
       .then(async () => {
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
@@ -1108,7 +1118,7 @@ export function ExpensesBudgetPage() {
     if (!rejectingRequest) return;
     if (rejectingRequest.modalType === 'estimated') {
       try {
-        await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
+        await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: 'Rejected', fiscalYear: selectedFY });
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
@@ -1122,7 +1132,7 @@ export function ExpensesBudgetPage() {
       } catch (error: any) { toast.error(error?.message || 'Failed to reject annual budget.'); }
     } else if (rejectingRequest.modalType === 'extra') {
       try {
-        await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: 'Rejected', scope: 'financeManager', fiscalYear: selectedFY });
+        await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: 'Rejected', fiscalYear: selectedFY });
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
@@ -1215,11 +1225,21 @@ export function ExpensesBudgetPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status.includes('Active') || status.includes('Approved') || status.includes('Uploaded'))
-      return <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">{status}</span>;
-    if (status.includes('Pending') || status.includes('Awaiting'))
-      return <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider animate-pulse">{status}</span>;
-    return <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider">{status}</span>;
+    const value = String(status || '');
+    const pill = (cls: string, pulse = false) => (
+      <span className={`px-2 py-1 ${cls} border rounded-md text-[9px] sm:text-[10px] font-pmedium uppercase tracking-wider${pulse ? ' animate-pulse' : ''}`}>{status}</span>
+    );
+    // Completed / success states first so e.g. "Payment Done - Invoice Pending"
+    // reads as paid rather than pending.
+    if (/paid|done|shared|active|approved|uploaded/i.test(value))
+      return pill('bg-green-50 text-green-700 border-green-200');
+    if (/rejected|failed|cancelled|over budget/i.test(value))
+      return pill('bg-red-50 text-red-700 border-red-200');
+    if (/planned|upcoming|draft/i.test(value))
+      return pill('bg-blue-50 text-blue-700 border-blue-200');
+    if (/pending|awaiting|discuss/i.test(value))
+      return pill('bg-amber-50 text-amber-700 border-amber-200', true);
+    return pill('bg-slate-50 text-slate-600 border-slate-200');
   };
 
   if (!hasLoadedFinanceSnapshot && isLoadingFinance) return <TablePageSkeleton rows={6} columns={6} />;

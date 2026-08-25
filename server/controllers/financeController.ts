@@ -41,15 +41,6 @@ function getUserId(req: Request) {
   return user.id || user._id || user;
 }
 
-async function isManagerOfFinanceDepartment(workspaceId: any, userId: any) {
-  if (!workspaceId || !userId) return false;
-  const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: userId })
-    .populate("departments", "name")
-    .lean()
-    .exec();
-  return (membership?.departments || []).some((d: any) => String(d?.name || "").trim().toLowerCase() === "finance");
-}
-
 export async function getDepartmentFinance(req: Request, res: Response, next: NextFunction) {
   try {
     const workspaceId = getWorkspaceId(req);
@@ -197,16 +188,10 @@ export async function addMonthlyExpense(req: Request, res: Response, next: NextF
 export async function updateMonthlyExpenseStatus(req: Request, res: Response, next: NextFunction) {
   try {
     const workspaceId = getWorkspaceId(req);
+    const userId = getUserId(req);
 
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
-
-    const roleValue = String((req as any).workspaceMembership?.role?.name || (req as any).workspaceMembership?.role || "")
-      .trim().toLowerCase().replace(/[\s-]+/g, "_");
-    const canManageFinancePayments = ["owner", "founder", "super_admin", "admin", "finance_manager", "finance"].includes(roleValue)
-      || (roleValue === "manager" && await isManagerOfFinanceDepartment(workspaceId, getUserId(req)));
-    if (!canManageFinancePayments) {
-      return res.status(403).json({ message: "Only Finance can mark an expense's payment status." });
-    }
+    if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
     const { planId, expenseKey, paymentStatus, actualAmount } = (req.body || {}) as any;
 
@@ -214,8 +199,12 @@ export async function updateMonthlyExpenseStatus(req: Request, res: Response, ne
     if (!expenseKey) return res.status(400).json({ message: "expenseKey is required" });
     if (!paymentStatus) return res.status(400).json({ message: "paymentStatus is required" });
 
+    // Authorization is enforced inside the service: Finance/owner roles have full
+    // control; owning-department members may pay under guardrails (approved budget,
+    // forward-only status, invoice on record, within remaining budget).
     const updated = await updateMonthlyExpenseStatusInternal({
       workspaceId,
+      userId,
       planId,
       expenseKey,
       paymentStatus,
@@ -235,8 +224,10 @@ export async function updateMonthlyExpenseStatus(req: Request, res: Response, ne
 export async function upsertReminder(req: Request, res: Response, next: NextFunction) {
   try {
     const workspaceId = getWorkspaceId(req);
+    const userId = getUserId(req);
 
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
     const { planId, reminder } = (req.body || {}) as any;
 
@@ -245,6 +236,7 @@ export async function upsertReminder(req: Request, res: Response, next: NextFunc
 
     const reminders = await upsertReminderInternal({
       workspaceId,
+      userId,
       planId,
       reminder,
     });
@@ -392,13 +384,15 @@ export async function uploadInvoice(req: Request, res: Response, next: NextFunct
 export async function resetRejectedAnnualBudget(req: Request, res: Response, next: NextFunction) {
   try {
     const workspaceId = getWorkspaceId(req);
+    const userId = getUserId(req);
     const department = String(req.body?.department || "").trim();
     const fiscalYear = String(req.body?.fiscalYear || "").trim();
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
     if (!department) return res.status(400).json({ message: "department is required" });
     if (!fiscalYear) return res.status(400).json({ message: "fiscalYear is required" });
 
-    const result = await resetRejectedAnnualBudgetForDepartmentInternal({ workspaceId, department, fiscalYear });
+    const result = await resetRejectedAnnualBudgetForDepartmentInternal({ workspaceId, userId, department, fiscalYear });
     return res.status(200).json({ success: true, message: "Rejected annual budget reset successfully.", data: result });
   } catch (error) {
     next(error);

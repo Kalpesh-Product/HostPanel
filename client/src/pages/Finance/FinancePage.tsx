@@ -200,6 +200,7 @@ export function FinancePage() {
   const pendingAnnualRequests = annualRequests.filter(isActionableFinanceRequest);
   const visibleAnnualRequests = annualRequests;
   const pendingExtraRequests = extraRequests.filter(isActionableFinanceRequest);
+  const visibleExtraRequests = extraRequests;
   const pendingActions = pendingAnnualRequests.length + pendingExtraRequests.length;
 
   const departmentInvoiceEntries = viewingDeptOverview
@@ -475,7 +476,7 @@ export function FinancePage() {
                         </tr>
                       ))
                     ) : (
-                      pendingExtraRequests.map((req) => (
+                      visibleExtraRequests.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
                             <div className="font-pmedium text-slate-900">{req.department}</div>
@@ -498,7 +499,7 @@ export function FinancePage() {
                         </tr>
                       ))
                     )}
-                    {((approvalSubTab === 'annual' && visibleAnnualRequests.length === 0) || (approvalSubTab === 'extra' && pendingExtraRequests.length === 0)) && (
+                    {((approvalSubTab === 'annual' && visibleAnnualRequests.length === 0) || (approvalSubTab === 'extra' && visibleExtraRequests.length === 0)) && (
                        <tr>
                          <td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium">
                            No items found.

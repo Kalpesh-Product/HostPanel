@@ -6,7 +6,75 @@ import FinanceSnapshot from "../models/FinanceSnapshot.js";
 import AnnualFinanceRequest from "../models/AnnualFinanceRequest.js";
 import ExtraFinanceRequest from "../models/ExtraFinanceRequest.js";
 import { TenantCompany } from "../models/TenantCompany.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 import { parseFiscalYearRange } from "../utils/fiscalYear.js";
+
+// Roles that oversee all departments (owner-side / finance-side) and are exempt
+// from the own-department restriction on department finance mutations.
+const DEPARTMENT_FINANCE_PRIVILEGED_ROLES = new Set([
+  "owner",
+  "founder",
+  "super_admin",
+  "admin",
+  "finance_manager",
+  "finance",
+]);
+
+function normalizeFinanceRoleName(value: any) {
+  const raw = typeof value === "string" ? value : value?.name;
+  return safeString(raw).trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+async function getFinanceActorMembership(workspaceId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) {
+  const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: userId })
+    .populate("departments", "name")
+    .populate("role", "name")
+    .lean()
+    .exec();
+  if (!membership) {
+    throw Object.assign(new Error("Workspace membership not found."), { statusCode: 403 });
+  }
+  return membership;
+}
+
+function getOwnDepartmentKeys(membership: any) {
+  return ((membership?.departments || []) as any[])
+    .map((d) => normalizeDepartmentKey(safeString(d?.name)))
+    .filter(Boolean);
+}
+
+function canManageAllFinancePayments(membership: any) {
+  const role = normalizeFinanceRoleName(membership?.role);
+  if (DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(role)) return true;
+  // A generic Manager assigned to the Finance department acts as finance staff.
+  if (role !== "manager") return false;
+  return getOwnDepartmentKeys(membership).some((key) => key.includes("finance"));
+}
+
+async function assertActorOwnsDepartment(
+  workspaceId: mongoose.Types.ObjectId,
+  userId: mongoose.Types.ObjectId,
+  department: string
+) {
+  const membership = await getFinanceActorMembership(workspaceId, userId);
+  if (DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(membership.role))) return;
+
+  const targetKey = normalizeDepartmentKey(safeString(department));
+  if (!targetKey || !getOwnDepartmentKeys(membership).includes(targetKey)) {
+    throw Object.assign(new Error("You can only manage finance records for your own department."), { statusCode: 403 });
+  }
+}
+
+// Forward-only payment lifecycle used to gate department-managed payments.
+const PAYMENT_STATUS_RANKS = ["planned", "payment pending", "payment done - invoice pending", "invoice shared"];
+
+function getPaymentStatusRank(value: string) {
+  const v = safeString(value).toLowerCase();
+  if (v.includes("shared")) return 3;
+  if (v.includes("done") || v.includes("paid")) return 2;
+  if (v.includes("pending")) return 1;
+  return 0;
+}
 
 function asObjectId(value: any): mongoose.Types.ObjectId | null {
   try {
@@ -247,9 +315,12 @@ export async function getDepartmentFinanceForManagerInternal(input: {
 
 export async function resetRejectedAnnualBudgetForDepartmentInternal(input: {
   workspaceId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   department: string;
   fiscalYear: string;
 }) {
+  await assertActorOwnsDepartment(input.workspaceId, input.userId, input.department);
+
   const plan = await DepartmentFinancePlan.findOne({
     workspaceId: input.workspaceId,
     department: input.department,
@@ -305,6 +376,8 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
     notes = "",
     monthlyPlan = [],
   } = input;
+
+  await assertActorOwnsDepartment(workspaceId, userId, department);
 
   const existing = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
   const existingAnnualRequest = existing
@@ -505,6 +578,7 @@ export async function addMonthlyExpenseInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
 
   // ExpenseKey uniqueness should be per workspace+month+plan; model has unique on (workspaceId, expenseKey)
   const expenseKey = `EXP-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -588,6 +662,7 @@ export async function addMonthlyExpenseInternal(input: {
 
 export async function updateMonthlyExpenseStatusInternal(input: {
   workspaceId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   planId: mongoose.Types.ObjectId;
   expenseKey: string;
   paymentStatus: string;
@@ -598,6 +673,14 @@ export async function updateMonthlyExpenseStatusInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+
+  const membership = await getFinanceActorMembership(workspaceId, input.userId);
+
+  // Segregation of duties (matches UnitFlow): only finance-side roles execute
+  // payments. Departments request and document; Finance pays.
+  if (!canManageAllFinancePayments(membership)) {
+    throw Object.assign(new Error("Only Finance can mark an expense's payment status."), { statusCode: 403 });
+  }
 
   const expense = await FinanceExpense.findOne({ workspaceId, planId, expenseKey }).exec();
   if (!expense) throw Object.assign(new Error("Expense not found."), { statusCode: 404 });
@@ -618,6 +701,7 @@ export async function updateMonthlyExpenseStatusInternal(input: {
 
 export async function upsertReminderInternal(input: {
   workspaceId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   planId: mongoose.Types.ObjectId;
   reminder: {
     id: string;
@@ -631,6 +715,8 @@ export async function upsertReminderInternal(input: {
   const { planId, reminder } = input;
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
+  if (String((plan as any).workspaceId) !== String(input.workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  await assertActorOwnsDepartment(input.workspaceId, input.userId, safeString((plan as any).department));
 
   if (!Array.isArray(plan.reminders)) plan.reminders = [];
   const idx = plan.reminders.findIndex((r: any) => String(r.id) === String(reminder.id));
@@ -696,7 +782,9 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     plan = await DepartmentFinancePlan.findById(planId).exec();
     if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
     if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+    await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
   } else {
+    await assertActorOwnsDepartment(workspaceId, input.userId, department);
     plan = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
     if (!plan) {
       // create minimal empty plan (Phase1 already creates via POST budget-request, but import should also be able to bootstrap)
@@ -881,6 +969,7 @@ export async function submitVendorForDepartmentInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
 
   const vendorKey = vendorId || `VND-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Math.floor(Math.random() * 900) + 100}`;
 
@@ -1015,6 +1104,7 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
     throw Object.assign(new Error("Submit the annual budget before requesting an extra budget."), { statusCode: 409 });
   }
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
 
   const expenseKey = `EXP-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -1141,22 +1231,35 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
 
   const invoiceUrl = safeString(payload?.invoiceUrl || payload?.invoiceFile || "", "");
   const invoicePublicId = safeString(payload?.invoicePublicId || "", "");
   const invoiceFile = safeString(payload?.invoiceFile || "", "");
 
+  // Uploading an invoice only completes the lifecycle once the expense is
+  // already paid ("Payment Done - Invoice Pending" -> "Invoice Shared"). For a
+  // department paying invoice-first, keep the pending/planned status so the
+  // subsequent "mark paid" transition stays forward.
+  const existingExpense = await FinanceExpense.findOne({ workspaceId, planId, expenseKey, monthKey: monthKey || undefined })
+    .select("paymentStatus")
+    .lean()
+    .exec();
+  if (!existingExpense) throw Object.assign(new Error("Expense not found for invoice upload."), { statusCode: 404 });
+
+  const invoiceSet: Record<string, unknown> = {
+    invoiceNumber,
+    invoiceFile,
+    invoiceUrl,
+    invoicePublicId,
+  };
+  if (getPaymentStatusRank(safeString((existingExpense as any).paymentStatus)) >= 2) {
+    invoiceSet.paymentStatus = "Invoice Shared";
+  }
+
   const updated = await FinanceExpense.findOneAndUpdate(
     { workspaceId, planId, expenseKey, monthKey: monthKey || undefined },
-    {
-      $set: {
-        invoiceNumber,
-        invoiceFile,
-        invoiceUrl,
-        invoicePublicId,
-        paymentStatus: "Invoice Shared",
-      },
-    },
+    { $set: invoiceSet },
     { new: true }
   ).exec();
 
@@ -1193,6 +1296,7 @@ export async function sendReminderForDepartmentInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
 
   let resolvedMessage = message;
   if (!resolvedMessage && expenseKey) {
