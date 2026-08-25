@@ -103,6 +103,43 @@ function normalizeExpenseTag(tag: string) {
   return t || "add-on";
 }
 
+// ─── Imported-month normalization ────────────────────────────────────────────
+// Excel stores dates as day-counts since 1900 (46113 = 2026-04-01), so bulk
+// uploads often leak those serials in as monthKey. Convert every known shape
+// ("46113", "April", "Sep", "apr") to the canonical fiscal key + readable label.
+const FISCAL_MONTH_KEYS = ["apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec", "jan", "feb", "mar"];
+const FISCAL_MONTH_LABELS = [
+  "April", "May", "June", "July", "August", "September",
+  "October", "November", "December", "January", "February", "March",
+];
+
+function resolveImportedMonth(raw: string): { key: string; label: string } | null {
+  const value = safeString(raw);
+  if (!value) return null;
+  const lower = value.toLowerCase();
+
+  // Already a fiscal month key ("apr")
+  const directKey = FISCAL_MONTH_KEYS.indexOf(lower);
+  if (directKey >= 0) return { key: lower, label: FISCAL_MONTH_LABELS[directKey] };
+
+  // Month name ("April", "SEP", "september") possibly with a year attached
+  const nameIndex = FISCAL_MONTH_LABELS.findIndex(
+    (label) => lower.includes(label.toLowerCase()) || lower.includes(label.slice(0, 3).toLowerCase())
+  );
+  if (nameIndex >= 0) return { key: FISCAL_MONTH_KEYS[nameIndex], label: FISCAL_MONTH_LABELS[nameIndex] };
+
+  // Excel serial date (roughly 1954-2064 range)
+  if (/^\d{4,6}$/.test(lower)) {
+    const serial = Number(lower);
+    if (serial >= 20000 && serial <= 60000) {
+      const utcDate = new Date(Math.round((serial - 25569) * 86400 * 1000));
+      const index = (utcDate.getUTCMonth() - 3 + 12) % 12; // fiscal year starts April
+      return { key: FISCAL_MONTH_KEYS[index], label: `${FISCAL_MONTH_LABELS[index]} ${utcDate.getUTCFullYear()}` };
+    }
+  }
+  return null;
+}
+
 function ensureMonthlyPlanEntry(plan: any, month: { month: string; monthKey: string; displayOrder?: number }) {
   const monthKeyNorm = normalizeMonthKey(month.monthKey || month.month);
   const monthNameNorm = normalizeMonthKey(month.month);
@@ -825,13 +862,16 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     const grouped = new Map<string, any>();
     for (const row of payload.records) {
       const month = safeString(row?.month ?? row?.Month ?? row?.MONTH, "");
-      const monthKey = safeString(row?.monthKey ?? row?.["Month Key"] ?? month, "");
-      if (!monthKey) continue;
+      const rawMonthKey = safeString(row?.monthKey ?? row?.["Month Key"] ?? month, "");
+      if (!rawMonthKey) continue;
+      const resolvedMonth = resolveImportedMonth(rawMonthKey) ?? resolveImportedMonth(month);
+      const monthKey = resolvedMonth?.key ?? rawMonthKey;
+      const monthLabel = resolvedMonth?.label ?? (month || rawMonthKey);
       if (!grouped.has(normalizeMonthKey(monthKey))) {
         grouped.set(normalizeMonthKey(monthKey), {
-          month: month || monthKey,
+          month: monthLabel,
           monthKey,
-          title: safeString(row?.budgetTitle ?? row?.["Budget Title"] ?? row?.title ?? row?.Title, month || monthKey),
+          title: safeString(row?.budgetTitle ?? row?.["Budget Title"] ?? row?.title ?? row?.Title, monthLabel),
           expenses: [],
         });
       }
@@ -886,8 +926,10 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
   }
 
   for (const m of monthlyEntries) {
-    const monthKey = safeString(m?.monthKey || m?.month || "", "");
-    const month = safeString(m?.month || m?.title || monthKey, "");
+    const rawKey = safeString(m?.monthKey || m?.month || "", "");
+    const resolvedMonth = resolveImportedMonth(rawKey) ?? resolveImportedMonth(safeString(m?.month || "", ""));
+    const monthKey = resolvedMonth?.key ?? rawKey;
+    const month = resolvedMonth?.label ?? safeString(m?.month || m?.title || monthKey, "");
     if (!monthKey || !month) continue;
 
     const expenses = Array.isArray(m?.expenses) ? m.expenses : [];

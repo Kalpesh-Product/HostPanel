@@ -362,15 +362,18 @@ export function DepartmentFinancePageV2() {
     );
   }, [monthlyExpenses, searchQuery]);
 
+  // Savings only makes sense for expenses that actually happened. Counting
+  // unbought future items as "saved" inflated the card beyond the whole budget.
   const totalSavings = useMemo(
     () =>
       monthlyExpenses.reduce(
         (sum, m) =>
           sum +
-          (m.expenses || []).reduce(
-            (s, e) => s + Math.max(0, Number(e.projectedAmount || 0) - Number(e.actualSpent || 0)),
-            0,
-          ),
+          (m.expenses || []).reduce((s, e) => {
+            const status = String(e.paymentStatus || e.status || '').toLowerCase();
+            const realized = /paid|done|shared/.test(status) || Number(e.actualSpent || 0) > 0;
+            return realized ? s + Math.max(0, Number(e.projectedAmount || 0) - Number(e.actualSpent || 0)) : s;
+          }, 0),
         0,
       ),
     [monthlyExpenses],
@@ -1299,13 +1302,12 @@ export function DepartmentFinancePageV2() {
                         <Fragment key={month.monthKey || month.month}>
                           <tr className="hover:bg-blue-50/30 transition-all align-top">
                             <td className="px-5 py-4">
-                              <div className="flex items-start gap-2.5 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0"><Building2 size={14} /></div>
                                 <div className="min-w-0">
                                   <div className="font-pmedium text-slate-900 leading-tight truncate">
                                     {monthLabels[month.monthKey] || month.month}{month.title ? ` (${month.title})` : ''}
                                   </div>
-                                  <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">{month.monthKey}</div>
                                 </div>
                               </div>
                             </td>
