@@ -8,6 +8,9 @@ export interface BasicPageTour {
   // When false the tour never starts automatically once its page loads;
   // it only runs from the Guide button. Defaults to true when omitted.
   autoStart?: boolean;
+  // When true the walkthrough ends on a step that highlights the page's
+  // Guide button so users learn they can replay the tour from there.
+  replayHint?: boolean;
   steps?: BasicPageTourStep[];
 }
 
@@ -22,6 +25,10 @@ export interface BasicPageTourStep {
   selector?: string;
   text?: string;
   exactText?: boolean;
+  // When true the step needs no highlighted element and its popover renders
+  // centered on screen. Use for pure explanations, e.g. a form that only
+  // exists inside a modal the tour cannot open.
+  textOnly?: boolean;
   // Popover placement relative to the highlighted element. Defaults to "bottom"/"start".
   // Override to "top" for elements that sit at the very bottom of a page, where a
   // bottom-side popover would have no room and render off-screen.
@@ -223,15 +230,27 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-website-careers",
-    version: 2,
+    version: 3,
     title: "Website careers",
-    description: "Manage job openings shown on your website careers page and control their publishing status.",
+    description: "Publish job openings to your website's careers page and manage the applications they receive. Switch to a tab, then select Guide — the walkthrough follows whichever tab is open.",
+    replayHint: true,
     steps: [
-      { selector: '[data-tour="page-content"] h2, [data-tour="page-content"] h1', title: "Careers management", description: "This page manages the job openings that appear on your website careers page. Create openings, set their details, and publish them to make them visible to job seekers." },
-      { text: "JOB OPENINGS", exactText: true, title: "Job openings list", description: "Shows all roles managed for your hosted careers page, including their vacancy count and current publishing status. Each opening can be viewed, edited, published, or closed." },
-      { selector: 'input[placeholder="Search by title, department..."]', title: "Search openings", description: "Find a specific job opening by its role title or department name." },
-      { text: "PUBLISH JOB", title: "Publish a job opening", description: "Opens the complete job form where you fill in the role title, department, description, and vacancies. Toggle Publish to Website to make the finished opening appear on your live careers page." },
-      { text: "Edit", exactText: true, title: "Edit an opening", description: "Loads the selected job into the form so you can update its role details, vacancies, description, and website publishing status." },
+      { selector: '[data-tour="hr-recruit-tabs"]', title: "Openings and applications", description: "Job Openings manages the roles shown on your live careers page. Applications collects everything candidates submit against those openings." },
+
+      // ── Job Openings tab ──
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-summary"]', title: "Openings at a glance", description: "Total Jobs counts every listing, Active shows currently open ones, Total Vacancies tallies all open slots, and Filled tracks slots closed by hiring." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-status-filters"]', title: "Filter job listings", description: "Switch between All, Active, and Inactive to focus on live roles or paused listings." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-search"]', title: "Find a job opening", description: "Search by job title, department, or job code to locate a specific listing quickly." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-add-btn"]', title: "Post a new opening", description: "Fill in role title, department, vacancies, and description, then toggle Publish to Website to make it appear on your live careers page.", side: "left" },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-bulk-upload"]', title: "Bulk upload jobs", description: "Import multiple openings at once using a CSV file — one job per row with title, department, employment type, and vacancy count.", side: "left" },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-export-btns"]', title: "Export listings", description: "Download the current job listings as a PDF or Excel file for offline review or sharing." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-table"]', title: "Published openings", description: "Each row shows the role, code, department, open slots versus filled, active/inactive toggle, and website posting status. Toggle Website Status to post or remove a listing from your live careers page.", side: "top" },
+
+      // ── Applications tab ──
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-summary"]', title: "Application numbers", description: "Total counts every applicant from your careers page, Selected highlights hires awaiting conversion, Onboarded tracks completed conversions, and In Screening flags applicants not yet reviewed." },
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-status-filters"]', title: "Filter by stage", description: "Narrow applications to All, Screening, Interview Scheduled, Interviewed, or Selected to focus on one hiring stage." },
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-search"]', title: "Find an applicant", description: "Search by applicant name or the position they applied for." },
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-table"]', title: "Applications and actions", description: "Each application shows the candidate, position applied for, source, and a status dropdown to advance them through the pipeline. Open full details with the eye action; the convert action appears once a candidate is Selected.", side: "top" },
     ],
     matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/dynamic\/careers\/?$/.test(path),
   },
@@ -326,34 +345,37 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-organization",
-    version: 1,
+    version: 7,
     title: "Organization management",
     description: "Manage the two people available on the Basic plan: the workspace Founder and one additional Super Admin.",
     formDescription: "Invite the one permitted Super Admin using a valid name and email address. Department management and other member roles are not included in Basic.",
     recordsDescription: "Review the Founder and Super Admin, their invitation or account status, and whether workspace access is enabled.",
+    replayHint: true,
     steps: [
       { selector: '[data-tour="organization-users-tab"]', title: "Platform users only", description: "Basic workspaces use this single member view. Department creation and department management are not part of the Basic plan." },
+      { selector: '[data-tour="organization-status-filters"]', title: "Follow invitation and account status", description: "Switch between all, invited, registered, pending, joined, and disabled users to see where the additional user is in the onboarding process." },
+      { selector: '[data-tour="organization-search"]', title: "Find a platform user", description: "Search the visible member list by name or email." },
+      { selector: '[data-tour="organization-department-filter"]', title: "Filter by department or role", description: "Narrow the member list to one workspace role. Department choices apply to higher plans." },
       { selector: '[data-tour="organization-basic-user-limit"]', title: "Your two-user limit", description: "The Founder is the first user. Basic permits one additional Super Admin, so the workspace can contain two users in total. This counter shows whether that additional place has been used." },
       { selector: '[data-tour="organization-add-user"]', title: "Invite the Super Admin", description: "Select Add User to enter the additional user’s name and email. Their role is fixed to Super Admin on Basic. After that one invitation or member exists, this button is disabled because the plan limit has been reached." },
-      { selector: '[data-tour="organization-status-filters"]', title: "Follow invitation and account status", description: "Switch between all, invited, registered, pending, joined, and disabled users to see where the additional user is in the onboarding process." },
-      { selector: '[data-tour="organization-search"]', title: "Find a platform user", description: "Search the visible member list. The nearby role filter can narrow the list, although Basic normally contains only the Founder and Super Admin." },
-      { selector: '[data-tour="organization-members-table"]', title: "Manage member access", description: "Each row shows identity, role, status, access, and the View Details action. The access switch enables or disables the Super Admin’s workspace login; protected Founder and self-access controls remain locked." },
+      { selector: '[data-tour="organization-members-table"]', title: "Manage member access", description: "Each row shows identity, role, status, access, and the View Details action. The access switch enables or disables the Super Admin’s workspace login; protected Founder and self-access controls remain locked.", side: "top" },
     ],
     matches: exact("/company-settings/organization-management"),
   },
   {
     id: "basic-access-grants",
-    version: 1,
+    version: 8,
     title: "Access grants",
     description: "Review the Basic modules available to the Founder and the one additional Super Admin, then control the Super Admin’s sidebar access.",
     recordsDescription: "The list shows the Basic workspace users, their role and account state, plus the access actions available for each account.",
+    replayHint: true,
     steps: [
       { selector: '[data-tour="access-grants-summary"]', title: "Basic member overview", description: "These cards summarize the workspace users by role. A Basic workspace normally has one Founder and up to one Super Admin; Admin, Manager, and Employee roles are not added on this plan." },
       { selector: '[data-tour="access-grants-status-filters"]', title: "Filter by access state", description: "All shows every workspace user. Active shows users who can enter the workspace, while Disabled shows accounts whose workspace access has been turned off." },
       { selector: '[data-tour="access-grants-search"]', title: "Find a user", description: "Search by name or email to locate the Founder or Super Admin. Department text is also searchable on plans that include departments." },
       { selector: '[data-tour="access-grants-role-filter"]', title: "Filter by role", description: "Use the role filter to focus on the Founder or Super Admin. The other role choices apply to higher plans and will normally have no Basic users." },
-      { selector: '[data-tour="access-grants-table"]', title: "Review granted access", description: "The table shows each user’s identity, current role, department scope, status, and available actions. The Founder row is protected; management actions appear for the additional Super Admin." },
-      { selector: '[data-tour="access-grants-actions"]', title: "Understand the action buttons", description: "For the Super Admin, the shield button opens Sidebar Access so you can enable or remove only modules available to Basic, then save the selection. The user-and-cog button opens role and ownership details. Buttons stay disabled or hidden when your account is not authorized." },
+      { selector: '[data-tour="access-grants-transfer"]', title: "Transfer ownership", description: "Appears only when an eligible member exists and you are in your main unit. Opens the handoff that makes another member the workspace Founder." },
+      { selector: '[data-tour="access-grants-table"]', title: "Review granted access", description: "The list shows each user’s identity, current role, department scope, status, and row actions. The Founder row is protected. For the Super Admin, the shield action opens Sidebar Access limited to Basic modules, and the user-and-cog action opens role and ownership details.", side: "top" },
     ],
     matches: exact("/company-settings/access-grants"),
   },
@@ -455,15 +477,50 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     description: "Register visitors, monitor expected arrivals, and open the records and reports needed by reception.",
     recordsDescription: "The visitor overview shows current activity and provides actions for managing each visit.",
     steps: [
-      { text: "DAILY VISITORS", title: "Daily visitors", description: "Shows today’s visitor workflow. The count identifies active tracked visitors, and the status subtabs separate pending, approved, checked-in, checked-out, and rejected records." },
-      { text: "VISITOR HISTORY", exactText: true, title: "Visitor history", description: "Switches to older visitor activity. Month and year selectors appear here so past records can be reviewed." },
-      { text: "BOOKINGS", exactText: true, title: "Bookings", description: "Shows walk-in meeting-room bookings with upcoming, in-progress, completed, and cancelled states when this tab is available." },
-      { text: "CLIENTS", exactText: true, title: "Clients", description: "Shows walk-in clients and visitors converted into reusable client records for future bookings." },
+      { selector: '[data-tour="visitors-tab-daily"]', title: "Daily visitors", description: "Shows today’s visitor workflow. The count identifies active tracked visitors, and the status subtabs separate pending, approved, checked-in, checked-out, and rejected records." },
+      { selector: '[data-tour="visitors-tab-history"]', title: "Visitor history", description: "Switches to older visitor activity. Month and year selectors appear here so past records can be reviewed." },
+      { selector: '[data-tour="visitors-tab-bookings"]', title: "Bookings", description: "Shows walk-in meeting-room bookings with upcoming, in-progress, completed, and cancelled states when this tab is available." },
+      { selector: '[data-tour="visitors-tab-clients"]', title: "Clients", description: "Shows walk-in clients and visitors converted into reusable client records for future bookings." },
       { selector: 'input[placeholder="Search records..."]', title: "Search current records", description: "Searches only the records in the currently selected visitor tab and status view." },
       { text: "NEW FRONTDESK ACTION", title: "Start a frontdesk action", description: "Opens the frontdesk flow. Choose the appropriate action to register a standard visitor, process a tour, or create a walk-in booking; permissions control which options are available." },
       { selector: '[data-tour="page-content"] table', title: "Record actions", description: "Use row actions to inspect records and, when allowed by status and permission, approve, check in, print a badge, check out, reschedule, extend, or cancel." },
     ],
     matches: (path) => /^\/visitors(?:\/(visitor-management|dashboard))?$/.test(path),
+  },
+  {
+    id: "basic-leave-requests",
+    version: 2,
+    title: "Leave management",
+    description: "Apply for your own leave and review the request queues you are authorized to action. Switch to a tab, then select Guide — the walkthrough follows whichever tab is open.",
+    recordsDescription: "Use the available search, filters, and row actions to work with these leave records.",
+    replayHint: true,
+    steps: [
+      // 1. Tabs
+      { selector: '[data-tour="leaves-tabs"]', title: "Leave queues", description: "Move between your personal leaves and the approval or overview queues included for your role. The guide follows the tab you have open." },
+      // 2. Cards
+      { selector: '[data-tour="leaves-summary"]', title: "Counts at a glance", description: "These cards summarize the open tab — such as pending, approved, and rejected requests or time-off totals." },
+      // 3. Sub-tabs
+      { selector: '[data-tour="leaves-status-filters"]', tabPage: "my-leaves", title: "Status sub-tabs", description: "Separate your own requests into all, pending, approved, or rejected." },
+      { selector: '[data-tour="leaves-status-filters"]', tabPage: "leave-requests", title: "Status sub-tabs", description: "Separate incoming requests into all, pending, approved, or rejected so you can action what matters first." },
+      // 4. Search bar
+      { selector: '[data-tour="leaves-search"]', title: "Search bar", description: "Find requests faster by employee name within the currently selected queue." },
+      // 5–7. MY LEAVES: button, form, table
+      { selector: '[data-tour="leaves-apply-btn"]', tabPage: "my-leaves", title: "Apply for leave", description: "Opens your leave application form." },
+      { tabPage: "my-leaves", textOnly: true, title: "The leave form", description: "Choose the leave type, start and end dates, and duration mode, attach any supporting document such as a medical certificate, then submit it for approval. You can track its state from this tab afterwards." },
+      { selector: '[data-tour="leaves-table"]', tabPage: "my-leaves", title: "Your leave history", description: "Each row shows type, dates, duration, current status, and who actioned it. Open a request to view its complete details.", side: "top" },
+      // LEAVE REQUESTS (approval queue) table
+      { selector: '[data-tour="leaves-table"]', tabPage: "leave-requests", title: "Review team requests", description: "Each row shows the employee, department, leave type, dates, and status. Open a pending request to approve it or reject it with a reason.", side: "top" },
+      // COMPANY LEAVES: search → filters → table
+      { selector: '[data-tour="leaves-department-filter"]', tabPage: "company-leaves", title: "Department filter", description: "Focus company-wide leave activity on a single department." },
+      { selector: '[data-tour="leaves-status-select"]', tabPage: "company-leaves", title: "Status filter", description: "Show every record or focus on pending, approved, or rejected leave across the workspace." },
+      { selector: '[data-tour="leaves-table"]', tabPage: "company-leaves", title: "Company-wide activity", description: "Review who is away, for how long, and who approved it. Use the eye action on any row to inspect the complete record.", side: "top" },
+      // ASSIGNED DEPT LEAVES: search → filters → cards → table
+      { selector: '[data-tour="leaves-department-filter"]', tabPage: "assigned-dept-leaves", title: "Department filter", description: "Narrow the overview to one of the departments assigned to you." },
+      { selector: '[data-tour="leaves-status-select"]', tabPage: "assigned-dept-leaves", title: "Status filter", description: "Show every record or focus on pending, approved, or rejected leave in your departments." },
+      { selector: '[data-tour="leaves-department-cards"]', tabPage: "assigned-dept-leaves", title: "Absence overview", description: "These cards show how many people are on leave today in each department so staffing gaps stay visible." },
+      { selector: '[data-tour="leaves-table"]', tabPage: "assigned-dept-leaves", title: "Department leave records", description: "Review leave across your assigned departments and open any record for its complete details.", side: "top" },
+    ],
+    matches: exact("/leave-requests"),
   },
   {
     id: "basic-attendance",
@@ -629,18 +686,32 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-hr-employee-management",
-    version: 1,
+    version: 2,
     autoStart: false,
     title: "Company Management",
     description: "The HR hub for employee records — onboard staff, manage profiles and access, and maintain company SOPs, policies, and birthday lists.",
     steps: [
-      { selector: '[data-tour="hr-emp-tabs"]', title: "Company areas", description: "Employees holds the staff directory. Company SOP and Policies store shared documents, and Birthdays lists month-wise celebrations." },
-      { selector: '[data-tour="hr-emp-summary"]', title: "Workforce totals", description: "Headline counts for your workforce — total employees plus how many are currently active or otherwise." },
-      { selector: '[data-tour="hr-emp-status-filters"]', title: "Filter by status", description: "Focus the directory on All, Active, Inactive, or Terminated employees." },
-      { selector: '[data-tour="hr-emp-department-filter"]', title: "Filter by department and role", description: "Narrow the list to one department, then further by role when both filters are visible." },
-      { selector: '[data-tour="hr-emp-search"]', title: "Search employees", description: "Find people by name or email. Results update as you type." },
-      { selector: '[data-tour="hr-emp-add-btn"]', title: "Add an employee", description: "Opens the onboarding form for personal details, job information, salary CTC, documents, and bank details. Saving creates the profile and sends an invite.", side: "left" },
-      { selector: '[data-tour="hr-emp-table"]', title: "Directory and row actions", description: "Each row shows ID, role, department, and employment status. Use row actions to edit profiles, manage sidebar module access, or review transferred-in employees listed below.", side: "top" },
+      { selector: '[data-tour="hr-emp-tabs"]', title: "Company areas", description: "Switch between Employee Management, Company SOP, Company Policies, and Month-wise Birthdays. Select Guide after opening a tab to get the steps for that area." },
+      { tabPage: "employees", selector: '[data-tour="hr-emp-summary"]', title: "Workforce totals", description: "Headline counts for your workforce — total employees plus how many are currently active or otherwise." },
+      { tabPage: "employees", selector: '[data-tour="hr-emp-status-filters"]', title: "Filter by status", description: "Focus the directory on All, Active, Inactive, or Terminated employees." },
+      { tabPage: "employees", selector: '[data-tour="hr-emp-department-filter"]', title: "Filter by department and role", description: "Narrow the list to one department, then further by role when both filters are visible." },
+      { tabPage: "employees", selector: '[data-tour="hr-emp-search"]', title: "Search employees", description: "Find people by name or email. Results update as you type." },
+      { tabPage: "employees", selector: '[data-tour="hr-emp-add-btn"]', title: "Add an employee", description: "Opens the onboarding form for personal details, job information, salary CTC, documents, and bank details. Saving creates the profile and sends an invite.", side: "left" },
+      { tabPage: "employees", selector: '[data-tour="hr-emp-table"]', title: "Directory and row actions", description: "Each row shows ID, role, department, and employment status. Use row actions to edit profiles, manage sidebar module access, or review transferred-in employees listed below.", side: "top" },
+      { tabPage: "sop", selector: '[data-tour="hr-company-doc-summary"]', title: "Company SOP totals", description: "See total, active, and inactive SOP documents shared across the whole workspace." },
+      { tabPage: "sop", selector: '[data-tour="hr-company-doc-status-filters"]', title: "Filter SOP status", description: "Switch between all, active, and inactive SOPs to audit what employees can currently access." },
+      { tabPage: "sop", selector: '[data-tour="hr-company-doc-search"]', title: "Search SOPs", description: "Find a company SOP by document name. Results update as you type." },
+      { tabPage: "sop", selector: '[data-tour="hr-company-doc-add-btn"]', title: "Add company SOP", description: "Upload a PDF SOP with a clear document name. Founder, super admin, and HR managers can manage these files.", side: "left" },
+      { tabPage: "sop", selector: '[data-tour="hr-company-doc-table"]', title: "SOP list and actions", description: "Open the SOP PDF from the name column, or use row actions to rename, replace, deactivate, or reactivate documents.", side: "top" },
+      { tabPage: "policies", selector: '[data-tour="hr-company-doc-summary"]', title: "Company policy totals", description: "See total, active, and inactive policy documents shared across the whole workspace." },
+      { tabPage: "policies", selector: '[data-tour="hr-company-doc-status-filters"]', title: "Filter policy status", description: "Switch between all, active, and inactive policies to audit what employees can currently access." },
+      { tabPage: "policies", selector: '[data-tour="hr-company-doc-search"]', title: "Search policies", description: "Find a company policy by document name. Results update as you type." },
+      { tabPage: "policies", selector: '[data-tour="hr-company-doc-add-btn"]', title: "Add company policy", description: "Upload a PDF policy with a clear document name. Founder, super admin, and HR managers can manage these files.", side: "left" },
+      { tabPage: "policies", selector: '[data-tour="hr-company-doc-table"]', title: "Policy list and actions", description: "Open the policy PDF from the name column, or use row actions to rename, replace, deactivate, or reactivate documents.", side: "top" },
+      { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-summary"]', title: "Birthday totals", description: "Track all recorded birthdays, this month's count, today's celebrations, and upcoming birthdays." },
+      { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-month-filter"]', title: "Month-wise filter", description: "Select All or a specific month to review birthdays month by month." },
+      { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-search"]', title: "Search birthdays", description: "Find employees by name, email, employee ID, or department inside the selected month." },
+      { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-table"]', title: "Birthday list", description: "Each row shows employee details, date of birth, age, birthday date, and whether the celebration is today, upcoming, or completed.", side: "top" },
     ],
     matches: exact("/hr/company-management"),
   },
@@ -660,18 +731,30 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-hr-attendance-review",
-    version: 1,
+    version: 2,
     autoStart: false,
     title: "Attendance Review",
     description: "Monitor company-wide attendance, configure clocking rules, resolve correction requests, and drill into any employee's month.",
     steps: [
-      { selector: '[data-tour="hr-attendance-tabs"]', title: "Review areas", description: "Attendance Master shows each employee's daily punches; Corrections lists change requests raised by staff for you to approve or reject." },
-      { selector: '[data-tour="hr-attendance-summary"]', title: "Attendance counts", description: "Totals for the active tab — present, absent, late, and leave figures across the company." },
-      { selector: '[data-tour="hr-attendance-status-filters"]', title: "Filter by status", description: "Switch between all records, present, absent, late, and other states relevant to the tab you are on." },
-      { selector: '[data-tour="hr-attendance-date-filter"]', title: "Pick the date range", description: "Jump between Today and This Month, or choose Custom Range to review any period." },
-      { selector: '[data-tour="hr-attendance-settings-btn"]', title: "Attendance settings", description: "Configure clock-in rules — geofence locations, allowed distance, shift timings, and grace periods.", side: "left" },
-      { selector: '[data-tour="hr-attendance-search"]', title: "Search records", description: "Find an employee in the master view, or locate a specific correction request." },
-      { selector: '[data-tour="hr-attendance-table"]', title: "Records and actions", description: "Open any employee to see their full month — timeline, breaks, hours, and clock selfies. Correction rows can be approved or rejected with a reason.", side: "top" },
+      // ── Shared: tabs ──
+      { selector: '[data-tour="hr-attendance-tabs"]', title: "Switch between tabs", description: "Attendance Master shows each employee's daily punches across the company. Correction Requests lists change requests raised by staff for you to approve or reject." },
+
+      // ── Attendance Master tab ──
+      { tabPage: "attendance-master", selector: '[data-tour="hr-attendance-summary"]', title: "Workforce snapshot", description: "Total Employees counts everyone in the directory, Present shows who clocked in today, Late flags delayed arrivals, and Absent highlights missing punches." },
+      { tabPage: "attendance-master", selector: '[data-tour="hr-attendance-status-filters"]', title: "Filter by attendance state", description: "Switch between All, Present, Late, Absent, and Half-Day to focus on specific attendance patterns." },
+      { tabPage: "attendance-master", selector: '[data-tour="hr-attendance-date-filter"]', title: "Pick the date range", description: "Jump between Today and This Month, or choose Custom Range to review any period." },
+      { tabPage: "attendance-master", selector: '[data-tour="hr-attendance-search"]', title: "Find an employee", description: "Search by name or employee ID to locate someone in the master roster." },
+      { tabPage: "attendance-master", selector: '[data-tour="hr-attendance-settings-btn"]', title: "Attendance settings", description: "Configure clock-in rules — geofence locations, allowed distance, shift timings, and grace periods.", side: "left" },
+      { tabPage: "attendance-master", selector: '[data-tour="hr-attendance-table"]', title: "Employee rows", description: "Each row shows employee ID, name, department, role, shift, date, check-in and check-out times, status, and hours worked. The eye button opens their full monthly detail view with timeline, breaks, and clock selfies.", side: "top" },
+
+      // ── Correction Requests tab ──
+      { tabPage: "correction-requests", selector: '[data-tour="hr-attendance-summary"]', title: "Correction request counts", description: "Total Requests counts all submissions, Pending highlights items awaiting your decision, Approved shows accepted fixes, and Rejected tracks denied requests." },
+      { tabPage: "correction-requests", selector: '[data-tour="hr-attendance-status-filters"]', title: "Filter by request state", description: "Switch between All, Pending, Approved, and Rejected to focus on requests that need action or review past decisions." },
+      { tabPage: "correction-requests", selector: '[data-tour="hr-attendance-date-filter"]', title: "Pick the date range", description: "Narrow correction requests to a specific day, the current month, or a custom period." },
+      { tabPage: "correction-requests", selector: '[data-tour="hr-attendance-search"]', title: "Find a request", description: "Locate a correction by employee name when reviewing specific cases." },
+      { tabPage: "correction-requests", selector: '[data-tour="hr-attendance-table"]', title: "Correction rows and actions", description: "Each row shows the employee, department, attendance date, submission date, current punch times versus requested times, and status. The eye button opens a detail modal where you can approve or reject pending corrections with a reason.", side: "top" },
+
+      // ── Detail view (separate page, always shown) ──
       { selector: '[data-tour="hr-att-detail-summary"]', title: "Employee profile (detail view)", description: "When reviewing one person, this card shows their monthly hours, present days, and absences at a glance." },
       { selector: '[data-tour="hr-att-detail-table"]', title: "Daily records (detail view)", description: "Day-by-day punches with in and out times, breaks, and hours. Open a day to inspect selfie captures and the full timeline.", side: "top" },
     ],
@@ -679,62 +762,111 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-hr-leave-processing",
-    version: 1,
+    version: 2,
     autoStart: false,
     title: "Leave Request Processing",
-    description: "Approve employee leave, track who is off today, maintain balances and quotas, and manage the company holiday calendar.",
+    description: "Approve employee leave, track who is off today, maintain balances and quotas, and manage the company holiday calendar. Switch to a tab, then select Guide — the walkthrough follows whichever tab is open.",
+    replayHint: true,
     steps: [
       { selector: '[data-tour="hr-leave-tabs"]', title: "Leave areas", description: "Leave Requests holds items awaiting decisions, Currently On Leave shows today's absences, Leave Master keeps full history, Leave Quotas manages allocations, and Holidays & Events runs the company calendar." },
-      { selector: '[data-tour="hr-leave-status-filters"]', title: "Filter by status", description: "Switch between All, Pending, Approved, and Rejected requests in the active tab." },
-      { selector: '[data-tour="hr-leave-department-filter"]', title: "Filter by department", description: "Narrow the view to a single department's leave activity." },
-      { selector: '[data-tour="hr-leave-search"]', title: "Search people", description: "Find employees by name or role. Results update as you type." },
-      { selector: '[data-tour="hr-leave-configure-btn"]', title: "Configure leave types", description: "On the Quotas tab, define the company's leave catalogue — annual, sick, casual, and custom types — then assign types and top up balances per employee.", side: "left" },
-      { selector: '[data-tour="hr-leave-table"]', title: "Records and actions", description: "Requests show type, dates, duration, and reason. Approve or reject pending ones, review an employee's full leave record, and track who is currently away.", side: "top" },
+      { selector: '[data-tour="hr-leave-summary"]', title: "Counts at a glance", description: "These cards refresh with the open tab — pending decisions and outcomes, absences today, quota totals, or calendar counts." },
+      // REQUESTS tab
+      { selector: '[data-tour="hr-leave-status-filters"]', tabPage: "requests", title: "Status sub-tabs", description: "Separate the queue into All, Pending, Approved, or Rejected requests." },
+      { selector: '[data-tour="hr-leave-department-filter"]', tabPage: "requests", title: "Department filter", description: "Narrow the queue to a single department's requests." },
+      { selector: '[data-tour="hr-leave-search"]', tabPage: "requests", title: "Search people", description: "Find employees by name or role. Results update as you type." },
+      { selector: '[data-tour="hr-leave-table"]', tabPage: "requests", title: "Process requests", description: "Each row shows type, dates, and status with medical-certificate warnings where required. Pending rows can be approved, rejected with a reason, or opened for the complete request.", side: "top" },
+      // CURRENTLY ON LEAVE tab
+      { selector: '[data-tour="hr-leave-department-filter"]', tabPage: "current", title: "Department filter", description: "Focus today's absences on a single department." },
+      { selector: '[data-tour="hr-leave-search"]', tabPage: "current", title: "Search people", description: "Find an absent employee by name or role." },
+      { selector: '[data-tour="hr-leave-table"]', tabPage: "current", title: "Who is away today", description: "Everyone currently on leave with type, dates, and days remaining. Open a row to review the request; pending medical certificates are flagged here.", side: "top" },
+      // LEAVE MASTER tab
+      { selector: '[data-tour="hr-leave-department-filter"]', tabPage: "master", title: "Department filter", description: "Narrow the roster to one department's leave records." },
+      { selector: '[data-tour="hr-leave-search"]', tabPage: "master", title: "Search people", description: "Locate any employee in the leave master panel." },
+      { selector: '[data-tour="hr-leave-table"]', tabPage: "master", title: "Full leave history", description: "Every employee with total, used, and remaining leaves plus their record status. The eye action opens that person's complete leave history.", side: "top" },
+      // LEAVE QUOTAS tab
+      { selector: '[data-tour="hr-leave-quota-year"]', tabPage: "quotas", title: "Leave year", description: "Switch the allocation view between leave years — last year, this year, and next year." },
+      { selector: '[data-tour="hr-leave-configure-btn"]', tabPage: "quotas", title: "Configure leave types", description: "Define the company's leave catalogue — annual, sick, casual, and custom types — that can then be assigned to employees.", side: "left" },
+      { selector: '[data-tour="hr-leave-quota-table"]', tabPage: "quotas", title: "Allocations per employee", description: "See each employee's assigned leave types and cycle. Use the row actions to assign types or top up an individual's day balance.", side: "top" },
+      // HOLIDAYS & EVENTS tab
+      { selector: '[data-tour="hr-leave-calendar-subtabs"]', tabPage: "holidays", title: "Holidays or events", description: "Switch between the Company Holidays calendar and the Company Events calendar." },
+      { selector: '[data-tour="hr-leave-entry-filters"]', tabPage: "holidays", title: "Entry filters", description: "Holidays filter by all, public, or company; events filter by all, upcoming, or past." },
+      { selector: '[data-tour="hr-leave-calendar-search"]', tabPage: "holidays", title: "Search entries", description: "Find a holiday or event by name within the selected calendar." },
+      { selector: '[data-tour="hr-leave-add-entry"]', tabPage: "holidays", title: "Add holidays and events", description: "Create a company holiday or event manually. On the Holidays calendar, Import also bulk-adds public holidays for your region. Existing entries can be edited or removed from their rows.", side: "top" },
     ],
     matches: exact("/hr/leave-request-processing"),
   },
   {
     id: "basic-hr-recruitment",
-    version: 1,
+    version: 3,
     autoStart: false,
     title: "Recruitment",
     description: "Publish job openings, collect applicants from your careers page, and move candidates through the hiring pipeline.",
+    replayHint: true,
     steps: [
-      { selector: '[data-tour="hr-recruit-tabs"]', title: "Job openings and candidates", description: "Job Openings lists published roles with application stats. Candidates Tracking follows every applicant through the pipeline." },
-      { selector: '[data-tour="hr-recruit-summary"]', title: "Hiring numbers", description: "Open roles, total applications, and candidates currently in progress — depending on the active tab." },
-      { selector: '[data-tour="hr-recruit-status-filters"]', title: "Filter by stage", description: "For jobs switch between active and inactive listings; for candidates follow Screening, Interview Scheduled, Interviewed, and Selected stages." },
-      { selector: '[data-tour="hr-recruit-search"]', title: "Search", description: "Find jobs by title or department, and candidates by name or applied position." },
-      { selector: '[data-tour="hr-recruit-add-btn"]', title: "Publish a job or add a candidate", description: "PUBLISH JOB creates a listing that can appear on your website's careers page. ADD CANDIDATE registers walk-ins or referrals manually.", side: "left" },
-      { selector: '[data-tour="hr-recruit-table"]', title: "Listings and applicants", description: "Job rows show vacancy and application counts. Candidate rows carry contact details, resume links, and source. Use row actions to advance candidates through the pipeline or manage listings.", side: "top" },
+      // ── Shared: tabs ──
+      { selector: '[data-tour="hr-recruit-tabs"]', title: "Switch between tabs", description: "Job Openings manages published roles and vacancy tracking. Candidates Tracking follows every applicant through the hiring pipeline." },
+
+      // ── Job Openings tab ──
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-summary"]', title: "Job openings at a glance", description: "Total Jobs counts every listing, Active shows open ones, Total Vacancies tallies all open slots, and Filled tracks how many have been closed by converting candidates." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-status-filters"]', title: "Filter job listings", description: "Switch between All, Active, and Inactive to focus on currently open roles or review paused listings." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-search"]', title: "Find a job opening", description: "Search by job title, department, or job code to locate a specific listing quickly." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-add-btn"]', title: "Publish a new job", description: "Creates a job listing that can appear on your website's careers page. Fill in title, department, vacancies, and description.", side: "left" },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-bulk-upload"]', title: "Bulk upload jobs", description: "Import multiple job openings at once using a CSV file. Use the recruitment job template — one job per row with title, department, employment type, and vacancy count.", side: "left" },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-export-btns"]', title: "Export listings", description: "Download the current job listings as a PDF or Excel file for offline review or sharing with hiring managers." },
+      { tabPage: "jobs", selector: '[data-tour="hr-recruit-table"]', title: "Job listing rows", description: "Each row shows the job title, code, department, open slots versus filled, active/inactive toggle, website posting status, and an edit action. Toggle Website Status to post or remove a listing from your public careers page.", side: "top" },
+
+      // ── Candidates Tracking tab ──
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-summary"]', title: "Candidate pipeline numbers", description: "Total Candidates counts all applicants, Selected shows hires awaiting conversion, Onboarded tracks those already converted to employees, and In Screening highlights applicants not yet reviewed." },
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-status-filters"]', title: "Filter by pipeline stage", description: "Narrow the list to All, Screening, Interview Scheduled, Interviewed, or Selected to focus on a specific hiring stage." },
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-search"]', title: "Find a candidate", description: "Search by candidate name or the position they applied for to locate applicants quickly." },
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-add-btn"]', title: "Add a candidate manually", description: "Register walk-ins, referrals, or offline applicants. Enter their name, email, phone, and the position applied for.", side: "left" },
+      { tabPage: "candidates", selector: '[data-tour="hr-recruit-table"]', title: "Candidate rows and actions", description: "Each row shows the candidate's name and email, position applied for, source, and a pipeline status dropdown to advance them through Screening, Interview Scheduled, Interviewed, or Selected. The eye button opens full details and the convert button appears once a candidate is marked Selected.", side: "top" },
     ],
     matches: exact("/hr/recruitment"),
   },
   {
     id: "basic-hr-payroll",
-    version: 1,
+    version: 2,
     autoStart: false,
     title: "Payroll Management",
-    description: "Calculate monthly salaries from employee CTC with attendance deductions, lock the cycle, and hand it to Finance for payment.",
+    description: "Calculate monthly salaries from employee CTC with attendance deductions, lock the cycle, and hand it to Finance for payment. Switch to a tab, then select Guide — the walkthrough follows whichever tab is open.",
+    replayHint: true,
     steps: [
+      { selector: '[data-tour="hr-payroll-tabs"]', title: "Payroll areas", description: "Payroll Master runs the current month's cycle. Payroll History keeps every past cycle sent to Finance with its payment progress." },
       { selector: '[data-tour="hr-payroll-summary"]', title: "Cycle numbers", description: "Total payroll cost, employees covered, deductions applied, and the current cycle status for the selected month." },
-      { selector: '[data-tour="hr-payroll-status-filters"]', title: "Filter payroll rows", description: "Switch the master sheet between All, Pending, and Completed employees." },
-      { selector: '[data-tour="hr-payroll-cycle-actions"]', title: "Run the monthly cycle", description: "Choose the month and year, pick a payslip template, then Prepare Payroll to lock attendance-based calculations. When ready, Send to Finance passes the cycle over for processing and payment.", side: "bottom" },
-      { selector: '[data-tour="hr-payroll-search"]', title: "Find an employee", description: "Locate someone in the payroll sheet by name, and filter by role or department where available." },
-      { selector: '[data-tour="hr-payroll-table"]', title: "Salary lines and history", description: "Master shows each employee's earnings, deductions, and net pay with payslip generation. History lists past cycles sent to Finance with payment progress.", side: "top" },
+      // MASTER tab
+      { selector: '[data-tour="hr-payroll-status-filters"]', tabPage: "master", title: "Status sub-tabs", description: "Switch the master sheet between All, Pending, and Completed employees." },
+      { selector: '[data-tour="hr-payroll-search"]', tabPage: "master", title: "Find an employee", description: "Locate someone in the payroll sheet by name." },
+      { selector: '[data-tour="hr-payroll-role-filter"]', tabPage: "master", title: "Role filter", description: "Focus the sheet on one role such as Manager or Employee." },
+      { selector: '[data-tour="hr-payroll-department-filter"]', tabPage: "master", title: "Department filter", description: "Narrow the sheet to a single department when your access covers more than one." },
+      { selector: '[data-tour="hr-payroll-cycle-actions"]', tabPage: "master", title: "Run the monthly cycle", description: "Choose the month and year, pick a payslip template, then Prepare Payroll to lock attendance-based calculations. When ready, Send to Finance passes the cycle over for processing and payment.", side: "bottom" },
+      { selector: '[data-tour="hr-payroll-table"]', tabPage: "master", title: "Salary sheet", description: "Each row shows the employee's earnings, deductions, and net pay for the cycle. Open a row to review the breakdown, apply a bonus or deduction adjustment, and generate the payslip.", side: "top" },
+      // HISTORY tab
+      { selector: '[data-tour="hr-payroll-search"]', tabPage: "history", title: "Find an employee", description: "Locate someone across past payroll cycles by name." },
+      { selector: '[data-tour="hr-payroll-role-filter"]', tabPage: "history", title: "Role filter", description: "Focus past cycles on one role." },
+      { selector: '[data-tour="hr-payroll-department-filter"]', tabPage: "history", title: "Department filter", description: "Narrow past cycles to a single department when your access covers more than one." },
+      { selector: '[data-tour="hr-payroll-table"]', tabPage: "history", title: "Past cycles and payment progress", description: "Every cycle handed to Finance with its status and totals. Open a cycle to review its employees, amounts, and how far payments have progressed.", side: "top" },
     ],
     matches: exact("/hr/payroll-management"),
   },
   {
     id: "basic-hr-resignation",
-    version: 1,
+    version: 2,
     autoStart: false,
     title: "Resignation Management",
-    description: "Handle resignations end to end — accept or reject requests, run notice periods with exit checklists, and keep full offboarding history.",
+    description: "Handle resignations end to end — review employee requests, move approved employees through notice period clearance, and keep completed or rejected cases in history.",
     steps: [
-      { selector: '[data-tour="hr-resignation-summary"]', title: "Offboarding counts", description: "Totals for the active tab — new requests, employees serving notice, and completed exits." },
-      { selector: '[data-tour="hr-resignation-status-filters"]', title: "Filter by status", description: "Switch between pending requests, approved exits, rejected cases, and everything else in view." },
-      { selector: '[data-tour="hr-resignation-search"]', title: "Search and settings", description: "Find cases by employee, code, or reason, filter by department, and open Resignation Rules to set default notice periods and checklist requirements." },
-      { selector: '[data-tour="hr-resignation-table"]', title: "Cases and actions", description: "Requests can be approved or rejected with reasons. Active Notice tracks last working days and checklist progress — clear every exit item before final separation. History preserves past cases.", side: "top" },
+      { selector: '[data-tour="hr-resignation-tabs"]', title: "Resignation areas", description: "Requests shows new submissions awaiting HR action. Active Notice tracks approved employees still serving notice. History stores completed and rejected cases. Select Guide after opening a tab to walk through that area." },
+      { selector: '[data-tour="hr-resignation-summary"]', title: "Tab-specific counts", description: "These cards change with the open tab — pending decisions on Requests, checklist readiness on Active Notice, and completed or rejected totals in History." },
+      { selector: '[data-tour="hr-resignation-status-filters"]', title: "Status sub-tabs", description: "Filter the current tab by All, Pending, Approved, Rejected, or Completed. The available results depend on whether you are viewing requests, notice periods, or history." },
+      { selector: '[data-tour="hr-resignation-department-filter"]', title: "Department filter", description: "Narrow resignation cases to one department when you need to review a specific team." },
+      { selector: '[data-tour="hr-resignation-search"]', title: "Search cases", description: "Find a resignation case by employee name, employee ID, resignation code, or reason." },
+      { selector: '[data-tour="hr-resignation-settings-btn"]', title: "Resignation rules", description: "Open the rules panel to configure return requirements, requested document templates, employee instructions, and the confirmation warning used for future resignation requests.", side: "left" },
+      { tabPage: "requests", selector: '[data-tour="hr-resignation-table"]', title: "Review requests", description: "Each row shows the employee, department, applied date, notice period, and status. Use the eye action for full details, approve to start the notice period, or reject with a mandatory reason.", side: "top" },
+      { tabPage: "requests", textOnly: true, title: "Approving or rejecting", description: "Approving creates the active notice record using the configured checklist. Rejecting requires a note so the outcome is documented in history." },
+      { tabPage: "notice", selector: '[data-tour="hr-resignation-table"]', title: "Manage active notice", description: "Track each employee's last working date and checklist progress. Manage opens clearance work; Complete appears only when checklist requirements and notice timing allow final separation.", side: "top" },
+      { tabPage: "notice", textOnly: true, title: "Clearance checklist", description: "Inside Manage, HR can extend the notice period, tick return and clearance items, save progress, and complete the resignation only after every required item is cleared." },
+      { tabPage: "history", selector: '[data-tour="hr-resignation-table"]', title: "Resignation history", description: "History keeps completed and rejected resignation records with employee details, department, final resignation date, reason, status, and the view action for the full case file.", side: "top" },
     ],
     matches: exact("/hr/resignation-management"),
   },
@@ -755,16 +887,25 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
   },
   {
     id: "basic-admin-bookings",
-    version: 1,
+    version: 2,
     autoStart: false,
     title: "Meeting Room Bookings",
-    description: "Oversee meeting room reservations across internal teams, external guests, and tenants, with a calendar view and exports.",
+    description: "Oversee meeting room reservations across departments, internal teams, external guests, and tenants. Switch to a scope, then select Guide — the walkthrough follows whichever scope is open.",
+    replayHint: true,
     steps: [
-      { selector: '[data-tour="admin-bookings-tabs"]', title: "Booking scopes", description: "Switch between Internal team bookings, External guest meetings, and Tenant company reservations. The calendar button in the header opens a visual month view." },
+      { selector: '[data-tour="admin-bookings-tabs"]', title: "Booking scopes", description: "Department Bookings covers your department, Internal spans all teams and top management, External tracks guest meetings, Tenant follows company reservations, and Booking History archives completed activity." },
       { selector: '[data-tour="admin-bookings-summary"]', title: "Booking numbers", description: "Totals for the selected scope — upcoming bookings, today's schedule, and usage counts at a glance." },
-      { selector: '[data-tour="admin-bookings-status-filters"]', title: "Status filters", description: "Filter rows by booking state such as Upcoming, Ongoing, Completed, or Cancelled; non-tenant scopes also filter by resource and booking type." },
+      { selector: '[data-tour="admin-bookings-status-filters"]', title: "Status sub-tabs", description: "Filter rows by booking state such as Booked, Pending, Completed, or Cancelled; tenant scopes also separate bookings in progress." },
       { selector: '[data-tour="admin-bookings-search"]', title: "Search bookings", description: "Locate a reservation quickly by company, resource, date, or any detail in the list." },
-      { selector: '[data-tour="admin-bookings-table"]', title: "Reservation list", description: "Every booking with its resource, schedule, and participants. Open a row to review full details or manage the reservation.", side: "top" },
+      // Resource and type selects render on every scope except Tenant
+      { selector: '[data-tour="admin-bookings-resource-filter"]', title: "Resource filter", description: "Focus the list on one resource kind — desk, meeting room, conference room, cabin, or boardroom." },
+      { selector: '[data-tour="admin-bookings-type-filter"]', title: "Booking type filter", description: "Separate internal, tenant, and external reservations when a scope mixes them." },
+      // Per-scope table walkthroughs
+      { selector: '[data-tour="admin-bookings-table"]', tabPage: "department", title: "Department reservations", description: "Bookings raised inside your department with resource, schedule, and booker. Open a row for details; depending on state you can reschedule, extend, or cancel it.", side: "top" },
+      { selector: '[data-tour="admin-bookings-table"]', tabPage: "internal", title: "Internal reservations", description: "Cross-team and top-management room usage in one view. Open a row for full details or manage the booking while it is still upcoming.", side: "top" },
+      { selector: '[data-tour="admin-bookings-table"]', tabPage: "external", title: "External guest meetings", description: "Meetings booked for outside visitors, including the host department. Open a row to review details or adjust the schedule before arrival.", side: "top" },
+      { selector: '[data-tour="admin-bookings-table"]', tabPage: "tenant", title: "Tenant company reservations", description: "Reservations made by tenant companies with the company column shown per row. Open a row to review the booking and its current state.", side: "top" },
+      { selector: '[data-tour="admin-bookings-table"]', tabPage: "history", title: "Booking history", description: "The archived record of past bookings across scopes — use it to audit usage or resolve disputes about earlier reservations.", side: "top" },
     ],
     matches: exact("/administration/bookings"),
   },
@@ -806,6 +947,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     title: "Basic dashboard",
     description: "Use this overview to understand your workspace, open quick actions, and move into the Basic-plan modules available to you.",
     recordsDescription: "Dashboard sections summarize recent workspace activity and provide shortcuts to the related pages.",
+    replayHint: true,
     steps: [
       { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the Basic-plan modules available to your role. Page tours will not repeat this navigation explanation." },
       { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows where you are inside the workspace so you can keep track of the current module and page." },
@@ -869,12 +1011,26 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     description: "This is the home for your Basic-plan company tools. Open a module card to manage that part of the workspace.",
     steps: [
       { text: "Website Builder", exactText: true, title: "Website Builder", description: "Opens website creation and its connected leads, review, and careers functionality." },
-      { text: "Nomads Listings", exactText: true, title: "Nomads Listings", description: "Opens Nomads listings and reviews used to manage the workspace’s public marketplace presence." },
+      { text: "Nomads Listings", exactText: true, title: "Nomads Listings", description: "Opens Nomads listings and reviews used to manage the workspace's public marketplace presence." },
       { text: "Organization Management", exactText: true, title: "Organization Management", description: "Opens workspace member invitations, access state, roles, and Basic-plan user limits." },
       { text: "Access Grants", exactText: true, title: "Access Grants", description: "Opens member role and module-access controls for authorized workspace administrators." },
       { text: "Customer Support", exactText: true, title: "Customer Support", description: "Opens the support workspace where issues can be raised, tracked, viewed, and exported." },
     ],
     matches: exact("/company-settings"),
+  },
+  {
+    id: "basic-it-repair-logs",
+    version: 1,
+    title: "IT Repair Logs",
+    description: "Track network, device, and system repairs across the IT department. Each tab gives a different view of repair activity.",
+    steps: [
+      { selector: '[data-tour="it-repair-tabs"]', title: "Tab views", description: "Switch between Active Logs (open and in-progress work), My Work (repairs assigned to you), and History (resolved and closed repairs)." },
+      { selector: '[data-tour="it-repair-stats"]', title: "Quick stats", description: "Each tab shows its own summary cards — active counts on Active, your personal workload on My Work, and completion metrics on History." },
+      { selector: '[data-tour="it-repair-status-filter"]', title: "Status sub-tabs", description: "Narrow the table further by status. Click All, Open, In Progress, Resolved, or Closed to filter within the current tab." },
+      { selector: '[data-tour="it-repair-search-create"]', title: "Search and create", description: "Use the search bar to find logs by code, asset, or issue. Click Log IT Repair to open the form and raise a new repair entry." },
+      { selector: '[data-tour="it-repair-table"]', title: "Repair log records", description: "Each row shows the log code, asset name, issue type, assigned technician, status, and creation date. Click View to open full details and advance the status." },
+    ],
+    matches: exact("/it/repair-logs"),
   },
 ];
 

@@ -77,7 +77,7 @@ export default function ITRepairLogsPage() {
   const [error, setError] = useState("");
   const [logs, setLogs] = useState<RepairLog[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All Statuses");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [activeTab, setActiveTab] = useState<"active" | "my-work" | "history">("active");
 
   const [selectedLog, setSelectedLog] = useState<RepairLog | null>(null);
@@ -114,7 +114,7 @@ export default function ITRepairLogsPage() {
     const q = searchQuery.trim().toLowerCase();
     return logs.filter((log) => {
       const matchesSearch = !q || [log.repairLogCode, log.assetName, log.assetCode, log.issueType, log.issueDescription, log.assignedTo].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
-      const matchesStatus = statusFilter === "All Statuses" || log.status === statusFilter;
+      const matchesStatus = statusFilter === "All" || log.status === statusFilter;
 
       if (activeTab === "my-work") {
         return matchesSearch && matchesStatus && (log.assignedTo === currentUser?.firstName + " " + currentUser?.lastName || log.assignedTo === currentUser?.email || log.assignedTo === currentUser?.name);
@@ -126,13 +126,67 @@ export default function ITRepairLogsPage() {
     });
   }, [activeTab, statusFilter, searchQuery, logs, currentUser]);
 
+  const myName = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+  const myEmail = currentUser?.email || "";
+  const myId = currentUser?._id || currentUser?.id || "";
+
+  const isMyLog = (log: RepairLog) => {
+    const name = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    const email = currentUser?.email || "";
+    const uid = currentUser?._id || currentUser?.id || "";
+    return (
+      log.assignedTo === name ||
+      log.assignedTo === email ||
+      log.assignedTo === currentUser?.name ||
+      String(log.assigneeUserId || "") === String(uid)
+    );
+  };
+
   const stats = useMemo(() => {
-    const total = logs.length;
-    const open = logs.filter((l) => l.status === "Open").length;
-    const active = logs.filter((l) => l.status === "In Progress").length;
-    const done = logs.filter((l) => l.status === "Resolved" || l.status === "Closed").length;
-    return { total, open, active, done };
-  }, [logs]);
+    const activeLogs = logs.filter((l) => l.status === "Open" || l.status === "In Progress");
+    const myLogs = logs.filter((l) => isMyLog(l));
+    const myActiveLogs = myLogs.filter((l) => l.status === "Open" || l.status === "In Progress");
+    const resolvedLogs = logs.filter((l) => l.status === "Resolved" || l.status === "Closed");
+    const now = new Date();
+    const thisMonth = resolvedLogs.filter((l) => {
+      const d = new Date(l.updatedAt || l.createdAt);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const lastWeek = resolvedLogs.filter((l) => {
+      const d = new Date(l.updatedAt || l.createdAt);
+      return d >= sevenDaysAgo;
+    });
+
+    if (activeTab === "my-work") {
+      return {
+        cards: [
+          { key: "my-total", label: "My Total", value: String(myLogs.length), icon: Monitor },
+          { key: "my-open", label: "My Open", value: String(myLogs.filter((l) => l.status === "Open").length), icon: AlertCircle },
+          { key: "my-progress", label: "My In Progress", value: String(myActiveLogs.filter((l) => l.status === "In Progress").length), icon: Clock3 },
+          { key: "my-resolved", label: "My Resolved", value: String(myLogs.filter((l) => l.status === "Resolved" || l.status === "Closed").length), icon: CheckCircle2 },
+        ],
+      };
+    }
+    if (activeTab === "history") {
+      return {
+        cards: [
+          { key: "resolved", label: "Resolved", value: String(resolvedLogs.filter((l) => l.status === "Resolved").length), icon: CheckCircle2 },
+          { key: "closed", label: "Closed", value: String(resolvedLogs.filter((l) => l.status === "Closed").length), icon: CheckCircle2 },
+          { key: "this-month", label: "This Month", value: String(thisMonth.length), icon: Clock3 },
+          { key: "last-week", label: "Last 7 Days", value: String(lastWeek.length), icon: AlertCircle },
+        ],
+      };
+    }
+    return {
+      cards: [
+        { key: "active", label: "Total Active", value: String(activeLogs.length), icon: Monitor },
+        { key: "open", label: "Open", value: String(activeLogs.filter((l) => l.status === "Open").length), icon: AlertCircle },
+        { key: "progress", label: "In Progress", value: String(activeLogs.filter((l) => l.status === "In Progress").length), icon: Clock3 },
+        { key: "mine", label: "Assigned to Me", value: String(activeLogs.filter((l) => isMyLog(l)).length), icon: CheckCircle2 },
+      ],
+    };
+  }, [activeTab, logs, currentUser]);
 
   const refreshLogs = async () => {
     try {
@@ -237,7 +291,7 @@ export default function ITRepairLogsPage() {
       <PageFrame>
         <div className="flex flex-col gap-4">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div data-tour="it-repair-header" className="flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">IT Repair Logs</h1>
               <p className="text-xs font-pmedium text-slate-500 mt-1">Track network, device, and system repairs for IT</p>
@@ -252,7 +306,7 @@ export default function ITRepairLogsPage() {
           ) : null}
 
           {/* Pill Tabs */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="it-repair-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {(["active", "my-work", "history"] as const).map((tab) => (
               <button
                 key={tab}
@@ -270,13 +324,8 @@ export default function ITRepairLogsPage() {
           </div>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-            {[
-              { key: 'total', label: 'Total Logs', value: String(stats.total), icon: Monitor },
-              { key: 'open', label: 'Open', value: String(stats.open), icon: AlertCircle },
-              { key: 'active', label: 'In Progress', value: String(stats.active), icon: Clock3 },
-              { key: 'done', label: 'Resolved / Closed', value: String(stats.done), icon: CheckCircle2 },
-            ].map((card, idx) => {
+          <div data-tour="it-repair-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {stats.cards.map((card, idx) => {
               const Icon = card.icon;
               const borderColors = ['', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500'];
               const iconClasses = ['bg-slate-50 text-slate-600', 'bg-amber-50 text-amber-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600'];
@@ -297,30 +346,32 @@ export default function ITRepairLogsPage() {
           {/* Data Panel */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* Panel Header */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <select
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option>All Statuses</option>
-                  <option>Open</option>
-                  <option>In Progress</option>
-                  <option>Resolved</option>
-                  <option>Closed</option>
-                </select>
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              <div data-tour="it-repair-status-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {["All", "Open", "In Progress", "Resolved", "Closed"].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === status
+                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
               </div>
-              <div className="flex items-center gap-3 w-full xl:w-auto">
-                
-                <div className="relative flex-1 xl:w-60">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <div data-tour="it-repair-search-create" className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                <div className="relative flex-1 min-w-[180px] xl:w-60">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search logs..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
                 <button
@@ -335,7 +386,7 @@ export default function ITRepairLogsPage() {
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
+            <div data-tour="it-repair-table" className="overflow-x-auto">
               <table className="w-full table-auto text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
@@ -373,6 +424,7 @@ export default function ITRepairLogsPage() {
                         </td>
                         <td className="px-3 py-4 text-center">
                           <button
+                            data-tour="it-repair-view-btn"
                             type="button"
                             onClick={() => viewLog(log)}
                             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors"

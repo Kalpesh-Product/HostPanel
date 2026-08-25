@@ -57,7 +57,7 @@ const AnalyticsSkeleton = () => (
         <SkeletonBlock key={index} className="h-24 border border-slate-100 bg-white" />
       ))}
     </div>
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <SkeletonBlock className="h-80 border border-slate-100 bg-white" />
       <SkeletonBlock className="h-80 border border-slate-100 bg-white" />
     </div>
@@ -273,8 +273,8 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
     tiles.push({ key: "peakDay", title: "Peak Days (last 90d)", bars: insights!.byDay.map((point) => ({ label: point.label, value: point.count })) });
 
   return (
-    <div className="border-default rounded-xl overflow-hidden bg-white">
-      <div className="p-5 pb-3 border-b-2 border-borderGray flex items-start justify-between gap-3 flex-wrap">
+    <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+      <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium block truncate">
             {entry.label}
@@ -568,7 +568,9 @@ const AnalyticsPage = () => {
   const units = Array.isArray(data?.units) ? data.units : [];
 
   return (
-    <PageFrame>
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
+        <div className="flex flex-col gap-4 text-slate-700 font-sans">
       {/* 1. Page header */}
       <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
         <div>
@@ -648,9 +650,9 @@ const AnalyticsPage = () => {
       </div>
 
       {/* 3. Overview charts — two per line */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <div className="border-default rounded-xl overflow-hidden bg-white">
-          <div className="p-4 border-b-2 border-borderGray uppercase">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 uppercase">
             <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Platform Activity Trend</span>
             <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">How much new work your unit creates each month (last 6 months)</p>
           </div>
@@ -675,8 +677,8 @@ const AnalyticsPage = () => {
           </div>
         </div>
 
-        <div className="border-default rounded-xl overflow-hidden bg-white">
-          <div className="p-4 border-b-2 border-borderGray uppercase">
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 uppercase">
             <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Module Activity Scores</span>
             <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">Which modules your team actually uses — score out of 100 (top 10)</p>
           </div>
@@ -775,7 +777,9 @@ const AnalyticsPage = () => {
         </WidgetSection>
       ) : null}
 
-    </PageFrame>
+        </div>
+      </PageFrame>
+    </div>
   );
 };
 

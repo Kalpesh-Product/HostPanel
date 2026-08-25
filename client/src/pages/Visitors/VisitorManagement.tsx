@@ -3925,6 +3925,7 @@ export default function VisitorsManagementPage() {
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           <button
             type="button"
+            data-tour="visitors-tab-daily"
             disabled={!visitorAccess.tabs.daily}
             title={!visitorAccess.tabs.daily ? 'You do not have permission for Daily Visitors.' : undefined}
             onClick={() => setActiveTab('daily')}
@@ -3940,6 +3941,7 @@ export default function VisitorsManagementPage() {
           </button>
           <button
             type="button"
+            data-tour="visitors-tab-history"
             disabled={!visitorAccess.tabs.history}
             title={!visitorAccess.tabs.history ? 'You do not have permission for Visitor History.' : undefined}
             onClick={() => setActiveTab('history')}
@@ -3951,6 +3953,7 @@ export default function VisitorsManagementPage() {
           </button>
           <button
             type="button"
+            data-tour="visitors-tab-bookings"
             disabled={!visitorAccess.tabs.bookings}
             title={!visitorAccess.tabs.bookings ? 'You do not have permission for Bookings.' : undefined}
             onClick={() => setActiveTab('bookings')}
@@ -3962,6 +3965,7 @@ export default function VisitorsManagementPage() {
           </button>
           <button
             type="button"
+            data-tour="visitors-tab-clients"
             disabled={!visitorAccess.tabs.clients}
             title={!visitorAccess.tabs.clients ? 'You do not have permission for Clients.' : undefined}
             onClick={() => setActiveTab('clients')}

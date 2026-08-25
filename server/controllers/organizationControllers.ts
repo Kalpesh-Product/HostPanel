@@ -910,17 +910,17 @@ export const getOrganizationOverview = async (req, res, next) => {
       });
     }
 
-    const activeDepartments = await ensureWorkspaceDepartments(workspace);
-
     const accountActiveUserLimit = getActiveUserLimitForPlan(workspace.selectedPlan);
-    const accountActiveUserCount = await countActiveAccountUsers(workspace.owner);
-
-    const members = await WorkspaceMember.find({ workspace: workspace._id })
-      .populate("user", "name email isActive inviteStatus isDeleted")
-      .populate("role")
-      .populate("departments")
-      .lean()
-      .exec();
+    const [activeDepartments, accountActiveUserCount, members] = await Promise.all([
+      ensureWorkspaceDepartments(workspace),
+      countActiveAccountUsers(workspace.owner),
+      WorkspaceMember.find({ workspace: workspace._id })
+        .populate("user", "name email isActive inviteStatus isDeleted")
+        .populate("role")
+        .populate("departments")
+        .lean()
+        .exec(),
+    ]);
 
     const inactiveMemberUserIds = members
       .filter((member) => member.isActive === false)
@@ -984,23 +984,25 @@ export const getOrganizationOverview = async (req, res, next) => {
       );
     }
 
-    const allActingManagers = await ActingManager.find({
-      workspaceId: workspace._id,
-      isActive: true,
-    })
-      .lean()
-      .exec();
-
-    const employeeProfiles = await EmployeeProfile.find({
-      workspaceId: workspace._id,
-      $or: [
-        { linkedWorkspaceMemberId: { $in: members.map((m) => m._id) } },
-        { linkedUserId: { $in: members.map((m) => m.user?._id).filter(Boolean) } },
-      ],
-    })
-      .select("linkedWorkspaceMemberId linkedUserId employeeId shiftId")
-      .lean()
-      .exec();
+    const linkedWorkspacesPromise = buildLinkedWorkspaceOptions(workspace);
+    const [allActingManagers, employeeProfiles] = await Promise.all([
+      ActingManager.find({
+        workspaceId: workspace._id,
+        isActive: true,
+      })
+        .lean()
+        .exec(),
+      EmployeeProfile.find({
+        workspaceId: workspace._id,
+        $or: [
+          { linkedWorkspaceMemberId: { $in: members.map((m) => m._id) } },
+          { linkedUserId: { $in: members.map((m) => m.user?._id).filter(Boolean) } },
+        ],
+      })
+        .select("linkedWorkspaceMemberId linkedUserId employeeId shiftId")
+        .lean()
+        .exec(),
+    ]);
 
     const employeeIdByMemberId = new Map(
       employeeProfiles
@@ -1100,7 +1102,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       };
     });
 
-    const linkedWorkspaces = await buildLinkedWorkspaceOptions(workspace);
+    const linkedWorkspaces = await linkedWorkspacesPromise;
     const ownerWorkspaceIds = linkedWorkspaces.map((item) => item.id);
     const linkedMemberships = await WorkspaceMember.find({
       workspace: { $in: ownerWorkspaceIds },

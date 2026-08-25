@@ -185,6 +185,7 @@ export function ResignationManagementSettingsPanel({
     <>
       <button
         type="button"
+        data-tour="hr-resignation-settings-btn"
         onClick={() => setIsOpen(true)}
         className="inline-flex items-center gap-2 rounded-2xl bg-[#2563EB] px-5 py-2.5 text-xs font-pmedium uppercase text-white shadow-sm transition-colors hover:bg-blue-700"
       >

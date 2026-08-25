@@ -1741,7 +1741,7 @@ export default function BookingsPage() {
             </div>
 
             {/* ── Scope Tabs (pill tabs) ────────────────────────────── */}
-            <div data-tour="admin-bookings-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="admin-bookings-tabs" data-active-tab={activeScope} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {scopeTabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -1850,6 +1850,7 @@ export default function BookingsPage() {
                   {activeScope !== 'tenant' && (
                     <>
                       <select
+                        data-tour="admin-bookings-resource-filter"
                         className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
                         value={resourceFilter}
                         onChange={(e) => setResourceFilter(e.target.value)}
@@ -1859,6 +1860,7 @@ export default function BookingsPage() {
                         ))}
                       </select>
                       <select
+                        data-tour="admin-bookings-type-filter"
                         className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
                         value={bookingTypeFilter}
                         onChange={(e) => setBookingTypeFilter(e.target.value)}
@@ -1910,9 +1912,6 @@ export default function BookingsPage() {
                   ) : (
                     visibleRows.map((row) => {
                       const liveStatus = activeScope === 'tenant' ? getLiveMeetingStatus(row as unknown as Record<string, unknown>) : row.status;
-                      const actionMode = getInternalActionMode(row as unknown as Record<string, unknown>);
-                      const isExternal = isExternalBooking(row as unknown as Record<string, unknown>);
-                      const canManage = canManageExternalBooking(row as unknown as Record<string, unknown>);
                       const isInternalLikeScope = activeScope === 'internal' || activeScope === 'department' || activeScope === 'history';
                       return (
                         <tr key={row.id || row.bookingCode} className="hover:bg-blue-50/30 transition-all group">
@@ -1973,32 +1972,6 @@ export default function BookingsPage() {
                                 title="View Details"
                               >
                                 <Eye size={14} />
-                              </button>
-                              {isInternalLikeScope && actionMode && (
-                                <button
-                                  onClick={() => { setReschedulingBooking(row); setBookingActionMode(actionMode); }}
-                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
-                                  title={actionMode === 'extend' ? 'Extend Booking' : 'Reschedule Booking'}
-                                >
-                                  <Clock size={14} />
-                                </button>
-                              )}
-                              {(isInternalLikeScope || isExternal) && (canManage || (isInternalLikeScope && liveStatus !== 'Completed' && liveStatus !== 'Cancelled')) && (
-                                <button
-                                  onClick={() => setCancellingBooking(row)}
-                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
-                                  title="Cancel Booking"
-                                >
-                                  <XCircle size={14} />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleExportBookingReport(row as unknown as Record<string, unknown>, 'PDF')}
-                                disabled={Boolean(isExportingReport)}
-                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                title="Export Booking Report"
-                              >
-                                <FileText size={14} />
                               </button>
                             </div>
                           </td>

@@ -6,7 +6,7 @@ import Workspace from "../../models/Workspace.js";
 import WorkspaceMember from "../../models/WorkspaceMember.js";
 import Department from "../../models/Department.js";
 import EmployeeProfile from "../../models/EmployeeProfile.js";
-import { findAttendanceShift } from "../../utils/attendanceShifts.js";
+import { findAttendanceShift, getConfiguredAttendanceShifts } from "../../utils/attendanceShifts.js";
 import TenantEmployee from "../../models/TenantEmployee.js";
 import { Role } from "../../models/Role.js";
 import { formatEmployeeId } from "../../utils/employee-id.js";
@@ -608,8 +608,30 @@ const ensureEmployeeProfilesForWorkspace = async (workspace: any) => {
     .lean()
     .exec();
 
+  const memberIds = members.map((member: any) => member?._id).filter(Boolean);
+  const userIds = members.map((member: any) => member?.user?._id || member?.user).filter(Boolean);
+  const existingProfiles = memberIds.length || userIds.length
+    ? await EmployeeProfile.find({
+        workspaceId: workspace._id,
+        $or: [
+          ...(memberIds.length ? [{ linkedWorkspaceMemberId: { $in: memberIds } }] : []),
+          ...(userIds.length ? [{ linkedUserId: { $in: userIds } }] : []),
+        ],
+      })
+        .select("linkedWorkspaceMemberId linkedUserId")
+        .lean()
+        .exec()
+    : [];
+  const existingMemberIds = new Set(existingProfiles.map((profile: any) => String(profile?.linkedWorkspaceMemberId || "")).filter(Boolean));
+  const existingUserIds = new Set(existingProfiles.map((profile: any) => String(profile?.linkedUserId || "")).filter(Boolean));
+  const missingMembers = members.filter((member: any) => {
+    const memberId = String(member?._id || "");
+    const userId = String(member?.user?._id || member?.user || "");
+    return !(memberId && existingMemberIds.has(memberId)) && !(userId && existingUserIds.has(userId));
+  });
+
   const syncedProfiles = [];
-  for (const member of members) {
+  for (const member of missingMembers) {
     try {
       const profile = await ensureEmployeeProfileForMember({
         workspace,
@@ -626,7 +648,6 @@ const ensureEmployeeProfilesForWorkspace = async (workspace: any) => {
   }
   return syncedProfiles;
 };
-
 const buildEmployeeSummary = (employees: any[] = []) => ({
   totalEmployees: employees.length,
   activeEmployees: employees.filter((employee) => employee.status === "active").length,
@@ -643,14 +664,23 @@ const buildOverviewPayload = async (workspace: any) => {
       message: error?.message || error,
     });
   }
-  const profiles = await EmployeeProfile.find({ workspaceId: workspace._id })
-    .populate("workspaceRole")
-    .populate("departments")
-    .populate("linkedUserId", "name email inviteStatus isActive")
-    .sort({ createdAt: -1 })
-    .lean()
-    .exec();
 
+  const [profiles, departments] = await Promise.all([
+    EmployeeProfile.find({ workspaceId: workspace._id })
+      .populate("workspaceRole")
+      .populate("departments")
+      .populate("linkedUserId", "name email inviteStatus isActive")
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec(),
+    Department.find({ workspaceId: workspace._id, isActive: true })
+      .select("_id name description")
+      .sort({ name: 1 })
+      .lean()
+      .exec(),
+  ]);
+
+  const employeeIdUpdates = [];
   for (const profile of profiles) {
     const currentSequence = Number(profile?.employeeSequence || 0);
     const hasValidEmployeeId = Boolean(profile?.employeeId && isFormattedEmployeeId(profile.employeeId));
@@ -660,36 +690,27 @@ const buildOverviewPayload = async (workspace: any) => {
     const nextEmployeeId = formatEmployeeId(nextSequence);
 
     if (String(profile?.employeeId || "").trim().toUpperCase() !== nextEmployeeId || currentSequence !== nextSequence) {
-      await EmployeeProfile.updateOne(
-        { _id: profile._id },
-        {
-          $set: {
-            employeeSequence: nextSequence,
-            employeeId: nextEmployeeId,
+      profile.employeeSequence = nextSequence;
+      profile.employeeId = nextEmployeeId;
+      employeeIdUpdates.push({
+        updateOne: {
+          filter: { _id: profile._id },
+          update: {
+            $set: {
+              employeeSequence: nextSequence,
+              employeeId: nextEmployeeId,
+            },
           },
         },
-        ).exec();
+      });
     }
   }
 
-  const refreshedProfiles = await EmployeeProfile.find({ workspaceId: workspace._id })
-    .populate("workspaceRole")
-    .populate("departments")
-    .populate("linkedUserId", "name email inviteStatus isActive")
-    .sort({ createdAt: -1 })
-    .lean()
-    .exec();
-
-  const employees = [];
-  for (const profile of refreshedProfiles) {
-    employees.push(await mapEmployeeProfileToResponse(profile));
+  if (employeeIdUpdates.length > 0) {
+    await EmployeeProfile.bulkWrite(employeeIdUpdates, { ordered: false });
   }
 
-  const departments = await Department.find({ workspaceId: workspace._id, isActive: true })
-    .select("_id name description")
-    .sort({ name: 1 })
-    .lean()
-    .exec();
+  const employees = await Promise.all(profiles.map((profile) => mapEmployeeProfileToResponse(profile)));
 
   const jobTitles = Array.from(
     new Map(
@@ -726,6 +747,7 @@ const buildOverviewPayload = async (workspace: any) => {
     })),
     bankNameOptions: bankNames,
     bankBranchOptions,
+    attendanceShifts: getConfiguredAttendanceShifts(workspace),
     summary: buildEmployeeSummary(employees),
     settings: {
       currency: String(workspace?.preferences?.currency || "INR").trim().toUpperCase() || "INR",
@@ -733,7 +755,6 @@ const buildOverviewPayload = async (workspace: any) => {
     },
   };
 };
-
 const buildDocumentsVaultPayload = async (workspace: any) => {
   const overview = await buildOverviewPayload(workspace);
   const documents = overview.employees.flatMap((employee: any) =>

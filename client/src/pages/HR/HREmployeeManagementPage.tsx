@@ -26,7 +26,6 @@ import {
   resendEmployeeInvite as resendEmployeeInviteRequest,
 } from "@/services/hr";
 import { getRecruitmentOverview } from "@/services/recruitment";
-import { getAttendanceSettings } from "@/services/attendance";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
 import { getCountries, getStates, getCities } from "@/utils/locationApi";
@@ -1079,6 +1078,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
           .filter(Boolean);
         setAvailableDepartments(filterValidDepartments([...DEFAULT_DEPARTMENT_OPTIONS, ...nextDepts]));
       }
+      const overviewShifts = Array.isArray(overview.attendanceShifts) ? overview.attendanceShifts : [];
+      setAttendanceShifts(overviewShifts.map((shift: any) => ({
+        id: String(shift.id || ""),
+        name: String(shift.name || ""),
+        startTime: String(shift.startTime || ""),
+        endTime: String(shift.endTime || ""),
+      })).filter((shift: EmployeeShiftOption) => shift.id && shift.name));
+
       if (!silent) setErrorMessage("");
     } catch (error: unknown) {
       if (!isMountedRef.current) return;
@@ -1100,44 +1107,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     if (userId) loadEmployees();
   }, [currentUser?.id, currentUser?._id, (currentUser as Record<string, unknown>)?.activeWorkspaceId, (currentUser as Record<string, unknown>)?.workspace?.id]);
 
-  useEffect(() => {
-    let active = true;
-    getAttendanceSettings()
-      .then((response: any) => {
-        if (!active) return;
-        const settings = response?.data?.settings || response?.settings || null;
-        const shifts = Array.isArray(settings?.shifts) ? settings.shifts : [];
-        setAttendanceShifts(shifts.map((shift: any) => ({
-          id: String(shift.id || ""), name: String(shift.name || ""),
-          startTime: String(shift.startTime || ""), endTime: String(shift.endTime || ""),
-        })).filter((shift: EmployeeShiftOption) => shift.id && shift.name));
-      })
-      .catch(() => { if (active) setAttendanceShifts([]); });
-    return () => { active = false; };
-  }, [currentUser?.id, currentUser?._id, (currentUser as Record<string, unknown>)?.activeWorkspaceId]);
 
-  useEffect(() => {
-    let isActive = true;
-    const loadDepartmentOptions = async () => {
-      try {
-        const response = await axiosPrivate.get("/api/organization/departments");
-        if (!isActive) return;
-        const nextDepartments = ((response?.data?.data as Array<{ name?: string } | string>) || [])
-          .map((department) => (typeof department === "string" ? department : department?.name || ""))
-          .filter(Boolean);
-        if (nextDepartments.length > 0) {
-          setAvailableDepartments(filterValidDepartments([...DEFAULT_DEPARTMENT_OPTIONS, ...nextDepartments]));
-        }
-      } catch {
-        // Keep the default list if the organization endpoint is unavailable.
-      }
-    };
-
-    loadDepartmentOptions();
-    return () => {
-      isActive = false;
-    };
-  }, [currentUser?.id, currentUser?._id, (currentUser as Record<string, unknown>)?.activeWorkspaceId, (currentUser as Record<string, unknown>)?.workspace?.id]);
 
   useEffect(() => {
     let isActive = true;
@@ -1285,12 +1255,15 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   }, [availableDepartments]);
 
   useEffect(() => {
-    const refreshTimer = window.setInterval(() => loadEmployees({ silent: true }), 15000);
-    const handleFocus = () => loadEmployees({ silent: true });
-    window.addEventListener("focus", handleFocus);
+    const handleRefresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      void loadEmployees({ silent: true });
+    };
+    window.addEventListener("focus", handleRefresh);
+    document.addEventListener("visibilitychange", handleRefresh);
     return () => {
-      window.clearInterval(refreshTimer);
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("focus", handleRefresh);
+      document.removeEventListener("visibilitychange", handleRefresh);
     };
   }, []);
 
@@ -2368,7 +2341,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
           </div>
 
           {/* ═══ COMPANY MANAGEMENT TABS ═══ */}
-          <div data-tour="hr-emp-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-emp-tabs" data-active-tab={activeCompanyTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {companyTabList.map((tab) => (
               <button
                 key={tab.key}

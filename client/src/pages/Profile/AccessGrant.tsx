@@ -1486,8 +1486,8 @@ export default function AccessGrantsPage() {
 
   if (isLoading) {
     return (
-      <PageFrame>
-        <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+        <PageFrame>
           <div className="flex flex-col gap-4 animate-pulse">
             <div className="h-8 bg-slate-200 rounded w-1/4" />
             <div className="h-4 bg-slate-200 rounded w-1/2" />
@@ -1496,14 +1496,14 @@ export default function AccessGrantsPage() {
             </div>
             <div className="h-96 bg-slate-200 rounded-2xl" />
           </div>
-        </div>
-      </PageFrame>
+        </PageFrame>
+      </div>
     );
   }
 
   return (
-    <PageFrame>
-      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
         <div className="flex flex-col gap-4">
 
           {/* 1. HEADER */}
@@ -1544,7 +1544,7 @@ export default function AccessGrantsPage() {
           </div>
 
           {/* 4. DATA PANEL */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+          <div data-tour="access-grants-panel" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
             {/* Inner header: search + role filter dropdown + ownership transfer action */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
@@ -1597,6 +1597,7 @@ export default function AccessGrantsPage() {
                 {/* Transfer Ownership — only allowed from the founder's main unit */}
                 {canEditAccessGrants && eligibleOwnershipCandidates.length > 0 && (
                   <button
+                    data-tour="access-grants-transfer"
                     onClick={() => {
                       setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
                       setShowTransferWarning(false);
@@ -1628,7 +1629,7 @@ export default function AccessGrantsPage() {
                     <th className="px-5 py-4 text-left">Access Role</th>
                     <th className="px-5 py-4 text-left">Department</th>
                     <th className="px-5 py-4 text-center">Status</th>
-                    <th data-tour="access-grants-actions" className="px-5 py-4 text-right">Actions</th>
+                    <th className="px-5 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
@@ -2814,8 +2815,8 @@ export default function AccessGrantsPage() {
             </div>
           </div>
         )}
-      </div>
-    </PageFrame>
+      </PageFrame>
+    </div>
   );
 }
 

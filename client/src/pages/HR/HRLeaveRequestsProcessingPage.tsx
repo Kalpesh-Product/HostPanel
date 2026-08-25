@@ -1128,7 +1128,7 @@ export default function HRLeaveRequestsProcessingPage() {
           )}
 
           {/* ── Main Pill Tabs (DESIGN.md §4) ── */}
-          <div data-tour="hr-leave-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-leave-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {MAIN_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -1145,7 +1145,7 @@ export default function HRLeaveRequestsProcessingPage() {
           </div>
 
           {/* ── Stat Cards (tab-specific) ── */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="hr-leave-summary" className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {tabStatCards.map((card) => (
               <div key={card.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass || ""}`}>
                 <div className="min-w-0">
@@ -1195,7 +1195,7 @@ export default function HRLeaveRequestsProcessingPage() {
             {activeTab === "holidays" ? (
               <div className="border-b border-slate-100/60">
                 <div className="flex overflow-x-auto border-b border-slate-100/60 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
-                  <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
+                  <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden" data-tour="hr-leave-calendar-subtabs">
                     <button type="button" onClick={() => setHolidaySubTab("holiday")} className={`relative z-10 flex min-w-[150px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${holidaySubTab === "holiday" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}>
                       {holidaySubTab === "holiday" && <motion.div layoutId="leaveCalendarTabs" className="absolute inset-0 z-[-1] rounded-full bg-[#2563EB] shadow-sm" />}
                       Company Holidays
@@ -1207,7 +1207,7 @@ export default function HRLeaveRequestsProcessingPage() {
                   </div>
                 </div>
                 <div className="flex flex-col items-stretch gap-3 bg-slate-50/50 p-3 lg:flex-row lg:items-center lg:justify-between lg:p-5">
-                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" data-tour="hr-leave-entry-filters">
                     {holidaySubTab === "holiday" ? (
                       <>
                         {(["all", "public", "company"] as const).map((filter) => (
@@ -1227,7 +1227,7 @@ export default function HRLeaveRequestsProcessingPage() {
                     )}
                   </div>
                   <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center lg:w-auto">
-                    <div className="relative min-w-[210px] flex-1 sm:w-72">
+                    <div className="relative min-w-[210px] flex-1 sm:w-72" data-tour="hr-leave-calendar-search">
                       <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input type="text" placeholder={holidaySubTab === "event" ? "Search company events..." : "Search company holidays..."} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-[11px] font-pmedium text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100" />
                     </div>
@@ -1236,7 +1236,7 @@ export default function HRLeaveRequestsProcessingPage() {
                         <Upload size={14} /> Import
                       </button>
                     )}
-                    <button type="button" onClick={() => openNewCalendarEntry(holidaySubTab)} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-3.5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95">
+                    <button type="button" data-tour="hr-leave-add-entry" onClick={() => openNewCalendarEntry(holidaySubTab)} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-3.5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95">
                       <Plus size={14} /> {holidaySubTab === "event" ? "Add Event" : "Add Holiday"}
                     </button>
                   </div>
@@ -1444,7 +1444,7 @@ export default function HRLeaveRequestsProcessingPage() {
                 <div className="flex flex-col gap-3 border-b border-slate-100 px-1 pb-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2">
                     <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Leave Year</label>
-                    <select className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] outline-none" value={quotaYear} onChange={(e) => setQuotaYear(Number(e.target.value) || new Date().getFullYear())}>
+                    <select data-tour="hr-leave-quota-year" className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] outline-none" value={quotaYear} onChange={(e) => setQuotaYear(Number(e.target.value) || new Date().getFullYear())}>
                       {Array.from(new Set([new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1, ...leaveQuotas.map((q) => q.year).filter(Boolean)])).sort((a, b) => b - a).map((year) => <option key={year} value={year}>{year}</option>)}
                     </select>
                     <span className="text-[10px] text-slate-400">{filteredQuotas.length} employees</span>
@@ -1455,7 +1455,7 @@ export default function HRLeaveRequestsProcessingPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[940px] text-left font-pmedium">
+                  <table data-tour="hr-leave-quota-table" className="w-full min-w-[940px] text-left font-pmedium">
                     <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                       <tr>
                         <th className="px-5 py-4">Emp ID</th>
