@@ -44,6 +44,8 @@ export interface IDepartmentFinanceMonthNormalized {
     displayOrder: number;
     status?: "Draft" | "Upcoming" | "Current" | "Completed" | "Approved" | "Pending" | string;
     projectedBudget: number;
+    /** Original planned allocation for the month. Never recomputed from expenses. */
+    allocatedBudget: number;
     actualSpent: number;
     savings: number;
     details?: string;
@@ -142,6 +144,7 @@ const departmentFinanceMonthSchema = new Schema<IDepartmentFinanceMonthNormalize
         displayOrder: { type: Number, required: true, min: 0, default: 0 },
         status: { type: String, trim: true, default: "Upcoming" },
         projectedBudget: { type: Number, required: true, min: 0, default: 0 },
+        allocatedBudget: { type: Number, required: true, min: 0, default: 0 },
         actualSpent: { type: Number, required: true, min: 0, default: 0 },
         savings: { type: Number, required: true, default: 0 },
         details: { type: String, trim: true, default: "", maxlength: 600 },

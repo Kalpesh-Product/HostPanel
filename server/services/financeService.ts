@@ -55,13 +55,26 @@ async function assertActorOwnsDepartment(
   workspaceId: mongoose.Types.ObjectId,
   userId: mongoose.Types.ObjectId,
   department: string
-) {
+): Promise<any> {
   const membership = await getFinanceActorMembership(workspaceId, userId);
-  if (DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(membership.role))) return;
+  if (DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(membership.role))) return membership;
 
   const targetKey = normalizeDepartmentKey(safeString(department));
   if (!targetKey || !getOwnDepartmentKeys(membership).includes(targetKey)) {
     throw Object.assign(new Error("You can only manage finance records for your own department."), { statusCode: 403 });
+  }
+  return membership;
+}
+
+// Departments may only record spend against an APPROVED annual budget. Privileged
+// finance-side roles are exempt so they can correct data during review.
+function assertPlanAllowsSpend(planStatus: string, membershipRole: any) {
+  if (DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(membershipRole))) return;
+  if (safeString(planStatus).toLowerCase() !== "approved") {
+    throw Object.assign(
+      new Error("Annual budget must be approved before expenses or vendors can be recorded for it."),
+      { statusCode: 403 }
+    );
   }
 }
 
@@ -156,6 +169,7 @@ function ensureMonthlyPlanEntry(plan: any, month: { month: string; monthKey: str
     displayOrder: typeof month.displayOrder === "number" ? month.displayOrder : plan.monthlyPlan.length + 1,
     status: "Upcoming",
     projectedBudget: 0,
+    allocatedBudget: 0,
     actualSpent: 0,
     savings: 0,
     details: "",
@@ -316,6 +330,7 @@ export async function getDepartmentFinanceForManagerInternal(input: {
     return {
       ...(typeof month?.toObject === "function" ? month.toObject() : month),
       projectedAmount: safeNumber(month.projectedBudget, 0),
+      allocatedBudget: safeNumber(month.allocatedBudget ?? month.projectedBudget, 0),
       actualSpent: monthExpenses.reduce((sum: number, expense: any) => sum + safeNumber(expense.actualAmount, 0), 0),
       expenses: monthExpenses,
     };
@@ -456,6 +471,7 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
       displayOrder: typeof m.displayOrder === "number" ? m.displayOrder : idx + 1,
       status: "Upcoming",
       projectedBudget: safeNumber(m.projectedBudget, 0),
+      allocatedBudget: safeNumber(m.projectedBudget, 0),
       actualSpent: 0,
       savings: safeNumber(m.projectedBudget, 0),
       details: safeString(m.details, ""),
@@ -615,7 +631,52 @@ export async function addMonthlyExpenseInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
-  await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+  const membership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+  assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
+
+  // A single expense can never record more actual than its own projection.
+  if (safeNumber(actualAmount, 0) > safeNumber(projectedAmount, 0)) {
+    throw Object.assign(
+      new Error("Actual amount cannot exceed the projected amount for this expense. File an extra budget request instead."),
+      { statusCode: 409 }
+    );
+  }
+
+  // Month-level budget cap: planned commitments (excluding Add-on rows, which
+  // come from approved/pending extra requests) must fit inside the month's
+  // allocated budget plus any extra-requested amounts.
+  if (normalizeExpenseTag(expenseTag) !== "Add-on") {
+    const monthKeyNorm = normalizeMonthKey(monthKey);
+    const monthEntry = (Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : []).find(
+      (m: any) => normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm
+    );
+    // Fall back to projectedBudget for plans created before allocatedBudget existed.
+    const allocatedBudget = safeNumber(
+      typeof monthEntry?.allocatedBudget === "number" && monthEntry.allocatedBudget > 0
+        ? monthEntry.allocatedBudget
+        : monthEntry?.projectedBudget,
+      0
+    );
+
+    const planExpenses = await FinanceExpense.find({ workspaceId, planId }, "monthKey projectedAmount expenseTag").lean();
+    let committed = 0;
+    let extras = 0;
+    for (const e of planExpenses) {
+      if (normalizeMonthKey(safeString(e.monthKey)) !== monthKeyNorm) continue;
+      if (normalizeExpenseTag(safeString(e.expenseTag)) === "Add-on") extras += safeNumber(e.projectedAmount, 0);
+      else committed += safeNumber(e.projectedAmount, 0);
+    }
+
+    const remaining = allocatedBudget + extras - committed;
+    if (safeNumber(projectedAmount, 0) - remaining > 0.009) {
+      throw Object.assign(
+        new Error(
+          `Monthly budget exceeded for ${safeString(monthKeyNorm)}. Only ${remaining.toLocaleString()} remains in the allocation. File an extra budget request for additional funds.`
+        ),
+        { statusCode: 409 }
+      );
+    }
+  }
 
   // ExpenseKey uniqueness should be per workspace+month+plan; model has unique on (workspaceId, expenseKey)
   const expenseKey = `EXP-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -815,15 +876,30 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
   }
 
   let plan = null as any;
+  let importMembership: any = null;
   if (planId) {
     plan = await DepartmentFinancePlan.findById(planId).exec();
     if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
     if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
-    await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+    importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+    // Import writes expense rows, so an approved plan is locked for departments.
+    if (
+      !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
+      safeString((plan as any).status).toLowerCase() === "approved"
+    ) {
+      throw Object.assign(new Error("This annual budget is approved and locked. Contact Finance to make corrections."), { statusCode: 403 });
+    }
   } else {
-    await assertActorOwnsDepartment(workspaceId, input.userId, department);
+    importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, department);
     plan = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
-    if (!plan) {
+    if (plan) {
+      if (
+        !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
+        safeString((plan as any).status).toLowerCase() === "approved"
+      ) {
+        throw Object.assign(new Error("This annual budget is approved and locked. Contact Finance to make corrections."), { statusCode: 403 });
+      }
+    } else {
       // create minimal empty plan (Phase1 already creates via POST budget-request, but import should also be able to bootstrap)
       plan = await DepartmentFinancePlan.create({
         snapshotId: new mongoose.Types.ObjectId(),
@@ -1011,7 +1087,15 @@ export async function submitVendorForDepartmentInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
-  await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+  const membership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+  assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
+
+  if (payload?.actualAmount !== undefined && safeNumber(payload.actualAmount, 0) > 0) {
+    throw Object.assign(
+      new Error("Actual amounts are managed on the expense, not while registering a vendor."),
+      { statusCode: 400 }
+    );
+  }
 
   const vendorKey = vendorId || `VND-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Math.floor(Math.random() * 900) + 100}`;
 

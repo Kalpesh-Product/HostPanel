@@ -192,6 +192,16 @@ function validateVendorForm(form: Record<string, any>): Record<string, string> {
   return errors;
 }
 
+// Axios errors carry the API's real message inside response.data.message;
+// error.message is just "Request failed with status code XXX".
+function getApiErrorMessage(error: any, fallback: string): string {
+  const serverMessage = error?.response?.data?.message || error?.response?.data?.error;
+  if (typeof serverMessage === 'string' && serverMessage.trim()) return serverMessage;
+  const raw = typeof error?.message === 'string' ? error.message : '';
+  if (raw && !/^request failed/i.test(raw)) return raw;
+  return fallback;
+}
+
 export function DepartmentFinancePageV2() {
   const currentUser = getStoredUser();
   const userRole = normalizeUserRole(currentUser?.workspaceMembership?.role || currentUser?.role || '');
@@ -355,7 +365,7 @@ export function DepartmentFinancePageV2() {
         setVendors(Array.isArray(data.vendors) ? data.vendors : []);
         setExtraRequests(Array.isArray(data.extraRequests) ? data.extraRequests : []);
       } catch (error: any) {
-        if (isMounted) setErrorMessage(error?.message || 'Failed to load department finance data.');
+        if (isMounted) setErrorMessage(getApiErrorMessage(error, 'Failed to load department finance data.'));
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -591,7 +601,7 @@ export function DepartmentFinancePageV2() {
       setDraftMonths([]);
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to submit annual budget.');
+      toast.error(getApiErrorMessage(error, 'Failed to submit annual budget.'));
     } finally {
       setIsSubmittingBudget(false);
     }
@@ -626,7 +636,7 @@ export function DepartmentFinancePageV2() {
       });
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || (editingVendor ? 'Failed to update vendor.' : 'Failed to register vendor.'));
+      toast.error(getApiErrorMessage(error, editingVendor ? 'Failed to update vendor.' : 'Failed to register vendor.'));
     } finally {
       setIsSubmittingVendor(false);
     }
@@ -661,7 +671,7 @@ export function DepartmentFinancePageV2() {
       setExtraBudgetForm({ monthKey: '', amount: '', reason: '' });
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to submit extra budget request.');
+      toast.error(getApiErrorMessage(error, 'Failed to submit extra budget request.'));
     } finally {
       setIsSubmittingExtraBudget(false);
     }
@@ -690,7 +700,7 @@ export function DepartmentFinancePageV2() {
       setImportFile(null);
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to import data.');
+      toast.error(getApiErrorMessage(error, 'Failed to import data.'));
     } finally {
       setIsImporting(false);
     }
@@ -710,7 +720,7 @@ export function DepartmentFinancePageV2() {
       toast.success('Expense marked as paid.');
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update payment status.');
+      toast.error(getApiErrorMessage(error, 'Failed to update payment status.'));
     }
   };
 
@@ -752,7 +762,7 @@ export function DepartmentFinancePageV2() {
       setActualAmountToPay('');
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to link vendor.');
+      toast.error(getApiErrorMessage(error, 'Failed to link vendor.'));
     } finally {
       setIsLinkingVendor(false);
     }
@@ -764,7 +774,7 @@ export function DepartmentFinancePageV2() {
       await sendReminder({ planId: financeData?.plan?._id, fiscalYear: selectedFY, department: departmentLabel });
       toast.success('Reminder sent to finance team.');
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to send reminder.');
+      toast.error(getApiErrorMessage(error, 'Failed to send reminder.'));
     } finally {
       setIsSendingReminder(false);
     }
@@ -783,7 +793,7 @@ export function DepartmentFinancePageV2() {
       toast.success('Budget request reset. You can now resubmit.');
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to reset budget request.');
+      toast.error(getApiErrorMessage(error, 'Failed to reset budget request.'));
     } finally {
       setIsResettingBudget(false);
     }
@@ -804,7 +814,7 @@ export function DepartmentFinancePageV2() {
       toast.success('Invoice uploaded successfully.');
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to upload invoice.');
+      toast.error(getApiErrorMessage(error, 'Failed to upload invoice.'));
     }
   };
 
@@ -855,7 +865,7 @@ export function DepartmentFinancePageV2() {
       toast.success(reportFormat === 'PDF' ? 'Report saved to Reports.' : 'Report saved to Reports. Preview it before downloading.');
       navigate(createdReportId ? `/extra-common-modules/reports?reportId=${createdReportId}` : '/extra-common-modules/reports');
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to generate report.');
+      toast.error(getApiErrorMessage(error, 'Failed to generate report.'));
     }
   };
 
