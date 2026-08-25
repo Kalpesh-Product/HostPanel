@@ -97,9 +97,9 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
       .filter((tourStep) => !tourStep.tabPage || tourStep.tabPage === activeTabPage)
       .forEach((tourStep) => {
         const target = findStepTarget(tourStep);
-        if (!target) return;
+        if (!target && !tourStep.textOnly) return;
         steps.push({
-          element: target,
+          element: target ?? undefined,
           popover: {
             title: tourStep.title,
             description: tourStep.description,
@@ -109,10 +109,7 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
         });
       });
 
-    if (
-      (tour.id === "basic-dashboard" || tour.id === "professional-dashboard") &&
-      guideButton
-    ) {
+    if (tour.replayHint && guideButton) {
       steps.push({
         element: guideButton,
         popover: {
@@ -255,6 +252,15 @@ export default function usePageTour() {
       if (steps.length === 0) return false;
       let outcome: TourStatus | null = null;
 
+      // The app scrolls inside #scrollable-content, so a step that needs the
+      // nested container scrolled can be highlighted before that scroll
+      // settles, drawing its box over empty space or the page footer. Keep
+      // Driver re-aligned while the user scrolls or resizes during a tour.
+      const refreshPosition = () => driverRef.current?.refresh();
+      const scrollContainer = document.getElementById("scrollable-content");
+      scrollContainer?.addEventListener("scroll", refreshPosition, { passive: true });
+      window.addEventListener("resize", refreshPosition);
+
       const instance = driver({
         steps,
         showProgress: true,
@@ -285,6 +291,8 @@ export default function usePageTour() {
         },
         onDestroyed: () => {
           driverRef.current = null;
+          scrollContainer?.removeEventListener("scroll", refreshPosition);
+          window.removeEventListener("resize", refreshPosition);
           void saveProgress(
             currentTour.id,
             currentTour.version,

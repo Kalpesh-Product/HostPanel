@@ -8,13 +8,15 @@ import {
   Building2,
   CheckCircle2,
   Download,
-  Edit,
+  Edit2,
   Eye,
   ChevronDown,
   LayoutGrid,
+  Loader2,
   Mic,
   Monitor,
   Plus,
+  Save,
   Search,
   ShieldAlert,
   Trash2,
@@ -22,6 +24,7 @@ import {
   Users,
   Wrench,
   X,
+  XCircle,
 } from 'lucide-react';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
@@ -187,11 +190,35 @@ function normalizeResource(resource: Partial<Resource> = {}): Resource {
   };
 }
 
-function statusClass(status?: string): string {
-  if (status === 'Active') return 'bg-green-50 text-green-600 border-green-200';
-  if (status === 'Under Maintenance') return 'bg-amber-50 text-amber-600 border-amber-200';
-  if (status === 'Disabled') return 'bg-slate-100 text-slate-500 border-slate-200';
-  return 'bg-slate-50 text-slate-600 border-slate-200';
+function statusBadge(status?: string): React.ReactNode {
+  if (status === 'Active') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider">
+        <CheckCircle2 size={12} /> Active
+      </span>
+    );
+  }
+  if (status === 'Under Maintenance') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider">
+        <AlertTriangle size={12} /> Maintenance
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider">
+      <XCircle size={12} /> Disabled
+    </span>
+  );
+}
+
+function FormSectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Icon size={16} /></span>
+      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">{label}</span>
+    </h4>
+  );
 }
 
 function typeIcon(type?: string): React.ReactNode {
@@ -613,6 +640,13 @@ function ResourceManagementPageInner() {
     [resources],
   );
 
+  function clearFilters(): void {
+    setCategoryFilter('All Categories');
+    setFloorFilter('All Floors');
+    setWingFilter('All Wings');
+    setStatusFilter('All Status');
+  }
+
   function openAddModal(): void {
     setEditingResource(null);
     setForm(initialFormState);
@@ -925,32 +959,6 @@ function ResourceManagementPageInner() {
 
           {isInitialLoading ? <ResourceManagementSkeleton /> : null}
 
-          {/* ── Pill Tabs ── */}
-          <div data-tour="admin-resource-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {[
-              { key: 'all', label: 'All Resources' },
-              { key: 'active', label: 'Active' },
-              { key: 'maintenance', label: 'Under Maintenance' },
-              { key: 'disabled', label: 'Disabled' },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setStatusFilter(tab.key === 'all' ? 'All Status' : tab.key === 'active' ? 'Active' : tab.key === 'maintenance' ? 'Under Maintenance' : 'Disabled')}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                   (tab.key === 'all' && statusFilter === 'All Status') ||
-                   (tab.key === 'active' && statusFilter === 'Active') ||
-                   (tab.key === 'maintenance' && statusFilter === 'Under Maintenance') ||
-                   (tab.key === 'disabled' && statusFilter === 'Disabled')
-                     ? 'bg-[#2563EB] text-white shadow-sm'
-                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                 }`}
-               >
-                 {tab.label}
-               </button>
-             ))}
-           </div>
-
           {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card) ── */}
           <div data-tour="admin-resource-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
@@ -977,81 +985,109 @@ function ResourceManagementPageInner() {
           </div>
 
           {/* ── Data Panel ── */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+          <div className="flex flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm min-h-[500px]">
             {/* ── Panel Header ── */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div data-tour="admin-resource-filters" className="flex items-center gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                <div className="flex items-center gap-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-400 shrink-0">
-                  <LayoutGrid size={14} /> Resources
-                  <span className="ml-1 text-xs font-semibold text-slate-500 normal-case tracking-normal">({filteredResources.length} of {resources.length})</span>
-                </div>
-                <select
-                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                  value={categoryFilter}
-                  onChange={(event) => setCategoryFilter(event.target.value)}
-                >
-                  <option>All Categories</option>
-                  {resourceCategoryOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-                <select
-                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                  value={floorFilter}
-                  onChange={(event) => setFloorFilter(event.target.value)}
-                >
-                  <option>All Floors</option>
-                  {availableFloors.map((floor) => (
-                    <option key={floor}>{floor}</option>
-                  ))}
-                </select>
-                <select
-                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                  value={wingFilter}
-                  onChange={(event) => setWingFilter(event.target.value)}
-                >
-                  <option>All Wings</option>
-                  {availableWings.map((wing) => (
-                    <option key={wing}>{wing}</option>
-                  ))}
-                </select>
-                <select
-                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                >
-                  <option>All Status</option>
-                  {statusOptions.map((status) => (
-                    <option key={status}>{status}</option>
-                  ))}
-                </select>
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              {/* LEFT: status sub-tab pills */}
+              <div data-tour="admin-resource-tabs" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {['All Status', ...statusOptions].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === status
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {status === 'All Status' ? 'All' : status}
+                  </button>
+                ))}
               </div>
-              <div className="flex items-center gap-2 flex-nowrap shrink-0">
-                <div className="relative min-w-[200px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+
+              {/* RIGHT: search + primary actions */}
+              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     data-tour="admin-resource-search"
                     type="text"
                     placeholder="Search by name, ID, category, or location"
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
                 <button
+                  type="button"
                   onClick={handleBulkUploadClick}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
                 >
-                  <UploadCloud size={16} />
-                  
+                  <UploadCloud size={13} />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                 </button>
                 <button
                   onClick={openAddModal}
                   data-tour="admin-resource-add-btn"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <Plus size={13} strokeWidth={3} />
-                  Add Resource
+                  <Plus size={13} strokeWidth={3} /> ADD RESOURCE
+                </button>
+              </div>
+            </div>
+
+            {/* ── Filters Row ── */}
+            <div data-tour="admin-resource-filters" className="border-b border-slate-100 bg-white p-3">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 items-end">
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Category</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    value={categoryFilter}
+                    onChange={(event) => setCategoryFilter(event.target.value)}
+                  >
+                    <option>All Categories</option>
+                    {resourceCategoryOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Floor</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    value={floorFilter}
+                    onChange={(event) => setFloorFilter(event.target.value)}
+                  >
+                    <option>All Floors</option>
+                    {availableFloors.map((floor) => (
+                      <option key={floor} value={floor}>{floor}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Wing</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    value={wingFilter}
+                    onChange={(event) => setWingFilter(event.target.value)}
+                  >
+                    <option>All Wings</option>
+                    {availableWings.map((wing) => (
+                      <option key={wing} value={wing}>{wing}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <X size={14} /> Reset Filters
                 </button>
               </div>
             </div>
@@ -1072,9 +1108,7 @@ function ResourceManagementPageInner() {
                             <p className="mt-1 truncate text-[10px] font-pmedium uppercase tracking-widest text-blue-600">{getLocationLabel(resource) || 'Unassigned location'}</p>
                           </div>
                         </div>
-                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${statusClass(resource.status)}`}>
-                          {resource.status}
-                        </span>
+                        {statusBadge(resource.status)}
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-2.5 text-[12px]">
@@ -1117,13 +1151,13 @@ function ResourceManagementPageInner() {
                       ) : null}
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button title="View" onClick={() => setViewingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
+                        <button title="View Details" onClick={() => setViewingResource(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900">
                           <Eye size={16} />
                         </button>
-                        <button title="Edit" onClick={() => openEditModal(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600">
-                          <Edit size={16} />
+                        <button title="Edit Resource" onClick={() => openEditModal(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
+                          <Edit2 size={16} />
                         </button>
-                        <button title="Delete" onClick={() => setDeletingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-600">
+                        <button title="Delete Resource" onClick={() => setDeletingResource(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -1131,72 +1165,85 @@ function ResourceManagementPageInner() {
                   ))}
                 </div>
 
-                <div className="hidden xl:block">
-                  <table data-tour="admin-resource-table" className="w-full text-left table-auto">
-                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <div className="hidden xl:block flex-1 overflow-x-auto">
+                  <table data-tour="admin-resource-table" className="w-full text-left">
+                    <thead className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
                       <tr>
-                        <th className="px-3 py-4 text-center w-10">#</th>
-                        <th className="px-3 py-4 text-left">Resource</th>
-                        <th className="px-3 py-4 text-left">Location</th>
-                        <th className="px-3 py-4 text-left">Category</th>
-                        <th className="px-3 py-4 text-center">Inventory</th>
-                        <th className="px-3 py-4 text-center">Seats</th>
-                        <th className="px-3 py-4 text-center">Status</th>
-                        <th className="px-3 py-4 text-center w-32">Actions</th>
+                        <th className="px-3.5 py-2 w-8 text-center">#</th>
+                        <th className="px-3.5 py-2">Resource</th>
+                        <th className="px-3.5 py-2">Category</th>
+                        <th className="px-3.5 py-2">Inventory</th>
+                        <th className="px-3.5 py-2">Floor</th>
+                        <th className="px-3.5 py-2">Wing</th>
+                        <th className="px-3.5 py-2">Capacity</th>
+                        <th className="px-3.5 py-2">Hourly</th>
+                        <th className="px-3.5 py-2">Daily</th>
+                        <th className="px-3.5 py-2">Credits</th>
+                        <th className="px-3.5 py-2 text-center">Status</th>
+                        <th className="px-3.5 py-2 text-center">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100/60">
+                    <tbody className="divide-y divide-slate-50">
                       {filteredResources.map((resource, index) => (
-                        <tr key={resource.recordId} className="transition-colors hover:bg-blue-50/30">
-                          <td className="px-3 py-4 text-center text-xs font-bold text-slate-400">{index + 1}</td>
-                          <td className="px-3 py-4 text-left">
+                        <tr key={resource.recordId} className="transition-all hover:bg-blue-50/30">
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-500 text-center">{index + 1}</td>
+                          <td className="px-3.5 py-2">
                             <div className="flex items-center gap-2.5">
                               <div className="shrink-0 rounded-xl bg-slate-100 p-2 text-blue-600 leading-none">
                                 {typeIcon(resource.type)}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-xs font-black text-slate-900 truncate max-w-[150px]">{resource.name}</p>
+                                <p className="text-[12px] font-pmedium text-slate-900 truncate max-w-[150px]">{resource.name}</p>
                                 <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{resource.id || resource.recordId}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-4 text-left">
-                            <p className="text-xs font-bold text-slate-900">{resource.location || '-'}</p>
-                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Fl {resource.floor}{resource.wing ? ` / ${resource.wing}` : ''}</p>
-                          </td>
-                          <td className="px-3 py-4 text-left text-xs font-bold text-slate-900 whitespace-nowrap">{getResourceCategoryLabel(resource.resourceCategory)}</td>
-                          <td className="px-3 py-4 text-center">
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{getResourceCategoryLabel(resource.resourceCategory)}</td>
+                          <td className="px-3.5 py-2">
                             {isDeskCategory(resource.resourceCategory) ? (
-                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${resource.inventoryMode === 'single'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                : 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest ${resource.inventoryMode === 'area'
+                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                 }`}>
                                 {getInventoryModeLabel(resource.inventoryMode)}
                               </span>
                             ) : (
-                              <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">—</span>
+                              <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                                Not applicable
+                              </span>
                             )}
                           </td>
-                          <td className="px-3 py-4 text-center text-xs font-bold text-slate-900 whitespace-nowrap">{resource.capacity}</td>
-                          <td className="px-3 py-4 text-center whitespace-nowrap">
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{resource.floor || '--'}</td>
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{resource.wing || '--'}</td>
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{resource.capacity} Pax</td>
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">
+                            {resource.pricePerHour && resource.pricePerHour > 0
+                              ? `${wsMoney(resource.pricePerHour)}${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
+                              : resource.pricing || '--'}
+                          </td>
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">
+                            {resource.pricePerDay && resource.pricePerDay > 0
+                              ? `${wsMoney(resource.pricePerDay)}${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
+                              : '--'}
+                          </td>
+                          <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900 text-center">{getCreditValue(resource)}</td>
+                          <td className="px-3.5 py-2 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
-                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${statusClass(resource.status)}`}>
-                                {resource.status}
-                              </span>
+                              {statusBadge(resource.status)}
                               {resource.currentlyBooked ? (
                                 <div className="w-2 h-2 rounded-full bg-amber-500" title="Currently booked" />
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-3 py-4 text-center">
-                            <div className="inline-flex gap-1.5">
-                              <button title="View" onClick={() => setViewingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
+                          <td className="px-3.5 py-2">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button title="View Details" onClick={() => setViewingResource(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900">
                                 <Eye size={14} />
                               </button>
-                              <button title="Edit" onClick={() => openEditModal(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600">
-                                <Edit size={14} />
+                              <button title="Edit Resource" onClick={() => openEditModal(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
+                                <Edit2 size={14} />
                               </button>
-                              <button title="Delete" onClick={() => setDeletingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-600">
+                              <button title="Delete Resource" onClick={() => setDeletingResource(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600">
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -1221,78 +1268,56 @@ function ResourceManagementPageInner() {
 
         {/* ── Add / Edit Resource Modal ─────────────────────────────────── */}
         {isEditorOpen ? (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex h-full max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-6 py-5 lg:px-8 lg:py-6">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary tracking-tight">
-                    <LayoutGrid size={20} />
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+              onClick={(event) => event.stopPropagation()}
+              className="bg-white/95 backdrop-blur-xl w-full h-[92vh] sm:h-auto sm:max-h-[95vh] sm:max-w-2xl rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300"
+            >
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+
+              <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-xl font-pmedium text-primary tracking-tight truncate">
                     {editingResource ? 'Edit Resource' : 'Add New Resource'}
                   </h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-2 truncate">
                     {editingResource ? 'Update the workspace record' : 'Create inventory for bookings and workspace planning'}
                   </p>
                 </div>
-                <button onClick={closeEditor} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
-                  <X size={18} />
+                <button type="button" onClick={closeEditor} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm shrink-0">
+                  <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
-                  <div className="lg:col-span-2 rounded-3xl border border-slate-100 bg-slate-50/80 px-4 py-4 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Resource snapshot</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-600">A quick summary of the unit before you save it.</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-blue-700">
-                          {getResourceCategoryLabel(form.resourceCategory)}
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-600">
-                          {form.location || 'Location pending'}
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-600">
-                          Floor {form.floor}
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-600">
-                          Wing {form.wing || 'N/A'}
-                        </span>
-                        {isDeskCategory(form.resourceCategory) ? (
-                          <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-emerald-700">
-                            {getInventoryModeLabel(form.inventoryMode)}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
+              <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
+                <div className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <FormSectionHeader icon={Monitor} label="Resource Details" />
 
-                  <div className="space-y-6">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Resource Name *</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resource Name *</label>
                       <input
                         required
                         type="text"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                         value={form.name}
                         onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Location *</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location *</label>
                         {locationMode === 'custom' ? (
                           <div className="space-y-2">
                             <input
                               required
-                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                               value={form.location}
                               onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}
                               placeholder="Enter new location"
                             />
-                            <button type="button" onClick={() => { setLocationMode('select'); setForm((current) => ({ ...current, location: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">
+                            <button type="button" onClick={() => { setLocationMode('select'); setForm((current) => ({ ...current, location: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">
                               Back to dropdown
                             </button>
                           </div>
@@ -1300,7 +1325,7 @@ function ResourceManagementPageInner() {
                           <div className="relative">
                             <select
                               required
-                              className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                               value={form.location || ''}
                               onChange={(event) => {
                                 const nextValue = event.target.value;
@@ -1318,16 +1343,16 @@ function ResourceManagementPageInner() {
                               ))}
                               <option value={ADD_NEW_OPTION}>Add new location</option>
                             </select>
-                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                           </div>
                         )}
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Category *</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category *</label>
                         <select
                           required
-                          className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           value={form.resourceCategory}
                           onChange={(event) =>
                             setForm((current) => {
@@ -1357,12 +1382,12 @@ function ResourceManagementPageInner() {
                       </div>
 
                       {form.resourceCategory === 'open_desk' ? (
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Inventory *</label>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Inventory *</label>
                           <div className="relative">
                             <select
                               required
-                              className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                               value={form.inventoryMode}
                               onChange={(event) =>
                                 setForm((current) => {
@@ -1380,23 +1405,23 @@ function ResourceManagementPageInner() {
                                 <option key={option.value} value={option.value}>{option.label}</option>
                               ))}
                             </select>
-                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                           </div>
                         </div>
                       ) : null}
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor *</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor *</label>
                         {floorMode === 'custom' ? (
                           <div className="space-y-2">
                             <input
                               required
-                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                               value={form.floor}
                               onChange={(event) => setForm((current) => ({ ...current, floor: event.target.value }))}
                               placeholder="Enter new floor"
                             />
-                            <button type="button" onClick={() => { setFloorMode('select'); setForm((current) => ({ ...current, floor: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">
+                            <button type="button" onClick={() => { setFloorMode('select'); setForm((current) => ({ ...current, floor: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">
                               Back to dropdown
                             </button>
                           </div>
@@ -1404,7 +1429,7 @@ function ResourceManagementPageInner() {
                           <div className="relative">
                             <select
                               required
-                              className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                               value={form.floor || ''}
                               onChange={(event) => {
                                 const nextValue = event.target.value;
@@ -1417,35 +1442,34 @@ function ResourceManagementPageInner() {
                               }}
                             >
                               <option value="">Select floor</option>
-                              <option value="">Select floor</option>
                               {availableFloors.map((floor) => (
                                 <option key={floor} value={floor}>{floor}</option>
                               ))}
                               <option value={ADD_NEW_OPTION}>Add new floor</option>
                             </select>
-                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                           </div>
                         )}
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing</label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing</label>
                         {wingMode === 'custom' ? (
                           <div className="space-y-2">
                             <input
-                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                               value={form.wing}
                               onChange={(event) => setForm((current) => ({ ...current, wing: event.target.value }))}
                               placeholder="Enter new wing or leave blank"
                             />
-                            <button type="button" onClick={() => { setWingMode('select'); setForm((current) => ({ ...current, wing: '' })); }} className="text-xs font-pmedium uppercase tracking-widest text-blue-600">
+                            <button type="button" onClick={() => { setWingMode('select'); setForm((current) => ({ ...current, wing: '' })); }} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">
                               Back to dropdown
                             </button>
                           </div>
                         ) : (
                           <div className="relative">
                             <select
-                              className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                               value={form.wing || ''}
                               onChange={(event) => {
                                 const nextValue = event.target.value;
@@ -1463,87 +1487,105 @@ function ResourceManagementPageInner() {
                               ))}
                               <option value={ADD_NEW_OPTION}>Add new wing</option>
                             </select>
-                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                           </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                          {isDeskCategory(form.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                        </label>
+                        {isDeskCategory(form.resourceCategory) && capacityOptions.length > 0 ? (
+                          <div className="space-y-1.5">
+                            <div className="relative">
+                              <select
+                                required
+                                disabled={isSingleDeskInventory}
+                                className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                value={selectedDeskCapacity}
+                                onChange={(event) => setForm((current) => ({ ...current, capacity: event.target.value }))}
+                              >
+                                {capacityOptions.map((option) => (
+                                  <option key={option} value={String(option)}>
+                                    {option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            </div>
+                            {isSingleDeskInventory ? (
+                              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[12px] font-pmedium text-emerald-800">
+                                Single desks are fixed to 1 desk, so this value cannot be changed.
+                              </div>
+                            ) : null}
+                            {!isSingleDeskInventory && !capacityOptions.includes(Number(form.capacity)) ? (
+                              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] font-pmedium text-amber-800">
+                                Legacy value: {form.capacity} seats
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <input
+                            required
+                            type="number"
+                            placeholder="Enter capacity for this resource"
+                            min="1"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            value={form.capacity}
+                            onChange={(event) => setForm((current) => ({ ...current, capacity: event.target.value }))}
+                          />
                         )}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
-                        {isDeskCategory(form.resourceCategory) ? 'Seats *' : 'Capacity *'}
-                      </label>
-                      {isDeskCategory(form.resourceCategory) && capacityOptions.length > 0 ? (
-                        <div className="space-y-2">
-                          <div className="relative">
-                            <select
-                              required
-                              disabled={isSingleDeskInventory}
-                              className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                              value={selectedDeskCapacity}
-                              onChange={(event) => setForm((current) => ({ ...current, capacity: event.target.value }))}
-                            >
-                              {capacityOptions.map((option) => (
-                                <option key={option} value={String(option)}>
-                                  {option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          </div>
-                          {isSingleDeskInventory ? (
-                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-                              Single desks are fixed to 1 desk, so this value cannot be changed.
-                            </div>
-                          ) : null}
-                          {!isSingleDeskInventory && !capacityOptions.includes(Number(form.capacity)) ? (
-                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-                              Legacy value: {form.capacity} seats
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <input
-                          required
-                          type="number"
-                          placeholder="Enter capacity for this resource"
-                          min="1"
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500"
-                          value={form.capacity}
-                          onChange={(event) => setForm((current) => ({ ...current, capacity: event.target.value }))}
-                        />
-                      )}
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
-                        {form.resourceCategory === 'open_desk'
-                          ? form.inventoryMode === 'single'
-                            ? 'Single open desks are reserved for individual bookings.'
-                            : 'Open desk areas are saved as 1 through 10 seat blocks.'
-                          : form.resourceCategory === 'cabin_desk'
-                            ? 'Cabin desk areas are saved as 4, 6, 8, or 10 seat blocks.'
-                            : 'Keep the capacity aligned with the resource layout used on the floor.'}
-                      </p>
-                    </div>
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
+                      {form.resourceCategory === 'open_desk'
+                        ? form.inventoryMode === 'single'
+                          ? 'Single open desks are reserved for individual bookings.'
+                          : 'Open desk areas are saved as 1 through 10 seat blocks.'
+                        : form.resourceCategory === 'cabin_desk'
+                          ? 'Cabin desk areas are saved as 4, 6, 8, or 10 seat blocks.'
+                          : 'Keep the capacity aligned with the resource layout used on the floor.'}
+                    </p>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
                       <textarea
-                        rows={4}
-                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        rows={3}
+                        className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                         value={form.description}
                         onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                       />
                     </div>
                   </div>
 
-                  <div className="md:col-span-2 flex gap-4 border-t border-slate-100 pt-6">
-                    <button type="button" onClick={closeEditor} className="flex-1 rounded-2xl bg-slate-100 py-4 font-pmedium text-slate-700 transition-all hover:bg-slate-200">
-                      Cancel
-                    </button>
-                    <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700">
-                      <Plus size={18} />
-                      {editingResource ? 'Update Resource' : 'Save Resource'}
-                    </button>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
+                      <select
+                        required
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                        value={form.status}
+                        onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}
+                      >
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+                </div>
+
+                <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+                  <button type="button" onClick={closeEditor} className="flex-1 px-6 py-2.5 rounded-xl font-pmedium text-[10px] uppercase tracking-wider bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={isSaving} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
+                    {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                    {isSaving ? 'Saving...' : editingResource ? 'Update Resource' : 'Create Resource'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -1552,85 +1594,118 @@ function ResourceManagementPageInner() {
 
         {/* ── View Resource Modal ───────────────────────────────────────── */}
         {viewingResource ? (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 p-8">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-xl font-pmedium text-primary">{viewingResource.name}</h2>
-                    <span className={`rounded-md border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider ${statusClass(viewingResource.status)}`}>
-                      {viewingResource.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
-                    {viewingResource.id} - {getResourceCategoryLabel(viewingResource.resourceCategory)}
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+              onClick={(event) => event.stopPropagation()}
+              className="bg-white/95 backdrop-blur-xl w-full h-[92vh] sm:h-auto sm:max-h-[95vh] sm:max-w-2xl rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300"
+            >
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+
+              <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-xl font-pmedium text-primary tracking-tight truncate">View Resource Details</h2>
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-2 truncate">
+                    Viewing resource details in read-only mode.
                   </p>
                 </div>
-                <button onClick={() => setViewingResource(null)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
-                  <X size={18} />
+                <button onClick={() => setViewingResource(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm shrink-0">
+                  <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <div className="grid gap-4 p-8 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Category</p>
-                  <p className="flex items-center gap-1.5 font-bold text-slate-900">
-                    {typeIcon(viewingResource.type)}
-                    {getResourceCategoryLabel(viewingResource.resourceCategory)}
-                  </p>
+              <div className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
+                <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resource</p>
+                      <h3 className="mt-1 text-lg font-pmedium text-slate-900">{viewingResource.name}</h3>
+                      <p className="mt-0.5 text-[12px] font-pmedium text-slate-600">{viewingResource.id || viewingResource.recordId} &bull; {getResourceCategoryLabel(viewingResource.resourceCategory)}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {statusBadge(viewingResource.status)}
+                      {viewingResource.currentlyBooked ? (
+                        <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-amber-700">
+                          Currently booked
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Inventory</p>
-                  {isDeskCategory(viewingResource.resourceCategory) ? (
-                    <>
-                      <p className="font-bold text-slate-900">{getInventoryModeLabel(viewingResource.inventoryMode)}</p>
-                      <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                        {viewingResource.inventoryMode === 'single' ? 'Standalone desk inventory' : 'Tenant area inventory'}
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <FormSectionHeader icon={Monitor} label="Resource Details" />
+                  <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Category</dt>
+                      <dd className="mt-0.5 flex items-center gap-1.5 text-[12px] font-pmedium text-slate-900">
+                        {typeIcon(viewingResource.type)}
+                        {getResourceCategoryLabel(viewingResource.resourceCategory)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Inventory</dt>
+                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">
+                        {isDeskCategory(viewingResource.resourceCategory) ? getInventoryModeLabel(viewingResource.inventoryMode) : 'Not applicable'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Location</dt>
+                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{getLocationLabel(viewingResource) || '--'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Floor / Wing</dt>
+                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">Floor {viewingResource.floor || '--'} / Wing {viewingResource.wing || '--'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Capacity</dt>
+                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewingResource.capacity} Pax</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant Assignment</dt>
+                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewingResource.assignedTenantCompanyName || 'Unassigned'}</dd>
+                    </div>
+                  </dl>
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Description</p>
+                    <p className="text-[12px] font-pmedium text-slate-700">{viewingResource.description || 'No description added yet.'}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <FormSectionHeader icon={LayoutGrid} label="Pricing & Credits (set by Sales)" />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">
+                        {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Hourly / Person' : 'Hourly'}
                       </p>
-                    </>
-                  ) : (
-                    <p className="font-bold text-align-center text-slate-900">Not applicable</p>
-                  )}
+                      <p className="mt-1 text-[13px] font-pmedium text-emerald-700">
+                        {viewingResource.pricePerHour && viewingResource.pricePerHour > 0 ? wsMoney(viewingResource.pricePerHour) : viewingResource.pricing || 'Not set'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">
+                        {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Daily / Person' : 'Daily'}
+                      </p>
+                      <p className="mt-1 text-[13px] font-pmedium text-emerald-700">
+                        {viewingResource.pricePerDay && viewingResource.pricePerDay > 0 ? wsMoney(viewingResource.pricePerDay) : 'Not set'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-indigo-600">Credits</p>
+                      <p className="mt-1 text-[13px] font-pmedium text-indigo-700">{getCreditValue(viewingResource)}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{getCreditSummary(viewingResource)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Location</p>
-                  <p className="font-bold text-slate-900">{getLocationLabel(viewingResource)}</p>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                    Floor {viewingResource.floor} / Wing {viewingResource.wing || '-'}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Credits</p>
-                  <p className="font-black text-blue-600">{getCreditValue(viewingResource)} Credits</p>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{getCreditSummary(viewingResource)}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Tenant Assignment</p>
-                  <p className="font-bold text-slate-900">{viewingResource.assignedTenantCompanyName || 'Unassigned'}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
-                    {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Sales Pricing Per Person' : 'Sales Pricing'}
-                  </p>
-                  <p className="font-black text-green-600">
-                    {viewingResource.pricePerHour && viewingResource.pricePerHour > 0
-                      ? `${wsMoney(viewingResource.pricePerHour)} / hr${isPerPersonPricingCategory(viewingResource.resourceCategory) ? ' / person' : ''}`
-                      : viewingResource.pricing || 'Pricing pending'}
-                  </p>
-                  <p className="mt-1 font-black text-green-600">
-                    {viewingResource.pricePerDay && viewingResource.pricePerDay > 0
-                      ? `${wsMoney(viewingResource.pricePerDay)} / day${isPerPersonPricingCategory(viewingResource.resourceCategory) ? ' / person' : ''}`
-                      : 'Daily rate not set'}
-                  </p>
-                </div>
-                <div className="md:col-span-2 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                  <p className="mb-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Description</p>
-                  <p className="text-sm font-medium text-slate-700">{viewingResource.description || 'No description added yet.'}</p>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
+                  <div>{statusBadge(viewingResource.status)}</div>
                 </div>
               </div>
 
-              <div className="border-t border-slate-100 bg-slate-50/30 p-6">
-                <button onClick={() => setViewingResource(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-pmedium text-slate-600 transition-all hover:bg-slate-100">
+              <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+                <button type="button" onClick={() => setViewingResource(null)} className="flex-1 px-6 py-2.5 rounded-xl font-pmedium text-[10px] uppercase tracking-wider bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 transition-all">
                   Close Details
                 </button>
               </div>

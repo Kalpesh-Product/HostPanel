@@ -308,6 +308,10 @@ export function OrganizationPage() {
   const [isDeletingDepartment, setIsDeletingDepartment] = useState(false);
   const [accessTogglePendingMemberId, setAccessTogglePendingMemberId] = useState('');
   const [cancelInvitePendingMemberId, setCancelInvitePendingMemberId] = useState('');
+  const organizationLoadRef = useRef<{ requestId: number; promise: Promise<void> | null }>({
+    requestId: 0,
+    promise: null,
+  });
 
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -345,163 +349,171 @@ export function OrganizationPage() {
   };
 
   const loadOrganization = useCallback(async (preferredDepartmentId: string | null = null, showLoading = false) => {
+    if (organizationLoadRef.current.promise) {
+      return organizationLoadRef.current.promise;
+    }
+
+    const requestId = organizationLoadRef.current.requestId + 1;
+    organizationLoadRef.current.requestId = requestId;
+
     if (showLoading) {
       setIsLoading(true);
     }
 
-    try {
-      const [overviewResult, moduleMapResult] = await Promise.allSettled([
-        getOrganizationOverview(axiosPrivate),
-        axiosPrivate.get('/api/workspaces/module-access-map'),
-      ]);
-      const payload =
-        overviewResult.status === 'fulfilled'
-          ? overviewResult.value?.data?.data || overviewResult.value?.data || {}
-          : {};
-      const moduleMapPayload =
-        moduleMapResult.status === 'fulfilled'
-          ? moduleMapResult.value?.data?.data || {}
-          : {};
-      const nextWorkspaceDepartments = Array.isArray(payload?.workspace?.organizationDepartments)
-        ? payload.workspace.organizationDepartments
-        : [];
-      const moduleSections = Array.isArray(moduleMapPayload?.moduleMap?.sections)
-        ? moduleMapPayload.moduleMap.sections
-        : Array.isArray(payload?.workspace?.moduleMap?.sections)
+    const loadPromise = (async () => {
+      try {
+        const overviewResponse = await getOrganizationOverview(axiosPrivate);
+        const payload = overviewResponse?.data?.data || overviewResponse?.data || {};
+        if (organizationLoadRef.current.requestId !== requestId) {
+          return;
+        }
+        const nextWorkspaceDepartments = Array.isArray(payload?.workspace?.organizationDepartments)
+          ? payload.workspace.organizationDepartments
+          : [];
+        const moduleSections = Array.isArray(payload?.workspace?.moduleMap?.sections)
           ? payload.workspace.moduleMap.sections
           : [];
-      const departmentModuleSection = moduleSections.find((section: any) => section?.sectionId === 'department-accesses');
-      const mappedDepartmentCoreModules = (departmentModuleSection?.items || []).flatMap((group: any) =>
-        (group?.tabs || [])
-          .filter((tab: any) => tab?.unlockedInWorkspace === true)
-          .map((tab: any) => ({
-            id: String(tab?.id || '').trim(),
-            name: String(tab?.label || tab?.name || '').trim(),
-            group: String(group?.label || group?.name || 'Available Modules').trim(),
-          })),
-      ).filter((item: CoreModuleOption) => item.id && item.name);
-      const fallbackCoreModules = Array.isArray(payload?.workspace?.availableCoreModules)
-        ? payload.workspace.availableCoreModules.map((item: any) => ({
-            id: String(item?.id || '').trim(),
-            name: String(item?.name || item?.label || '').trim(),
-            group: String(item?.group || 'Available Modules').trim(),
-          })).filter((item: CoreModuleOption) => item.id && item.name)
-        : [];
-      const nextAvailableCoreModules = mappedDepartmentCoreModules.length > 0
-        ? mappedDepartmentCoreModules
-        : fallbackCoreModules;
-      const nextWorkspacePlan = String(payload?.workspace?.selectedPlan || 'basic').trim().toLowerCase();
-      const nextDepartments = Array.isArray(payload.departments) ? payload.departments : [];
-      const roleSnapshot = String(
-        currentUser?.workspaceMembership?.role || currentUser?.role || "",
-      )
-        .trim()
-        .toLowerCase()
-        .replace(/_/g, "-");
-      const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
-        const existingDepartment = nextDepartments.find((department) => {
-          const normalizedName = String(department?.name || "")
-            .trim()
-            .toLowerCase();
+        const departmentModuleSection = moduleSections.find((section: any) => section?.sectionId === 'department-accesses');
+        const mappedDepartmentCoreModules = (departmentModuleSection?.items || []).flatMap((group: any) =>
+          (group?.tabs || [])
+            .filter((tab: any) => tab?.unlockedInWorkspace === true)
+            .map((tab: any) => ({
+              id: String(tab?.id || '').trim(),
+              name: String(tab?.label || tab?.name || '').trim(),
+              group: String(group?.label || group?.name || 'Available Modules').trim(),
+            })),
+        ).filter((item: CoreModuleOption) => item.id && item.name);
+        const fallbackCoreModules = Array.isArray(payload?.workspace?.availableCoreModules)
+          ? payload.workspace.availableCoreModules.map((item: any) => ({
+              id: String(item?.id || '').trim(),
+              name: String(item?.name || item?.label || '').trim(),
+              group: String(item?.group || 'Available Modules').trim(),
+            })).filter((item: CoreModuleOption) => item.id && item.name)
+          : [];
+        const nextAvailableCoreModules = mappedDepartmentCoreModules.length > 0
+          ? mappedDepartmentCoreModules
+          : fallbackCoreModules;
+        const nextWorkspacePlan = String(payload?.workspace?.selectedPlan || 'basic').trim().toLowerCase();
+        const nextDepartments = Array.isArray(payload.departments) ? payload.departments : [];
+const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
+          const existingDepartment = nextDepartments.find((department) => {
+            const normalizedName = String(department?.name || "")
+              .trim()
+              .toLowerCase();
+            return (
+              normalizedName === catalogDepartment.label.toLowerCase() ||
+              normalizedName === catalogDepartment.key.toLowerCase()
+            );
+          });
+
           return (
-            normalizedName === catalogDepartment.label.toLowerCase() ||
-            normalizedName === catalogDepartment.key.toLowerCase()
+            existingDepartment || {
+              id: `virtual-${catalogDepartment.key}`,
+              name: catalogDepartment.label,
+              description: catalogDepartment.summary,
+              employeeCount: 0,
+              employees: [],
+              managerUserId: "",
+              managerName: "",
+              actingManagers: [],
+            }
           );
         });
+        // Always show the full platform catalog (7 departments) on this screen.
+        // API workspace department payloads can temporarily be partial and hide one item.
+        const customDepartments = nextDepartments.filter((department) => {
+          const normalizedName = String(department?.name || '').trim().toLowerCase();
+          return !OWNER_DEPARTMENT_CATALOG.some(
+            (catalogDepartment) =>
+              catalogDepartment.label.toLowerCase() === normalizedName ||
+              catalogDepartment.key.toLowerCase() === normalizedName,
+          );
+        });
+        const visibleDepartments = [...mergedDepartments, ...customDepartments];
+        const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
+        const currentUserIdSnapshot = String(currentUser?.id || currentUser?._id || '').trim();
+        const currentUserEmailSnapshot = String(currentUser?.email || '').trim().toLowerCase();
+        const currentMemberFromOverview = nextMembers.find((member) => {
+          const memberUserId = String(member?.userId || member?.id || member?._id || '').trim();
+          const memberEmail = String(member?.email || '').trim().toLowerCase();
+          return (
+            (memberUserId && currentUserIdSnapshot && memberUserId === currentUserIdSnapshot) ||
+            (memberEmail && currentUserEmailSnapshot && memberEmail === currentUserEmailSnapshot)
+          );
+        });
+        const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
+          ? payload.transferredTeamMembers
+          : [];
 
-        return (
-          existingDepartment || {
-            id: `virtual-${catalogDepartment.key}`,
-            name: catalogDepartment.label,
-            description: catalogDepartment.summary,
-            employeeCount: 0,
-            employees: [],
-            managerUserId: "",
-            managerName: "",
-            actingManagers: [],
+        setWorkspaceOrganizationDepartments(nextWorkspaceDepartments);
+        const nextWorkspaceEnabledModuleIds = Array.isArray(payload?.workspace?.enabledModuleIds)
+          ? payload.workspace.enabledModuleIds
+          : [];
+        setWorkspaceEnabledModuleIds(nextWorkspaceEnabledModuleIds);
+        const currentRoleBand = String(
+          currentMemberFromOverview?.role ||
+          currentUser?.workspaceMembership?.role ||
+          currentUser?.role ||
+          '',
+        )
+          .trim()
+          .toLowerCase()
+          .replace(/_/g, '-');
+        const effectiveCurrentMemberGrantedModules =
+          currentRoleBand === 'owner' || currentRoleBand === 'founder'
+            ? nextWorkspaceEnabledModuleIds
+            : [
+                ...(Array.isArray(currentMemberFromOverview?.grantedModules) ? currentMemberFromOverview.grantedModules : []),
+                ...(Array.isArray(currentMemberFromOverview?.addOnGrantedModules) ? currentMemberFromOverview.addOnGrantedModules : []),
+              ];
+        setCurrentMemberGrantedModuleIds(
+          Array.from(new Set(effectiveCurrentMemberGrantedModules.map((item) => String(item || '').trim()).filter(Boolean))),
+        );
+        setWorkspacePlan(nextWorkspacePlan);
+        setAvailableCoreModules(nextAvailableCoreModules);
+        setDepartments(visibleDepartments);
+        setTeamMembers(nextMembers);
+        setTransferredTeamMembers(nextTransferredMembers);
+        setAccountUserLimits(
+          payload.accountUserLimits && typeof payload.accountUserLimits === 'object'
+            ? {
+                limit: payload.accountUserLimits.limit ?? null,
+                activeCount: Number(payload.accountUserLimits.activeCount || 0),
+                canAddUser: payload.accountUserLimits.canAddUser !== false,
+              }
+            : null,
+        );
+        setPermissions(payload.metrics || {});
+        setDeptRoleFilter((current) =>
+          current === 'all' || (current.startsWith('dept:') && visibleDepartments.some((department) => department.id === current.replace('dept:', '')))
+            ? current
+            : 'all',
+        );
+
+        setSelectedDepartment((current) => {
+          const targetId = preferredDepartmentId || current?.id;
+
+          if (targetId) {
+            return visibleDepartments.find((department) => department.id === targetId) || visibleDepartments[0] || null;
           }
-        );
-      });
-      // Always show the full platform catalog (7 departments) on this screen.
-      // API workspace department payloads can temporarily be partial and hide one item.
-      const customDepartments = nextDepartments.filter((department) => {
-        const normalizedName = String(department?.name || '').trim().toLowerCase();
-        return !OWNER_DEPARTMENT_CATALOG.some(
-          (catalogDepartment) =>
-            catalogDepartment.label.toLowerCase() === normalizedName ||
-            catalogDepartment.key.toLowerCase() === normalizedName,
-        );
-      });
-      const visibleDepartments = [...mergedDepartments, ...customDepartments];
-      const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
-      const currentUserIdSnapshot = String(currentUser?.id || currentUser?._id || '').trim();
-      const currentUserEmailSnapshot = String(currentUser?.email || '').trim().toLowerCase();
-      const currentMemberFromOverview = nextMembers.find((member) => {
-        const memberUserId = String(member?.userId || member?.id || member?._id || '').trim();
-        const memberEmail = String(member?.email || '').trim().toLowerCase();
-        return (
-          (memberUserId && currentUserIdSnapshot && memberUserId === currentUserIdSnapshot) ||
-          (memberEmail && currentUserEmailSnapshot && memberEmail === currentUserEmailSnapshot)
-        );
-      });
-      const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
-        ? payload.transferredTeamMembers
-        : [];
 
-      setWorkspaceOrganizationDepartments(nextWorkspaceDepartments);
-      setWorkspaceEnabledModuleIds(
-        Array.isArray(moduleMapPayload?.enabledModuleIds)
-          ? moduleMapPayload.enabledModuleIds
-          : Array.isArray(payload?.workspace?.enabledModuleIds)
-            ? payload.workspace.enabledModuleIds
-            : [],
-      );
-      setCurrentMemberGrantedModuleIds(
-        Array.isArray(moduleMapPayload?.currentMemberGrantedModules) &&
-        moduleMapPayload.currentMemberGrantedModules.length > 0
-          ? moduleMapPayload.currentMemberGrantedModules
-          : Array.isArray(currentMemberFromOverview?.grantedModules)
-            ? currentMemberFromOverview.grantedModules
-            : [],
-      );
-      setWorkspacePlan(nextWorkspacePlan);
-      setAvailableCoreModules(nextAvailableCoreModules);
-      setDepartments(visibleDepartments);
-      setTeamMembers(nextMembers);
-      setTransferredTeamMembers(nextTransferredMembers);
-      setAccountUserLimits(
-        payload.accountUserLimits && typeof payload.accountUserLimits === 'object'
-          ? {
-              limit: payload.accountUserLimits.limit ?? null,
-              activeCount: Number(payload.accountUserLimits.activeCount || 0),
-              canAddUser: payload.accountUserLimits.canAddUser !== false,
-            }
-          : null,
-      );
-      setPermissions(payload.metrics || {});
-      setDeptRoleFilter((current) =>
-        current === 'all' || (current.startsWith('dept:') && visibleDepartments.some((department) => department.id === current.replace('dept:', '')))
-          ? current
-          : 'all',
-      );
-
-      setSelectedDepartment((current) => {
-        const targetId = preferredDepartmentId || current?.id;
-
-        if (targetId) {
-          return visibleDepartments.find((department) => department.id === targetId) || visibleDepartments[0] || null;
+          return visibleDepartments[0] || null;
+        });
+      } catch (error) {
+        console.error("Failed to load organization overview", error);
+        toast.error("Failed to load organization overview");
+      } finally {
+        if (organizationLoadRef.current.requestId === requestId) {
+          organizationLoadRef.current.promise = null;
         }
-
-        return visibleDepartments[0] || null;
-      });
-    } catch (error) {
-      console.error("Failed to load organization overview", error);
-      toast.error("Failed to load organization overview");
-    } finally {
-      if (showLoading) {
-        setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
-    }
+    })();
+
+    organizationLoadRef.current.promise = loadPromise;
+    return loadPromise;
   }, [axiosPrivate, currentUser?._id, currentUser?.email, currentUser?.id, currentUser?.workspaceMembership?.role, currentUser?.role]);
 
   useEffect(() => {
@@ -564,13 +576,12 @@ export function OrganizationPage() {
   useEffect(() => {
     if (!(currentUser?.id || currentUser?._id)) return;
     const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
       void loadOrganization(selectedDepartment?.id || null, false);
     };
-    const intervalId = window.setInterval(refresh, 5000);
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', refresh);
     };
@@ -1454,6 +1465,7 @@ export function OrganizationPage() {
             <Shield size={16} className="inline mr-1"/> PLATFORM USERS
           </button>
           <button
+            data-tour="organization-departments-tab"
             title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
             disabled={!canAccessDepartmentsTab}
             onClick={() => { setActiveTab('departments'); setView('list'); }}
@@ -1538,7 +1550,7 @@ export function OrganizationPage() {
                 />
               </div>
               <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-                <div className="relative w-min">
+                <div data-tour="organization-department-filter" className="relative w-min">
                   <select
                     value={deptRoleFilter}
                     onChange={(e) => setDeptRoleFilter(e.target.value)}
@@ -1894,6 +1906,7 @@ export function OrganizationPage() {
             {canCreateDepartmentByAccess ? (
               <button
                 type="button"
+                data-tour="organization-create-department"
                 title={customWorkspaceDepartment ? 'Edit the custom department and its modules' : canCreateCustomDepartment ? 'Create the one allowed custom department' : 'Department management is unavailable.'}
                 disabled={!canManageCustomDepartment}
                 onClick={() => openDepartmentModal(customWorkspaceDepartment)}

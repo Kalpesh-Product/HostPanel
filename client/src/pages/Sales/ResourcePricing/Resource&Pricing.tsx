@@ -1677,6 +1677,7 @@ export default function PricingPackagesPage() {
 
                 <button
                                               type="button"
+                                              data-tour="resource-pricing-bulk-upload"
                                               onClick={handleBulkUploadClick}
                                               className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
                                             >
@@ -1688,6 +1689,7 @@ export default function PricingPackagesPage() {
             ) : null}
             {showReportExports && (
               <>
+                <div data-tour="resource-pricing-export-btns" className="flex items-center gap-2">
                 <button
                                 type="button"
                                 onClick={() => handleExportPackagesReport('PDF')}
@@ -1704,13 +1706,14 @@ export default function PricingPackagesPage() {
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
+                </div>
               </>
             )}
           </div>
         </div>
 
         {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
-        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+        <div data-tour="resource-pricing-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {[
             { key: 'resource', label: 'Resources' },
             // Memberships tab disabled — feature not implemented yet.
@@ -1724,7 +1727,7 @@ export default function PricingPackagesPage() {
         </div>
 
         {/* 3. SUMMARY CARDS (4-card grid, changes per tab — matches Meeting Rooms page) */}
-        <div className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
+        <div data-tour="resource-pricing-summary" className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
           {summaryCards.map((card) => {
             const Icon = card.icon;
             const labelToneClass = card.cardClass.includes('border-l')
@@ -1745,7 +1748,7 @@ export default function PricingPackagesPage() {
         <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
             {/* LEFT: status sub-tab pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <div data-tour="resource-pricing-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {(activeTab === 'resource'
                 ? ['All Status', ...resourceStatusOptions]
                 : ['All Status', ...packageStatusOptions]
@@ -1772,21 +1775,21 @@ export default function PricingPackagesPage() {
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <input data-tour="resource-pricing-search" type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
               {activeTab === 'resource' ? (
                 <>
-                  <button onClick={openHoursModal} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap" title="Set the booking timings used across meeting room, walk-in and tenant bookings">
+                  <button data-tour="resource-pricing-hours-btn" onClick={openHoursModal} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap" title="Set the booking timings used across meeting room, walk-in and tenant bookings">
                     <Clock size={13} strokeWidth={2.5} /> {bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}
                   </button>
-                  <button onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
+                  <button data-tour="resource-pricing-add-resource-btn" onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
                     <Plus size={13} strokeWidth={3} /> ADD RESOURCE
                   </button>
                 </>
               ) : (
                 // Memberships disabled — this button always creates Tenant packages now.
                 // <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')}>ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}</button>
-                <button onClick={() => openPackageModal('Tenant')} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
+                <button data-tour="resource-pricing-add-package-btn" onClick={() => openPackageModal('Tenant')} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
                   <Plus size={13} strokeWidth={3} /> ADD PACKAGE
                 </button>
               )}
@@ -1794,7 +1797,7 @@ export default function PricingPackagesPage() {
           </div>
 
           {activeTab === 'resource' ? (
-            <div className="border-b border-slate-100 bg-white p-3">
+            <div data-tour="resource-pricing-filters" className="border-b border-slate-100 bg-white p-3">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 items-end">
                 <div>
                   <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Category</label>
@@ -1850,7 +1853,7 @@ export default function PricingPackagesPage() {
           ) : null}
 
           <div className="flex-1 overflow-x-auto">
-            <table className="w-full text-left">
+            <table data-tour="resource-pricing-table" className="w-full text-left">
               <thead className="text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
                 {activeTab === 'resource' ? (
                   <tr><th className="px-3.5 py-2 w-8 text-center">#</th><th className="px-3.5 py-2">Resource</th><th className="px-3.5 py-2">Category</th><th className="px-3.5 py-2">Inventory</th><th className="px-3.5 py-2">Floor</th><th className="px-3.5 py-2">Wing</th><th className="px-3.5 py-2">Capacity</th><th className="px-3.5 py-2">Hourly</th><th className="px-3.5 py-2">Daily</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>

@@ -323,7 +323,7 @@ export default function AdministrationTenantCompanyDetailPage() {
             </div>
 
             {/* ---- STAT CARDS ---- */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+            <div data-tour="tenant-detail-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
                 <div className="min-w-0"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Base Credits</p><p className="text-[15px] font-pmedium text-slate-900">{(ca)}</p></div>
                 <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><CreditCard size={16} /></div>
@@ -343,7 +343,7 @@ export default function AdministrationTenantCompanyDetailPage() {
             </div>
 
             {/* ---- MAIN TABS (pill-style) ---- */}
-            <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="tenant-detail-tabs" data-active-tab={activeTab} className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {TABS.map(tab => {
                 const Icon = tab.icon; return (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -360,7 +360,7 @@ export default function AdministrationTenantCompanyDetailPage() {
             {activeTab === 'company-details' && (
               <div className="space-y-4">
                 {/* Contract & Credits Row */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div data-tour="tenant-detail-contract-cards" className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract Start</p>
                     <p className="text-sm font-pmedium text-slate-900 mt-1">{tenant.contractStart || 'N/A'}</p>
@@ -501,14 +501,16 @@ export default function AdministrationTenantCompanyDetailPage() {
                 subtitle={`${employees.length} employee${employees.length !== 1 ? 's' : ''}`}
                 headerRight={<>
                   <button onClick={() => setMgrModal(true)}
+                    data-tour="tenant-detail-change-manager"
                     className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
                   <button onClick={() => setAddModal(true)}
+                    data-tour="tenant-detail-add-employee"
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 active:scale-95 transition-all"><Plus size={12} strokeWidth={3} /> Add Employee</button>
                 </>}
               >
                 {employees.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table data-tour="tenant-detail-employees-table" className="w-full text-left border-collapse">
                       <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                         <tr><th className="px-5 py-4">Employee</th><th className="px-5 py-4">Contact</th><th className="px-5 py-4">Status</th><th className="px-5 py-4 text-right">Actions</th></tr>
                       </thead>
@@ -572,7 +574,7 @@ export default function AdministrationTenantCompanyDetailPage() {
               >
                 {bookings.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table data-tour="tenant-detail-bookings-table" className="w-full text-left border-collapse">
                       <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                         <tr><th className="px-5 py-4">Room</th><th className="px-5 py-4">Date &amp; Time</th><th className="px-5 py-4">Booked By</th><th className="px-5 py-4">Status</th><th className="px-5 py-4 text-right">Credit Used</th><th className="px-5 py-4 text-center">Action</th></tr>
                       </thead>
@@ -619,7 +621,7 @@ export default function AdministrationTenantCompanyDetailPage() {
               <div className="space-y-4">
 
                 {/* Single Utilization Card */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                <div data-tour="tenant-detail-credit-utilization" className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Credit Utilization</p>
@@ -647,6 +649,7 @@ export default function AdministrationTenantCompanyDetailPage() {
                     <div className="flex items-center gap-2">
                       <div className="relative">
                         <select value={fm} onChange={e => setFm(Number(e.target.value))}
+                          data-tour="tenant-detail-credits-month"
                           className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer appearance-none">
                           {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
                         </select>
@@ -683,7 +686,7 @@ export default function AdministrationTenantCompanyDetailPage() {
                   {/* Monthly entries table */}
                   {fch.length > 0 ? (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
+                      <table data-tour="tenant-detail-credits-table" className="w-full text-left border-collapse">
                         <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                           <tr><th className="px-5 py-4">Date</th><th className="px-5 py-4">Description</th><th className="px-5 py-4 text-right">Debit</th><th className="px-5 py-4 text-right">Credit</th><th className="px-5 py-4 text-right">Balance</th></tr>
                         </thead>
@@ -723,7 +726,7 @@ export default function AdministrationTenantCompanyDetailPage() {
             {/* ================================================================ */}
             {activeTab === 'space-allocation' && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div data-tour="tenant-detail-space-summary" className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <MapPin className="mb-1 text-amber-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Area</p>

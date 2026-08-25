@@ -1098,7 +1098,7 @@ export default function HRAttendanceReviewPage() {
             </div>
           </div>
 
-          <div data-tour="hr-attendance-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-attendance-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {MAIN_TABS.map((tab) => (
               <button
                 key={tab.key}

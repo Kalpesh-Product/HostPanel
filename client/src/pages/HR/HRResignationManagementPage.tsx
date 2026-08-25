@@ -665,7 +665,7 @@ export function HRResignationManagementPage() {
           </div>
 
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-resignation-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
               { key: "requests", label: "Requests" },
               { key: "notice", label: "Active Notice" },
@@ -721,6 +721,7 @@ export function HRResignationManagementPage() {
               </div>
               <div className="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap xl:w-auto">
                 <select
+                  data-tour="hr-resignation-department-filter"
                   className="min-w-[120px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50"
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { downloadReport, getReports, getReportsFiltered } from '@/services/reports';
-import { TablePageSkeleton } from '@/components/ui/Skeleton';
+import { ReportsSkeleton } from '@/components/ui/Skeleton';
 import { downloadReportFile } from '@/utils/report-download';
 import PageFrame from '@/components/Pages/PageFrame';
 
@@ -365,7 +365,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
 
   const pageContent = (
     <>
-      {isLoadingReports && <TablePageSkeleton />}
+      {isLoadingReports && <ReportsSkeleton />}
 
       {errorMessage ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">

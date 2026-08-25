@@ -735,6 +735,117 @@ export function TeamManagementContentSkeleton() {
   );
 }
 
+export function ReportsSkeleton({ label = "Loading reports" } = {}) {
+  return (
+    <div className="animate-pulse flex flex-col gap-4" role="status" aria-busy="true" aria-label={label}>
+      <div className="mb-1 flex flex-col items-start justify-between gap-1.5 md:flex-row md:items-end">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-32 rounded-md" />
+          <Skeleton className="h-3 w-72 max-w-full rounded-md bg-gray-100" />
+        </div>
+        <div className="flex gap-1.5 self-end md:self-auto">
+          <Skeleton className="h-10 w-10 rounded-xl" />
+          <Skeleton className="h-10 w-10 rounded-xl" />
+        </div>
+      </div>
+
+      <div className="mb-1 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="flex items-center justify-between rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="space-y-2">
+              <Skeleton className="h-2.5 w-24 rounded-md" />
+              <Skeleton className="h-4 w-10 rounded-md bg-gray-100" />
+            </div>
+            <Skeleton className="h-8 w-8 rounded-2xl bg-gray-100" />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex min-h-[500px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white/80 shadow-sm">
+        <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:p-4 lg:p-5 xl:flex-row xl:items-center">
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 w-36 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-10 w-full min-w-[180px] rounded-lg sm:w-[220px]" />
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <div className="min-w-[1120px]">
+            <div className="grid grid-cols-9 gap-4 border-b border-slate-100/60 bg-slate-50/50 px-5 py-4">
+              {Array.from({ length: 9 }).map((_, index) => (
+                <Skeleton key={index} className="h-3 rounded-md" />
+              ))}
+            </div>
+            <div className="divide-y divide-slate-100/60">
+              {Array.from({ length: 6 }).map((_, rowIndex) => (
+                <div key={rowIndex} className="grid grid-cols-9 items-center gap-4 px-5 py-4">
+                  <div className="flex items-center gap-2.5">
+                    <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 rounded-md" />
+                      <Skeleton className="h-2.5 w-12 rounded-md bg-gray-100" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3.5 w-3.5 rounded-full" />
+                    <Skeleton className="h-3.5 flex-1 rounded-md bg-gray-100" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Skeleton className="h-3 w-3 rounded-full" />
+                    <Skeleton className="h-3.5 flex-1 rounded-md bg-gray-100" />
+                  </div>
+                  <Skeleton className="h-3.5 w-16 rounded-md bg-gray-100" />
+                  <Skeleton className="h-5 w-14 rounded-md" />
+                  <div className="mx-auto flex justify-center gap-1.5">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 bg-slate-50/30 p-4 md:hidden">
+          {Array.from({ length: 4 }).map((_, rowIndex) => (
+            <div key={rowIndex} className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 rounded-md" />
+                    <Skeleton className="h-2.5 w-24 rounded-md bg-gray-100" />
+                  </div>
+                </div>
+                <Skeleton className="ml-2 h-4 w-16 shrink-0 rounded-md" />
+              </div>
+              <Skeleton className="h-3 w-40 rounded-md bg-gray-100" />
+              <div className="grid grid-cols-3 gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                {Array.from({ length: 3 }).map((_, cellIndex) => (
+                  <div key={cellIndex} className="space-y-1.5">
+                    <Skeleton className="h-2 w-10 rounded-md" />
+                    <Skeleton className="h-3 w-14 rounded-md bg-gray-200" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+                <Skeleton className="h-9 flex-1 rounded-xl" />
+                <Skeleton className="h-9 flex-1 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <span className="sr-only">{label}</span>
+    </div>
+  );
+}
+
 export function TeamManagementSkeleton() {
   return (
     <div

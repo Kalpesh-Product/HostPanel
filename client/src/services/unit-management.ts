@@ -13,6 +13,7 @@ export const updateManagedWorkspace = (
     profile: {
       workspaceName: string;
       businessName?: string;
+      brandName?: string;
       location?: string;
       city?: string;
       state?: string;

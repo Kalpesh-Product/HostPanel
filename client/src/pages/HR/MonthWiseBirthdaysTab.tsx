@@ -158,7 +158,7 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
   return (
     <div className="flex flex-col gap-4">
       {/* ═══ STAT CARDS ═══ */}
-      <div className="mb-1 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+      <div data-tour="hr-birthdays-summary" className="mb-1 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
         {statCards.map((card) => {
           const CardIcon = card.icon;
           return (
@@ -182,7 +182,7 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
         {/* Data Panel Header Row: month pills on the left, search on the right */}
         <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
-          <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+          <div data-tour="hr-birthdays-month-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {MONTH_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -198,7 +198,7 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
             ))}
           </div>
           <div className="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap xl:w-auto">
-            <div className="relative min-w-[180px] flex-1 xl:w-72">
+            <div data-tour="hr-birthdays-search" className="relative min-w-[180px] flex-1 xl:w-72">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input
                 type="text"
@@ -213,7 +213,7 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
 
         {/* Table (as per employee management) */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table data-tour="hr-birthdays-table" className="w-full border-collapse">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4 text-left">Employee ID</th>

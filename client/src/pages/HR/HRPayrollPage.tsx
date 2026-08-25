@@ -1501,7 +1501,7 @@ export default function HRPayrollPage() {
           )}
 
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="hr-payroll-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               onClick={() => { setActiveTab("master"); setSearchQuery(""); }}
               className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
@@ -1582,7 +1582,7 @@ export default function HRPayrollPage() {
               ) : <div />}
 
               <div className="flex flex-wrap items-center justify-end gap-3 w-full xl:w-auto">
-                <div className="relative">
+                <div className="relative" data-tour="hr-payroll-role-filter">
                   <select
                     className="min-w-[120px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50"
                     value={roleFilter}
@@ -1601,7 +1601,7 @@ export default function HRPayrollPage() {
                     All Departments
                   </div>
                 ) : (
-                  <div className="relative">
+                  <div className="relative" data-tour="hr-payroll-department-filter">
                     <select
                       className="min-w-[150px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50"
                       value={departmentFilter}
