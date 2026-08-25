@@ -3,6 +3,7 @@ import {
   listReportsForCurrentUser,
   createReportForCurrentUser,
   downloadReportForCurrentUser,
+  getReportFileForCurrentUser,
 } from "../services/reportService.js";
 
 export async function listReports(req, res, next) {
@@ -40,6 +41,14 @@ export async function downloadReport(req, res, next) {
       message: "Report prepared for download.",
       data: result,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getReportFile(req, res, next) {
+  try {
+    await getReportFileForCurrentUser(req, res);
   } catch (error) {
     next(error);
   }

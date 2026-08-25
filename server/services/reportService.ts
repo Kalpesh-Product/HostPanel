@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { Report } from "../models/Report.js";
 import EmployeeProfile from "../models/EmployeeProfile.js";
 import { buildReportFileBuffer, safeMakeReportBaseName } from "../utils/reportGenerator.js";
-import { uploadFileToS3 } from "../config/s3config.js";
+import { uploadFileToS3, getFileFromS3ByUrl } from "../config/s3config.js";
 
 const normalizeText = (v, fallback = "") => String(v ?? fallback).trim();
 
@@ -300,9 +300,11 @@ export async function createReportForCurrentUser(req, body = {}) {
   return {
     report: formatReportForResponse(saved),
     download: {
-      url: saved.fileUrl,
-      fileName: saved.fileName,
-      mimeType: saved.fileMimeType,
+      // Same-origin streaming URL — the browser downloads it as an attachment
+      // (see /file/:reportId below) instead of opening S3 cross-origin.
+      url: `/api/reports/file/${saved._id}`,
+      fileName,
+      mimeType,
       publicId: saved.filePublicId,
       resourceType: saved.fileResourceType,
     },
@@ -349,12 +351,44 @@ export async function downloadReportForCurrentUser(req, reportId, body = {}) {
   return {
     report: formatReportForResponse(report),
     download: {
-      url: report.fileUrl,
+      url: `/api/reports/file/${report._id}`,
       fileName: report.fileName,
       mimeType: report.fileMimeType,
       publicId: report.filePublicId,
       resourceType: report.fileResourceType,
     },
   };
+}
+
+// Streams the stored S3 file back through the API as a same-origin attachment
+// download. Avoids the bucket's CORS config entirely, so client-side blob
+// fetches always succeed and files save to disk instead of opening a new tab.
+export async function getReportFileForCurrentUser(req, res) {
+  const workspaceId = getCurrentWorkspaceId(req);
+  const userId = getCurrentUserId(req);
+
+  if (!workspaceId) throw Object.assign(new Error("Workspace is required"), { statusCode: 400 });
+  if (!userId) throw Object.assign(new Error("User is required"), { statusCode: 401 });
+
+  const { reportId } = req.params;
+  if (!reportId || !mongoose.Types.ObjectId.isValid(reportId)) {
+    throw Object.assign(new Error("Invalid reportId"), { statusCode: 400 });
+  }
+
+  const report = await Report.findOne({ _id: reportId, workspaceId }).exec();
+  if (!report) throw Object.assign(new Error("Report not found"), { statusCode: 404 });
+  ensureReportVisibility(report, req, userId);
+  if (!report.fileUrl) throw Object.assign(new Error("Report file is not available"), { statusCode: 404 });
+
+  const { data, contentType } = await getFileFromS3ByUrl(report.fileUrl);
+
+  const safeName = String(report.fileName || `report-${report.reportCode}.pdf`).replace(/["\\\r\n]/g, "");
+  res.setHeader("Content-Type", contentType || "application/octet-stream");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`
+  );
+  res.setHeader("Content-Length", String(data.length));
+  res.status(200).send(data);
 }
 
