@@ -1054,6 +1054,52 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     ],
     matches: exact("/it/repair-logs"),
   },
+  {
+    id: "basic-maintenance-repair-logs",
+    version: 1,
+    autoStart: false,
+    title: "Maintenance Repair Logs",
+    description: "Log repair work orders for workspace assets and move each job through Open, In Progress, Resolved, and Closed. Switch to a tab, then select Guide — the walkthrough follows whichever tab is open.",
+    replayHint: true,
+    steps: [
+      // ── Shared controls ──
+      { selector: '[data-tour="maintenance-repair-tabs"]', title: "Work queues", description: "Team Active Logs shows every open and in-progress job across maintenance and appears for managers only. My Work narrows the list to repairs assigned to you or raised by you. History keeps resolved and closed logs as the department's permanent record." },
+      { selector: '[data-tour="maintenance-repair-stats"]', title: "Department counts", description: "Total Logs counts every work order on file alongside its Open, In Progress, and Resolved / Closed totals so backlog pressure is visible immediately." },
+      { selector: '[data-tour="maintenance-repair-status-filter"]', title: "Filter by status", description: "Narrow the current tab to All, Open, In Progress, Resolved, or Closed work orders." },
+      { selector: '[data-tour="maintenance-repair-search-create"]', title: "Search and raise work", description: "Search by log code, asset, issue, technician, or ticket reference. Log Repair opens the intake form: pick an asset, choose an issue type such as Electrical, Plumbing, HVAC, or Furniture, describe the problem, optionally assign a technician, and submit.", side: "left" },
+      // ── Team Active Logs tab ──
+      { tabPage: "team-active", selector: '[data-tour="maintenance-repair-table"]', title: "Active department work", description: "Every Open and In Progress repair with its asset, issue type, assignee, and status. Rows linked to a customer-support ticket show its code so the repair stays connected to the original report.", side: "top" },
+      // ── My Work tab ──
+      { tabPage: "my-work", selector: '[data-tour="maintenance-repair-table"]', title: "Your personal queue", description: "Only repairs assigned to you or requested by you that are still open or in progress — this is your working list for the day.", side: "top" },
+      // ── History tab ──
+      { tabPage: "history", selector: '[data-tour="maintenance-repair-table"]', title: "Completed work", description: "Resolved and closed logs stay here for auditing and warranty questions. Open a row to read the details recorded when the job finished.", side: "top" },
+      // ── Workflow explanation ──
+      { textOnly: true, title: "Advancing a repair", description: "Open any log with View to see its full record. Start Work moves it to In Progress; from there Mark Resolved records completion or Close Log archives it directly. Closed logs are final and move to History." },
+    ],
+    matches: exact("/maintenance/repair-logs"),
+  },
+  {
+    id: "basic-amc-scheduler",
+    version: 1,
+    autoStart: false,
+    title: "AMC Maintenance Scheduler",
+    description: "Plan preventive servicing for every asset under a maintenance contract and catch due or overdue services before they slip. Switch to a tab, then select Guide — the walkthrough follows whichever tab is open.",
+    replayHint: true,
+    steps: [
+      // ── Shared controls ──
+      { selector: '[data-tour="amc-scheduler-tabs"]', title: "Schedule views", description: "Master AMC Schedule lists every preventive servicing plan. Upcoming Alerts filters down to services that are Due Soon or Overdue and badges their combined count so urgent servicing is never missed." },
+      { selector: '[data-tour="amc-scheduler-stats"]', title: "AMC health totals", description: "Total Active AMCs with Healthy / Scheduled, Due Soon, Overdue, and Completed counts summarize the servicing position across all contracts at a glance." },
+      { selector: '[data-tour="amc-scheduler-filters"]', title: "Filter schedules", description: "Combine the department and status selects to focus on one team's assets or one service state." },
+      { selector: '[data-tour="amc-scheduler-search-create"]', title: "Search and add plans", description: "Search by asset, code, technician, frequency, or notes. Add AMC Schedule creates a preventive plan: choose the asset, enter the maintenance type, set the frequency — Monthly, Quarterly, Half-Yearly, or Yearly — name the technician, and pick the next service date. Last serviced date, notes, and reminders are optional.", side: "left" },
+      // ── Master AMC Schedule tab ──
+      { tabPage: "schedules", selector: '[data-tour="amc-scheduler-table"]', title: "The master register", description: "Each row pairs the schedule code with its asset and department, plus maintenance type, frequency badge, technician, when it was last serviced, and the next service due. The next-due date colors red once overdue and amber when due soon. Use View to open the full record.", side: "top" },
+      // ── Upcoming Alerts tab ──
+      { tabPage: "alerts", selector: '[data-tour="amc-scheduler-table"]', title: "Services needing action", description: "Only Due Soon and Overdue schedules appear here regardless of the status filter, so this tab is the daily servicing checklist. Clear it by completing each service before it slips further.", side: "top" },
+      // ── Workflow explanation ──
+      { textOnly: true, title: "Completing a service", description: "Open a schedule and select Complete Service: today is saved as the last serviced date, the next due date advances by the frequency, the status returns to Scheduled, and the visit is written into the schedule's service history." },
+    ],
+    matches: exact("/maintenance/amc-scheduler"),
+  },
 ];
 
 const titleFromPath = (pathname: string) => {

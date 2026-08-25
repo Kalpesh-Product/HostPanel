@@ -392,7 +392,7 @@ export default function RepairLogsPage() {
           </div>
 
           {/* Pill Tabs */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="maintenance-repair-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -410,7 +410,7 @@ export default function RepairLogsPage() {
           </div>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="maintenance-repair-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
               { key: 'total', label: 'Total Logs', value: String(stats.total), icon: Wrench },
               { key: 'open', label: 'Open', value: String(stats.open), icon: AlertCircle },
@@ -438,7 +438,7 @@ export default function RepairLogsPage() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* Panel Header */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-3">
+              <div data-tour="maintenance-repair-status-filter" className="flex items-center gap-3">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -451,8 +451,8 @@ export default function RepairLogsPage() {
                   <option value="Closed">Closed</option>
                 </select>
               </div>
-              <div className="flex items-center gap-3 w-full xl:w-auto">
-                
+              <div data-tour="maintenance-repair-search-create" className="flex items-center gap-3 w-full xl:w-auto">
+
                 <div className="relative flex-1 xl:w-60">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
@@ -473,7 +473,7 @@ export default function RepairLogsPage() {
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
+            <div data-tour="maintenance-repair-table" className="overflow-x-auto">
               <table className="w-full table-auto text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
