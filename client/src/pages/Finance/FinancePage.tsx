@@ -11,6 +11,7 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
+import { ApprovalFlowBadges, hasApprovalProgress } from '../../components/finance/ApprovalFlowBadges';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
@@ -464,9 +465,9 @@ export function FinancePage() {
                           <td className="px-5 py-4 font-pmedium text-[#2563EB] text-lg">{formatCurrency(req.requestedBudget)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(req.previousSpend)}</td>
                           <td className="px-5 py-4">
-                            <span className={statusPillClass(req.status)}>
-                              {req.status}
-                            </span>
+                            {hasApprovalProgress(req.approvalFlow)
+                              ? <ApprovalFlowBadges flow={req.approvalFlow} />
+                              : <span className={statusPillClass(req.status)}>{req.status}</span>}
                           </td>
                           <td className="px-5 py-4 text-center">
                             <button onClick={() => setViewingRequest({ ...req, type: 'annual' })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">
@@ -487,9 +488,9 @@ export function FinancePage() {
                             <div className="text-xs font-pmedium text-slate-600 max-w-[250px] truncate">{req.reason}</div>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={statusPillClass(req.status)}>
-                              {req.status}
-                            </span>
+                            {hasApprovalProgress(req.approvalFlow)
+                              ? <ApprovalFlowBadges flow={req.approvalFlow} />
+                              : <span className={statusPillClass(req.status)}>{req.status}</span>}
                           </td>
                           <td className="px-5 py-4 text-center">
                             <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">

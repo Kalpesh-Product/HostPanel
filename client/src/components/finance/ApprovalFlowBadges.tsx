@@ -31,7 +31,7 @@ export function hasApprovalProgress(flow?: ApprovalFlowLike | null): boolean {
  * - Nobody approved yet  -> renders nothing (pages fall back to the plain
  *   status pill, e.g. "Pending Review").
  * - One step approved    -> e.g. "Finance Mgr Approved".
- * - Both approved        -> green "Approved by Founder & Finance Mgr".
+ * - Both approved        -> green "Approved".
  */
 export function ApprovalFlowBadges({ flow }: { flow?: ApprovalFlowLike | null }) {
   const ownerState = String(flow?.owner?.status || "").toLowerCase();
@@ -47,7 +47,7 @@ export function ApprovalFlowBadges({ flow }: { flow?: ApprovalFlowLike | null })
   let text: string;
   if (ownerApproved && fmApproved) {
     cls = "border-emerald-200 bg-emerald-50 text-emerald-700";
-    text = "Approved by Founder & Finance Mgr";
+    text = "Approved";
   } else if (ownerApproved) {
     cls = "border-amber-200 bg-amber-50 text-amber-700";
     text = "Founder Approved";
