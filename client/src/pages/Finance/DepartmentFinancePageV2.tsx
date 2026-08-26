@@ -686,10 +686,25 @@ export function DepartmentFinancePageV2() {
     setIsImporting(true);
     try {
       const data = await importFile.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
+      // cellDates converts Excel date cells into JS Dates; without it they
+      // arrive as raw serial numbers (e.g. 46117) that break <input type="date">.
+      const workbook = XLSX.read(data, { type: 'array', cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      const toCellJson = (value: any) => {
+        if (value instanceof Date && !isNaN(value.getTime())) {
+          const yyyy = value.getFullYear();
+          const mm = String(value.getMonth() + 1).padStart(2, '0');
+          const dd = String(value.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        }
+        return value;
+      };
+      const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' }).map((row) => {
+        const clean: Record<string, any> = {};
+        Object.entries(row).forEach(([key, value]) => { clean[key] = toCellJson(value); });
+        return clean;
+      });
 
       await importFinanceSnapshot({
         fiscalYear: selectedFY,

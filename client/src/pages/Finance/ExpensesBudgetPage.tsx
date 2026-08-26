@@ -39,6 +39,7 @@ import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/Ap
 interface ApprovalFlowEntry {
   status?: string;
   approverName?: string;
+  approverUserId?: string;
   decidedAtLabel?: string;
 }
 
@@ -240,11 +241,13 @@ function normalizeApprovalFlow(flow: Partial<ApprovalFlow> = {}): ApprovalFlow {
     owner: {
       status: flow?.owner?.status || 'Pending',
       approverName: flow?.owner?.approverName || '',
+      approverUserId: (flow?.owner as any)?.approverUserId || '',
       decidedAtLabel: flow?.owner?.decidedAtLabel || '',
     },
     financeManager: {
       status: flow?.financeManager?.status || 'Pending',
       approverName: flow?.financeManager?.approverName || '',
+      approverUserId: (flow?.financeManager as any)?.approverUserId || '',
       decidedAtLabel: flow?.financeManager?.decidedAtLabel || '',
     },
     finalStatus: flow?.finalStatus || 'Pending',
@@ -828,6 +831,36 @@ export function ExpensesBudgetPage() {
     currentUser?.email ||
     'Finance Team',
   ).trim();
+
+  // Which approval step does the CURRENT user own? Founder/owner-side roles act
+  // on the "owner" step; finance managers on the "financeManager" step.
+  const normalizedCurrentUserRole = String(
+    currentUser?.workspaceMembership?.role || currentUser?.role || currentUser?.designation || '',
+  ).trim().toLowerCase();
+  const myApprovalScope = /finance[-_ ]?manager|^finance$/.test(normalizedCurrentUserRole)
+    ? 'financeManager'
+    : 'owner';
+
+  // Role strings can be unreliable (objects/ids/custom names), so the primary
+  // check is "which steps did THIS user id decide?" — approverUserId is stamped
+  // server-side on every decision. Falls back to role-based scope.
+  const currentUserId = String(currentUser?._id || currentUser?.id || '');
+  const getMyApprovalDecision = (flow: any): string => {
+    if (!flow) return '';
+    for (const key of ['owner', 'financeManager']) {
+      const step: any = flow[key];
+      const status = String(step?.status || '').toLowerCase();
+      if (
+        (status === 'approved' || status === 'rejected') &&
+        currentUserId &&
+        String(step?.approverUserId || '') === currentUserId
+      ) {
+        return status;
+      }
+    }
+    const scoped = String(flow?.[myApprovalScope]?.status || '').toLowerCase();
+    return scoped === 'approved' || scoped === 'rejected' ? scoped : '';
+  };
 
   useEffect(() => {
     let alive = true;
@@ -1791,20 +1824,37 @@ export function ExpensesBudgetPage() {
               </div>
             </div>
 
-            {viewingBudget.status === 'Pending Review' ? (
-              <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                  <XCircle size={14} /> REJECT REQUEST
-                </button>
-                <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                  APPROVE BUDGET <CheckCircle2 size={14} />
-                </button>
-              </div>
-            ) : (
-              <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
-                <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
-              </div>
-            )}
+            {(() => {
+              const overall = String(viewingBudget.status || '').toLowerCase();
+              const myDecision = getMyApprovalDecision(viewingBudget.approvalFlow);
+              if (!myDecision && overall !== 'active' && overall !== 'rejected') {
+                return (
+                  <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
+                    <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      <XCircle size={14} /> REJECT REQUEST
+                    </button>
+                    <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      APPROVE BUDGET <CheckCircle2 size={14} />
+                    </button>
+                  </div>
+                );
+              }
+              if (myDecision) {
+                return (
+                  <div className="px-6 sm:px-8 py-4 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                    <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700">
+                      <CheckCircle2 size={14} /> You have already {myDecision} this request.
+                    </span>
+                    <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                  </div>
+                );
+              }
+              return (
+                <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
+                  <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1948,20 +1998,37 @@ export function ExpensesBudgetPage() {
               )}
             </div>
 
-            {viewingExtra.status === 'Pending Review' ? (
-              <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                <button onClick={() => { setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="flex-1 py-3 sm:py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                  <XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT
-                </button>
-                <button onClick={handleApproveExtra} className="flex-[2] py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-md shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                  APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0">
-                <button onClick={() => setViewingExtra(null)} className="w-full py-3 sm:py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium hover:bg-gray-100 transition-all text-xs sm:text-sm">CLOSE</button>
-              </div>
-            )}
+            {(() => {
+              const overall = String(viewingExtra.status || '').toLowerCase();
+              const myDecision = getMyApprovalDecision(viewingExtra.approvalFlow);
+              if (!myDecision && overall !== 'approved' && overall !== 'rejected') {
+                return (
+                  <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
+                    <button onClick={() => { setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="flex-1 py-3 sm:py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      <XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT
+                    </button>
+                    <button onClick={handleApproveExtra} className="flex-[2] py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-md shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
+                    </button>
+                  </div>
+                );
+              }
+              if (myDecision) {
+                return (
+                  <div className="p-4 sm:p-6 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                    <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700">
+                      <CheckCircle2 size={14} /> You have already {myDecision} this request.
+                    </span>
+                    <button onClick={() => setViewingExtra(null)} className="px-8 py-3 sm:py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                  </div>
+                );
+              }
+              return (
+                <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0">
+                  <button onClick={() => setViewingExtra(null)} className="w-full py-3 sm:py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium hover:bg-gray-100 transition-all text-xs sm:text-sm">CLOSE</button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

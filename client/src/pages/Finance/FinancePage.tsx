@@ -274,23 +274,64 @@ export function FinancePage() {
 
   // Which approval step does the CURRENT user own? Founder/owner-side roles act on the
   // "owner" step; finance managers act on the "financeManager" step.
-  const viewingUserScope = ['finance_manager', 'finance-manager', 'finance'].includes(normalizedCurrentUserRole)
+  const viewingUserScope = /finance[-_ ]?manager|^finance$/.test(normalizedCurrentUserRole)
     ? 'financeManager'
     : 'owner';
-  const viewingMyStepStatus = viewingRequest?.approvalFlow
-    ? String((viewingRequest.approvalFlow as any)[viewingUserScope]?.status || '').toLowerCase()
-    : '';
+  // Role strings can be unreliable, so first check which steps THIS user id
+  // actually decided (approverUserId is stamped server-side on every decision).
+  const currentApproverUserId = String(currentUser?._id || currentUser?.id || '');
+  const viewingMyStepStatus = (() => {
+    const flow: any = viewingRequest?.approvalFlow;
+    if (!flow) return '';
+    for (const key of ['owner', 'financeManager']) {
+      const step = flow[key];
+      const status = String(step?.status || '').toLowerCase();
+      if (
+        (status === 'approved' || status === 'rejected') &&
+        currentApproverUserId &&
+        String(step?.approverUserId || '') === currentApproverUserId
+      ) {
+        return status;
+      }
+    }
+    return String(flow[viewingUserScope]?.status || '').toLowerCase();
+  })();
+  // Only a real decision (approved/rejected) locks the current user out of acting again.
+  const viewingHasDecided = viewingMyStepStatus === 'approved' || viewingMyStepStatus === 'rejected';
 
   const departmentRegisteredVendors = Array.isArray(viewingDepartmentFinancePlan?.vendors)
     ? viewingDepartmentFinancePlan.vendors
     : [];
+
+  // Month-by-month detail for the department overview modal (Overview tab eye
+  // icon) — mirrors the request review table so the founder sees projected vs
+  // actual spend for every month and every expense line.
+  const overviewDetail = React.useMemo(() => {
+    if (!viewingDeptOverview) return null;
+    const plan = viewingDepartmentFinancePlan || departmentFinance.find((p: any) => p?.department === viewingDeptOverview.name) || null;
+    const sourceMonths = Array.isArray(plan?.monthlyPlan) ? plan.monthlyPlan : [];
+    const months = sourceMonths.map((m: any, idx: number) => ({
+      key: m?.monthKey || m?.month || `m-${idx}`,
+      label: m?.month || m?.title || `Month ${idx + 1}`,
+      title: m?.title || '',
+      allocated: Number(m?.allocatedBudget ?? m?.projectedBudget ?? 0),
+      projected: Number(m?.projectedBudget ?? 0),
+      actualSpent: Number(m?.actualSpent ?? 0),
+      expenses: Array.isArray(m?.expenses) ? m.expenses : [],
+    }));
+    return {
+      plan,
+      planStatus: String(plan?.status || '').toLowerCase(),
+      months,
+    };
+  }, [viewingDeptOverview, viewingDepartmentFinancePlan, departmentFinance]);
 
   // --- HANDLERS ---
   const handleAction = async (type: string, id: string, action: string) => {
     setIsSavingDecision(true);
     setErrorMessage('');
     try {
-      await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY, scope: viewingUserScope });
+      await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY });
       const response = await getFinanceSnapshot(selectedFY);
       applyFinanceData(response || {});
       setViewingRequest(null);
@@ -816,7 +857,7 @@ export function FinancePage() {
 
             {(() => {
               const requestStatus = String(viewingRequest.status || '').toLowerCase();
-              const actionable = (requestStatus === 'pending' || requestStatus === 'discuss') && viewingMyStepStatus === '';
+              const actionable = (requestStatus === 'pending' || requestStatus === 'discuss') && !viewingHasDecided;
               if (actionable) {
                 return (
                   <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
@@ -853,25 +894,169 @@ export function FinancePage() {
       )}
 
       {viewingDeptOverview && (
-        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <Building2 size={20} className="text-[#2563EB]"/> {viewingDeptOverview.name} Details
-              </h2>
-              <button onClick={() => setViewingDeptOverview(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18}/></button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+              <div>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
+                  Department Budget Overview
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
+                  <Building2 size={20} /> {viewingDeptOverview.name}
+                </h2>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">
+                  {overviewDetail?.plan?.fiscalYear || selectedFY}
+                  {overviewDetail?.planStatus ? ` • ${overviewDetail.planStatus}` : ''}
+                </p>
+              </div>
+              <button onClick={() => setViewingDeptOverview(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
+                <X size={16} />
+              </button>
             </div>
-            <div className="p-6 overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Total Budget</p>
-                  <p className="text-xl font-black text-slate-900">{formatCurrency((viewingDeptOverview.approvedBudget || 0) + (viewingDeptOverview.extraGrantedYTD || 0))}</p>
+
+            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
+              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-100 bg-white">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Total Budget</p>
+                  <p className="text-xl font-black text-gray-900">{formatCurrency((viewingDeptOverview.approvedBudget || 0) + (viewingDeptOverview.extraGrantedYTD || 0))}</p>
+                  {(viewingDeptOverview.extraGrantedYTD || 0) > 0 && (
+                    <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-wider">+{formatCurrency(viewingDeptOverview.extraGrantedYTD)} extra granted</p>
+                  )}
                 </div>
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl">
-                  <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Spent YTD</p>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Spent YTD</p>
                   <p className="text-xl font-black text-blue-900">{formatCurrency(viewingDeptOverview.spentYTD)}</p>
                 </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Remaining</p>
+                  <p className="text-xl font-black text-emerald-700">
+                    {formatCurrency(Math.max(0, (viewingDeptOverview.approvedBudget || 0) + (viewingDeptOverview.extraGrantedYTD || 0) - (viewingDeptOverview.spentYTD || 0)))}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Months Tracked</p>
+                  <p className="text-xl font-black text-gray-900">{overviewDetail?.months.length || 0}</p>
+                </div>
               </div>
+
+              <div className="px-4 sm:px-8 py-6">
+                <h4 className="mb-3 flex items-center gap-2 text-[10px] sm:text-xs font-pmedium uppercase tracking-widest text-gray-900">
+                  <Calendar size={13} className="text-[#2563EB]" /> Month-wise Spend
+                  {overviewDetail && overviewDetail.months.length > 0 && (
+                    <span className="ml-1 text-gray-400 font-bold normal-case tracking-normal">({overviewDetail.months.length} months)</span>
+                  )}
+                </h4>
+                {!overviewDetail || overviewDetail.months.length === 0 ? (
+                  <p className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-400">No monthly budget data recorded for this department yet.</p>
+                ) : (
+                  <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full table-fixed text-left" style={{ minWidth: '1080px' }}>
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50">
+                            <th className="w-[280px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
+                            <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
+                            <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Actual</th>
+                            <th className="w-[140px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {overviewDetail.months.map((month) => {
+                            const expenses = Array.isArray(month.expenses) ? month.expenses : [];
+                            const monthVariance = month.projected - month.actualSpent;
+                            return (
+                              <React.Fragment key={month.key}>
+                                <tr className="border-y border-blue-100 bg-blue-50/80">
+                                  <td colSpan={4} className="px-4 py-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                      <span className="flex min-w-0 items-center gap-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-900">
+                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
+                                          <Calendar size={13} />
+                                        </span>
+                                        {month.label}{month.title ? ` — ${month.title}` : ''}
+                                      </span>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-slate-700">
+                                          Projected <span className="text-[#2563EB]">{formatCurrency(month.projected)}</span>
+                                        </span>
+                                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-pmedium ${monthVariance >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+                                          Actual <span className="font-black">{formatCurrency(month.actualSpent)}</span>
+                                          {month.actualSpent > 0 && (
+                                            <span className="ml-1 opacity-80">({monthVariance >= 0 ? `${formatCurrency(monthVariance)} left` : `${formatCurrency(Math.abs(monthVariance))} over`})</span>
+                                          )}
+                                        </span>
+                                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
+                                          {expenses.length} expense{expenses.length === 1 ? '' : 's'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                                {expenses.length === 0 ? (
+                                  <tr className="bg-white">
+                                    <td colSpan={4} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
+                                      No expenses recorded for this month.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  expenses.map((exp: any, eIdx: number) => {
+                                    const invoiceUrl = exp.invoiceUrl || exp.invoiceFile || '';
+                                    const projected = Number(exp.projectedAmount ?? 0);
+                                    const actual = Number(exp.actualAmount ?? exp.actualSpent ?? 0);
+                                    const variance = projected - actual;
+                                    return (
+                                      <tr key={`${month.key}-exp-${exp.id || eIdx}`} className="border-b border-slate-100 bg-white transition-colors hover:bg-blue-50/40">
+                                        <td className="px-4 py-4 align-top">
+                                          <div className="flex items-start gap-2">
+                                            {String(exp.expenseTag || '').toLowerCase() === 'add-on' && (
+                                              <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
+                                            )}
+                                            <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{exp.title || exp.expenseLabel || `Expense ${eIdx + 1}`}</p>
+                                          </div>
+                                          {exp.vendorName && (
+                                            <div className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
+                                              Vendor: {exp.vendorName}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-4 text-right align-top">
+                                          <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(projected)}</p>
+                                        </td>
+                                        <td className="px-4 py-4 align-top">
+                                          <p className={`whitespace-nowrap text-xs font-black sm:text-sm ${actual > projected ? 'text-rose-600' : 'text-emerald-600'}`}>{formatCurrency(actual)}</p>
+                                          {actual > 0 && (
+                                            <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-400">
+                                              {variance >= 0 ? `${formatCurrency(variance)} saved` : `${formatCurrency(Math.abs(variance))} over`}
+                                            </p>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-4 align-top">
+                                          <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${(exp.paymentStatus || '').includes('Done') || (exp.paymentStatus || '').includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : (exp.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : (exp.paymentStatus || '').includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                            {exp.paymentStatus || 'Planned'}
+                                          </span>
+                                          {invoiceUrl && (
+                                            <a href={invoiceUrl} target="_blank" rel="noreferrer" className="mt-1 block text-[9px] font-bold text-blue-600 hover:underline">
+                                              {exp.invoiceNumber || 'View Invoice'}
+                                            </a>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
+              <button onClick={() => setViewingDeptOverview(null)} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
             </div>
           </div>
         </div>

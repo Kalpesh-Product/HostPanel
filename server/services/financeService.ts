@@ -111,6 +111,48 @@ function normalizeMonthKey(monthKey: string) {
   return safeString(monthKey).toLowerCase();
 }
 
+// Fiscal months in order, starting April (matches the Apr-Mar fiscal year).
+const FISCAL_MONTH_ORDER = ["apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec", "jan", "feb", "mar"];
+
+// Imported budget rows often omit a due date. Default to the last day of the
+// expense's own month so payment planning has a sane starting point; users can
+// still override it before submitting.
+function buildDefaultDueDate(monthKey: string, fiscalYear: string): string {
+  const idx = FISCAL_MONTH_ORDER.indexOf(normalizeMonthKey(monthKey).slice(0, 3));
+  const range = parseFiscalYearRange(fiscalYear);
+  if (idx < 0 || !range) return "";
+  const due = new Date(range.start.getFullYear(), 3 + idx + 1, 0);
+  const yyyy = due.getFullYear();
+  const mm = String(due.getMonth() + 1).padStart(2, "0");
+  const dd = String(due.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Imported spreadsheets store real Excel dates as either Date objects (client
+// used cellDates), ISO strings, or raw day-serial numbers like "46117". All
+// must collapse to YYYY-MM-DD or the UI's <input type="date"> renders blank.
+function normalizeImportedDate(value: any): string {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    const yyyy = value.getFullYear();
+    const mm = String(value.getMonth() + 1).padStart(2, "0");
+    const dd = String(value.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  const raw = safeString(value);
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const serial = Number(raw);
+    // Plausible Excel serial range (~1954-2119); epoch 1899-12-30 accounts
+    // for Lotus-notes leap-year bug baked into the 1900 date system.
+    if (serial >= 20000 && serial <= 80000) {
+      const utc = new Date(Math.round((serial - 25569) * 86400 * 1000));
+      return utc.toISOString().slice(0, 10);
+    }
+  }
+  return raw;
+}
+
 function normalizeExpenseTag(tag: string) {
   const t = safeString(tag).toLowerCase();
   return t || "add-on";
@@ -1022,8 +1064,8 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
         description: safeString(e?.description, ""),
         monthKey,
         month,
-        date: safeString(e?.date, ""),
-        dueDate: safeString(e?.dueDate, ""),
+        date: normalizeImportedDate(e?.date),
+        dueDate: normalizeImportedDate(e?.dueDate) || buildDefaultDueDate(monthKey, safeString((plan as any).fiscalYear)),
         projectedAmount,
         actualAmount,
         savings: Math.max(0, projectedAmount - actualAmount),
