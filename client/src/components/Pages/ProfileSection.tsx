@@ -8,16 +8,21 @@ export function SectionShell({
   title,
   icon: Icon,
   action,
+  dataTour,
   children,
 }: {
   eyebrow?: string;
   title: string;
   icon: ComponentType<{ size?: number }>;
   action?: ReactNode;
+  dataTour?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
+    <section
+      className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6"
+      {...(dataTour ? { "data-tour": dataTour } : {})}
+    >
       <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">

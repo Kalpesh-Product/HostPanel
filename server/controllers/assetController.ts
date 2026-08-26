@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import { Asset } from "../models/Asset.js";
 import Department from "../models/Department.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import { AssetCategory } from "../models/AssetCategory.js";
+import { AssetSubCategory } from "../models/AssetSubCategory.js";
+import FinanceVendor from "../models/FinanceVendor.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 const getCurrentWorkspaceId = (req) => {
     return (
@@ -222,6 +226,61 @@ function normalizeMoneyValue(value) {
     return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function computeWarrantyExpiry(purchaseDate, warrantyMonths) {
+    if (!purchaseDate || !warrantyMonths) return null;
+    const parsed = new Date(purchaseDate);
+    if (Number.isNaN(parsed.getTime())) return null;
+    if (!Number.isFinite(warrantyMonths) || warrantyMonths <= 0) return null;
+    const result = new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
+    result.setUTCMonth(result.getUTCMonth() + warrantyMonths);
+    return result;
+}
+
+function padUnitSequence(n) {
+    return String(n).padStart(4, "0");
+}
+
+async function resolveCategoryForAsset({ workspaceId, categoryId, roleBand, assignedDepartmentIds, departmentId }) {
+    if (!categoryId || !mongoose.Types.ObjectId.isValid(categoryId)) {
+        return { error: "A valid category is required" };
+    }
+    const category = await AssetCategory.findOne({ _id: categoryId, workspaceId }).exec();
+    if (!category) return { error: "Category not found" };
+    if (departmentId && String(category.departmentId) !== String(departmentId)) {
+        return { error: "Selected category does not belong to the selected department." };
+    }
+    if (roleBand !== "owner" && roleBand !== "super_admin") {
+        if (!assignedDepartmentIds.some((d) => d === String(category.departmentId))) {
+            return { error: "You do not have access to this category." };
+        }
+    }
+    return { category };
+}
+
+function uploadedFileFields(files) {
+    return {
+        assetImageFile: files?.assetImage?.[0] || null,
+        warrantyDocumentFile: files?.warrantyDocument?.[0] || null,
+    };
+}
+
+async function uploadAssetFile(workspaceId, file, kind) {
+    const safeName = String(file.originalname || kind).replace(/[^a-zA-Z0-9._-]/g, "-");
+    const uploaded = await uploadFileToS3(`assets/${workspaceId}/${Date.now()}-${kind}-${safeName}`, file);
+    return { url: uploaded.url, id: uploaded.id };
+}
+
+const assetPopulateFields = [
+    { path: "departmentId", select: "name" },
+    { path: "assignedToDepartmentId", select: "name" },
+    { path: "assignedToUserId", select: "name firstName lastName email" },
+    { path: "allocations.departmentId", select: "name" },
+    { path: "allocations.userId", select: "name firstName lastName email" },
+    { path: "categoryId", select: "categoryName categoryCode requiresSerialNumber" },
+    { path: "subCategoryId", select: "subCategoryName" },
+    { path: "vendorId", select: "name contactPerson phone email" },
+];
+
 export const createAsset = async (req, res, next) => {
     try {
         const workspaceId = getCurrentWorkspaceId(req);
@@ -246,9 +305,19 @@ export const createAsset = async (req, res, next) => {
             });
         }
 
-        const { department, assignedTo, assignedToUserId, assignedToDepartment, expiryDate, warrantyExpiry, value, ...rest } = req.body;
+        const {
+            department, assignedTo, assignedToUserId, assignedToDepartment,
+            expiryDate, warrantyExpiry, value, price,
+            categoryId, subCategoryId, vendorId,
+            quantity: rawQuantity, warrantyMonths: rawWarrantyMonths,
+            serialNumber, serialNumbers: rawSerialNumbers,
+            isTangible, tangable, departmentId: bodyDepartmentId,
+            ...rest
+        } = req.body;
 
-        const departmentId = await resolveDepartmentId(workspaceId, department || assignedToDepartment);
+        const departmentId = bodyDepartmentId && mongoose.Types.ObjectId.isValid(bodyDepartmentId)
+            ? bodyDepartmentId
+            : await resolveDepartmentId(workspaceId, department || assignedToDepartment);
 
         if (roleBand === "admin" || roleBand === "manager") {
             const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
@@ -259,10 +328,78 @@ export const createAsset = async (req, res, next) => {
             }
         }
 
-        let assignedToDepartmentId = departmentId;
-        if (!assignedToUserId && assignedTo) {
-            assignedToDepartmentId = await resolveDepartmentId(workspaceId, assignedTo);
+        const assignedDepartmentIdsForCategory = await resolveAssignedDepartmentIds(workspaceId, userId);
+        const categoryResult = await resolveCategoryForAsset({
+            workspaceId,
+            categoryId,
+            roleBand,
+            assignedDepartmentIds: assignedDepartmentIdsForCategory,
+        departmentId,
+        });
+        if (categoryResult.error) return res.status(400).json({ message: categoryResult.error });
+        const category = categoryResult.category;
+
+        let subCategoryDoc = null;
+        if (!subCategoryId || !mongoose.Types.ObjectId.isValid(subCategoryId)) {
+            return res.status(400).json({ message: "A valid sub category is required" });
         }
+        subCategoryDoc = await AssetSubCategory.findOne({
+                _id: subCategoryId,
+                workspaceId,
+                categoryId: category._id,
+                departmentId: category.departmentId,
+            }).lean().exec();
+            if (!subCategoryDoc) {
+                return res.status(400).json({ message: "Sub category not found for the selected category." });
+            }
+
+        let vendorDoc = null;
+        if (vendorId) {
+            if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+                return res.status(400).json({ message: "A valid vendor is required" });
+            }
+            vendorDoc = await FinanceVendor.findOne({ _id: vendorId, workspaceId }).lean().exec();
+            if (!vendorDoc) return res.status(400).json({ message: "Vendor not found" });
+        }
+
+        const quantity = Math.max(1, Number(rawQuantity) || 1);
+
+        let serialNumbers = [];
+        if (rawSerialNumbers) {
+            try {
+                const parsed = typeof rawSerialNumbers === "string" ? JSON.parse(rawSerialNumbers) : rawSerialNumbers;
+                if (Array.isArray(parsed)) serialNumbers = parsed.map((s) => String(s || "").trim());
+            } catch {
+                serialNumbers = [];
+            }
+        }
+        if (serialNumbers.length === 0 && serialNumber) serialNumbers = [String(serialNumber).trim()];
+
+        if (category.requiresSerialNumber) {
+            const hasAllSerials = serialNumbers.length === quantity && serialNumbers.every((s) => s);
+            if (!hasAllSerials) {
+                return res.status(400).json({
+                    message: `This category requires a serial number for each of the ${quantity} unit(s).`,
+                });
+            }
+        }
+
+        const updatedCategory = await AssetCategory.findByIdAndUpdate(
+            category._id,
+            { $inc: { unitSequence: quantity } },
+            { new: true }
+        ).exec();
+        const startSeq = updatedCategory.unitSequence - quantity + 1;
+        const units = Array.from({ length: quantity }, (_, i) => ({
+            unitCode: `${category.categoryCode}-${padUnitSequence(startSeq + i)}`,
+            serialNumber: serialNumbers[i] || "",
+        }));
+
+        const { assetImageFile, warrantyDocumentFile } = uploadedFileFields(req.files);
+        const assetImage = assetImageFile ? await uploadAssetFile(workspaceId, assetImageFile, "image") : undefined;
+        const warrantyDocument = warrantyDocumentFile
+            ? await uploadAssetFile(workspaceId, warrantyDocumentFile, "warranty")
+            : undefined;
 
         const lastAsset = await Asset.findOne({ workspaceId })
             .sort({ assetNumber: -1 })
@@ -273,9 +410,19 @@ export const createAsset = async (req, res, next) => {
         const assetNumber = (lastAsset?.assetNumber || 0) + 1;
         const assetCode = req.body.assetCode || generateAssetCode(assetNumber);
 
+        const warrantyMonthsNum = rawWarrantyMonths !== undefined && rawWarrantyMonths !== ""
+            ? Number(rawWarrantyMonths)
+            : null;
+
         const resolvedExpiry = expiryDate
             ? new Date(expiryDate)
             : computeExpiryDate(rest.purchaseDate, rest.ownershipType, rest.rentDurationMonths);
+
+        const resolvedWarrantyExpiry = warrantyExpiry
+            ? new Date(warrantyExpiry)
+            : computeWarrantyExpiry(rest.purchaseDate, warrantyMonthsNum);
+
+        const isTangibleValue = !(isTangible === "false" || isTangible === false || tangable === "false" || tangable === false);
 
         const created = await Asset.create({
             ...rest,
@@ -284,20 +431,28 @@ export const createAsset = async (req, res, next) => {
             assetNumber,
             assetCode,
             departmentId,
+            categoryId: category._id,
+            category: category.categoryName,
+            subCategoryId: subCategoryDoc?._id || null,
+            vendorId: vendorDoc?._id || null,
+            vendor: vendorDoc?.name || rest.vendor || "",
+            units,
+            serialNumber: quantity === 1 ? (serialNumbers[0] || "") : "",
+            quantity,
+            warrantyMonths: warrantyMonthsNum,
+            isTangible: isTangibleValue,
             assignedToDepartmentId: null,
             assignedToUserId: null,
             allocations: [],
             expiryDate: resolvedExpiry,
-            warrantyExpiry: warrantyExpiry ? new Date(warrantyExpiry) : resolvedExpiry,
-            value: normalizeMoneyValue(value),
+            warrantyExpiry: resolvedWarrantyExpiry,
+            value: normalizeMoneyValue(value ?? price),
+            ...(assetImage ? { assetImage } : {}),
+            ...(warrantyDocument ? { warrantyDocument } : {}),
         });
 
         const asset = await Asset.findById(created._id)
-            .populate("departmentId", "name")
-            .populate("assignedToDepartmentId", "name")
-            .populate("assignedToUserId", "name firstName lastName email")
-            .populate("allocations.departmentId", "name")
-            .populate("allocations.userId", "name firstName lastName email")
+            .populate(assetPopulateFields)
             .lean()
             .exec();
 
@@ -394,11 +549,7 @@ export const getAssets = async (req, res, next) => {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limitNumber)
-                .populate("departmentId", "name")
-                .populate("assignedToDepartmentId", "name")
-                .populate("assignedToUserId", "name firstName lastName email")
-            .populate("allocations.departmentId", "name")
-            .populate("allocations.userId", "name firstName lastName email")
+                .populate(assetPopulateFields)
                 .lean()
                 .exec(),
 
@@ -444,11 +595,7 @@ export const getAssetById = async (req, res, next) => {
             _id: assetId,
             workspaceId,
         })
-            .populate("departmentId", "name")
-            .populate("assignedToDepartmentId", "name")
-            .populate("assignedToUserId", "name firstName lastName email")
-            .populate("allocations.departmentId", "name")
-            .populate("allocations.userId", "name firstName lastName email")
+            .populate(assetPopulateFields)
             .lean()
             .exec();
 
@@ -512,7 +659,7 @@ export const updateAsset = async (req, res, next) => {
             });
         }
 
-        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId allocations quantity").lean().exec();
+        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId allocations quantity categoryId").lean().exec();
         if (!existingAsset) {
             return res.status(404).json({
                 message: "Asset not found",
@@ -556,26 +703,110 @@ export const updateAsset = async (req, res, next) => {
             return res.status(400).json({ message: `Quantity cannot be lower than the ${allocatedQuantity} unit(s) already allocated.` });
         }
         delete updateBody.allocations;
+        delete updateBody.units;
+
+        let newUnits = [];
+        if (updateBody.quantity !== undefined) {
+            const newQuantity = Math.max(1, Number(updateBody.quantity) || 1);
+            const currentQuantity = Math.max(1, Number(existingAsset.quantity) || 1);
+            if (newQuantity > currentQuantity && existingAsset.categoryId) {
+                const delta = newQuantity - currentQuantity;
+                const categoryForUnits = await AssetCategory.findByIdAndUpdate(
+                    existingAsset.categoryId,
+                    { $inc: { unitSequence: delta } },
+                    { new: true }
+                ).exec();
+                if (categoryForUnits) {
+                    const startSeq = categoryForUnits.unitSequence - delta + 1;
+                    newUnits = Array.from({ length: delta }, (_, i) => ({
+                        unitCode: `${categoryForUnits.categoryCode}-${padUnitSequence(startSeq + i)}`,
+                        serialNumber: "",
+                    }));
+                }
+            }
+            updateBody.quantity = newQuantity;
+        }
         if (expiryDate !== undefined) updateBody.expiryDate = expiryDate ? new Date(expiryDate) : null;
         if (warrantyExpiry !== undefined) updateBody.warrantyExpiry = warrantyExpiry ? new Date(warrantyExpiry) : null;
-        if (value !== undefined) updateBody.value = normalizeMoneyValue(value);
+        if (value !== undefined || updateBody.price !== undefined) {
+            updateBody.value = normalizeMoneyValue(value ?? updateBody.price);
+        }
+        delete updateBody.price;
+
+        const targetDepartmentId = updateBody.departmentId || existingAsset.departmentId;
+
+        if (updateBody.categoryId !== undefined) {
+            const assignedDepartmentIdsForCategory = await resolveAssignedDepartmentIds(workspaceId, userId);
+            const categoryResult = await resolveCategoryForAsset({
+                workspaceId,
+                categoryId: updateBody.categoryId,
+                roleBand,
+                assignedDepartmentIds: assignedDepartmentIdsForCategory,
+                departmentId: targetDepartmentId,
+            });
+            if (categoryResult.error) return res.status(400).json({ message: categoryResult.error });
+            updateBody.categoryId = categoryResult.category._id;
+            updateBody.category = categoryResult.category.categoryName;
+        }
+
+        if (updateBody.categoryId !== undefined && updateBody.subCategoryId === undefined) {
+            return res.status(400).json({ message: "Select a sub category for the selected category." });
+        }
+
+        if (updateBody.subCategoryId !== undefined && updateBody.subCategoryId) {
+            if (!mongoose.Types.ObjectId.isValid(updateBody.subCategoryId)) {
+                return res.status(400).json({ message: "A valid sub category is required" });
+            }
+            const targetCategoryId = updateBody.categoryId || existingAsset.categoryId;
+            const subCategoryFilter = { _id: updateBody.subCategoryId, workspaceId, categoryId: targetCategoryId };
+            const subCategoryDoc = await AssetSubCategory.findOne(subCategoryFilter).lean().exec();
+            if (!subCategoryDoc) return res.status(400).json({ message: "Sub category not found for the selected category." });
+            if (String(subCategoryDoc.departmentId) !== String(targetDepartmentId)) {
+                return res.status(400).json({ message: "Selected sub category does not belong to the selected department." });
+            }
+            updateBody.subCategoryId = subCategoryDoc._id;
+        }
+
+        if (updateBody.vendorId !== undefined && updateBody.vendorId) {
+            if (!mongoose.Types.ObjectId.isValid(updateBody.vendorId)) {
+                return res.status(400).json({ message: "A valid vendor is required" });
+            }
+            const vendorDoc = await FinanceVendor.findOne({ _id: updateBody.vendorId, workspaceId }).lean().exec();
+            if (!vendorDoc) return res.status(400).json({ message: "Vendor not found" });
+            updateBody.vendorId = vendorDoc._id;
+            updateBody.vendor = vendorDoc.name;
+        }
+
+        if (updateBody.warrantyMonths !== undefined) {
+            updateBody.warrantyMonths = updateBody.warrantyMonths !== "" ? Number(updateBody.warrantyMonths) : null;
+        }
+
+        if (updateBody.isTangible !== undefined || updateBody.tangable !== undefined) {
+            const tangibleRaw = updateBody.isTangible !== undefined ? updateBody.isTangible : updateBody.tangable;
+            updateBody.isTangible = !(tangibleRaw === "false" || tangibleRaw === false);
+            delete updateBody.tangable;
+        }
+
+        const { assetImageFile, warrantyDocumentFile } = uploadedFileFields(req.files);
+        if (assetImageFile) updateBody.assetImage = await uploadAssetFile(workspaceId, assetImageFile, "image");
+        if (warrantyDocumentFile) updateBody.warrantyDocument = await uploadAssetFile(workspaceId, warrantyDocumentFile, "warranty");
+
+        const mongoUpdate = newUnits.length > 0
+            ? { $set: updateBody, $push: { units: { $each: newUnits } } }
+            : updateBody;
 
         const asset = await Asset.findOneAndUpdate(
             {
                 _id: assetId,
                 workspaceId,
             },
-            updateBody,
+            mongoUpdate,
             {
                 new: true,
                 runValidators: true,
             }
         )
-            .populate("departmentId", "name")
-            .populate("assignedToDepartmentId", "name")
-            .populate("assignedToUserId", "name firstName lastName email")
-            .populate("allocations.departmentId", "name")
-            .populate("allocations.userId", "name firstName lastName email")
+            .populate(assetPopulateFields)
             .lean()
             .exec();
 
@@ -628,11 +859,7 @@ function addAllocation(asset, { departmentId, userId = null, quantity, note = ""
 
 async function populatedAsset(assetId, workspaceId) {
     return Asset.findOne({ _id: assetId, workspaceId })
-        .populate("departmentId", "name")
-        .populate("assignedToDepartmentId", "name")
-        .populate("assignedToUserId", "name firstName lastName email")
-        .populate("allocations.departmentId", "name")
-        .populate("allocations.userId", "name firstName lastName email")
+        .populate(assetPopulateFields)
         .lean()
         .exec();
 }

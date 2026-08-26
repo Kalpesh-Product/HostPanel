@@ -25,9 +25,14 @@ import {
   processPayrollPayment,
   generatePayslip,
   sendPayslip,
+  listVendors,
+  createVendorQuick,
 } from "../controllers/financeController.js";
 
 const router = express.Router();
+
+router.get("/vendors", listVendors);
+router.post("/vendors", createVendorQuick);
 
 router.get("/department", getDepartmentFinance);
 router.post("/department/budget-request", submitBudgetRequest);

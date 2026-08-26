@@ -30,6 +30,7 @@ import {
 import { uploadFileToS3 } from "../config/s3config.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
+import FinanceVendor from "../models/FinanceVendor.js";
 
 function getWorkspaceId(req: Request) {
   return (req as any)?.workspaceMembership?.workspace ? (req as any).workspaceMembership.workspace : null;
@@ -694,6 +695,67 @@ export async function sendPayslip(req: Request, res: Response, next: NextFunctio
       success: true,
       message: "Payslip sent successfully.",
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+function slugifyVendorKey(name: string) {
+  const cleaned = String(name || "vendor")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return (cleaned || "vendor").slice(0, 40);
+}
+
+export async function listVendors(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+
+    const vendors = await FinanceVendor.find({ workspaceId }).sort({ name: 1 }).lean().exec();
+
+    return res.status(200).json({
+      message: "Vendors loaded successfully",
+      data: { vendors },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createVendorQuick(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+
+    const { name, contactPerson, phone, email, category } = req.body || {};
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ message: "Vendor name is required" });
+    }
+
+    const base = slugifyVendorKey(name);
+    let vendorKey = base;
+    let suffix = 1;
+    while (await FinanceVendor.exists({ workspaceId, vendorKey })) {
+      suffix += 1;
+      vendorKey = `${base}-${suffix}`;
+    }
+
+    const vendor = await FinanceVendor.create({
+      workspaceId,
+      vendorKey,
+      name: String(name).trim(),
+      contactPerson: contactPerson || "",
+      phone: phone || "",
+      email: email || "",
+      category: category || "",
+    });
+
+    return res.status(201).json({
+      message: "Vendor created successfully",
+      data: { vendor },
     });
   } catch (error) {
     next(error);

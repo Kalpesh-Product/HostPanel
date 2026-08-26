@@ -168,7 +168,7 @@ export function PayslipsTab() {
           <h2 className="text-title font-pmedium text-primary uppercase">My Payslips</h2>
           <p className="text-xs font-pmedium text-slate-500 mt-1">All payslips generated for you, in one place</p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-xl shadow-sm">
+        <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-xl shadow-sm" data-tour="payslips-year-filter">
           <Calendar size={15} className="text-[#2563EB]" />
           <select
             value={yearFilter}
@@ -190,7 +190,7 @@ export function PayslipsTab() {
       )}
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 gap-3 shrink-0">
+      <div className="grid grid-cols-2 gap-3 shrink-0" data-tour="payslips-summary">
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           const borderColors = ['border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500'];
@@ -212,7 +212,7 @@ export function PayslipsTab() {
       {/* ── Data Panel ── */}
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
         <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex justify-end bg-slate-50/50">
-          <div className="relative min-w-[220px] sm:min-w-[260px]">
+          <div className="relative min-w-[220px] sm:min-w-[260px]" data-tour="payslips-search">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input
               type="text"
@@ -240,7 +240,7 @@ export function PayslipsTab() {
           </div>
         ) : (
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left min-w-[760px]">
+            <table className="w-full text-left min-w-[760px]" data-tour="payslips-table">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-6 py-5">Period</th>

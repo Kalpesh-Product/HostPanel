@@ -161,7 +161,7 @@ export function AssignedAssetsTab() {
         <span className="text-title font-pmedium text-primary uppercase">My Assigned Assets</span>
       </div>
 
-      <div className="relative mb-4">
+      <div className="relative mb-4" data-tour="assigned-assets-search">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
         <input type="text" placeholder="Search by asset name or number..." className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-[13px] font-medium text-[#0F172A] placeholder:text-slate-400 focus:ring-2 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all shadow-sm" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
       </div>
@@ -175,7 +175,7 @@ export function AssignedAssetsTab() {
           <p className="text-slate-400 text-[13px]">Assets assigned directly to you will appear here.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3" data-tour="assigned-assets-cards">
           {myAssets.map((asset) => (
             <div key={asset.recordId || asset.id} className="bg-white border border-slate-200/60 p-4 rounded-[18px] shadow-sm flex flex-col gap-3 transition-all hover:shadow-md">
               <div className="flex justify-between items-start gap-3">

@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Clock,
   CreditCard,
-  Hand,
   History,
   MapPin,
   Plus,
@@ -267,6 +266,42 @@ export default function TenantDashboardPage() {
   const bookingCount = visibleBookings.length;
   const creditUsagePercent = companyCreditsDisplay > 0 ? Math.min(100, Math.round((companyCreditsUsed / companyCreditsDisplay) * 100)) : 0;
   const isCreditLow = companyCreditsRemaining <= LOW_CREDIT_WARNING_THRESHOLD;
+
+  const summaryCards = [
+    {
+      label: 'Available Rooms',
+      value: availableRoomsCount,
+      icon: <Building2 size={16} />,
+      iconClass: 'bg-blue-50 text-blue-600',
+      labelClass: 'text-blue-600',
+      borderClass: 'border-l-4 border-l-blue-500',
+    },
+    {
+      label: 'Upcoming Bookings',
+      value: upcomingBookings.length,
+      icon: <CalendarCheck size={16} />,
+      iconClass: 'bg-violet-50 text-violet-600',
+      labelClass: 'text-violet-600',
+      borderClass: 'border-l-4 border-l-violet-500',
+    },
+    {
+      label: 'Open Tickets',
+      value: openTicketCount,
+      icon: <Ticket size={16} />,
+      iconClass: 'bg-amber-50 text-amber-600',
+      labelClass: 'text-amber-600',
+      borderClass: 'border-l-4 border-l-amber-500',
+    },
+    {
+      label: 'Credits Remaining',
+      value: `${companyCreditsRemaining > 0 ? companyCreditsRemaining : 0} / ${companyCreditsDisplay > 0 ? companyCreditsDisplay : 0}`,
+      icon: <CreditCard size={16} />,
+      iconClass: isCreditLow ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
+      labelClass: isCreditLow ? 'text-red-600' : 'text-emerald-600',
+      borderClass: isCreditLow ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-emerald-500',
+    },
+  ];
+
   const [showCreditAlert, setShowCreditAlert] = useState(false);
 
   useEffect(() => {
@@ -332,391 +367,348 @@ export default function TenantDashboardPage() {
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
-        <div className="mb-8 flex shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="flex items-center gap-4">
-          {/* <div className={`flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-pbold text-white shadow-md ${canManageTenant ? 'bg-linear-to-br from-purple-600 to-indigo-800' : 'bg-linear-to-br from-[#2563EB] to-indigo-600'}`}>
-            {normalizeText(currentUser?.fullName || tenantCompanyName || 'T').charAt(0).toUpperCase()}
-          </div> */}
-          <div>
-            <h1 className="text-title font-pmedium text-primary uppercase flex items-center gap-2">
-              Welcome back, {currentUser?.fullName || currentUser?.name || currentUserName || 'User'}.
-            </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-pmedium text-slate-600">
-                {tenantCompanyName}
-              </span>
-              <span className={`rounded-md px-2.5 py-1 text-xs font-pmedium ${canManageTenant ? 'bg-purple-100 text-purple-700' : 'bg-slate-200/70 text-slate-500'}`}>
-                {canManageTenant ? 'Tenant Manager' : 'Tenant Employee'}
-              </span>
+        <div className="flex flex-col gap-4">
+
+          {/* ── Header ── */}
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div>
+              <h1 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+                Welcome back, {currentUser?.fullName || currentUser?.name || currentUserName || 'User'}
+              </h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 border border-blue-100">
+                  {tenantCompanyName}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider border ${canManageTenant ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                  {canManageTenant ? 'Tenant Manager' : 'Tenant Employee'}
+                </span>
+                <p className="text-xs font-pmedium text-slate-500">
+                  Your tenant workspace at a glance — rooms, bookings, tickets and credits.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link to="/dashboard/tenant/meeting-room-booking" className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-slate-200/60 px-3.5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] active:scale-95">
+                <Calendar size={14} /> Book Room
+              </Link>
+              <Link to="/dashboard/tenant/tickets" className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-slate-200/60 px-3.5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 shadow-sm transition-all hover:border-amber-200 hover:bg-amber-50 hover:text-amber-600 active:scale-95">
+                <Ticket size={14} /> Raise Ticket
+              </Link>
+              <Link to="/dashboard/tenant/booking-history" className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-slate-200/60 px-3.5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 shadow-sm transition-all hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600 active:scale-95">
+                <History size={14} /> Booking History
+              </Link>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Link to="/dashboard/tenant/meeting-room-booking" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
-            <Calendar size={16} className="text-[#2563EB]" /> Book Room
-          </Link>
-          <Link to="/dashboard/tenant/tickets" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
-            <Ticket size={16} className="text-green-600" /> Raise Ticket
-          </Link>
-          <Link to="/dashboard/tenant/booking-history" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
-            <History size={16} className="text-purple-600"/> Booking History
-          </Link>
-        </div>
-      </div>
-
-      {/* Load error banner — uncomment error setter above to activate */}
-      {/* loadError && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-pregular text-amber-800">
-          {loadError}
-        </div>
-      ) */}
-
-      {showCreditAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-[2rem] border border-amber-100 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-amber-100 bg-amber-50 px-6 py-5">
-              <div>
-                <p className="text-[10px] font-pbold uppercase tracking-widest text-amber-600">Credits alert</p>
-                <h2 className="mt-2 text-xl font-pbold text-slate-950">Credits are low / exhausted.</h2>
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {summaryCards.map((card) => (
+              <div key={card.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}>
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.labelClass}`}>{card.label}</p>
+                  <p className="text-[15px] font-pmedium text-slate-900 truncate">{card.value}</p>
+                </div>
+                <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>{card.icon}</div>
               </div>
-              <button type="button" onClick={dismissCreditAlert} className="rounded-xl bg-white p-2 text-slate-500 shadow-sm hover:text-slate-900">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="space-y-5 px-6 py-6">
-              <p className="text-sm font-semibold leading-relaxed text-slate-600">
-                Buy new credits for this month. Your current tenant balance is {companyCreditsRemaining} credits.
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={dismissCreditAlert} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 hover:bg-slate-50">
-                  Later
-                </button>
-                <Link to="/dashboard/tenant/buy-credits" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm hover:bg-blue-700">
-                  Buy new credits <ChevronRight size={14} />
+            ))}
+          </div>
+
+          {/* ── Upcoming Bookings + Room Pool ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[320px] xl:col-span-2">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:p-4 lg:p-5">
+                <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
+                  <Clock size={15} className="text-[#2563EB]" />
+                  {canManageTenant ? 'Company Upcoming Bookings' : 'My Upcoming Bookings'}
+                </h2>
+                <Link to="/dashboard/tenant/booking-history" className="flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] hover:underline">
+                  View All <ChevronRight size={13} />
                 </Link>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Total Meeting Rooms</p>
-              <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-                <Building2 size={16} />
-              </div>
-            </div>
-            <p className="text-xl font-pbold text-slate-900">{availableRoomsCount}</p>
-          </div>
-        </div>
+              <div className="flex-1 divide-y divide-slate-100/60 overflow-y-auto bg-white/20">
+                {upcomingBookings.length > 0 ? (
+                  upcomingBookings.map((booking) => (
+                    <div key={booking.recordId || booking.id} className="group flex flex-col gap-4 px-5 py-4 transition-colors hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-blue-50 text-blue-700 border border-blue-100">
+                          <span className="text-[9px] font-pmedium uppercase">{formatDateLabel(booking?.date).split(' ')[0]}</span>
+                          <span className="text-sm font-pmedium leading-none">{String(booking?.date || '').split('-')[2] || '--'}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-[13px] font-pmedium text-slate-900 truncate group-hover:text-[#2563EB] transition-colors">{booking.roomName}</h3>
+                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${normalizeId(booking.bookingType) === 'guest' ? 'bg-violet-50 text-violet-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {normalizeText(booking.bookingType || 'Tenant')}
+                            </span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] font-pmedium text-slate-500">
+                            <span className="flex items-center gap-1.5"><Clock size={11} /> {formatBookingWindow(booking)}</span>
+                            {booking.clientCompany && (
+                              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-500">
+                                {booking.clientCompany}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Upcoming Bookings</p>
-              <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
-                <CalendarCheck size={16} />
-              </div>
-            </div>
-            <p className="text-xl font-pbold text-slate-900">{upcomingBookings.length}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Open Tickets</p>
-              <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
-                <Ticket size={16} />
-              </div>
-            </div>
-            <p className="text-xl font-pbold text-slate-900">{openTicketCount}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Credits Remaining</p>
-              <div className="rounded-lg bg-amber-50 p-2 text-amber-600">
-                <CreditCard size={16} />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-pbold text-slate-900">{companyCreditsRemaining > 0 ? companyCreditsRemaining : 0}</p>
-              <span className="text-xs font-pmedium text-slate-400">/ {companyCreditsDisplay > 0 ? companyCreditsDisplay : 0}</span>
-            </div>
-            
-          </div>
-        </div>
-      </div>
-
-      <div className="grid flex-1 gap-8 lg:grid-cols-3">
-        {/* Row 1: Upcoming Bookings + Room Pool */}
-        <div className="flex flex-col overflow-hidden rounded-[2.5rem] border border-slate-100 bg-white shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-slate-50 bg-slate-50/60 px-6 py-5">
-            <h2 className="flex items-center gap-2 text-lg font-pbold text-slate-900">
-              <Clock size={20} className="text-[#2563EB]" /> {canManageTenant ? 'Company Upcoming Bookings' : 'My Upcoming Bookings'}
-            </h2>
-            <Link to="/dashboard/tenant/booking-history" className="flex items-center gap-1 text-xs font-pbold uppercase tracking-widest text-[#2563EB]">
-              View All <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
-            {upcomingBookings.length > 0 ? (
-              upcomingBookings.map((booking) => (
-                <div key={booking.recordId || booking.id} className="group flex flex-col gap-4 p-6 transition-colors hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                      <span className="text-[10px] font-pbold uppercase">{String(booking?.date || '').split('-')[1] || '--'}</span>
-                      <span className="text-sm font-pbold">{String(booking?.date || '').split('-')[2] || '--'}</span>
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base font-pbold text-slate-900 transition-colors group-hover:text-[#2563EB]">{booking.roomName}</h3>
-                        <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest text-slate-500">
-                          {normalizeText(booking.bookingType || 'Tenant')}
+                      <div className="flex items-center justify-between gap-4 sm:justify-end shrink-0">
+                        <div className="text-right">
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Host</p>
+                          <p className="text-[12px] font-pmedium text-slate-700">{booking.bookedByName || companyContact}</p>
+                        </div>
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-blue-700">
+                          {normalizeText(booking.status || booking.bookingStatus || 'Booked')}
                         </span>
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-pmedium text-slate-500">
-                        <span className="flex items-center gap-1.5">
-                          <Clock size={12} /> {formatBookingWindow(booking)}
-                        </span>
-                        {booking.clientCompany && (
-                          <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-pbold uppercase tracking-widest text-slate-500">
-                            {booking.clientCompany}
-                          </span>
-                        )}
-                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="flex flex-1 flex-col items-center justify-center px-6 py-14 text-center">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 border border-slate-100 text-slate-400">
+                      <Calendar size={22} />
+                    </div>
+                    <p className="font-pmedium text-slate-700">No upcoming bookings</p>
+                    <p className="mt-1 text-[12px] font-pregular text-slate-400">Use the booking page to reserve a room for your team.</p>
                   </div>
+                )}
+              </div>
+            </div>
 
-                  <div className="flex items-center justify-between gap-4 sm:justify-end">
-                    <div className="text-right">
-                      <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Status</p>
-                      <p className="text-sm font-pmedium text-[#2563EB]">{normalizeText(booking.status || booking.bookingStatus || 'Booked')}</p>
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[320px]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
+                  <MapPin size={15} className="text-[#2563EB]" /> Room Pool
+                </h2>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-emerald-700">{availableRooms.length} ready</span>
+              </div>
+
+              <div className="flex-1 space-y-3 overflow-y-auto">
+                {availableRooms.slice(0, 5).map((room) => (
+                  <div key={room.id || room.name} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 flex items-start justify-between gap-3 transition-colors hover:bg-slate-50">
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-pmedium text-slate-900 truncate">{room.name || 'Meeting room'}</p>
+                      <p className="mt-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                        {normalizeText(room.type || 'Room')}{room.floor ? ` \u2022 Floor ${room.floor}` : ''}{room.wing ? ` \u2022 Wing ${room.wing}` : ''}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Host</p>
-                      <p className="text-sm font-pmedium text-slate-700">{booking.bookedByName || companyContact}</p>
+                    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700">Ready</span>
+                  </div>
+                ))}
+
+                {availableRooms.length === 0 && (
+                  <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                    <div className="mb-3 rounded-full bg-white p-3 text-slate-400 shadow-sm border border-slate-100">
+                      <MapPin size={18} />
+                    </div>
+                    <p className="text-[12px] font-pmedium text-slate-600">No meeting rooms are currently available.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Tickets + Team Snapshot + Tenant Summary ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
+                  <Ticket size={15} className="text-amber-500" /> {canManageTenant ? 'Company Tickets' : 'My Tickets'}
+                </h2>
+                <Link to="/dashboard/tenant/tickets" className="text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] hover:underline">View All</Link>
+              </div>
+
+              <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
+                {visibleTickets.slice(0, 4).map((ticket) => (
+                  <Link key={ticket.recordId || ticket.id} to="/dashboard/tenant/tickets" className="block rounded-2xl border border-slate-100 bg-slate-50/70 p-4 transition-colors hover:border-blue-200 hover:bg-blue-50/40">
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <span className="text-[10px] font-pmedium text-slate-500">{ticket.id}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${isOpenTicket(ticket) ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {normalizeText(ticket.status || 'Open')}
+                      </span>
+                    </div>
+                    <p className="mb-2 text-[12px] font-pmedium text-slate-800 line-clamp-1">{ticket.title}</p>
+                    <div className="flex items-center justify-between gap-3 text-[10px] font-pmedium text-slate-400">
+                      <span>{ticket.department || 'Administration'}</span>
+                      <span>{ticket.assignedTo || ticket.submittedBy || 'Unassigned'}</span>
+                    </div>
+                  </Link>
+                ))}
+
+                {visibleTickets.length === 0 && (
+                  <div className="flex flex-1 flex-col items-center justify-center text-center">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 border border-slate-100 text-slate-400">
+                      <Ticket size={20} />
+                    </div>
+                    <p className="font-pmedium text-slate-700">No support tickets yet</p>
+                    <p className="mt-1 text-[12px] font-pregular text-slate-400">Raise a ticket when something needs admin attention.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
+                  <UserCheck size={15} className="text-emerald-600" /> Team Snapshot
+                </h2>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-blue-700">{employeeCount} Members</span>
+              </div>
+
+              <div className="flex-1 space-y-3 overflow-y-auto">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Plan</p>
+                      <p className="mt-1 text-[12px] font-pmedium text-slate-900 truncate">{companyPlan}</p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600 shrink-0"><Building2 size={16} /></div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-white p-3 border border-slate-100">
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contact</p>
+                      <p className="mt-1 text-[11px] font-pmedium text-slate-800 truncate">{companyContact}</p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 border border-slate-100">
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Credits Used</p>
+                      <p className="mt-1 text-[11px] font-pmedium text-slate-800">{companyCreditsUsed}</p>
                     </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <Calendar size={24} />
+
+                <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Company Credit Usage</p>
+                    <span className={`text-[10px] font-pmedium uppercase tracking-widest ${isCreditLow ? 'text-red-600' : 'text-slate-500'}`}>{creditUsagePercent}%</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-2 rounded-full transition-all ${isCreditLow ? 'bg-red-500' : 'bg-[#2563EB]'}`} style={{ width: `${creditUsagePercent}%` }} />
+                  </div>
                 </div>
-                <h3 className="text-lg font-pbold text-slate-900">No upcoming bookings</h3>
-                <p className="mt-1 text-sm font-pregular text-slate-500">Use the booking page to reserve a room for your team.</p>
+
+                {companyManager && (
+                  <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Manager</p>
+                    <div className="mt-1 flex items-center gap-2 font-pmedium text-slate-900">
+                      <UserCheck size={13} className="text-slate-400" />
+                      <span className="text-[12px]">{companyManager.name || companyManager.fullName || 'Assigned manager'}</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">{companyManager.email || 'No email on file'}</p>
+                  </div>
+                )}
+
+                <div className="space-y-2 rounded-2xl border border-slate-100 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Recent Team Members</p>
+                    <Users size={13} className="text-slate-400" />
+                  </div>
+                  {companyEmployees.slice(0, 4).map((employee: Record<string, any>, index: number) => (
+                    <div key={employee?.id || employee?.email || `${index}`} className="flex items-center justify-between rounded-xl bg-slate-50/70 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-pmedium text-slate-800 truncate">{employee?.name || employee?.fullName || employee?.email || 'Employee'}</p>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{employee?.designation || employee?.role || 'Staff'}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${normalizeId(employee?.status || 'active') === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {normalizeText(employee?.status || 'Active')}
+                      </span>
+                    </div>
+                  ))}
+
+                  {companyEmployees.length === 0 && (
+                    <div className="rounded-xl bg-slate-50/70 px-3 py-4 text-center text-[11px] font-pregular text-slate-500">
+                      No embedded team members are available on this tenant record yet.
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
-              <MapPin size={16} className="text-[#2563EB]" /> Room Pool
-            </h2>
-            <span className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{availableRooms.length} available</span>
-          </div>
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
+                  <CheckCircle2 size={15} className="text-emerald-600" /> Tenant Summary
+                </h2>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider ${normalizeId(companyStatus) === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{normalizeText(companyStatus)}</span>
+              </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto">
-            {availableRooms.slice(0, 5).map((room) => (
-              <div key={room.id || room.name} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-pmedium text-slate-900">{room.name || 'Meeting room'}</p>
-                    <p className="mt-1 text-[10px] font-pbold uppercase tracking-widest text-slate-400">
-                      {normalizeText(room.type || 'Room')} {room.floor ? `\u2022 Floor ${room.floor}` : ''} {room.wing ? `\u2022 Wing ${room.wing}` : ''}
+              <div className="flex-1 space-y-3 text-[12px] font-pregular text-slate-600">
+                <div className="flex items-center justify-between rounded-xl bg-slate-50/70 px-4 py-3">
+                  <span className="font-pmedium">Visible bookings</span>
+                  <span className="font-pmedium text-slate-900">{bookingCount}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50/70 px-4 py-3">
+                  <span className="font-pmedium">Open support tickets</span>
+                  <span className="font-pmedium text-slate-900">{openTicketCount}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50/70 px-4 py-3">
+                  <span className="font-pmedium">Tenant credits remaining</span>
+                  <span className={`font-pmedium ${isCreditLow ? 'text-red-600' : 'text-slate-900'}`}>{companyCreditsRemaining}</span>
+                </div>
+                {tenantSummary && canViewWorkspaceSummary && (
+                  <div className="rounded-xl bg-slate-50/70 px-4 py-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Unit Summary</p>
+                    <p className="mt-1 text-[12px] font-pmedium text-slate-800">
+                      {tenantSummary.totalTenants || 0} tenant companies, {tenantSummary.activeContracts || 0} active contracts.
                     </p>
                   </div>
-                  <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest text-blue-700">
-                    Ready
-                  </span>
-                </div>
+                )}
               </div>
-            ))}
 
-            {availableRooms.length === 0 && (
-              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-                <div className="mb-3 rounded-full bg-white p-3 text-slate-400 shadow-sm">
-                  <MapPin size={20} />
-                </div>
-                <p className="text-sm font-pmedium text-slate-800">No meeting rooms are currently available.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Row 2: Tickets + Team Snapshot + Tenant Summary */}
-        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
-              <Ticket size={16} className="text-purple-600" /> {canManageTenant ? 'Company Tickets' : 'My Tickets'}
-            </h2>
-            <Link to="/dashboard/tenant/tickets" className="text-[10px] font-pbold uppercase tracking-widest text-purple-600 hover:underline">
-              View All
-            </Link>
-          </div>
-
-          <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
-            {visibleTickets.slice(0, 4).map((ticket) => (
-              <Link key={ticket.recordId || ticket.id} to="/dashboard/tenant/tickets" className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-purple-200 hover:bg-white">
-                <div className="mb-2 flex items-start justify-between gap-3">
-                  <span className="text-[10px] font-pbold text-slate-500">{ticket.id}</span>
-                  <span className={`rounded-md border px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest ${isOpenTicket(ticket) ? 'border-amber-200 bg-amber-100 text-amber-700' : 'border-emerald-200 bg-emerald-100 text-emerald-700'}`}>
-                    {normalizeText(ticket.status || 'Open')}
-                  </span>
-                </div>
-                <p className="mb-2 text-sm font-pmedium text-slate-800">{ticket.title}</p>
-                <div className="flex items-center justify-between gap-3 text-[10px] font-pmedium text-slate-400">
-                  <span>{ticket.department || 'Administration'}</span>
-                  <span>{ticket.assignedTo || ticket.submittedBy || 'Unassigned'}</span>
-                </div>
-              </Link>
-            ))}
-
-            {visibleTickets.length === 0 && (
-              <div className="flex flex-1 flex-col items-center justify-center text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <Ticket size={22} />
-                </div>
-                <h3 className="text-base font-pbold text-slate-900">No support tickets yet</h3>
-                <p className="mt-1 text-sm font-pregular text-slate-500">Raise a ticket when something needs admin attention.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
-              <UserCheck size={16} className="text-emerald-600" /> Team Snapshot
-            </h2>
-            <span className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{employeeCount} Members</span>
-          </div>
-
-          <div className="space-y-4 overflow-y-auto">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Plan</p>
-                  <p className="mt-1 text-sm font-pmedium text-slate-900">{companyPlan}</p>
-                </div>
-                <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
-                  <Building2 size={18} />
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-white p-3">
-                  <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Contact</p>
-                  <p className="mt-1 font-pmedium text-slate-800">{companyContact}</p>
-                </div>
-                <div className="rounded-xl bg-white p-3">
-                  <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Credits Used</p>
-                  <p className="mt-1 font-pmedium text-slate-800">{companyCreditsUsed}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-100 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Company Credit Usage</p>
-                <span className="text-[10px] font-pbold uppercase tracking-widest text-slate-500">{creditUsagePercent}%</span>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-2 rounded-full ${isCreditLow ? 'bg-amber-500' : 'bg-[#2563EB]'}`} style={{ width: `${creditUsagePercent}%` }} />
-              </div>
-            </div>
-
-            {companyManager && (
-              <div className="rounded-2xl border border-slate-100 bg-white p-4">
-                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Manager</p>
-                <p className="mt-1 text-sm font-pmedium text-slate-900">{companyManager.name || companyManager.fullName || 'Assigned manager'}</p>
-                <p className="mt-1 text-xs font-pregular text-slate-500">{companyManager.email || 'No email on file'}</p>
-              </div>
-            )}
-
-            <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Recent Team Members</p>
-                <Users size={14} className="text-slate-400" />
-              </div>
-              {companyEmployees.slice(0, 4).map((employee: Record<string, any>, index: number) => (
-                <div key={employee?.id || employee?.email || `${index}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                  <div>
-                    <p className="text-sm font-pmedium text-slate-800">{employee?.name || employee?.fullName || employee?.email || 'Employee'}</p>
-                    <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{employee?.designation || employee?.role || 'Staff'}</p>
+              {canManageTenant && (
+                <Link to="/dashboard/tenant/buy-credits" className="mt-4 flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3.5 transition-colors hover:border-blue-200 hover:bg-blue-50/40">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600"><Plus size={16} /></div>
+                    <div>
+                      <p className="text-[12px] font-pmedium text-slate-900">Request Credits</p>
+                      <p className="text-[10px] font-pregular text-slate-500">Ask Sales to add more credits for your team.</p>
+                    </div>
                   </div>
-                  <span className={`rounded-md border px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest ${normalizeId(employee?.status || 'active') === 'active' ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'}`}>
-                    {normalizeText(employee?.status || 'Active')}
-                  </span>
-                </div>
-              ))}
-
-              {companyEmployees.length === 0 && (
-                <div className="rounded-xl bg-slate-50 px-3 py-4 text-center text-sm font-pregular text-slate-500">
-                  No embedded team members are available on this tenant record yet.
-                </div>
+                  <ChevronRight size={16} className="text-slate-300" />
+                </Link>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
-              <CheckCircle2 size={16} className="text-emerald-600" /> Tenant Summary
-            </h2>
-          </div>
-
-          <div className="mt-4 space-y-3 text-sm font-pregular text-slate-600">
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-              <span>Visible bookings</span>
-              <span className="font-pbold text-slate-900">{bookingCount}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-              <span>Open support tickets</span>
-              <span className="font-pbold text-slate-900">{openTicketCount}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-              <span>Tenant credits remaining</span>
-              <span className="font-pbold text-slate-900">{companyCreditsRemaining}</span>
-            </div>
-            {tenantSummary && canViewWorkspaceSummary && (
-              <div className="rounded-xl bg-slate-50 px-4 py-3">
-                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Unit Summary</p>
-                <p className="mt-1 text-sm font-pmedium text-slate-800">
-                  {tenantSummary.totalTenants || 0} tenant companies, {tenantSummary.activeContracts || 0} active contracts.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {canManageTenant && (
-            <Link to="/dashboard/tenant/buy-credits" className="mt-6 flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4 transition-colors hover:bg-white">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
-                  <Plus size={18} />
+        {/* Credits alert modal */}
+        {showCreditAlert && (
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={dismissCreditAlert}>
+            <div className="bg-white rounded-[2rem] max-w-md w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70" onClick={(e) => e.stopPropagation()}>
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-amber-50/40 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-amber-500 text-white">
+                    <CreditCard size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600">Credits alert</p>
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800">Credits are low / exhausted.</h2>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-pbold text-slate-900">Request Credits</p>
-                  <p className="text-xs font-pregular text-slate-500">Ask Sales to add more credits for your team.</p>
+                <button onClick={dismissCreditAlert} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-5 bg-white">
+                <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[12px] font-pmedium leading-relaxed text-slate-600">
+                    Buy new credits for this month. Your current tenant balance is{' '}
+                    <span className="font-pmedium text-slate-900">{companyCreditsRemaining} credits</span>.
+                  </p>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-slate-300" />
-            </Link>
-          )}
-        </div>
-      </div>
+
+              <div className="p-5 sm:p-6 border-t border-slate-100 bg-white flex justify-end gap-2">
+                <button type="button" onClick={dismissCreditAlert} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase tracking-widest">
+                  Later
+                </button>
+                <Link to="/dashboard/tenant/buy-credits" className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-primary/95 active:scale-95 transition-all">
+                  Buy new credits <ChevronRight size={13} strokeWidth={3} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </PageFrame>
     </div>
   );

@@ -137,7 +137,7 @@ export function ResignationRequestTab() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 shrink-0" data-tour="resignation-summary">
         {[
           { key: 'total', label: 'Total', value: stats.total, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: LogOut, iconClass: 'bg-slate-50 text-slate-600' },
           { key: 'pending', label: 'Pending', value: stats.pending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Clock, iconClass: 'bg-amber-50 text-amber-600' },
@@ -158,7 +158,7 @@ export function ResignationRequestTab() {
       </div>
 
       {/* New Request Button */}
-      <div className="mb-4 flex flex-col items-end gap-2">
+      <div className="mb-4 flex flex-col items-end gap-2" data-tour="resignation-new-request">
         <button
           type="button"
           onClick={() => setShowForm((p) => !p)}
@@ -175,7 +175,7 @@ export function ResignationRequestTab() {
 
       {/* Submission Form */}
       {showForm && (
-        <div className="mb-4 rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
+        <div className="mb-4 rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6" data-tour="resignation-form">
           <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-5">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
               <LogOut size={20} />
@@ -274,7 +274,7 @@ export function ResignationRequestTab() {
           <p className="text-slate-400 text-[13px]">Your resignation requests will appear here.</p>
         </div>
       ) : (
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col overflow-x-auto">
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col overflow-x-auto" data-tour="resignation-table">
           <table className="w-full text-left">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>

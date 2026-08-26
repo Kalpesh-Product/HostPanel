@@ -182,7 +182,7 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
         <span className="text-title font-pmedium text-primary uppercase">Change Password</span>
       </div>
 
-      <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
+      <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6" data-tour="change-password-panel">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-5">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
             <KeyRound size={20} />
@@ -295,7 +295,7 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
         )}
 
         {/* Password Requirements */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 mb-5">
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 mb-5" data-tour="change-password-requirements">
           <div className="flex items-center gap-2">
             <Lock size={14} className="text-blue-600" />
             <span className="text-xs font-pmedium uppercase tracking-wider text-slate-600">Password Requirements</span>

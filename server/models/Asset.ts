@@ -11,6 +11,14 @@ const assetAllocationSchema = new mongoose.Schema(
     { _id: true }
 );
 
+const assetUnitSchema = new mongoose.Schema(
+    {
+        unitCode: { type: String, required: true, trim: true, uppercase: true },
+        serialNumber: { type: String, default: "", trim: true, maxlength: 120 },
+    },
+    { _id: false }
+);
+
 const assetSchema = new mongoose.Schema(
     {
         workspaceId: {
@@ -63,10 +71,52 @@ const assetSchema = new mongoose.Schema(
 
         category: {
             type: String,
-            enum: ["Hardware", "Infrastructure", "Software", "Furniture", "Other"],
             required: true,
             trim: true,
             index: true,
+        },
+
+        categoryId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "AssetCategory",
+            required: true,
+            index: true,
+        },
+
+        subCategoryId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "AssetSubCategory",
+            required: true,
+            index: true,
+        },
+
+        units: { type: [assetUnitSchema], default: [] },
+
+        assetType: {
+            type: String,
+            enum: ["Physical", "Digital"],
+            default: "Physical",
+        },
+
+        warrantyMonths: {
+            type: Number,
+            default: null,
+            min: 0,
+        },
+
+        isTangible: {
+            type: Boolean,
+            default: true,
+        },
+
+        assetImage: {
+            url: { type: String, default: "" },
+            id: { type: String, default: "" },
+        },
+
+        warrantyDocument: {
+            url: { type: String, default: "" },
+            id: { type: String, default: "" },
         },
 
         departmentId: {
@@ -111,6 +161,13 @@ const assetSchema = new mongoose.Schema(
             default: "",
             trim: true,
             maxlength: 160,
+            index: true,
+        },
+
+        vendorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "FinanceVendor",
+            default: null,
             index: true,
         },
 

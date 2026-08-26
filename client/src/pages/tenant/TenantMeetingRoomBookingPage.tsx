@@ -3,7 +3,9 @@ import PageFrame from '@/components/Pages/PageFrame';
 import {
   Calendar, Clock, MapPin, Search, Users, Building2, X, CheckCircle2, AlertCircle, Plus, Presentation, Monitor,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { CardsGridSkeleton } from '@/components/ui/Skeleton';
+import WebsiteFormField from '@/components/WebsiteFormField';
 import { formatTime12h } from '@/utils/time';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getMeetingRoomBookings, createMeetingRoomBooking } from '@/services/meeting-room-bookings';
@@ -191,20 +193,6 @@ function formatTimeOptionLabel(value: string): string {
   return formatTime12h(value) || value;
 }
 
-function formatDateLabel(value: string): string {
-  if (!value) return 'N/A';
-  const d = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
-}
-
-function formatBookingWindow(booking: Record<string, any>): string {
-  const dl = formatDateLabel(booking?.date);
-  const st = booking?.checkIn || booking?.startTime || '';
-  const et = booking?.checkOut || booking?.endTime || '';
-  return `${dl} ${st}${et ? ` - ${et}` : ''}`;
-}
-
 interface RoomGroup {
   floor: string;
   wing: string;
@@ -256,6 +244,8 @@ export default function TenantMeetingRoomBookingPage() {
   const [tenantCompanies, setTenantCompanies] = useState<Record<string, any>[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<NormalizedRoom | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingError, setBookingError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [bookingForm, setBookingForm] = useState<BookingForm>({
     date: '',
     startTime: '',
@@ -518,13 +508,11 @@ export default function TenantMeetingRoomBookingPage() {
     return calculateBookingCredits(selectedRoom, bookingForm.startTime, bookingForm.endTime);
   }, [bookingForm.endTime, bookingForm.startTime, selectedRoom]);
 
-  const selectedRoomAvailabilityLabel = selectedRoomConflictBookings.length > 0
-    ? `${selectedRoomConflictBookings.length} conflicting booking${selectedRoomConflictBookings.length === 1 ? '' : 's'} found`
-    : 'Slot Available';
-
   const handleOpenBooking = (room: NormalizedRoom) => {
     setSelectedRoom(room);
     setBookingForm({ date: '', startTime: '', endTime: '', purpose: '', attendees: 1, inviteeUserIds: [] });
+    setBookingError('');
+    setFieldErrors({});
   };
 
   const handleToggleInvitee = (userId: string) => {
@@ -539,11 +527,14 @@ export default function TenantMeetingRoomBookingPage() {
         attendees: Math.max(Number(prev.attendees || 1), nextInvitees.length + 1),
       };
     });
+    setFieldErrors((prev) => ({ ...prev, attendees: '', invitees: '' }));
   };
 
   const handleCloseBooking = () => {
     setSelectedRoom(null);
     setIsSubmitting(false);
+    setBookingError('');
+    setFieldErrors({});
   };
 
   const handleSubmitBooking = async (event: FormEvent) => {
@@ -557,47 +548,42 @@ export default function TenantMeetingRoomBookingPage() {
     const selectedStartMinutes = timeToMinutes(bookingForm.startTime);
     const selectedEndMinutes = timeToMinutes(bookingForm.endTime);
 
-    if (!bookingForm.date) { setErrorMessage('Date is required.'); return; }
-    if (!bookingForm.startTime) { setErrorMessage('Start time is required.'); return; }
-    if (!bookingForm.endTime) { setErrorMessage('End time is required.'); return; }
-    if (selectedDateKey && selectedDateKey < todayVal) { setErrorMessage('Backdated bookings not allowed.'); return; }
-    if (selectedDateKey === todayVal && currentTimeMinutes !== null && selectedStartMinutes !== null && selectedStartMinutes < currentTimeMinutes) {
-      setErrorMessage('Choose a start time from the current time onward.'); return;
+    const errors: Record<string, string> = {};
+    if (!bookingForm.date) errors.date = 'Date is required.';
+    else if (selectedDateKey && selectedDateKey < todayVal) errors.date = 'Backdated bookings are not allowed.';
+    if (!bookingForm.startTime) errors.startTime = 'Start time is required.';
+    if (!bookingForm.endTime) errors.endTime = 'End time is required.';
+    if (selectedDateKey && selectedDateKey >= todayVal && currentTimeMinutes !== null && selectedStartMinutes !== null && selectedDateKey === todayVal && selectedStartMinutes < currentTimeMinutes) {
+      errors.startTime = 'Choose a start time from now onward.';
     }
-    if (selectedDateKey === todayVal && currentTimeMinutes !== null && selectedEndMinutes !== null && selectedEndMinutes < currentTimeMinutes) {
-      setErrorMessage('Choose an end time from the current time onward.'); return;
+    if (bookingForm.startTime && bookingForm.endTime && selectedStartMinutes !== null && selectedEndMinutes !== null && selectedEndMinutes <= selectedStartMinutes) {
+      errors.endTime = 'End time must be after start time.';
     }
-    if (!bookingForm.purpose.trim()) { setErrorMessage('Purpose is required.'); return; }
-    if (selectedStartMinutes === null || selectedEndMinutes === null || selectedStartMinutes >= selectedEndMinutes) {
-      setErrorMessage('End time must be after start time.'); return;
+    if (bookingForm.startTime && bookingForm.endTime && selectedStartMinutes !== null && selectedEndMinutes !== null && selectedEndMinutes > selectedStartMinutes) {
+      if (!isAlignedToStep(selectedStartMinutes) || !isAlignedToStep(selectedEndMinutes)) errors.startTime = 'Use 5-minute slots only.';
+      else if (selectedEndMinutes - selectedStartMinutes < BOOKING_MIN_DURATION_MINUTES) errors.endTime = `Minimum duration is ${BOOKING_MIN_DURATION_MINUTES} minutes.`;
     }
-    if (!isAlignedToStep(selectedStartMinutes) || !isAlignedToStep(selectedEndMinutes)) {
-      setErrorMessage('Use 5-minute slots only.'); return;
-    }
-    if (selectedEndMinutes - selectedStartMinutes < BOOKING_MIN_DURATION_MINUTES) {
-      setErrorMessage('Minimum booking duration is 30 minutes.'); return;
-    }
-    if (!bookingForm.attendees || Number(bookingForm.attendees || 0) < 1) {
-      setErrorMessage('Attendees is required.'); return;
-    }
-    if (selectedInviteeCount > inviteeLimit) {
-      setErrorMessage(`This room can only invite up to ${inviteeLimit} other employee${inviteeLimit === 1 ? '' : 's'}.`); return;
-    }
-    if (Number(bookingForm.attendees || 0) < selectedInviteeCount + 1) {
-      setErrorMessage('Attendees must include host plus invitees.'); return;
-    }
-    if (Number(bookingForm.attendees || 0) > Number(selectedRoom.capacity || 0)) {
-      setErrorMessage(`This room can only host up to ${selectedRoom.capacity} people.`); return;
-    }
-    if (selectedRoomConflictBookings.length > 0) {
-      setErrorMessage(`Time overlaps with ${selectedRoomConflictBookings.length} existing booking${selectedRoomConflictBookings.length === 1 ? '' : 's'}.`); return;
-    }
-    if (companyCreditsRemaining > 0 && selectedRoomCreditEstimate > companyCreditsRemaining) {
-      setErrorMessage(`Not enough credits. Need ${selectedRoomCreditEstimate.toFixed(2)} CR, have ${companyCreditsRemaining.toFixed(2)} CR.`); return;
+    if (!String(bookingForm.purpose || '').trim()) errors.purpose = 'Purpose is required.';
+    else if (bookingForm.purpose.trim().length < 3) errors.purpose = 'Purpose must be at least 3 characters.';
+    if (!bookingForm.attendees || Number(bookingForm.attendees || 0) < 1) errors.attendees = 'At least 1 attendee (you) is required.';
+    else if (Number(bookingForm.attendees || 0) > Number(selectedRoom.capacity || 0)) errors.attendees = `This room can only host up to ${selectedRoom.capacity} people.`;
+    else if (Number(bookingForm.attendees || 0) < selectedInviteeCount + 1) errors.attendees = 'Attendees must include you plus every invitee.';
+    if (selectedInviteeCount > inviteeLimit) errors.invitees = `This room can only invite up to ${inviteeLimit} other employee${inviteeLimit === 1 ? '' : 's'}.`;
+
+    let blockingError = '';
+    if (Object.keys(errors).length === 0) {
+      if (selectedRoomConflictBookings.length > 0) {
+        blockingError = `Time overlaps with ${selectedRoomConflictBookings.length} existing booking${selectedRoomConflictBookings.length === 1 ? '' : 's'}. Pick one of the free slots below or change the window.`;
+      } else if (companyCreditsRemaining > 0 && selectedRoomCreditEstimate > companyCreditsRemaining) {
+        blockingError = `Not enough credits. This slot needs ${selectedRoomCreditEstimate.toFixed(2)} CR but only ${companyCreditsRemaining.toFixed(2)} CR remain.`;
+      }
     }
 
+    setFieldErrors(errors);
+    setBookingError(blockingError);
+    if (Object.keys(errors).length > 0 || blockingError) return;
+
     setIsSubmitting(true);
-    setErrorMessage('');
 
     try {
       await createMeetingRoomBooking({
@@ -615,6 +601,7 @@ export default function TenantMeetingRoomBookingPage() {
         bookingNotes: `Floor ${selectedRoom.floor} Wing ${selectedRoom.wing}`,
       });
 
+      toast.success(`${selectedRoom.name} booked for ${formatTime12h(bookingForm.startTime)}.`);
       handleCloseBooking();
       if (workspaceId) {
         getMeetingRoomBookings(workspaceId).then((res) => {
@@ -622,7 +609,7 @@ export default function TenantMeetingRoomBookingPage() {
         }).catch(() => {});
       }
     } catch (error: any) {
-      setErrorMessage(error.message || 'Unable to create booking.');
+      setBookingError(error.message || 'Unable to create booking.');
     } finally {
       setIsSubmitting(false);
     }
@@ -637,194 +624,232 @@ export default function TenantMeetingRoomBookingPage() {
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-          <h1 className="text-title font-pmedium text-primary uppercase mb-1">Meeting Room Booking</h1>
-          <p className="text-xs mb-4 font-medium text-slate-500 mt-1">
-            View only active meeting rooms and conference rooms grouped by floor and wing, then book a slot directly from the tenant portal.
-          </p>
-        </div>
+        <div className="flex flex-col gap-4">
 
-      </div>
-
-      {errorMessage && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-          {errorMessage}
-        </div>
-      )}
-
-      <div className="grid mb-4 grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Available Rooms</p>
-          <p className="text-xl font-pbold text-slate-900">{summary.total}</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Meeting Rooms</p>
-          <p className="text-xl font-pbold text-slate-900">{summary.meeting}</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Conference Rooms</p>
-          <p className="text-xl font-pbold text-slate-900">{summary.conference}</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Floors Covered</p>
-          <p className="text-xl font-pbold text-slate-900">{summary.floors}</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-4 lg:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between mb-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Search size={16} className="text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search room name, floor, wing, or assignment"
-              className="w-full min-w-65 md:w-96 px-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl text-sm font-pmedium focus:bg-white focus:border-[#2563EB] outline-none transition-all"
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full xl:w-auto">
-            <select value={selectedFloor} onChange={(e) => setSelectedFloor(e.target.value)}
-              className="px-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl text-sm font-pmedium focus:bg-white focus:border-[#2563EB] outline-none transition-all">
-              <option value="all">All Floors</option>
-              {availableFloors.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
-            </select>
-            <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-              className="px-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl text-sm font-pmedium focus:bg-white focus:border-[#2563EB] outline-none transition-all">
-              <option value="all">All Wings</option>
-              {availableWings.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
-            </select>
-            <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl text-sm font-pmedium focus:bg-white focus:border-[#2563EB] outline-none transition-all">
-              {ROOM_TYPE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-6">
-          {ROOM_TYPE_OPTIONS.map((option) => (
-            <button key={option} onClick={() => setSelectedType(option)}
-              className={`px-4 py-2 rounded-full text-xs font-pbold uppercase tracking-widest border transition-all ${selectedType === option ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-200 hover:text-slate-900'}`}>
-              {option}
-            </button>
-          ))}
-        </div>
-
-        {groupedRooms.length === 0 ? (
-          <div className="py-20 text-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-              <Calendar size={24} />
+          {/* ── Header ── */}
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div>
+              <h1 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+                Meeting Room Booking
+              </h1>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                Browse active meeting and conference rooms by floor and wing, then book a slot directly from the tenant portal.
+              </p>
             </div>
-            <h3 className="text-lg font-pbold text-slate-900 mb-1">No rooms available</h3>
-            <p className="text-sm font-pregular text-slate-500">Try another floor, wing, or room type.</p>
           </div>
-        ) : (
-          <div className="space-y-8">
-            {groupedRooms.map((group) => (
-              <section key={`${group.floor}-${group.wing}`} className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin size={14} className="text-slate-400 shrink-0" />
-                    <h2 className="text-base font-pbold text-slate-900">Floor {group.floor}{group.wing}</h2>
-                  </div>
-                  <span className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{group.rooms.length} available room{group.rooms.length === 1 ? '' : 's'}</span>
-                </div>
 
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {group.rooms.map((room) => (
-                    <article key={room.recordId || room.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col">
-                      <div className="p-4 border-b border-slate-50 bg-slate-50/60 flex items-start justify-between gap-3">
-                        <div>
-                          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white border border-slate-200 text-[9px] font-pbold uppercase tracking-widest text-slate-500 mb-2">{room.type}</div>
-                          <h3 className="text-base font-pbold text-slate-900 leading-tight">{room.name}</h3>
-                          <p className="text-[10px] font-pmedium text-slate-400 mt-0.5">Floor {room.floor}{room.wing}</p>
-                        </div>
-                      </div>
-                      <div className="p-4 flex-1 flex flex-col gap-3">
-                        <div className="flex items-center gap-2 flex-wrap text-[10px] font-pmedium text-slate-500">
-                          <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-100 flex items-center gap-1"><Users size={11} /> {room.capacity} people</span>
-                          <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-100 flex items-center gap-1"><Clock size={11} /> {getRoomRateLabel(room)}</span>
-                        </div>
-                        <div className="space-y-1.5 text-xs text-slate-600">
-                          <div className="flex items-start gap-1.5"><CheckCircle2 size={12} className="text-emerald-500 mt-0.5 shrink-0" /><span>Available for booking</span></div>
-                          {room.description && (
-                            <div className="flex items-start gap-1.5"><AlertCircle size={12} className="text-slate-400 mt-0.5 shrink-0" /><span>{room.description}</span></div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 pb-4">
-                        <button onClick={() => handleOpenBooking(room)}
-                          className="w-full px-4 py-2.5 rounded-xl bg-slate-900 text-white font-pbold text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5">
-                          <Plus size={12} /> Book Room
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+          {errorMessage && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {[
+              { label: 'Available Rooms', value: summary.total, borderClass: '', iconClass: 'bg-slate-50 text-slate-600', icon: <Building2 size={16} /> },
+              { label: 'Meeting Rooms', value: summary.meeting, borderClass: 'border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600', icon: <Monitor size={16} /> },
+              { label: 'Conference Rooms', value: summary.conference, borderClass: 'border-l-4 border-l-violet-500', iconClass: 'bg-violet-50 text-violet-600', icon: <Presentation size={16} /> },
+              { label: 'Floors Covered', value: summary.floors, borderClass: 'border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600', icon: <MapPin size={16} /> },
+            ].map((card) => (
+              <div key={card.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}>
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.borderClass ? card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400' : 'text-slate-400'}`}>{card.label}</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                 </div>
-              </section>
+                <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>{card.icon}</div>
+              </div>
             ))}
           </div>
-        )}
-      </div>
 
-      {selectedRoom && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <form onSubmit={handleSubmitBooking} className="w-full max-w-2xl rounded-[2.5rem] bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-pmedium uppercase tracking-[0.35em] text-slate-400">Selected Room</p>
-                <h2 className="text-xl font-pbold text-slate-900 leading-tight mt-1">{selectedRoom.name}</h2>
-                <p className="text-xs font-pmedium text-slate-500 mt-0.5">Floor {selectedRoom.floor}{selectedRoom.wing} {selectedRoom.type}</p>
+          {/* ── Data Panel ── */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+
+            {/* Panel header row: type pills → search → floor/wing/type filters */}
+            <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {ROOM_TYPE_OPTIONS.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => setSelectedType(option)}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] sm:text-[12px] font-pmedium transition-all ${
+                      selectedType === option ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
               </div>
-              <button onClick={handleCloseBooking} className="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition-all flex items-center justify-center"><X size={16} /></button>
+
+              <div className="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap xl:w-auto">
+                <select value={selectedFloor} onChange={(e) => setSelectedFloor(e.target.value)}
+                  className="min-w-[110px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50">
+                  <option value="all">All Floors</option>
+                  {availableFloors.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
+                </select>
+                <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
+                  className="min-w-[100px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50">
+                  <option value="all">All Wings</option>
+                  {availableWings.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
+                </select>
+                <div className="relative min-w-[180px] flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text"
+                    placeholder="Search rooms..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="p-5 md:p-6 overflow-y-auto space-y-5">
-              <div className="grid md:grid-cols-4 gap-3">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Capacity</p>
-                  <p className="text-base font-pbold text-slate-900 flex items-center gap-1.5"><Users size={14} className="text-blue-600" /> {selectedRoom.capacity} people</p>
+            {/* Room grid */}
+            <div className="flex-1 p-3 sm:p-4 lg:p-5 bg-white/20 overflow-y-auto">
+              {groupedRooms.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                    <Calendar size={22} />
+                  </div>
+                  <p className="font-pmedium text-slate-700">No rooms available</p>
+                  <p className="text-sm font-pregular text-slate-500 mt-1">Try another floor, wing, or room type.</p>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Invite Slots</p>
-                  <p className="text-base font-pbold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={14} /> {Math.max(0, inviteeLimit - selectedInviteeCount)} / {inviteeLimit} left</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Remaining Credits</p>
-                  <p className="text-base font-pbold text-indigo-700 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" /> {companyCreditsRemaining.toFixed(2)} CR</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Estimated Credits</p>
-                  <p className="text-base font-pbold text-slate-900 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" />{selectedRoomCreditEstimate.toFixed(2)} CR</p>
-                </div>
-              </div>
+              ) : (
+                <div className="space-y-6">
+                  {groupedRooms.map((group) => (
+                    <section key={`${group.floor}-${group.wing}`} className="space-y-3">
+                      <div className="flex items-center justify-between gap-3 border-b border-slate-100/60 pb-2">
+                        <div className="flex items-center gap-2">
+                          <MapPin size={13} className="text-slate-400 shrink-0" />
+                          <h2 className="text-[12px] font-pmedium uppercase tracking-widest text-slate-700">Floor {group.floor}{group.wing}</h2>
+                        </div>
+                        <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{group.rooms.length} available</span>
+                      </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest px-1">Date</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input type="date" min={todayValue} required value={bookingForm.date}
-                      onChange={(e) => setBookingForm((prev) => ({ ...prev, date: e.target.value }))}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
+                      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {group.rooms.map((room) => (
+                          <article key={room.recordId || room.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col">
+                            <div className="p-4 border-b border-slate-100/60 bg-slate-50/60 flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className="p-2 rounded-2xl bg-white border border-slate-100 shadow-sm shrink-0">{getRoomIcon(room)}</div>
+                                <div className="min-w-0">
+                                  <h3 className="text-[13px] font-pmedium text-slate-900 leading-tight truncate">{room.name}</h3>
+                                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">Floor {room.floor}{room.wing}</p>
+                                </div>
+                              </div>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${room.type === 'Conference Room' ? 'bg-violet-50 text-violet-700' : 'bg-blue-50 text-blue-700'}`}>{room.type}</span>
+                            </div>
+                            <div className="p-4 flex-1 flex flex-col gap-3">
+                              <div className="flex items-center gap-2 flex-wrap text-[10px] font-pmedium text-slate-500">
+                                <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-100 flex items-center gap-1"><Users size={11} /> {room.capacity} people</span>
+                                <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-100 flex items-center gap-1"><Clock size={11} /> {getRoomRateLabel(room)}</span>
+                              </div>
+                              <div className="space-y-1.5 text-[11px] font-pregular text-slate-600">
+                                <div className="flex items-start gap-1.5"><CheckCircle2 size={12} className="text-emerald-500 mt-0.5 shrink-0" /><span>Available for booking</span></div>
+                                {room.description && (
+                                  <div className="flex items-start gap-1.5 line-clamp-2"><AlertCircle size={12} className="text-slate-400 mt-0.5 shrink-0" /><span>{room.description}</span></div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="px-4 pb-4">
+                              <button onClick={() => handleOpenBooking(room)}
+                                className="w-full px-4 py-2.5 rounded-xl bg-[#2563EB] text-white font-pmedium text-[10px] uppercase tracking-widest hover:bg-primary/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                <Plus size={12} strokeWidth={3} /> Book Room
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Booking modal ── */}
+        {selectedRoom && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0F172A]/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <form onSubmit={handleSubmitBooking} noValidate className="w-full sm:max-w-2xl rounded-t-[2rem] sm:rounded-[2rem] bg-white shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in zoom-in-95 duration-200 border border-white/70">
+              {/* Header */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    <Calendar size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{selectedRoom.type}</p>
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{selectedRoom.name}</h2>
+                    <p className="text-[11px] font-pmedium text-slate-500 mt-0.5">Floor {selectedRoom.floor}{selectedRoom.wing}</p>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest px-1">Purpose</label>
-                  <input type="text" required value={bookingForm.purpose}
-                    onChange={(e) => setBookingForm((prev) => ({ ...prev, purpose: e.target.value }))}
-                    placeholder="Team sync, client call, review meeting..."
-                    className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
-                </div>
+                <button type="button" onClick={handleCloseBooking} disabled={isSubmitting} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest px-1">Start Time</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <select required value={bookingForm.startTime}
+              {/* Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 bg-white">
+                {/* Snapshot grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Capacity</p>
+                    <p className="text-[13px] font-pmedium text-slate-900 flex items-center gap-1.5"><Users size={13} className="text-blue-600" /> {selectedRoom.capacity}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Invite Slots</p>
+                    <p className="text-[13px] font-pmedium text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={13} /> {Math.max(0, inviteeLimit - selectedInviteeCount)} / {inviteeLimit} left</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Remaining Credits</p>
+                    <p className="text-[13px] font-pmedium text-indigo-700 flex items-center gap-1.5"><Clock size={13} className="text-indigo-500" /> {companyCreditsRemaining.toFixed(2)} CR</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Estimated Credits</p>
+                    <p className="text-[13px] font-pmedium text-slate-900 flex items-center gap-1.5"><Clock size={13} className="text-slate-400" /> {selectedRoomCreditEstimate.toFixed(2)} CR</p>
+                  </div>
+                </div>
+
+                {/* Form fields */}
+                <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <WebsiteFormField
+                      label="Date"
+                      type="date"
+                      min={todayValue}
+                      required
+                      error={!!fieldErrors.date}
+                      helperText={fieldErrors.date}
+                      value={bookingForm.date}
+                      onChange={(e) => {
+                        setBookingForm((prev) => ({ ...prev, date: e.target.value }));
+                        setFieldErrors((prev) => ({ ...prev, date: '' }));
+                        setBookingError('');
+                      }}
+                    />
+                    <WebsiteFormField
+                      label="Purpose"
+                      required
+                      maxLength={120}
+                      placeholder="Team sync, client call, review meeting..."
+                      error={!!fieldErrors.purpose}
+                      helperText={fieldErrors.purpose}
+                      value={bookingForm.purpose}
+                      onChange={(e) => {
+                        setBookingForm((prev) => ({ ...prev, purpose: e.target.value }));
+                        setFieldErrors((prev) => ({ ...prev, purpose: '' }));
+                        setBookingError('');
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <WebsiteFormField
+                      label="Start Time"
+                      select
+                      required
+                      error={!!fieldErrors.startTime}
+                      helperText={fieldErrors.startTime}
+                      value={bookingForm.startTime}
                       onChange={(e) => {
                         const nextStart = e.target.value;
                         const minEnd = getMinimumEndTime(nextStart);
@@ -834,134 +859,161 @@ export default function TenantMeetingRoomBookingPage() {
                           const shouldAdjust = !prev.endTime || curEndMin === null || (minEndMin !== null && curEndMin < minEndMin);
                           return { ...prev, startTime: nextStart, endTime: shouldAdjust ? minEnd : prev.endTime };
                         });
+                        setFieldErrors((prev) => ({ ...prev, startTime: '', endTime: '' }));
+                        setBookingError('');
                       }}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
+                    >
                       <option value="">Select start time</option>
                       {startTimeOptions.map((tv) => <option key={tv} value={tv}>{formatTimeOptionLabel(tv)}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest px-1">End Time</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <select required value={bookingForm.endTime}
-                      onChange={(e) => setBookingForm((prev) => ({ ...prev, endTime: e.target.value }))}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
+                    </WebsiteFormField>
+                    <WebsiteFormField
+                      label="End Time"
+                      select
+                      required
+                      error={!!fieldErrors.endTime}
+                      helperText={fieldErrors.endTime}
+                      value={bookingForm.endTime}
+                      onChange={(e) => {
+                        setBookingForm((prev) => ({ ...prev, endTime: e.target.value }));
+                        setFieldErrors((prev) => ({ ...prev, endTime: '' }));
+                        setBookingError('');
+                      }}
+                    >
                       <option value="">Select end time</option>
                       {endTimeOptions.map((tv) => <option key={tv} value={tv}>{formatTimeOptionLabel(tv)}</option>)}
-                    </select>
+                    </WebsiteFormField>
+                    <WebsiteFormField
+                      label="Attendees (incl. you)"
+                      type="number"
+                      min={Math.max(1, selectedInviteeCount + 1)}
+                      max={selectedRoom.capacity}
+                      required
+                      error={!!fieldErrors.attendees}
+                      helperText={fieldErrors.attendees}
+                      value={bookingForm.attendees as any}
+                      onChange={(e) => {
+                        setBookingForm((prev) => ({ ...prev, attendees: e.target.value === '' ? ('' as any) : Number(e.target.value) }));
+                        setFieldErrors((prev) => ({ ...prev, attendees: '' }));
+                        setBookingError('');
+                      }}
+                    />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest px-1">Attendees</label>
-                  <div className="relative">
-                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input type="number" min={Math.max(1, selectedInviteeCount + 1)} max={selectedRoom.capacity} required
-                      value={bookingForm.attendees}
-                      onChange={(e) => setBookingForm((prev) => ({ ...prev, attendees: e.target.value === '' ? ('' as any) : Number(e.target.value) }))}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
-                  </div>
-                </div>
-              </div>
 
-              {selectedRoomConflictBookings.length > 0 && (
-                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4 md:p-5 space-y-3">
-                  <div className="flex items-center gap-2 text-rose-700 font-pbold text-sm">
-                    <AlertCircle size={16} /> Existing bookings on this slot
-                  </div>
-                  <div className="space-y-2">
-                    {selectedRoomConflictBookings.map((b) => (
-                      <div key={b.id} className="rounded-2xl bg-white border border-rose-100 p-3 text-sm text-slate-700">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-pbold text-slate-900">{b.bookedByName || 'Another booking'}</p>
-                          <p className="text-[11px] font-pbold uppercase tracking-widest text-rose-600">{b.startTime} - {b.endTime}</p>
+                {/* Conflict block */}
+                {selectedRoomConflictBookings.length > 0 && (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-rose-700 font-pmedium text-[12px]">
+                      <AlertCircle size={15} /> Existing bookings on this slot
+                    </div>
+                    <div className="space-y-2">
+                      {selectedRoomConflictBookings.map((b) => (
+                        <div key={b.id} className="rounded-xl bg-white border border-rose-100 p-3 text-[12px] font-pmedium text-slate-700">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-pmedium text-slate-900">{b.bookedByName || 'Another booking'}</p>
+                            <p className="text-[11px] font-pmedium uppercase tracking-widest text-rose-600">{formatTime12h(b.startTime)} - {formatTime12h(b.endTime)}</p>
+                          </div>
+                          {b.purpose && <p className="mt-1 text-[11px] font-pregular text-slate-500">{b.purpose}</p>}
                         </div>
-                        {b.purpose && <p className="mt-1 text-xs font-semibold text-slate-500">{b.purpose}</p>}
+                      ))}
+                    </div>
+                    {alternativeSlotSuggestions.length > 0 && (
+                      <div className="rounded-xl bg-white border border-emerald-100 p-3 space-y-2">
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-700 flex items-center gap-1.5">
+                          <CheckCircle2 size={12} /> Available alternatives for this duration
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {alternativeSlotSuggestions.map((slot) => (
+                            <button
+                              key={`${slot.start}-${slot.end}`}
+                              type="button"
+                              onClick={() => {
+                                setBookingForm((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }));
+                                setBookingError('');
+                                setFieldErrors({});
+                              }}
+                              className="cursor-pointer px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-pmedium hover:bg-emerald-100 active:scale-95 transition-all"
+                            >
+                              {formatTime12h(slot.start)} – {formatTime12h(slot.end)}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] font-pmedium text-slate-400">Tap a slot to apply it to your booking.</p>
                       </div>
-                    ))}
+                    )}
                   </div>
-                  {alternativeSlotSuggestions.length > 0 && (
-                    <div className="rounded-2xl bg-white border border-emerald-100 p-3 space-y-2">
-                      <p className="text-[11px] font-pbold uppercase tracking-widest text-emerald-600 flex items-center gap-1.5">
-                        <CheckCircle2 size={13} /> Available alternatives for this duration
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {alternativeSlotSuggestions.map((slot) => (
-                          <button
-                            key={`${slot.start}-${slot.end}`}
-                            type="button"
-                            onClick={() => setBookingForm((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
-                            className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-pmedium hover:bg-emerald-100 active:scale-95 transition-all"
-                          >
-                            {formatTime12h(slot.start)} – {formatTime12h(slot.end)}
+                )}
+
+                {/* Invite employees */}
+                <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Invite Employees</label>
+                      <p className="text-[11px] font-pregular text-slate-500 mt-0.5">Select coworkers to receive the booking invite. The host is included separately.</p>
+                    </div>
+                    <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{inviteSummaryLabel}</div>
+                  </div>
+                  {fieldErrors.invitees && (
+                    <p className="text-[10px] font-pmedium text-red-500">{fieldErrors.invitees}</p>
+                  )}
+
+                  {isInviteesLoading ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-[12px] font-pmedium text-slate-500">Loading employee list...</div>
+                  ) : visibleInviteeOptions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-[12px] font-pmedium text-slate-500">No additional active employees available.</div>
+                  ) : inviteeLimit <= 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-[12px] font-pmedium text-slate-500">This room has no extra capacity for invitees.</div>
+                  ) : (
+                    <div className="grid gap-2 md:grid-cols-2 max-h-56 overflow-y-auto pr-1">
+                      {visibleInviteeOptions.map((employee) => {
+                        const isSelected = selectedInviteeIds.includes(employee.userId);
+                        const isDisabled = !isSelected && selectedInviteeCount >= inviteeLimit;
+                        return (
+                          <button key={employee.userId} type="button" onClick={() => handleToggleInvitee(employee.userId)} disabled={isDisabled}
+                            className={`cursor-pointer rounded-xl border p-3 text-left transition-all ${isSelected ? 'border-[#2563EB] bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm'} ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[12px] font-pmedium text-slate-900 truncate">{employee.fullName}</p>
+                                <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{employee.designation || employee.role || 'Employee'}</p>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+                                <CheckCircle2 size={12} />
+                              </div>
+                            </div>
                           </button>
-                        ))}
-                      </div>
-                      <p className="text-[11px] font-pmedium text-slate-400">Tap a slot to apply it to your booking.</p>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-              )}
 
-              <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest px-1">Invite Employees</label>
-                    <p className="text-sm font-pmedium text-slate-500 px-1">Select coworkers to receive the booking invite. The host is included separately.</p>
+                {/* Blocking error inside modal so it's never hidden behind the overlay */}
+                {bookingError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600 flex items-start gap-2">
+                    <AlertCircle size={14} className="mt-0.5 shrink-0" /> {bookingError}
                   </div>
-                  <div className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">{inviteSummaryLabel}</div>
+                )}
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 text-[11px] font-pregular text-slate-600">
+                  Booking will be submitted under <span className="font-pmedium text-slate-900">{currentUserName}</span>.
+                  {selectedInviteeCount > 0 && (
+                    <span className="block mt-1 font-pmedium text-slate-500">Inviting {selectedInviteeCount} employee{selectedInviteeCount === 1 ? '' : 's'}.</span>
+                  )}
                 </div>
-
-                {isInviteesLoading ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">Loading employee list...</div>
-                ) : visibleInviteeOptions.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">No additional active employees available.</div>
-                ) : inviteeLimit <= 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">This room has no extra capacity for invitees.</div>
-                ) : (
-                  <div className="grid gap-3 md:grid-cols-2 max-h-60 overflow-y-auto pr-1">
-                    {visibleInviteeOptions.map((employee) => {
-                      const isSelected = selectedInviteeIds.includes(employee.userId);
-                      const isDisabled = !isSelected && selectedInviteeCount >= inviteeLimit;
-                      return (
-                        <button key={employee.userId} type="button" onClick={() => handleToggleInvitee(employee.userId)} disabled={isDisabled}
-                          className={`rounded-2xl border p-4 text-left transition-all ${isSelected ? 'border-[#2563EB] bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm'} ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-pbold text-slate-900">{employee.fullName}</p>
-                              <p className="text-xs font-pmedium text-slate-500 mt-1">{employee.designation || employee.role || 'Employee'}</p>
-                            </div>
-                            <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
-                              <CheckCircle2 size={14} />
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 text-xs text-slate-600">
-                Booking will be submitted under <span className="font-pbold text-slate-900">{currentUserName}</span>.
-                {selectedInviteeCount > 0 && (
-                  <span className="block mt-1 font-pmedium text-slate-500">Inviting {selectedInviteeCount} employee{selectedInviteeCount === 1 ? '' : 's'}.</span>
-                )}
+              {/* Footer */}
+              <div className="p-5 sm:p-6 border-t border-slate-100 bg-white flex gap-2">
+                <button onClick={handleCloseBooking} type="button" disabled={isSubmitting}
+                  className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase tracking-widest">Cancel</button>
+                <button type="submit" disabled={isSubmitting || selectedRoomConflictBookings.length > 0}
+                  className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-widest hover:bg-primary/95 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-1.5">
+                  {isSubmitting ? 'Booking...' : selectedRoomConflictBookings.length > 0 ? 'Slot Unavailable' : 'Confirm Booking'}
+                </button>
               </div>
-            </div>
-
-            <div className="p-5 md:p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
-              <button onClick={handleCloseBooking} type="button" disabled={isSubmitting}
-                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pbold text-[10px] hover:bg-slate-100 transition-all">CANCEL</button>
-              <button type="submit" disabled={isSubmitting || selectedRoomConflictBookings.length > 0}
-                className="flex-1 py-2.5 bg-slate-900 text-white rounded-xl font-pbold text-[10px] hover:bg-slate-800 transition-all disabled:opacity-50">
-                {isSubmitting ? 'BOOKING...' : selectedRoomConflictBookings.length > 0 ? 'SLOT UNAVAILABLE' : 'CONFIRM BOOKING'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+            </form>
+          </div>
+        )}
       </PageFrame>
     </div>
   );

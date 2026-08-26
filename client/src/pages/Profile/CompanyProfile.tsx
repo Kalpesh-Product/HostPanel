@@ -662,6 +662,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
         eyebrow="Company"
         title={hasTenantRole ? "Tenant Company Information" : "Unit & Company Information"}
         icon={Building2}
+        dataTour="company-profile-info"
         action={
           upgradePlanOptions.length > 0 ? (
             <PrimaryButton title="Upgrade Plan?" handleSubmit={() => setIsUpgradeModalOpen(true)} />
