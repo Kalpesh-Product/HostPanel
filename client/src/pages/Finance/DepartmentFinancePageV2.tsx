@@ -268,6 +268,11 @@ export function DepartmentFinancePageV2() {
   const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
 
   const [extraBudgetForm, setExtraBudgetForm] = useState({ monthKey: '', amount: '', reason: '' });
+  // Line-Increase flow: tops up an EXISTING projected line that exceeded itself.
+  const [showIncreaseForm, setShowIncreaseForm] = useState(false);
+  const [increaseForm, setIncreaseForm] = useState({ monthKey: '', targetExpenseKey: '', amount: '', reason: '' });
+  const [increaseFile, setIncreaseFile] = useState<File | null>(null);
+  const [isSubmittingIncrease, setIsSubmittingIncrease] = useState(false);
   const [isSubmittingExtraBudget, setIsSubmittingExtraBudget] = useState(false);
 
   const [vendorForm, setVendorForm] = useState({
@@ -674,6 +679,63 @@ export function DepartmentFinancePageV2() {
       toast.error(getApiErrorMessage(error, 'Failed to submit extra budget request.'));
     } finally {
       setIsSubmittingExtraBudget(false);
+    }
+  };
+
+  const openIncreaseForm = () => {
+    if (!financeData?.plan?._id) {
+      toast.error('Submit the annual budget before requesting a line increase.');
+      return;
+    }
+    setIncreaseForm({ monthKey: '', targetExpenseKey: '', amount: '', reason: '' });
+    setIncreaseFile(null);
+    setShowIncreaseForm(true);
+  };
+
+  const handleSubmitIncreaseRequest = async () => {
+    if (!financeData?.plan?._id) {
+      toast.error('Submit the annual budget before requesting a line increase.');
+      return;
+    }
+    const monthKey = increaseForm.monthKey;
+    const amount = Number(increaseForm.amount);
+    if (!monthKey) { toast.error('Please select a month.'); return; }
+    if (!increaseForm.targetExpenseKey) { toast.error('Select which budget line exceeded its projection.'); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { toast.error('Enter a valid increase amount.'); return; }
+    if (!increaseForm.reason.trim()) { toast.error('Explain why this line needs more budget.'); return; }
+
+    setIsSubmittingIncrease(true);
+    try {
+      const month = monthLabels[monthKey] || monthKey;
+      const response: any = await submitExtraBudget({
+        planId: financeData?.plan?._id,
+        fiscalYear: selectedFY,
+        department: departmentLabel,
+        type: 'increase',
+        targetExpenseKey: increaseForm.targetExpenseKey,
+        monthKey,
+        month,
+        amount,
+        reason: increaseForm.reason.trim(),
+      });
+      // Attach the proof invoice (optional but strongly recommended) so
+      // approvers can review it before deciding.
+      const requestId = response?.extraRequest?.id || response?.extraRequest?._id || '';
+      if (increaseFile && requestId) {
+        const fd = new FormData();
+        fd.append('planId', String(financeData?.plan?._id));
+        fd.append('requestId', String(requestId));
+        fd.append('department', departmentLabel);
+        fd.append('monthKey', monthKey);
+        await uploadInvoice(fd);
+      }
+      toast.success('Line increase request submitted for approval.');
+      setShowIncreaseForm(false);
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to submit line increase request.'));
+    } finally {
+      setIsSubmittingIncrease(false);
     }
   };
 
@@ -1235,12 +1297,21 @@ export function DepartmentFinancePageV2() {
                   </>
                 )}
                 {activeTab === 'extra' && (
-                  <button
-                    onClick={() => setShowExtraBudgetForm(true)}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                  >
-                    <Plus size={14} /> Extra Budget Request
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowExtraBudgetForm(true)}
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <Plus size={14} /> Extra Budget Request
+                    </button>
+                    <button
+                      onClick={openIncreaseForm}
+                      className="bg-white border border-[#2563EB]/40 text-[#2563EB] px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-50 active:scale-95 transition-all whitespace-nowrap"
+                      title="Top-up an existing budget line that exceeded its projection"
+                    >
+                      <TrendingUp size={14} /> Increase Projected
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1989,6 +2060,120 @@ export function DepartmentFinancePageV2() {
                     <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">{viewingVendor.notes}</p>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Increase Projected Form Modal */}
+      <AnimatePresence>
+        {showIncreaseForm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
+            onClick={() => setShowIncreaseForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+              className="w-full max-w-lg overflow-hidden rounded-[1.75rem] bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-pmedium text-slate-900">Increase Projected Budget</h2>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Top-up a budget line that exceeded its projection</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowIncreaseForm(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="space-y-4 p-5 font-pmedium">
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Month</label>
+                  <select
+                    value={increaseForm.monthKey}
+                    onChange={(e) => setIncreaseForm((prev) => ({ ...prev, monthKey: e.target.value, targetExpenseKey: '' }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">Select month</option>
+                    {monthKeys.map((key) => (
+                      <option key={key} value={key}>{monthLabels[key]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Which projected line exceeded?</label>
+                  <select
+                    value={increaseForm.targetExpenseKey}
+                    onChange={(e) => setIncreaseForm((prev) => ({ ...prev, targetExpenseKey: e.target.value }))}
+                    disabled={!increaseForm.monthKey}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+                  >
+                    <option value="">{increaseForm.monthKey ? 'Select budget line' : 'Select month first'}</option>
+                    {(monthlyExpenses.find((m: any) => String(m?.monthKey || '') === increaseForm.monthKey)?.expenses || [])
+                      .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
+                      .map((expense: any) => (
+                        <option key={expense.id} value={expense.id}>
+                          {expense.title || 'Untitled'} — {formatCurrency(expense.projectedAmount)}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Increase Amount ({currency}) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={increaseForm.amount}
+                    onChange={(e) => setIncreaseForm((prev) => ({ ...prev, amount: e.target.value }))}
+                    placeholder="How much more this line needs"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Reason *</label>
+                  <textarea
+                    value={increaseForm.reason}
+                    onChange={(e) => setIncreaseForm((prev) => ({ ...prev, reason: e.target.value }))}
+                    placeholder="Why does this line need more budget?"
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Supporting Invoice / Proof</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => setIncreaseFile(e.target.files?.[0] || null)}
+                    className="w-full text-[11px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[10px] file:font-pmedium file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {increaseFile && <p className="mt-1 text-[10px] text-emerald-600">✓ {increaseFile.name} attached</p>}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => setShowIncreaseForm(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitIncreaseRequest}
+                  disabled={isSubmittingIncrease}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmittingIncrease ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  {isSubmittingIncrease ? 'Submitting...' : 'Send Increase Request'}
+                </button>
               </div>
             </motion.div>
           </motion.div>

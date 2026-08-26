@@ -1217,10 +1217,17 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
   const amount = safeNumber(payload?.amount, 0);
   const title = safeString(payload?.reason || payload?.title || "Extra budget expense", "");
   const expenseTag = "Add-on";
+  // Two amendment types: "new" adds a fresh line; "increase" tops up an
+  // EXISTING projected line (its projection is raised once fully approved).
+  const requestType = normalizeExpenseTag(safeString(payload?.type)) === "increase" ? "increase" : "new";
+  const targetExpenseKey = safeString(payload?.targetExpenseKey || "", "");
 
   const dueDate = safeString(payload?.dueDate, "");
   if (!monthKey) throw Object.assign(new Error("monthKey is required."), { statusCode: 400 });
   if (!Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error("amount must be > 0."), { statusCode: 400 });
+  if (requestType === "increase" && !targetExpenseKey) {
+    throw Object.assign(new Error("Select the budget line that exceeded its projection."), { statusCode: 400 });
+  }
 
   let plan = planId ? await DepartmentFinancePlan.findById(planId).exec() : null;
   if (!plan && payload?.department && payload?.fiscalYear) {
@@ -1235,6 +1242,63 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
   }
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
   await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+
+  if (requestType === "increase") {
+    // Increase requests amend an EXISTING line — no new expense row is created
+    // here. The target line's projection is raised automatically once BOTH
+    // approvers have signed off (see applyFinanceApprovalDecisionInternal).
+    let targetExpense: any = null;
+    if (planId) {
+      targetExpense = await FinanceExpense.findOne({
+        workspaceId,
+        planId: plan._id,
+        expenseKey: targetExpenseKey,
+        monthKey,
+      }).exec();
+    }
+    if (!targetExpense) {
+      throw Object.assign(new Error("Target budget line not found in the selected month."), { statusCode: 404 });
+    }
+
+    const submittedAtLabel = new Date().toLocaleDateString("en-IN", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
+    const extraRequest = await ExtraFinanceRequest.create({
+      snapshotId: plan.snapshotId,
+      workspaceId,
+      requestKey: `INCREASE-${safeString(plan.department).slice(0, 8).toUpperCase()}-${Date.now()}`,
+      date: safeString(payload?.date, submittedAtLabel),
+      department: plan.department,
+      fiscalYear: plan.fiscalYear,
+      amount,
+      reason: safeString(payload?.reason || "", ""),
+      type: "increase",
+      targetExpenseKey,
+      targetTitle: safeString(targetExpense.title || "", ""),
+      monthKey,
+      month: safeString(payload?.month || monthKey, ""),
+      dueDate,
+      submittedByUserId: input.userId,
+      submittedByName: safeString(payload?.submittedByName, ""),
+      submittedAt: new Date(),
+      submittedAtLabel,
+      currentRemaining: amount,
+      status: "Pending",
+      approvalFlow: {
+        owner: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
+        financeManager: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
+        finalStatus: "Pending",
+        lastDecisionByRole: "",
+        lastDecisionAt: null,
+        lastDecisionAtLabel: "",
+        decisionHistory: [],
+      },
+    });
+
+    return { plan, extraRequest };
+  }
 
   const expenseKey = `EXP-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -1354,7 +1418,35 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   const expenseKey = safeString(payload?.expenseKey || payload?.expenseId || "", "");
   const monthKey = safeString(payload?.monthKey || payload?.month || "", "");
   const invoiceNumber = safeString(payload?.invoiceNumber || payload?.invoiceNo || "", "");
+  // Request-stage mode: attach a proof invoice to a PENDING extra/increase
+  // request so approvers can review it before deciding.
+  const requestId = safeString(payload?.requestId || "", "");
   if (!planId) throw Object.assign(new Error("planId is required."), { statusCode: 400 });
+
+  const invoiceUrl = safeString(payload?.invoiceUrl || payload?.invoiceFile || "", "");
+  const invoicePublicId = safeString(payload?.invoicePublicId || "", "");
+  const invoiceFile = safeString(payload?.invoiceFile || "", "");
+
+  if (requestId) {
+    const requestObjectId = asObjectId(requestId);
+    if (!requestObjectId) throw Object.assign(new Error("Invalid requestId."), { statusCode: 400 });
+    await assertActorOwnsDepartment(workspaceId, input.userId, safeString(payload?.department || ""));
+    const updatedRequest = await ExtraFinanceRequest.findOneAndUpdate(
+      { _id: requestObjectId, workspaceId },
+      {
+        $set: {
+          invoiceNumber,
+          invoiceUrl,
+          invoiceFile,
+          invoicePublicId,
+        },
+      },
+      { new: true }
+    ).exec();
+    if (!updatedRequest) throw Object.assign(new Error("Extra budget request not found."), { statusCode: 404 });
+    return { extraRequest: updatedRequest };
+  }
+
   if (!expenseKey) throw Object.assign(new Error("expenseKey is required."), { statusCode: 400 });
   if (!invoiceNumber) throw Object.assign(new Error("invoiceNumber is required."), { statusCode: 400 });
 
@@ -1362,10 +1454,6 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
   await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
-
-  const invoiceUrl = safeString(payload?.invoiceUrl || payload?.invoiceFile || "", "");
-  const invoicePublicId = safeString(payload?.invoicePublicId || "", "");
-  const invoiceFile = safeString(payload?.invoiceFile || "", "");
 
   // Uploading an invoice only completes the lifecycle once the expense is
   // already paid ("Payment Done - Invoice Pending" -> "Invoice Shared"). For a
@@ -1921,6 +2009,35 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     }
 
     await record.save();
+
+    // Line-increase amendments auto-raise the target line's projection once
+    // fully approved — no manual editing needed.
+    if (
+      record.status === "Approved" &&
+      safeString((record as any).type) === "increase" &&
+      safeString((record as any).targetExpenseKey)
+    ) {
+      const incPlan = await DepartmentFinancePlan.findOne({
+        workspaceId,
+        department: (record as any).department,
+        fiscalYear: (record as any).fiscalYear,
+      }).exec();
+      if (incPlan) {
+        const targetExpense = await FinanceExpense.findOne({
+          workspaceId,
+          planId: incPlan._id,
+          expenseKey: safeString((record as any).targetExpenseKey),
+        }).exec();
+        if (targetExpense) {
+          const raiseBy = safeNumber((record as any).amount, 0);
+          targetExpense.projectedAmount = safeNumber(targetExpense.projectedAmount, 0) + raiseBy;
+          targetExpense.savings = Math.max(0, safeNumber(targetExpense.projectedAmount, 0) - safeNumber(targetExpense.actualAmount, 0));
+          await targetExpense.save();
+          await syncMonthlyPlanFromFinanceExpenses((incPlan._id as unknown) as mongoose.Types.ObjectId);
+        }
+      }
+    }
+
     return record;
   }
 
