@@ -2,10 +2,7 @@
 import { useState, useEffect, type MouseEvent } from "react";
 import {
   Avatar,
-  Badge,
-  CircularProgress,
   Divider,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -18,7 +15,6 @@ import { IoIosArrowForward } from "react-icons/io";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { FaUserTie } from "react-icons/fa6";
 import { FiLogOut } from "react-icons/fi";
-import { HiOutlineRefresh } from "react-icons/hi";
 import { BellRing } from "lucide-react";
 import { useSidebar } from "../context/SideBarContext";
 import useAuth from "../hooks/useAuth";
@@ -28,12 +24,9 @@ import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { queryClient } from "../main";
-import relativeTime from "dayjs/plugin/relativeTime";
-import dayjs from "dayjs";
 import WoNoLogo from "../assets/WONO_LOGO_Black_TP.svg";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
-
-dayjs.extend(relativeTime);
+import NotificationPanel from "./NotificationPanel";
 
 interface HeaderProps {
   notifications?: Array<any>;
@@ -66,7 +59,7 @@ const Header = ({
   const logout = useLogout();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [notificationAnchorEl, setNotificationAnchorEl] = useState<HTMLElement | null>(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [departmentName, setDepartmentName] = useState<string>("");
   const storedUser = getStoredUser();
 
@@ -85,7 +78,6 @@ const Header = ({
     },
     onSuccess: (data: { message?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      toast.success(data.message || "UPDATED");
     },
     onError: (error: any) => {
       toast.error(error.message || "Error");
@@ -138,8 +130,8 @@ const Header = ({
     setAnchorEl(event.currentTarget);
   };
 
-  const handleNotificationClick = (event: MouseEvent<HTMLElement>) => {
-    setNotificationAnchorEl(event.currentTarget);
+  const handleNotificationClick = () => {
+    setIsNotificationOpen((current) => !current);
   };
 
   const handlePopoverClose = () => {
@@ -158,8 +150,6 @@ const Header = ({
   const open = Boolean(anchorEl);
   const id = open ? "avatar-popover" : undefined;
 
-  const openNotification = Boolean(notificationAnchorEl);
-  const notificationId = openNotification ? "notification-popover" : undefined;
   const computedUnseenCount =
     typeof unseenCount === "number"
       ? unseenCount
@@ -308,13 +298,17 @@ const Header = ({
             type="button"
             data-notification-trigger
             onClick={handleNotificationClick}
-            className="relative h-9 w-9 rounded-lg text-slate-600 hover:text-[#2563EB] transition-colors flex items-center justify-center"
+            className={`relative h-9 w-9 rounded-xl transition-colors flex items-center justify-center ${
+              isNotificationOpen
+                ? "bg-blue-50 text-[#2563EB] ring-1 ring-blue-100"
+                : "text-slate-600 hover:text-[#2563EB] hover:bg-slate-100"
+            }`}
             aria-label="Open notifications"
           >
             <BellRing size={18} strokeWidth={2.25} />
             {computedUnseenCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-pmedium leading-[18px] text-center">
-                {computedUnseenCount > 9 ? "9+" : computedUnseenCount}
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-pmedium leading-[18px] text-center ring-2 ring-white">
+                {computedUnseenCount > 99 ? "99+" : computedUnseenCount}
               </span>
             )}
           </button>
@@ -391,122 +385,14 @@ const Header = ({
         </div>
       </Popover>
 
-      <Popover
-        id={notificationId}
-        open={openNotification}
-        anchorEl={notificationAnchorEl}
-        onClose={() => setNotificationAnchorEl(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <div className="p-4 w-[30rem] max-h-[400px] overflow-y-auto">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-5 rounded-full">
-              <span className="font-pmedium text-subtitle">Notifications</span>
-              <Badge
-                badgeContent={computedUnseenCount > 9 ? "9+" : computedUnseenCount}
-                color="error"
-                anchorOrigin={{ vertical: "top", horizontal: "right" }}
-                overlap="circular"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              {computedUnseenCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => markAllRead()}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Mark all read
-                </button>
-              )}
-              <IconButton
-                size="small"
-                onClick={onRefreshNotifications}
-                disabled={isRefreshingNotifications}
-              >
-                <HiOutlineRefresh
-                  className={`${isRefreshingNotifications ? "animate-spin" : ""}`}
-                />
-              </IconButton>
-            </div>
-          </div>
-          <Divider className="my-2" />
-          {isRefreshingNotifications ? (
-            <div className="h-52 flex justify-center items-center">
-              <CircularProgress size={15} />
-            </div>
-          ) : (
-            <div className="mt-2">
-              {notifications.length === 0 ? (
-                <p className="text-gray-500 text-sm">No notifications yet.</p>
-              ) : (
-                <>
-                  <div className="h-52 overflow-y-auto pr-4">
-                    {notifications.slice(0, 10).map((notification: any) => (
-                      <div
-                        key={notification._id}
-                        className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
-                          notification.readAt
-                            ? "bg-white hover:bg-gray-50"
-                            : "bg-blue-50 hover:bg-blue-100"
-                        }`}
-                        onClick={() => {
-                          if (!notification.readAt) {
-                            updateRead(notification._id);
-                          }
-                          if (notification.targetUrl) {
-                            setNotificationAnchorEl(null);
-                            navigate(notification.targetUrl);
-                          }
-                        }}
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {notification.title}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                              {notification.description}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className="text-[10px] text-gray-400">
-                              {dayjs(notification.createdAt).fromNow()}
-                            </span>
-                            {!notification.readAt && (
-                              <span className="w-2 h-2 rounded-full bg-blue-500" />
-                            )}
-                          </div>
-                        </div>
-                        {notification.isActionRequired && (
-                          <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
-                            Action Required
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {notifications.length > 9 && (
-                    <div className="mt-2 text-start">
-                      <button type="button"
-                        onClick={() => {
-                          setNotificationAnchorEl(null);
-                          navigate("/app/notifications");
-                        }}
-                        className="text-primary text-content font-pregular hover:underline"
-                      >
-                        View more
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </Popover>
+      <NotificationPanel
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+        notifications={notifications}
+        isLoading={isRefreshingNotifications}
+        onMarkRead={(notificationId) => updateRead(notificationId)}
+        onMarkAllRead={() => markAllRead()}
+      />
     </>
   );
 };

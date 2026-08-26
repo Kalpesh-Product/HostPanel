@@ -14,7 +14,6 @@ import DepartmentPolicyTab from "../pages/TeamManagement/DepartmentPolicyTab";
 import { CalendarPage } from "../pages/Calendar/CalendarPage";
 import Access from "../pages/Access/Access";
 import AccessProfile from "../pages/Access/AccessProfile";
-import Notifications from "../pages/Notifications";
 import Chat from "../pages/Chat";
 
 // Test page
@@ -665,10 +664,6 @@ export const routes = createBrowserRouter([
               {
                 path: "access/permissions/pages",
                 element: <AccessPages />,
-              },
-              {
-                path: "notifications",
-                element: <Notifications />,
               },
               {
                 path: "chat",

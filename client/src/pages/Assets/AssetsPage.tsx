@@ -6,13 +6,13 @@ import { AssetRequestsPanel } from './AssetRequestsPanel';
 import { getOrganizationOverview } from '@/services/organization';
 import { axiosPrivate } from '@/utils/axios';
 import { getResources } from '@/services/resources';
-import { createAsset, getAssets, updateAsset, transferAsset, releaseAssetAllocation, getDepartments } from '@/services/assets';
+import { createAsset, createAssetCategory, createAssetSubCategory, getAssets, updateAsset, transferAsset, releaseAssetAllocation, getDepartments } from '@/services/assets';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   Search, ChevronDown, X, Eye, ShieldCheck,
   CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,FileSpreadsheet,FileDown,
-  Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package, Pencil, AlertTriangle, Loader2,
+  Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package, Pencil, AlertTriangle, Loader2, ImageIcon, FileText,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
@@ -45,6 +45,11 @@ interface AssetAllocation {
   note?: string;
   assignedAt?: string;
 }
+interface AssetUnit {
+  unitCode: string;
+  serialNumber?: string;
+}
+
 interface Asset {
   recordId?: string;
   _id?: string;
@@ -52,6 +57,10 @@ interface Asset {
   assetCode?: string;
   name: string;
   category?: string;
+  categoryId?: { _id: string; categoryName: string; requiresSerialNumber?: boolean } | string | null;
+  subCategoryId?: { _id: string; subCategoryName: string } | string | null;
+  vendorId?: { _id: string; name: string } | string | null;
+  units?: AssetUnit[];
   status: string;
   department?: string;
   departmentId?: string | null;
@@ -68,6 +77,9 @@ interface Asset {
   rentDurationMonths?: number | null;
   expiryDate?: string;
   warrantyExpiry?: string;
+  warrantyMonths?: number | null;
+  assetImage?: { url?: string; id?: string } | string | null;
+  warrantyDocument?: { url?: string; id?: string } | string | null;
   value?: string;
   notes?: string;
   transferReason?: string;
@@ -80,12 +92,18 @@ interface Asset {
 interface AssetForm {
   name: string;
   category: string;
+  categoryId: string;
+  subCategoryId: string;
+  vendorId: string;
   serialNumber: string;
   brandModel: string;
   purchaseDate: string;
   quantity: string;
   ownershipType: string;
   rentDurationMonths: string;
+  warrantyMonths: string;
+  assetImage: File | null;
+  warrantyDocument: File | null;
   department: string;
   status: string;
   assignedToType: string;
@@ -96,6 +114,25 @@ interface AssetForm {
   wing: string;
   value: string;
   notes: string;
+}
+
+interface AssetCategoryOption {
+  _id: string;
+  categoryName: string;
+  requiresSerialNumber?: boolean;
+  department?: { _id: string; name: string } | null;
+}
+
+interface AssetSubCategoryOption {
+  _id: string;
+  subCategoryName: string;
+  category?: { _id: string; categoryName: string } | null;
+  department?: { _id: string; name: string } | null;
+}
+
+interface VendorOption {
+  _id: string;
+  name: string;
 }
 
 interface TransferForm {
@@ -210,12 +247,24 @@ function addMonthsUTC(date: Date, monthsToAdd: number): Date | null {
 
 function calculateExpiryPreview(purchaseDate: string, ownershipType: string, rentDurationMonths: string): string {
   const parsed = parseISODate(purchaseDate);
-  if (!parsed) return '';
-  const normalized = String(ownershipType || 'Owned').trim();
-  const monthsToAdd = normalized === 'Rented' ? Number(rentDurationMonths) : DEFAULT_OWNED_EXPIRY_MONTHS;
+  if (!parsed || String(ownershipType || 'Owned').trim() !== 'Rented') return '';
+  const monthsToAdd = Number(rentDurationMonths);
   if (!Number.isFinite(monthsToAdd) || monthsToAdd <= 0) return '';
   const computed = addMonthsUTC(parsed, monthsToAdd);
   return computed ? formatISODate(computed) : '';
+}
+
+function calculateWarrantyExpiryPreview(purchaseDate: string, warrantyMonths: string): string {
+  const parsed = parseISODate(purchaseDate);
+  const monthsToAdd = Number(warrantyMonths);
+  if (!parsed || !Number.isFinite(monthsToAdd) || monthsToAdd <= 0) return '';
+  const computed = addMonthsUTC(parsed, monthsToAdd);
+  return computed ? formatISODate(computed) : '';
+}
+
+function getAssetFileUrl(file?: { url?: string; id?: string } | string | null): string {
+  if (!file) return '';
+  return typeof file === 'string' ? file : file.url || '';
 }
 
 function normalizeAsset(a: any): Asset {
@@ -240,8 +289,9 @@ function normalizeAsset(a: any): Asset {
     availableQuantity: Number.isFinite(Number(a.availableQuantity)) ? Number(a.availableQuantity) : (Number(a.quantity) || 1),
     ownershipType: a.ownershipType || 'Owned',
     rentDurationMonths: typeof a.rentDurationMonths === 'number' ? a.rentDurationMonths : a.rentDurationMonths ? Number(a.rentDurationMonths) || null : null,
-    expiryDate: a.expiryDate || a.warrantyExpiry || '',
-    warrantyExpiry: a.warrantyExpiry || a.expiryDate || '',
+    warrantyMonths: typeof a.warrantyMonths === 'number' ? a.warrantyMonths : a.warrantyMonths ? Number(a.warrantyMonths) || null : null,
+    expiryDate: a.expiryDate || '',
+    warrantyExpiry: a.warrantyExpiry || '',
     location: a.location || 'Unassigned',
     value: a.value || '-',
   };
@@ -250,12 +300,18 @@ function normalizeAsset(a: any): Asset {
 const INITIAL_ASSET_FORM: AssetForm = {
   name: '',
   category: 'Hardware',
+  categoryId: '',
+  subCategoryId: '',
+  vendorId: '',
   serialNumber: '',
   brandModel: '',
   purchaseDate: '',
   quantity: '1',
   ownershipType: 'Owned',
   rentDurationMonths: '',
+  warrantyMonths: '',
+  assetImage: null,
+  warrantyDocument: null,
   department: '',
   status: 'Active',
   assignedToType: 'department',
@@ -329,6 +385,19 @@ export function AssetsPage() {
   const [floorMode, setFloorMode] = useState<'select' | 'custom'>('select');
   const [wingMode, setWingMode] = useState<'select' | 'custom'>('select');
 
+  const [assetCategories, setAssetCategories] = useState<AssetCategoryOption[]>([]);
+  const [assetSubCategories, setAssetSubCategories] = useState<AssetSubCategoryOption[]>([]);
+  const [vendors, setVendors] = useState<VendorOption[]>([]);
+  const [serialNumbers, setSerialNumbers] = useState<string[]>(['']);
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [vendorForm, setVendorForm] = useState({ name: '', phone: '', email: '' });
+  const [isSavingVendor, setIsSavingVendor] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isSubCategoryModalOpen, setIsSubCategoryModalOpen] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({ name: '', requiresSerialNumber: false });
+  const [subCategoryForm, setSubCategoryForm] = useState({ name: '' });
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+
   const [assets, setAssets] = useState<Asset[]>([]);
   const [issueAsset, setIssueAsset] = useState<Asset | null>(null);
   const [issueForm, setIssueForm] = useState({ title: '', description: '', priority: 'Medium' });
@@ -371,6 +440,30 @@ export function AssetsPage() {
       }
     }
     loadFloorsAndWings();
+    return () => { mounted = false; };
+  }, []);
+
+  const loadAssetTaxonomy = async () => {
+    try {
+      const [categoryResponse, subCategoryResponse, vendorResponse] = await Promise.all([
+        axiosPrivate.get('/api/assets/get-category'),
+        axiosPrivate.get('/api/assets/get-subcategory'),
+        axiosPrivate.get('/api/finance/vendors'),
+      ]);
+      setAssetCategories(Array.isArray(categoryResponse.data) ? categoryResponse.data : []);
+      setAssetSubCategories(Array.isArray(subCategoryResponse.data) ? subCategoryResponse.data : []);
+      setVendors(vendorResponse?.data?.data?.vendors || []);
+    } catch {
+      // non-critical: category/vendor pickers stay empty if this fails
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!mounted) return;
+      await loadAssetTaxonomy();
+    })();
     return () => { mounted = false; };
   }, []);
 
@@ -462,6 +555,12 @@ export function AssetsPage() {
   const [assetForm, setAssetForm] = useState<AssetForm>({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment });
   const [transferForm, setTransferForm] = useState<TransferForm>({ department: '', assignedToType: 'department', assignedTo: '', assignedToUserId: '', transferReason: '', quantity: '1' });
 
+  useEffect(() => {
+    if (!assetForm.department && defaultDepartment) {
+      setAssetForm((prev) => ({ ...prev, department: defaultDepartment, assignedTo: prev.assignedToType === 'department' ? defaultDepartment : prev.assignedTo }));
+    }
+  }, [assetForm.department, defaultDepartment]);
+
   const employeeOptions = useMemo<EmployeeOption[]>(
     () => memberDirectory
       .filter((m) => !['owner', 'super_admin'].includes(getRoleBand(m.role || '')))
@@ -485,9 +584,45 @@ export function AssetsPage() {
     [assetForm.purchaseDate, assetForm.ownershipType, assetForm.rentDurationMonths],
   );
 
+  const warrantyExpiryPreview = useMemo(
+    () => calculateWarrantyExpiryPreview(assetForm.purchaseDate, assetForm.warrantyMonths),
+    [assetForm.purchaseDate, assetForm.warrantyMonths],
+  );
+
+  const selectedDepartmentRecord = useMemo(
+    () => departmentRecords.find((department) => normalizeDepartmentName(department.name) === normalizeDepartmentName(assetForm.department)) || null,
+    [assetForm.department, departmentRecords],
+  );
+
+  const availableAssetCategories = useMemo(() => {
+    if (!assetForm.department) return isFounderScope ? assetCategories : [];
+    return assetCategories.filter((category) => {
+      const departmentName = category.department?.name || '';
+      const departmentId = category.department?._id || '';
+      return normalizeDepartmentName(departmentName) === normalizeDepartmentName(assetForm.department) ||
+        (selectedDepartmentRecord?.id && String(departmentId) === selectedDepartmentRecord.id);
+    });
+  }, [assetCategories, assetForm.department, isFounderScope, selectedDepartmentRecord]);
+
+  const selectedCategoryObj = useMemo(
+    () => availableAssetCategories.find((c) => c._id === assetForm.categoryId) || null,
+    [availableAssetCategories, assetForm.categoryId],
+  );
+  const requiresSerialNumber = !!selectedCategoryObj?.requiresSerialNumber;
+  const filteredSubCategories = useMemo(
+    () => (assetForm.categoryId ? assetSubCategories.filter((s) => s.category?._id === assetForm.categoryId) : []),
+    [assetSubCategories, assetForm.categoryId],
+  );
+
+  useEffect(() => {
+    const qty = Math.max(1, parseInt(String(assetForm.quantity || '').trim(), 10) || 1);
+    setSerialNumbers((prev) => Array.from({ length: qty }, (_, i) => prev[i] || ''));
+  }, [assetForm.quantity]);
+
   function openAddAsset() {
     setEditingAsset(null);
     setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment });
+    setSerialNumbers(['']);
     setFloorMode('select');
     setWingMode('select');
     setIsAddModalOpen(true);
@@ -496,15 +631,29 @@ export function AssetsPage() {
   function openEditAsset(asset: Asset) {
     const { floor, wing } = getLocationParts(asset.location);
     setEditingAsset(asset);
+    const categoryIdValue = typeof asset.categoryId === 'object' && asset.categoryId ? asset.categoryId._id : (asset.categoryId as string) || '';
+    const subCategoryIdValue = typeof asset.subCategoryId === 'object' && asset.subCategoryId ? asset.subCategoryId._id : (asset.subCategoryId as string) || '';
+    const vendorIdValue = typeof asset.vendorId === 'object' && asset.vendorId ? asset.vendorId._id : (asset.vendorId as string) || '';
+    setSerialNumbers(
+      Array.isArray(asset.units) && asset.units.length > 0
+        ? asset.units.map((u) => u.serialNumber || '')
+        : [asset.serialNumber || ''],
+    );
     setAssetForm({
       name: asset.name || '',
       category: asset.category || 'Hardware',
+      categoryId: categoryIdValue,
+      subCategoryId: subCategoryIdValue,
+      vendorId: vendorIdValue,
       serialNumber: asset.serialNumber || '',
       brandModel: asset.brandModel || '',
       purchaseDate: dateInputValue(asset.purchaseDate),
       quantity: String(asset.quantity || 1),
       ownershipType: asset.ownershipType || 'Owned',
       rentDurationMonths: asset.rentDurationMonths ? String(asset.rentDurationMonths) : '',
+      warrantyMonths: asset.warrantyMonths ? String(asset.warrantyMonths) : '',
+      assetImage: null,
+      warrantyDocument: null,
       department: asset.department || defaultDepartment,
       status: asset.status || 'Active',
       assignedToType: asset.assignedToUserId ? 'employee' : 'department',
@@ -527,8 +676,54 @@ export function AssetsPage() {
     setIsAddModalOpen(false);
     setEditingAsset(null);
     setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment });
+    setSerialNumbers(['']);
     setFloorMode('select');
     setWingMode('select');
+  }
+
+  async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedDepartmentRecord?.id || !categoryForm.name.trim()) return;
+    setIsSavingCategory(true);
+    setErrorMessage('');
+    try {
+      const response = await createAssetCategory({
+        assetCategoryName: categoryForm.name.trim(),
+        departmentId: selectedDepartmentRecord.id,
+        requiresSerialNumber: categoryForm.requiresSerialNumber,
+      });
+      await loadAssetTaxonomy();
+      const category = response?.data || response?.category || response;
+      if (category?._id) setAssetForm((prev) => ({ ...prev, categoryId: category._id, subCategoryId: '' }));
+      setCategoryForm({ name: '', requiresSerialNumber: false });
+      setIsCategoryModalOpen(false);
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error.message || 'Unable to create category.');
+    } finally {
+      setIsSavingCategory(false);
+    }
+  }
+
+  async function handleCreateSubCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!assetForm.categoryId || !subCategoryForm.name.trim()) return;
+    setIsSavingCategory(true);
+    setErrorMessage('');
+    try {
+      const response = await createAssetSubCategory({
+        assetCategoryId: assetForm.categoryId,
+        assetSubCategoryName: subCategoryForm.name.trim(),
+      });
+      await loadAssetTaxonomy();
+      const subCategory = response?.data || response?.subCategory || response;
+      if (subCategory?._id) setAssetForm((prev) => ({ ...prev, subCategoryId: subCategory._id }));
+      setSubCategoryForm({ name: '' });
+      setIsSubCategoryModalOpen(false);
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error.message || 'Unable to create sub category.');
+    } finally {
+      setIsSavingCategory(false);
+    }
   }
 
   async function handleSaveAsset(event: FormEvent<HTMLFormElement>) {
@@ -539,26 +734,37 @@ export function AssetsPage() {
       const selectedEmployee = assetForm.assignedToType === 'employee'
         ? assetDepartmentEmployees.find((m) => m.value === assetForm.assignedToUserId)
         : null;
+      if (!selectedDepartmentRecord?.id) throw new Error('Select a valid department before saving the asset.');
       const numericValue = assetForm.value ? Number(String(assetForm.value).replace(/[^0-9.-]/g, '')) : 0;
-      const payload = {
-        name: assetForm.name,
-        serialNumber: assetForm.serialNumber,
-        brandModel: assetForm.brandModel,
-        category: assetForm.category,
-        department: assetForm.department,
-        status: assetForm.status,
-        assignedTo: assetForm.assignedToType === 'department' ? assetForm.department : selectedEmployee?.label || 'Unassigned',
-        assignedToUserId: assetForm.assignedToType === 'employee' ? selectedEmployee?.value || null : null,
-        purchaseDate: assetForm.purchaseDate,
-        quantity: Math.max(1, parseInt(String(assetForm.quantity || '').trim(), 10) || 1),
-        ownershipType: assetForm.ownershipType,
-        rentDurationMonths: assetForm.ownershipType === 'Rented' ? assetForm.rentDurationMonths : null,
-        location: getLocationLabel(assetForm.floor, assetForm.wing) || assetForm.location,
-        value: Number.isFinite(numericValue) ? numericValue : 0,
-        expiryDate: expiryPreview || null,
-        warrantyExpiry: expiryPreview || null,
-        notes: assetForm.notes,
+      const payload = new FormData();
+      const appendPayload = (key: string, value: any) => {
+        if (value === undefined || value === null || value === '') return;
+        payload.append(key, value instanceof File ? value : String(value));
       };
+      appendPayload('name', assetForm.name);
+      appendPayload('serialNumber', serialNumbers[0] || assetForm.serialNumber);
+      appendPayload('serialNumbers', JSON.stringify(serialNumbers));
+      appendPayload('brandModel', assetForm.brandModel);
+      appendPayload('categoryId', assetForm.categoryId);
+      appendPayload('subCategoryId', assetForm.subCategoryId);
+      appendPayload('vendorId', assetForm.vendorId);
+      appendPayload('departmentId', selectedDepartmentRecord.id);
+      appendPayload('department', assetForm.department);
+      appendPayload('status', assetForm.status);
+      appendPayload('assignedTo', assetForm.assignedToType === 'department' ? assetForm.department : selectedEmployee?.label || 'Unassigned');
+      appendPayload('assignedToUserId', assetForm.assignedToType === 'employee' ? selectedEmployee?.value || null : null);
+      appendPayload('purchaseDate', assetForm.purchaseDate);
+      appendPayload('quantity', Math.max(1, parseInt(String(assetForm.quantity || '').trim(), 10) || 1));
+      appendPayload('ownershipType', assetForm.ownershipType);
+      appendPayload('rentDurationMonths', assetForm.ownershipType === 'Rented' ? assetForm.rentDurationMonths : null);
+      appendPayload('warrantyMonths', assetForm.warrantyMonths);
+      appendPayload('location', getLocationLabel(assetForm.floor, assetForm.wing) || assetForm.location);
+      appendPayload('value', Number.isFinite(numericValue) ? numericValue : 0);
+      appendPayload('expiryDate', expiryPreview || null);
+      appendPayload('warrantyExpiry', warrantyExpiryPreview || null);
+      appendPayload('notes', assetForm.notes);
+      appendPayload('assetImage', assetForm.assetImage);
+      appendPayload('warrantyDocument', assetForm.warrantyDocument);
       const response = editingAsset?.recordId
         ? await updateAsset(editingAsset.recordId, payload)
         : await createAsset(payload);
@@ -1131,18 +1337,67 @@ function AssetsSkeleton() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category <span className="text-red-400">*</span></label>
-                    <select value={assetForm.category} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer">
-                      <option value="Hardware">Hardware</option>
-                      <option value="Infrastructure">Infrastructure</option>
-                      <option value="Software">Software</option>
-                      <option value="Furniture">Furniture</option>
-                      <option value="Other">Other</option>
+                    <select required disabled={!assetForm.department} value={assetForm.categoryId} onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                      if (e.target.value === ADD_NEW_OPTION) { setCategoryForm({ name: '', requiresSerialNumber: false }); setIsCategoryModalOpen(true); return; }
+                      setAssetForm((prev) => ({ ...prev, categoryId: e.target.value, subCategoryId: '' }));
+                    }} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed">
+                      <option value="" disabled>{assetForm.department ? 'Select category' : 'Select department first'}</option>
+                      {availableAssetCategories.map((c) => (
+                        <option key={c._id} value={c._id}>{c.categoryName}{isFounderScope && c.department?.name ? ` (${c.department.name})` : ''}</option>
+                      ))}
+                      {assetForm.department ? <option value={ADD_NEW_OPTION}>+ Add New Category</option> : null}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Serial Number</label>
-                    <input type="text" value={assetForm.serialNumber} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, serialNumber: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="IT asset tag or serial number" />
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Sub Category <span className="text-red-400">*</span></label>
+                    <select required disabled={!assetForm.categoryId} value={assetForm.subCategoryId} onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                      if (e.target.value === ADD_NEW_OPTION) { setSubCategoryForm({ name: '' }); setIsSubCategoryModalOpen(true); return; }
+                      setAssetForm((prev) => ({ ...prev, subCategoryId: e.target.value }));
+                    }} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed">
+                      <option value="">Select sub category</option>
+                      {filteredSubCategories.map((s) => (
+                        <option key={s._id} value={s._id}>{s.subCategoryName}</option>
+                      ))}
+                      {assetForm.categoryId ? <option value={ADD_NEW_OPTION}>+ Add New Sub Category</option> : null}
+                    </select>
                   </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Vendor</label>
+                    <select value={assetForm.vendorId} onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                      if (e.target.value === ADD_NEW_OPTION) { setIsVendorModalOpen(true); return; }
+                      setAssetForm((prev) => ({ ...prev, vendorId: e.target.value }));
+                    }} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer">
+                      <option value="">Select vendor</option>
+                      {vendors.map((v) => (
+                        <option key={v._id} value={v._id}>{v.name}</option>
+                      ))}
+                      <option value={ADD_NEW_OPTION}>+ Add New Vendor</option>
+                    </select>
+                  </div>
+                  {!requiresSerialNumber && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Serial Number</label>
+                      <input type="text" value={serialNumbers[0] || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => setSerialNumbers((prev) => { const next = [...prev]; next[0] = e.target.value; return next; })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="IT asset tag or serial number" />
+                    </div>
+                  )}
+                  {requiresSerialNumber && (
+                    <div className="flex flex-col gap-2 sm:col-span-2">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Serial Number(s) <span className="text-red-400">*</span></label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {serialNumbers.map((value, index) => (
+                          <input
+                            key={index}
+                            required
+                            type="text"
+                            value={value}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setSerialNumbers((prev) => { const next = [...prev]; next[index] = e.target.value; return next; })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            placeholder={`Unit ${index + 1} serial number`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Brand / Model</label>
                     <input type="text" value={assetForm.brandModel} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, brandModel: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="e.g. Dell Latitude 5440" />
@@ -1158,6 +1413,24 @@ function AssetsSkeleton() {
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Asset Value ({workspacePreferences.currency})</label>
                     <input type="number" min={0} step="0.01" value={assetForm.value} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, value: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="e.g. 3499" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Warranty (Months)</label>
+                    <input type="number" min={0} value={assetForm.warrantyMonths} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, warrantyMonths: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="e.g. 12" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Warranty Expiry</label>
+                    <input type="date" readOnly value={warrantyExpiryPreview} className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><ImageIcon size={13} /> Asset Image</label>
+                    <input type="file" accept="image/*" onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, assetImage: e.target.files?.[0] || null }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2.5 file:py-1 file:text-[10px] file:font-pmedium file:text-blue-700" />
+                    {editingAsset && getAssetFileUrl(editingAsset.assetImage) ? <a href={getAssetFileUrl(editingAsset.assetImage)} target="_blank" rel="noreferrer" className="text-[10px] font-pmedium text-blue-600">View current image</a> : null}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><FileText size={13} /> Warranty Document</label>
+                    <input type="file" accept="image/*,.pdf" onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, warrantyDocument: e.target.files?.[0] || null }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2.5 file:py-1 file:text-[10px] file:font-pmedium file:text-blue-700" />
+                    {editingAsset && getAssetFileUrl(editingAsset.warrantyDocument) ? <a href={getAssetFileUrl(editingAsset.warrantyDocument)} target="_blank" rel="noreferrer" className="text-[10px] font-pmedium text-blue-600">View current warranty</a> : null}
                   </div>
                 </div>
               </div>
@@ -1305,6 +1578,35 @@ function AssetsSkeleton() {
         </div>
       )}
 
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-[170] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <form onSubmit={handleCreateCategory} className="w-full sm:max-w-md bg-white rounded-t-[24px] sm:rounded-[24px] shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div><h3 className="text-[15px] font-pmedium text-slate-900">Add Category</h3><p className="text-[11px] text-slate-500 mt-1">{assetForm.department || 'Select department'} department</p></div>
+              <button type="button" disabled={isSavingCategory} onClick={() => setIsCategoryModalOpen(false)} className="w-9 h-9 rounded-full border border-slate-200 text-slate-500 flex items-center justify-center"><X size={16} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <label className="block text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category Name *<input required maxLength={120} value={categoryForm.name} onChange={(event: ChangeEvent<HTMLInputElement>) => setCategoryForm((prev) => ({ ...prev, name: event.target.value }))} className="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-200 text-[12px] normal-case tracking-normal outline-none focus:ring-2 focus:ring-[#2563EB]/20" placeholder="e.g. Laptops" /></label>
+              <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-pmedium text-slate-700"><input type="checkbox" checked={categoryForm.requiresSerialNumber} onChange={(event: ChangeEvent<HTMLInputElement>) => setCategoryForm((prev) => ({ ...prev, requiresSerialNumber: event.target.checked }))} />Requires serial number per unit</label>
+            </div>
+            <div className="p-4 border-t border-slate-100 flex gap-2 justify-end"><button type="button" disabled={isSavingCategory} onClick={() => setIsCategoryModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-[10px] uppercase">Cancel</button><button type="submit" disabled={isSavingCategory || !selectedDepartmentRecord?.id} className="px-4 py-2.5 rounded-xl bg-[#2563EB] text-white text-[10px] uppercase inline-flex items-center gap-1.5 disabled:opacity-60">{isSavingCategory ? 'Saving...' : 'Save Category'}</button></div>
+          </form>
+        </div>
+      )}
+
+      {isSubCategoryModalOpen && (
+        <div className="fixed inset-0 z-[170] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <form onSubmit={handleCreateSubCategory} className="w-full sm:max-w-md bg-white rounded-t-[24px] sm:rounded-[24px] shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div><h3 className="text-[15px] font-pmedium text-slate-900">Add Sub Category</h3><p className="text-[11px] text-slate-500 mt-1">{selectedCategoryObj?.categoryName || 'Selected category'} - {assetForm.department}</p></div>
+              <button type="button" disabled={isSavingCategory} onClick={() => setIsSubCategoryModalOpen(false)} className="w-9 h-9 rounded-full border border-slate-200 text-slate-500 flex items-center justify-center"><X size={16} /></button>
+            </div>
+            <div className="p-4 space-y-3"><label className="block text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Sub Category Name *<input required maxLength={120} value={subCategoryForm.name} onChange={(event: ChangeEvent<HTMLInputElement>) => setSubCategoryForm({ name: event.target.value })} className="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-200 text-[12px] normal-case tracking-normal outline-none focus:ring-2 focus:ring-[#2563EB]/20" placeholder="e.g. MacBook" /></label></div>
+            <div className="p-4 border-t border-slate-100 flex gap-2 justify-end"><button type="button" disabled={isSavingCategory} onClick={() => setIsSubCategoryModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-[10px] uppercase">Cancel</button><button type="submit" disabled={isSavingCategory || !assetForm.categoryId} className="px-4 py-2.5 rounded-xl bg-[#2563EB] text-white text-[10px] uppercase inline-flex items-center gap-1.5 disabled:opacity-60">{isSavingCategory ? 'Saving...' : 'Save Sub Category'}</button></div>
+          </form>
+        </div>
+      )}
+
       {viewingAsset && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-lg h-[80vh] sm:h-auto sm:max-h-[85vh] rounded-t-[24px] sm:rounded-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
@@ -1318,6 +1620,11 @@ function AssetsSkeleton() {
                 <h2 className="text-xl sm:text-2xl font-pmedium text-[#0F172A] leading-tight pr-8">{viewingAsset.name}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1">{getCategoryIcon(viewingAsset.category)} {viewingAsset.category}</p>
               </div>
+              {getAssetFileUrl(viewingAsset.assetImage) ? (
+                <a href={getAssetFileUrl(viewingAsset.assetImage)} target="_blank" rel="noreferrer" className="mr-10 hidden sm:flex h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <img src={getAssetFileUrl(viewingAsset.assetImage)} alt={viewingAsset.name} className="h-full w-full object-cover" />
+                </a>
+              ) : null}
               <button onClick={() => setViewingAsset(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-4 sm:top-5 right-4 sm:right-5"><X size={18} strokeWidth={2.5} /></button>
             </div>
 
@@ -1364,8 +1671,8 @@ function AssetsSkeleton() {
                     <span className="text-[12px] font-pmedium text-slate-700 block">{displayDate(viewingAsset.purchaseDate)}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Expiry Date</span>
-                    <span className="text-[12px] font-pmedium text-slate-700 block">{displayDate(viewingAsset.expiryDate || viewingAsset.warrantyExpiry)}</span>
+                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Rental Expiry</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{displayDate(viewingAsset.expiryDate)}</span>
                   </div>
                   <div>
                     <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Total Quantity</span>
@@ -1379,6 +1686,20 @@ function AssetsSkeleton() {
                     <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Ownership</span>
                     <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.ownershipType || 'Owned'}</span>
                   </div>
+                  <div>
+                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Warranty Months</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.warrantyMonths || '--'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Warranty Expiry</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{displayDate(viewingAsset.warrantyExpiry)}</span>
+                  </div>
+                  {getAssetFileUrl(viewingAsset.warrantyDocument) ? (
+                    <div>
+                      <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Warranty File</span>
+                      <a href={getAssetFileUrl(viewingAsset.warrantyDocument)} target="_blank" rel="noreferrer" className="text-[12px] font-pmedium text-blue-600 underline">Open file</a>
+                    </div>
+                  ) : null}
                   {String(viewingAsset.ownershipType || '').trim() === 'Rented' && (
                     <div>
                       <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Rent (Months)</span>

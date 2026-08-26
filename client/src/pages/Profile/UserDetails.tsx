@@ -354,7 +354,7 @@ function CompanyDocumentsSection({ kind, title }: { kind: DepartmentDocumentType
 //
 // Renders nothing once we know there's nothing to show (no departments for a
 // regular member, or the actor isn't founder/super_admin/HR-manager).
-function DepartmentDocumentsSection({ kind, title }: { kind: DepartmentDocumentType; title: string }) {
+function DepartmentDocumentsSection({ kind, title, dataTour }: { kind: DepartmentDocumentType; title: string; dataTour?: string }) {
   const axios = useAxiosPrivate();
   const { departments, departmentNames, roleBand, isLoading: isDeptLoading } = useDashboardAccess();
   const isOwnerOrSuperAdmin = roleBand === "owner" || roleBand === "super_admin";
@@ -409,7 +409,7 @@ function DepartmentDocumentsSection({ kind, title }: { kind: DepartmentDocumentT
   if (!isDeptLoading && !seesAllDepartments && departmentIds.length === 0) return null;
 
   return (
-    <SectionShell eyebrow={seesAllDepartments ? "Every Department" : "Department"} title={title} icon={FileText}>
+    <SectionShell eyebrow={seesAllDepartments ? "Every Department" : "Department"} title={title} icon={FileText} dataTour={dataTour}>
       {isLoading || isDeptLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 2 }).map((_, i) => (
@@ -960,7 +960,7 @@ export default function UserDetails() {
         <span className="text-title font-pmedium text-primary uppercase">My Profile</span>
       </div>
       <div className="space-y-5">
-      <section className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
+      <section data-tour="my-profile-avatar" className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
         <div className="p-6 sm:p-8 lg:p-10">
           <div className="flex flex-wrap items-start gap-4">
             <div className="relative shrink-0">
@@ -1089,6 +1089,7 @@ export default function UserDetails() {
           <SectionShell
             title="Personal & Contact Details"
             icon={UserRound}
+            dataTour="my-profile-personal"
             action={
               <button
                 type="button"
@@ -1110,7 +1111,7 @@ export default function UserDetails() {
             </div>
           </SectionShell>
 
-          <SectionShell title="Work Details" icon={Building}>
+          <SectionShell title="Work Details" icon={Building} dataTour="my-profile-work">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {workFields.map((field) => (
                 <DetailCard key={field.label} label={field.label} value={field.value} icon={field.icon} />
@@ -1124,7 +1125,7 @@ export default function UserDetails() {
         <>
           <CompanyDocumentsSection kind="sop" title="Company SOPs" />
           <CompanyDocumentsSection kind="policy" title="Company Policies" />
-          <DepartmentDocumentsSection kind="sop" title="Department SOPs" />
+          <DepartmentDocumentsSection kind="sop" title="Department SOPs" dataTour="my-profile-department-sops" />
           <DepartmentDocumentsSection kind="policy" title="Department Policies" />
         </>
       ) : null}
