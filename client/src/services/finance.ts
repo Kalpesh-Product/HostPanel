@@ -62,6 +62,15 @@ export const getDepartmentFinanceData = async (fiscalYear: string, department: s
   return unwrap(response);
 };
 
+/**
+ * Add a new expense line to an APPROVED department plan's month.
+ * Server enforces approval status + monthly budget cap (incl. approved extras).
+ */
+export const addMonthlyExpense = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post('/api/finance/department/month-expense', payload);
+  return unwrap(response);
+};
+
 export const importFinanceSnapshot = async (payload: Record<string, any>) => {
   const response = await axiosPrivate.post('/api/finance/department/import-snapshot', payload);
   return unwrap(response);

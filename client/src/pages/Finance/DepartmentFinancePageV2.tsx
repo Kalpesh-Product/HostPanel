@@ -255,8 +255,7 @@ export function DepartmentFinancePageV2() {
   // Modal state
   const [viewingExpense, setViewingExpense] = useState<{ month: MonthlyPlan; expense: ExpenseData } | null>(null);
   const [viewingVendor, setViewingVendor] = useState<VendorData | null>(null);
-  const [showVendorForm, setShowVendorForm] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [showVendorForm, setShowVendorForm] = useState(false);  const [showImportModal, setShowImportModal] = useState(false);
   const [showExtraBudgetForm, setShowExtraBudgetForm] = useState(false);
   const [showVendorList, setShowVendorList] = useState(false);
   const [selectedVendorToLink, setSelectedVendorToLink] = useState('');
@@ -740,8 +739,7 @@ export function DepartmentFinancePageV2() {
     }
   };
 
-  const handleLinkVendor = async (month: MonthlyPlan, expense: ExpenseData) => {
-    const vendor = vendors.find((v) => v.id === selectedVendorToLink);
+  const handleLinkVendor = async (month: MonthlyPlan, expense: ExpenseData) => {    const vendor = vendors.find((v) => v.id === selectedVendorToLink);
     if (!vendor) {
       toast.error('Select a vendor to link.');
       return;
@@ -917,12 +915,39 @@ export function DepartmentFinancePageV2() {
         String(r?.monthKey || r?.month || '').toLowerCase() === String(monthKey || '').toLowerCase())
       .reduce((sum: number, r: any) => sum + Number(r?.amount || 0), 0);
   const approvedExtraForMonth = getApprovedExtraForMonth(openMonthKeyNorm);
-  const monthCommitted = (Array.isArray(openMonth?.expenses) ? openMonth.expenses : [])
-    .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
-    .reduce((sum: number, e: any) => sum + Number(e?.projectedAmount ?? e?.amount ?? 0), 0);
-  const monthAllocated = Number(openMonth?.allocatedBudget ?? openMonth?.projectedAmount ?? 0);
-  const monthHeadroom = Math.max(0, monthAllocated + approvedExtraForMonth - monthCommitted);
-  const maxActualAllowed = expenseProjected + monthHeadroom;
+  // How much of a month's approved extra budget has actually been consumed:
+  // sum of per-expense overages (actual beyond its own projection) on regular
+  // expense lines — e.g. a chair projected 500 spent 700 consumes 200.
+  const getExtraUsedForMonth = (monthKey: any) => {
+    const mk = String(monthKey || '').toLowerCase();
+    const month = monthlyExpenses.find(
+      (m: any) => String(m?.monthKey || m?.month || '').toLowerCase() === mk
+    );
+    if (!month || !Array.isArray(month.expenses)) return 0;
+    return month.expenses
+      .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
+      .reduce((sum: number, e: any) => {
+        const projected = Number(e?.projectedAmount ?? e?.amount ?? 0);
+        const actual = Number(e?.actualSpent ?? e?.actualAmount ?? 0);
+        return sum + Math.max(0, actual - projected);
+      }, 0);
+  };
+  // Extra budget requests are budget AMENDMENTS with a shared, capped pool —
+  // spendable only after approval, and consumed by regular-line overages too.
+  const viewingIsAddOn = String(expenseDetail?.expenseTag || '').toLowerCase() === 'add-on';
+  const addonLinkLocked = viewingIsAddOn && approvedExtraForMonth <= 0;
+  let maxActualAllowed = expenseProjected;
+  if (viewingIsAddOn && !addonLinkLocked) {
+    const regularOverages = (Array.isArray(openMonth?.expenses) ? openMonth.expenses : [])
+      .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
+      .reduce((sum: number, e: any) => sum + Math.max(0, Number(e?.actualSpent ?? e?.actualAmount ?? 0) - Number(e?.projectedAmount ?? e?.amount ?? 0)), 0);
+    const otherAddonActuals = (Array.isArray(openMonth?.expenses) ? openMonth.expenses : [])
+      .filter((e: any) =>
+        String(e?.expenseTag || '').toLowerCase() === 'add-on' &&
+        String(e?.id || '') !== String(expenseDetail?.id || ''))
+      .reduce((sum: number, e: any) => sum + Math.max(0, Number(e?.actualSpent ?? e?.actualAmount ?? 0)), 0);
+    maxActualAllowed = Math.max(0, Math.min(expenseProjected, approvedExtraForMonth - regularOverages - otherAddonActuals));
+  }
   const actualOverProjected =
     !!expenseDetail && actualAmountToPay !== '' && Number(actualAmountToPay) > maxActualAllowed + 0.009;
   const isDraftBudget = !financeData?.annualRequest;
@@ -1485,7 +1510,14 @@ export function DepartmentFinancePageV2() {
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                      {monthExpenses.map((expense) => (
+                                      {monthExpenses
+                                        .filter((expense) => {
+                                          const tag = String(expense.expenseTag || '').toLowerCase();
+                                          if (tag !== 'add-on') return true;
+                                          // Approved extras surface as sanctioned lines; pending ones stay hidden.
+                                          return getApprovedExtraForMonth(month.monthKey || month.month) > 0;
+                                        })
+                                        .map((expense) => (
                                         <tr key={`expanded-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
                                           <td className="px-4 py-2.5">
                                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1536,7 +1568,18 @@ export function DepartmentFinancePageV2() {
                                             </div>
                                           </td>
                                           <td className="px-4 py-2.5 font-pmedium text-amber-700 whitespace-nowrap">+{formatCurrency(request.amount)}</td>
-                                          <td className="px-4 py-2.5 text-slate-400">—</td>
+                                          <td className="px-4 py-2.5 font-pmedium whitespace-nowrap">
+                                            {String(request.status || '').toLowerCase() === 'approved' ? (
+                                              (() => {
+                                                const used = getExtraUsedForMonth(request.monthKey);
+                                                return used > 0
+                                                  ? <span className="font-pmedium text-blue-600">{formatCurrency(used)}</span>
+                                                  : <span className="text-slate-400">—</span>;
+                                              })()
+                                            ) : (
+                                              <span className="text-slate-400">—</span>
+                                            )}
+                                          </td>
                                           <td className="px-4 py-2.5">
                                             <span className={statusPillClass(request.status)}>{request.status}</span>
                                           </td>
@@ -1572,6 +1615,7 @@ export function DepartmentFinancePageV2() {
                     <tr>
                       <th className="px-5 py-4">Month</th>
                       <th className="px-5 py-4">Amount</th>
+                      <th className="px-5 py-4">Used</th>
                       <th className="px-5 py-4">Reason</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Submitted</th>
@@ -1582,6 +1626,25 @@ export function DepartmentFinancePageV2() {
                       <tr key={request.id} className="hover:bg-blue-50/30 transition-all">
                         <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[request.monthKey] || request.month}</td>
                         <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(request.amount)}</td>
+                        <td className="px-5 py-4 font-pmedium whitespace-nowrap">
+                          {String(request.status || '').toLowerCase() === 'approved' ? (
+                            (() => {
+                              const used = getExtraUsedForMonth(request.monthKey);
+                              return (
+                                <span className={used > 0 ? 'text-blue-600' : 'text-slate-400'}>
+                                  {formatCurrency(used)}
+                                  {used > 0 && Number(request.amount) > 0 && (
+                                    <span className="ml-1 text-[9px] uppercase tracking-wider text-slate-400">
+                                      of {formatCurrency(request.amount)}
+                                    </span>
+                                  )}
+                                </span>
+                              );
+                            })()
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
                         <td className="px-5 py-4 text-xs text-slate-600 max-w-[300px] truncate">{request.reason || '-'}</td>
                         <td className="px-5 py-4">
                           <span className={statusPillClass(request.status)}>{request.status}</span>
@@ -1591,7 +1654,7 @@ export function DepartmentFinancePageV2() {
                     ))}
                     {extraRequestsFiltered.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
                           No extra budget requests submitted for this fiscal year.
                         </td>
                       </tr>
@@ -1769,10 +1832,15 @@ export function DepartmentFinancePageV2() {
                           Budget must be approved before linking a vendor.
                         </p>
                       )}
+                      {addonLinkLocked && (
+                        <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-blue-700">
+                          Extra budgets are amendments, not spendable expenses — record the actual cost against your regular expense line for this month.
+                        </p>
+                      )}
                       <select
                         value={selectedVendorToLink}
                         onChange={(e) => setSelectedVendorToLink(e.target.value)}
-                        disabled={!canRecordSpend}
+                        disabled={!canRecordSpend || addonLinkLocked}
                         className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                       >
                         <option value="">Select a registered vendor…</option>
@@ -1790,7 +1858,7 @@ export function DepartmentFinancePageV2() {
                           step="0.01"
                           value={actualAmountToPay}
                           onChange={(e) => setActualAmountToPay(e.target.value)}
-                          disabled={!canRecordSpend}
+                          disabled={!canRecordSpend || addonLinkLocked}
                           placeholder={`Projected: ${formatCurrency(viewingExpense.expense.projectedAmount || viewingExpense.expense.amount || 0)}`}
                           className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none transition-all focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
                             actualOverProjected
@@ -1800,7 +1868,9 @@ export function DepartmentFinancePageV2() {
                         />
                         {actualOverProjected ? (
                           <p className="text-[10px] font-pmedium text-red-500">
-                            Actual cannot exceed {formatCurrency(maxActualAllowed)} (projected {formatCurrency(expenseProjected)} + unused approved extra budget). File and get an extra budget approved to spend more.
+                            {viewingIsAddOn
+                              ? `This month's approved extra budget is exhausted — ${formatCurrency(maxActualAllowed)} remains on this line. File a new extra request for more.`
+                              : `Actual cannot exceed the projected amount (${formatCurrency(expenseProjected)}). File an extra budget request for the additional funds.`}
                           </p>
                         ) : (
                           <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
@@ -1808,7 +1878,7 @@ export function DepartmentFinancePageV2() {
                       </div>
                       <button
                         type="button"
-                        disabled={!selectedVendorToLink || !actualAmountToPay || Number(actualAmountToPay) < 0 || isLinkingVendor || !canRecordSpend || actualOverProjected}
+                        disabled={!selectedVendorToLink || !actualAmountToPay || Number(actualAmountToPay) < 0 || isLinkingVendor || !canRecordSpend || actualOverProjected || addonLinkLocked}
                         onClick={() => handleLinkVendor(viewingExpense.month, viewingExpense.expense)}
                         className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                       >

@@ -874,6 +874,31 @@ export function ExpensesBudgetPage() {
         String(b?.monthKey || b?.month || '').toLowerCase() === String(monthKey || '').toLowerCase())
       .reduce((sum, b) => sum + Number(b?.requested || b?.approved || 0), 0);
 
+  // Spend beyond a department-month's original allocation = extra budget used.
+  // Computed as per-expense overages (actual beyond own projection) so a single
+  // line going over consumes exactly what it overspent.
+  const getExtraUsedForMonthDept = (department: string, monthKey: any) => {
+    const mk = String(monthKey || '').toLowerCase();
+    const budget = estimatedBudgets.find(
+      (b) => String(b?.department || '').trim().toLowerCase() === String(department || '').trim().toLowerCase()
+    );
+    const month = Array.isArray(budget?.monthlyBreakdown)
+      ? budget.monthlyBreakdown.find((m: any) => String(m?.monthKey || m?.month || '').toLowerCase() === mk)
+      : null;
+    if (!month) return 0;
+    const allExpenses = [
+      ...(Array.isArray(month.expenses) ? month.expenses : []),
+      ...(Array.isArray(month.extraExpenses) ? month.extraExpenses : []),
+    ];
+    return allExpenses
+      .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
+      .reduce((sum: number, e: any) => {
+        const projected = Number(e?.projectedAmount ?? e?.estimatedAmount ?? e?.amount ?? 0);
+        const actual = Number(e?.actualAmount ?? e?.actualSpent ?? 0);
+        return sum + Math.max(0, actual - projected);
+      }, 0);
+  };
+
   useEffect(() => {
     let alive = true;
 
@@ -1501,6 +1526,7 @@ export function ExpensesBudgetPage() {
                         <th className="px-6 py-5">Date & ID</th>
                         <th className="px-6 py-5">Dept</th>
                         <th className="px-6 py-5">Amount</th>
+                        <th className="px-6 py-5">Used</th>
                         <th className="px-6 py-5 hidden md:table-cell">Reason</th>
                         <th className="px-6 py-5 text-center">Status</th>
                         <th className="px-6 py-5 text-center">Action</th>
@@ -1517,6 +1543,18 @@ export function ExpensesBudgetPage() {
                             <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1 sm:gap-2"><Building2 size={12} className="sm:w-3.5 sm:h-3.5 text-slate-400" /> {extra.department}</p>
                           </td>
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(extra.requested)}</td>
+                          <td className="px-6 py-5 whitespace-nowrap text-xs sm:text-sm">
+                            {String(extra.status || '').toLowerCase() === 'approved' ? (
+                              (() => {
+                                const used = getExtraUsedForMonthDept(extra.department, extra.monthKey || extra.month);
+                                return used > 0
+                                  ? <span className="font-pmedium text-blue-600">{formatCurrency(used)}</span>
+                                  : <span className="font-bold text-slate-400">—</span>;
+                              })()
+                            ) : (
+                              <span className="font-bold text-slate-400">—</span>
+                            )}
+                          </td>
                           <td className="px-6 py-5 hidden md:table-cell">
                             <p className="text-xs font-medium text-slate-600 truncate max-w-[200px]">{extra.details}</p>
                           </td>
@@ -1534,9 +1572,9 @@ export function ExpensesBudgetPage() {
                       ))}
                       {visibleExtraBudgets.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                            No extra budget requests found.
-                          </td>
+                            <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                              No extra budget requests found.
+                            </td>
                         </tr>
                       )}
                     </tbody>
@@ -1736,13 +1774,31 @@ export function ExpensesBudgetPage() {
                                           </span>
                                         )}
                                         <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
-                                          {expenses.length} planned{extraExpenses.length > 0 ? ` + ${extraExpenses.length} extra` : ''}
+                                          {expenses.filter((e: any) => String(e.expenseTag || '').toLowerCase() !== 'add-on').length} planned
                                         </span>
+                                        {(() => {
+                                          const approvedExtra = getApprovedExtraForMonth(viewingBudget.department, m.monthKey || m.month);
+                                          if (approvedExtra <= 0) return null;
+                                          const allocated = Number((m as any).allocatedBudget ?? m.projectedTotal ?? m.projectedBudget ?? m.amount ?? 0);
+                                          const extraUsed = Math.max(0, actual - allocated);
+                                          return (
+                                            <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
+                                              +{formatCurrency(approvedExtra)} extra • used {formatCurrency(extraUsed)}
+                                            </span>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
                                   </td>
                                 </tr>
-                                {allExpenses.length > 0 ? allExpenses.map((expense: any, eIdx: number) => (
+                                  {(() => {
+                                    const visibleExpenses = allExpenses.filter((e: any) => {
+                                      const tag = String(e.expenseTag || '').toLowerCase();
+                                      if (tag !== 'add-on') return true;
+                                      // Approved extras surface as sanctioned lines.
+                                      return getApprovedExtraForMonth(viewingBudget.department, m.monthKey || m.month) > 0;
+                                    });
+                                    return visibleExpenses.length > 0 ? visibleExpenses.map((expense: any, eIdx: number) => (
                                   <tr key={eIdx} className={`border-b border-slate-100 transition-colors hover:bg-blue-50/40 ${expense._isExtra ? 'bg-amber-50/40' : 'bg-white'}`}>
                                     <td className="px-4 py-4 align-top">
                                       <div className="flex items-start gap-2">
@@ -1826,13 +1882,14 @@ export function ExpensesBudgetPage() {
                                       </td>
                                     </>}
                                   </tr>
-                                )) : (
-                                  <tr className="bg-white">
-                                    <td colSpan={colSpan} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
-                                      No expenses listed for this month.
-                                    </td>
-                                  </tr>
-                                )}
+                                  )) : (
+                                   <tr className="bg-white">
+                                     <td colSpan={colSpan} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
+                                       No expenses listed for this month.
+                                     </td>
+                                     </tr>
+                                   );
+                                 })()}
                               </React.Fragment>
                             );
                           })

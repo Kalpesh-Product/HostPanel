@@ -117,54 +117,8 @@ const FISCAL_MONTH_ORDER = ["apr", "may", "jun", "jul", "aug", "sep", "oct", "no
 // Imported budget rows often omit a due date. Default to the last day of the
 // expense's own month so payment planning has a sane starting point; users can
 // still override it before submitting.
-// Approved extra-budget headroom available to a month: allocation + APPROVED
-// extras − committed (non-add-on) projections. A specific expense may spend
-// into this headroom on top of its own projection; pending extra requests
-// never count.
-async function getMonthExtraHeadroom(
-  plan: any,
-  workspaceId: mongoose.Types.ObjectId,
-  monthKey: string
-): Promise<number> {
-  const monthKeyNorm = normalizeMonthKey(monthKey);
-  const monthEntry = (Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : []).find(
-    (m: any) => normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm
-  );
-  const allocatedBudget = safeNumber(
-    typeof monthEntry?.allocatedBudget === "number" && monthEntry.allocatedBudget > 0
-      ? monthEntry.allocatedBudget
-      : monthEntry?.projectedBudget,
-    0
-  );
-
-  const planExpenses = await FinanceExpense.find(
-    { workspaceId, planId: (plan as any)._id },
-    "monthKey projectedAmount expenseTag"
-  ).lean();
-  let committed = 0;
-  for (const e of planExpenses) {
-    if (normalizeMonthKey(safeString(e.monthKey)) !== monthKeyNorm) continue;
-    // normalizeExpenseTag returns lowercase ("add-on") — compare in lowercase.
-    if (normalizeExpenseTag(safeString(e.expenseTag)) !== "add-on") committed += safeNumber(e.projectedAmount, 0);
-  }
-
-  const approvedExtraDocs = await ExtraFinanceRequest.find(
-    {
-      workspaceId,
-      department: safeString((plan as any).department),
-      fiscalYear: safeString((plan as any).fiscalYear),
-      status: "Approved",
-    },
-    "monthKey amount"
-  ).lean();
-  let approvedExtras = 0;
-  for (const x of approvedExtraDocs) {
-    if (normalizeMonthKey(safeString(x.monthKey)) !== monthKeyNorm) continue;
-    approvedExtras += safeNumber(x.amount, 0);
-  }
-
-  return Math.max(0, allocatedBudget + approvedExtras - committed);
-}
+// Approved extra-budget headroom concept retired under the strict line-item
+// model (Option A): approved extras surface as their own Add-on lines instead.
 
 function buildDefaultDueDate(monthKey: string, fiscalYear: string): string {  const idx = FISCAL_MONTH_ORDER.indexOf(normalizeMonthKey(monthKey).slice(0, 3));
   const range = parseFiscalYearRange(fiscalYear);
@@ -202,8 +156,9 @@ function normalizeImportedDate(value: any): string {
 }
 
 function normalizeExpenseTag(tag: string) {
-  const t = safeString(tag).toLowerCase();
-  return t || "add-on";
+  // Untagged = regular expense. Never default to "add-on": that would silently
+  // classify normal lines as amendments (hidden from tables, exempt from caps).
+  return safeString(tag).toLowerCase();
 }
 
 // ─── Imported-month normalization ────────────────────────────────────────────
@@ -335,9 +290,11 @@ async function syncMonthlyPlanFromFinanceExpenses(planId: mongoose.Types.ObjectI
       monthKey: sample.monthKey,
     });
 
-    // projectedBudget: sum of projectedAmount for add-on excluded? In HostPanel model doesn't encode add-on.
-    // We'll do: projectedBudget = sum(projectedAmount) for all expenses.
-    const projectedBudget = monthExpenses.reduce((sum, exp) => sum + safeNumber(exp.projectedAmount, 0), 0);
+    // projectedBudget tracks REGULAR expenses only — Add-on rows represent
+    // budget amendments and are surfaced separately (Extra Requested UI).
+    const projectedBudget = monthExpenses
+      .filter((exp) => normalizeExpenseTag(safeString(exp.expenseTag)) !== "add-on")
+      .reduce((sum, exp) => sum + safeNumber(exp.projectedAmount, 0), 0);
 
     // Actual spend is the amount recorded against the expense. Payment status
     // remains separate so a pending payment can still have a known vendor cost.
@@ -698,25 +655,7 @@ export async function addMonthlyExpenseInternal(input: {
     invoicePublicId?: string;
   };
 }) {
-  const {
-    workspaceId,
-    planId,
-    title,
-    description = "",
-    monthKey,
-    month,
-    date = "",
-    dueDate = "",
-    projectedAmount,
-    actualAmount = 0,
-    savings = Math.max(0, safeNumber(projectedAmount, 0) - safeNumber(actualAmount, 0)),
-    paymentStatus = "Planned",
-    expenseTag = "",
-    vendor,
-    sourceSheet = "",
-    sourceRowNumber = 0,
-    invoice = {},
-  } = input;
+  const { workspaceId, planId } = input;
 
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
@@ -724,107 +663,15 @@ export async function addMonthlyExpenseInternal(input: {
   const membership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
   assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
 
-  // A single expense can never record more actual than its own projection.
-  if (safeNumber(actualAmount, 0) > safeNumber(projectedAmount, 0)) {
-    throw Object.assign(
-      new Error("Actual amount cannot exceed the projected amount for this expense. File an extra budget request instead."),
-      { statusCode: 409 }
-    );
-  }
-
-  // Month-level budget cap: planned commitments must fit inside the month's
-  // allocated budget plus extra funds from APPROVED extra requests only — a
-  // pending/unapproved extra request does not unlock spendable headroom.
-  if (normalizeExpenseTag(expenseTag) !== "add-on") {
-    const remaining = await getMonthExtraHeadroom(plan, workspaceId, monthKey);
-    if (safeNumber(projectedAmount, 0) - remaining > 0.009) {
-      throw Object.assign(
-        new Error(
-          `Monthly budget exceeded for ${safeString(normalizeMonthKey(monthKey))}. Only ${remaining.toLocaleString()} remains in the allocation. File an extra budget request and get it approved before spending beyond the allocation.`
-        ),
-        { statusCode: 409 }
-      );
-    }
-  }
-
-  // ExpenseKey uniqueness should be per workspace+month+plan; model has unique on (workspaceId, expenseKey)
-  const expenseKey = `EXP-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  let vendorDoc: any = null;
-  if (vendor?.vendorKey) {
-    vendorDoc = await FinanceVendor.findOneAndUpdate(
-      { workspaceId, vendorKey: vendor.vendorKey },
-      {
-        $set: {
-          name: safeString(vendor.vendorName, ""),
-          contactPerson: safeString(vendor.contactPerson, ""),
-          phone: safeString(vendor.phone, ""),
-          email: safeString(vendor.email, ""),
-          address: safeString(vendor.address, ""),
-          paymentTerms: safeString(vendor.paymentTerms, ""),
-          category: safeString(vendor.category, ""),
-          gstin: safeString(vendor.gstin, ""),
-          panNumber: safeString(vendor.panNumber, ""),
-          bankName: safeString(vendor.bankName, ""),
-          accountName: safeString(vendor.accountName, ""),
-          accountNumber: safeString(vendor.accountNumber, ""),
-          ifscCode: safeString(vendor.ifscCode, ""),
-          upiId: safeString(vendor.upiId, ""),
-          website: safeString(vendor.website, ""),
-          notes: safeString(vendor.notes, ""),
-        },
-      },
-      { upsert: true, new: true }
-    ).exec();
-  }
-
-  const expense = await FinanceExpense.create({
-    workspaceId,
-    planId,
-    expenseKey,
-    importKey: "",
-    title: safeString(title),
-    description: safeString(description),
-    monthKey: safeString(monthKey),
-    month: safeString(month),
-    date: safeString(date),
-    dueDate: safeString(dueDate),
-    projectedAmount: safeNumber(projectedAmount, 0),
-    actualAmount: safeNumber(actualAmount, 0),
-    savings: safeNumber(savings, 0),
-    paymentStatus: safeString(paymentStatus, "Planned"),
-    invoiceNumber: invoice.invoiceNumber ? safeString(invoice.invoiceNumber) : "",
-    invoiceFile: invoice.invoiceFile ? safeString(invoice.invoiceFile) : "",
-    invoiceUrl: invoice.invoiceUrl ? safeString(invoice.invoiceUrl) : "",
-    invoicePublicId: invoice.invoicePublicId ? safeString(invoice.invoicePublicId) : "",
-    sourceSheet,
-    sourceRowNumber: Number(sourceRowNumber || 0),
-    expenseTag: normalizeExpenseTag(expenseTag),
-    vendorId: vendor?.vendorKey ? safeString(vendor.vendorKey) : "",
-    vendorObjectId: vendorDoc ? vendorDoc._id : null,
-    vendorName: vendor?.vendorName ? safeString(vendor.vendorName) : (vendorDoc?.name ? safeString(vendorDoc.name) : ""),
-    vendorContactPerson: vendor?.contactPerson ? safeString(vendor.contactPerson) : "",
-    vendorEmail: vendor?.email ? safeString(vendor.email) : "",
-    vendorPhone: vendor?.phone ? safeString(vendor.phone) : "",
-    vendorAddress: vendor?.address ? safeString(vendor.address) : "",
-    vendorPaymentTerms: vendor?.paymentTerms ? safeString(vendor.paymentTerms) : "",
-    vendorCategory: vendor?.category ? safeString(vendor.category) : "",
-    vendorGstin: vendor?.gstin ? safeString(vendor.gstin) : "",
-    vendorPanNumber: vendor?.panNumber ? safeString(vendor.panNumber) : "",
-    vendorBankName: vendor?.bankName ? safeString(vendor.bankName) : "",
-    vendorAccountName: vendor?.accountName ? safeString(vendor.accountName) : "",
-    vendorAccountNumber: vendor?.accountNumber ? safeString(vendor.accountNumber) : "",
-    vendorIfscCode: vendor?.ifscCode ? safeString(vendor.ifscCode) : "",
-    vendorUpiId: vendor?.upiId ? safeString(vendor.upiId) : "",
-    vendorWebsite: vendor?.website ? safeString(vendor.website) : "",
-    vendorImportKey: "",
-    notes: "",
-  });
-
-  // Re-sync monthly totals
-  await syncMonthlyPlanFromFinanceExpenses(planId);
-
-  return expense;
+  // Option A — strict line-item model: an APPROVED budget is frozen. New
+  // expense lines enter the system only via approved extra budget requests
+  // (each request becomes its own authorized line).
+  throw Object.assign(
+    new Error(
+      "Approved budgets are frozen — new expense lines come from approved extra budget requests. File an extra request for this month instead."
+    ),
+    { statusCode: 403 }
+  );
 }
 
 export async function updateMonthlyExpenseStatusInternal(input: {
@@ -1138,6 +985,22 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
   };
 }
 
+// An Add-on line is spendable only after its month's extra budget request has
+// been APPROVED by both approvers (owner + finance manager scopes).
+async function hasApprovedExtraForMonth(
+  plan: any,
+  workspaceId: mongoose.Types.ObjectId,
+  monthKey: string
+): Promise<boolean> {
+  return !!(await ExtraFinanceRequest.exists({
+    workspaceId,
+    department: safeString((plan as any).department),
+    fiscalYear: safeString((plan as any).fiscalYear),
+    monthKey: safeString(monthKey),
+    status: "Approved",
+  }));
+}
+
 export async function submitVendorForDepartmentInternal(input: {
   workspaceId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
@@ -1212,50 +1075,100 @@ export async function submitVendorForDepartmentInternal(input: {
   };
 
   if (expenseId && monthKey) {
-    const set: any = { ...vendorFieldSet };
-    if (actualAmount !== undefined) {
-      const existingExpense = await FinanceExpense.findOne(
-        { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) }
-      ).exec();
-      if (existingExpense) {
-        // Actual may exceed the expense's own projection only by the month's
-        // unused APPROVED extra-budget headroom (projected + headroom).
-        const projected = safeNumber(existingExpense.projectedAmount, 0);
-        const headroom = await getMonthExtraHeadroom(plan, workspaceId, monthKey);
-        const maxActual = projected + headroom;
-        if (actualAmount > maxActual + 0.009) {
-          throw Object.assign(
-            new Error(
-              `Actual cost cannot exceed the projected amount (${projected.toLocaleString()}) plus the month's unused approved extra budget (${headroom.toLocaleString()}). File an extra budget request and get it approved to spend more.`
-            ),
-            { statusCode: 409 }
-          );
-        }
-        set.actualAmount = actualAmount;
-        set.savings = Math.max(0, projected - actualAmount);
+    const existingExpense = await FinanceExpense.findOne(
+      { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) }
+    ).exec();
+    const existingIsAddon =
+      !!existingExpense && normalizeExpenseTag(safeString(existingExpense.expenseTag)) === "add-on";
+    if (existingIsAddon) {
+      const approved = await hasApprovedExtraForMonth(plan, workspaceId, monthKey);
+      if (!approved) {
+        throw Object.assign(
+          new Error("This extra budget request is not approved yet. Founder and finance manager approval is required before recording costs against it."),
+          { statusCode: 403 }
+        );
       }
+    }
+    const set: any = { ...vendorFieldSet };
+    if (actualAmount !== undefined && existingExpense) {
+      // Strict line-item model: an expense's actual can never exceed its own
+      // approved projection. Extra needs live on their own approved Add-on line.
+      const projected = safeNumber(existingExpense.projectedAmount, 0);
+      let maxActual = projected;
+      if (existingIsAddon) {
+        // B-tightened pool: all approved extras for the month are shared across
+        // regular-line overages + other Add-on lines' recorded actuals.
+        const siblings = await FinanceExpense.find(
+          { workspaceId, planId, monthKey: safeString(monthKey) },
+          "expenseKey expenseTag projectedAmount actualAmount"
+        ).lean();
+        let regularOverages = 0;
+        let otherAddonActuals = 0;
+        for (const e of siblings) {
+          if (normalizeExpenseTag(safeString(e.expenseTag)) === "add-on") {
+            if (safeString(e.expenseKey) === expenseId) continue;
+            otherAddonActuals += Math.max(0, safeNumber(e.actualAmount, 0));
+          } else {
+            regularOverages += Math.max(0, safeNumber(e.actualAmount, 0) - safeNumber(e.projectedAmount, 0));
+          }
+        }
+        const approvedDocs = await ExtraFinanceRequest.find(
+          {
+            workspaceId,
+            department: safeString((plan as any).department),
+            fiscalYear: safeString((plan as any).fiscalYear),
+            monthKey: safeString(monthKey),
+            status: "Approved",
+          },
+          "amount"
+        ).lean();
+        const approvedTotal = approvedDocs.reduce((s, d) => s + safeNumber(d.amount, 0), 0);
+        maxActual = Math.min(projected, Math.max(0, approvedTotal - regularOverages - otherAddonActuals));
+      }
+      if (actualAmount > maxActual + 0.009) {
+        throw Object.assign(
+          new Error(
+            existingIsAddon
+              ? `This month's approved extra budget is exhausted (${Math.min(projected, maxActual).toLocaleString()} remains on this line). File a new extra budget request for additional funds.`
+              : `Actual cost cannot exceed the projected amount (${projected.toLocaleString()}). File an extra budget request for the additional funds — it becomes its own approved line.`
+          ),
+          { statusCode: 409 }
+        );
+      }
+      set.actualAmount = actualAmount;
+      set.savings = Math.max(0, projected - actualAmount);
     }
     await FinanceExpense.updateOne(
       { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) },
       { $set: set }
     );
   } else if (monthKey) {
-    // best-effort: apply vendor to all planned invoices for the month in this plan if vendorName is empty
+    // best-effort: apply vendor to all planned regular expenses for the month
+    // in this plan if vendorName is empty — Add-on (amendment) rows excluded.
+    const targetExpenses = await FinanceExpense.find(
+      { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
+      "projectedAmount expenseTag"
+    ).lean();
+    const applicable = targetExpenses.filter(
+      (t) => normalizeExpenseTag(safeString((t as any).expenseTag)) !== "add-on"
+    );
+    const applicableKeys = applicable.map((t) => String(t.expenseKey));
+    if (applicableKeys.length === 0) {
+      throw Object.assign(
+        new Error("Extra budgets are amendments, not spendable expenses. Record the actual cost against your regular expense line for that month."),
+        { statusCode: 403 }
+      );
+    }
     if (actualAmount !== undefined) {
-      const targetExpenses = await FinanceExpense.find(
-        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
-        "projectedAmount"
-      ).lean();
-      const headroom = await getMonthExtraHeadroom(plan, workspaceId, monthKey);
-      const overLimit = targetExpenses.some((t) => actualAmount > safeNumber(t.projectedAmount, 0) + headroom + 0.009);
+      const overLimit = applicable.some((t) => actualAmount > safeNumber(t.projectedAmount, 0) + 0.009);
       if (overLimit) {
         throw Object.assign(
-          new Error("Actual cost exceeds the projected amount plus this month's unused approved extra budget. File an extra budget request and get it approved to spend more."),
+          new Error("Actual cost exceeds the projected amount of the expense. File an extra budget request for the additional funds — it becomes its own approved line."),
           { statusCode: 409 }
         );
       }
       await FinanceExpense.updateMany(
-        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
+        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "", expenseKey: { $in: applicableKeys } },
         [
           {
             $set: {
@@ -1268,7 +1181,7 @@ export async function submitVendorForDepartmentInternal(input: {
       );
     } else {
       await FinanceExpense.updateMany(
-        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
+        { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "", expenseKey: { $in: applicableKeys } },
         { $set: vendorFieldSet }
       );
     }

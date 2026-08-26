@@ -257,16 +257,26 @@ export function FinancePage() {
         : [];
     const sourceMonths =
       Array.isArray(plan?.monthlyPlan) && plan.monthlyPlan.length > 0 ? plan.monthlyPlan : fallbackMonths;
+    const deptName = String(viewingRequest.department || '');
     const months = sourceMonths.map((m: any, idx: number) => ({
       key: m?.monthKey || m?.month || `m-${idx}`,
       label: m?.month || m?.title || `Month ${idx + 1}`,
       title: m?.title || '',
       projected: Number(m?.projectedBudget ?? m?.amount ?? 0),
       actualSpent: Number(m?.actualSpent ?? 0),
-      expenses: Array.isArray(m?.expenses) ? m.expenses : [],
+      expenses: (Array.isArray(m?.expenses) ? m.expenses : []).filter((e: any) => {
+        const tag = String(e?.expenseTag || '').toLowerCase();
+        if (tag !== 'add-on') return true;
+        // Approved extras surface as sanctioned lines.
+        return extraRequests.some((r: any) =>
+          String(r?.status || '').toLowerCase() === 'approved' &&
+          String(r?.department || '') === deptName &&
+          String(r?.monthKey || r?.month || '').toLowerCase() === String(m?.monthKey || m?.month || '').toLowerCase()
+        );
+      }),
     }));
     return { plan: plan || null, months };
-  }, [viewingRequest, departmentFinance]);
+  }, [viewingRequest, departmentFinance, extraRequests]);
 
   // Approved requests reveal vendor / payment / invoice detail columns,
   // mirroring the finance manager's Budget Review modal.
@@ -310,6 +320,7 @@ export function FinancePage() {
     if (!viewingDeptOverview) return null;
     const plan = viewingDepartmentFinancePlan || departmentFinance.find((p: any) => p?.department === viewingDeptOverview.name) || null;
     const sourceMonths = Array.isArray(plan?.monthlyPlan) ? plan.monthlyPlan : [];
+    const deptName = String(viewingDeptOverview?.name || '');
     const months = sourceMonths.map((m: any, idx: number) => ({
       key: m?.monthKey || m?.month || `m-${idx}`,
       label: m?.month || m?.title || `Month ${idx + 1}`,
@@ -317,7 +328,16 @@ export function FinancePage() {
       allocated: Number(m?.allocatedBudget ?? m?.projectedBudget ?? 0),
       projected: Number(m?.projectedBudget ?? 0),
       actualSpent: Number(m?.actualSpent ?? 0),
-      expenses: Array.isArray(m?.expenses) ? m.expenses : [],
+      expenses: (Array.isArray(m?.expenses) ? m.expenses : []).filter((e: any) => {
+        const tag = String(e?.expenseTag || '').toLowerCase();
+        if (tag !== 'add-on') return true;
+        // Approved extras surface as sanctioned lines.
+        return extraRequests.some((r: any) =>
+          String(r?.status || '').toLowerCase() === 'approved' &&
+          String(r?.department || '') === deptName &&
+          String(r?.monthKey || r?.month || '').toLowerCase() === String(m?.monthKey || m?.month || '').toLowerCase()
+        );
+      }),
     }));
     return {
       plan,
