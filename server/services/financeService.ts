@@ -117,8 +117,56 @@ const FISCAL_MONTH_ORDER = ["apr", "may", "jun", "jul", "aug", "sep", "oct", "no
 // Imported budget rows often omit a due date. Default to the last day of the
 // expense's own month so payment planning has a sane starting point; users can
 // still override it before submitting.
-function buildDefaultDueDate(monthKey: string, fiscalYear: string): string {
-  const idx = FISCAL_MONTH_ORDER.indexOf(normalizeMonthKey(monthKey).slice(0, 3));
+// Approved extra-budget headroom available to a month: allocation + APPROVED
+// extras − committed (non-add-on) projections. A specific expense may spend
+// into this headroom on top of its own projection; pending extra requests
+// never count.
+async function getMonthExtraHeadroom(
+  plan: any,
+  workspaceId: mongoose.Types.ObjectId,
+  monthKey: string
+): Promise<number> {
+  const monthKeyNorm = normalizeMonthKey(monthKey);
+  const monthEntry = (Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : []).find(
+    (m: any) => normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm
+  );
+  const allocatedBudget = safeNumber(
+    typeof monthEntry?.allocatedBudget === "number" && monthEntry.allocatedBudget > 0
+      ? monthEntry.allocatedBudget
+      : monthEntry?.projectedBudget,
+    0
+  );
+
+  const planExpenses = await FinanceExpense.find(
+    { workspaceId, planId: (plan as any)._id },
+    "monthKey projectedAmount expenseTag"
+  ).lean();
+  let committed = 0;
+  for (const e of planExpenses) {
+    if (normalizeMonthKey(safeString(e.monthKey)) !== monthKeyNorm) continue;
+    // normalizeExpenseTag returns lowercase ("add-on") — compare in lowercase.
+    if (normalizeExpenseTag(safeString(e.expenseTag)) !== "add-on") committed += safeNumber(e.projectedAmount, 0);
+  }
+
+  const approvedExtraDocs = await ExtraFinanceRequest.find(
+    {
+      workspaceId,
+      department: safeString((plan as any).department),
+      fiscalYear: safeString((plan as any).fiscalYear),
+      status: "Approved",
+    },
+    "monthKey amount"
+  ).lean();
+  let approvedExtras = 0;
+  for (const x of approvedExtraDocs) {
+    if (normalizeMonthKey(safeString(x.monthKey)) !== monthKeyNorm) continue;
+    approvedExtras += safeNumber(x.amount, 0);
+  }
+
+  return Math.max(0, allocatedBudget + approvedExtras - committed);
+}
+
+function buildDefaultDueDate(monthKey: string, fiscalYear: string): string {  const idx = FISCAL_MONTH_ORDER.indexOf(normalizeMonthKey(monthKey).slice(0, 3));
   const range = parseFiscalYearRange(fiscalYear);
   if (idx < 0 || !range) return "";
   const due = new Date(range.start.getFullYear(), 3 + idx + 1, 0);
@@ -684,36 +732,15 @@ export async function addMonthlyExpenseInternal(input: {
     );
   }
 
-  // Month-level budget cap: planned commitments (excluding Add-on rows, which
-  // come from approved/pending extra requests) must fit inside the month's
-  // allocated budget plus any extra-requested amounts.
-  if (normalizeExpenseTag(expenseTag) !== "Add-on") {
-    const monthKeyNorm = normalizeMonthKey(monthKey);
-    const monthEntry = (Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : []).find(
-      (m: any) => normalizeMonthKey(m.monthKey || m.month) === monthKeyNorm
-    );
-    // Fall back to projectedBudget for plans created before allocatedBudget existed.
-    const allocatedBudget = safeNumber(
-      typeof monthEntry?.allocatedBudget === "number" && monthEntry.allocatedBudget > 0
-        ? monthEntry.allocatedBudget
-        : monthEntry?.projectedBudget,
-      0
-    );
-
-    const planExpenses = await FinanceExpense.find({ workspaceId, planId }, "monthKey projectedAmount expenseTag").lean();
-    let committed = 0;
-    let extras = 0;
-    for (const e of planExpenses) {
-      if (normalizeMonthKey(safeString(e.monthKey)) !== monthKeyNorm) continue;
-      if (normalizeExpenseTag(safeString(e.expenseTag)) === "Add-on") extras += safeNumber(e.projectedAmount, 0);
-      else committed += safeNumber(e.projectedAmount, 0);
-    }
-
-    const remaining = allocatedBudget + extras - committed;
+  // Month-level budget cap: planned commitments must fit inside the month's
+  // allocated budget plus extra funds from APPROVED extra requests only — a
+  // pending/unapproved extra request does not unlock spendable headroom.
+  if (normalizeExpenseTag(expenseTag) !== "add-on") {
+    const remaining = await getMonthExtraHeadroom(plan, workspaceId, monthKey);
     if (safeNumber(projectedAmount, 0) - remaining > 0.009) {
       throw Object.assign(
         new Error(
-          `Monthly budget exceeded for ${safeString(monthKeyNorm)}. Only ${remaining.toLocaleString()} remains in the allocation. File an extra budget request for additional funds.`
+          `Monthly budget exceeded for ${safeString(normalizeMonthKey(monthKey))}. Only ${remaining.toLocaleString()} remains in the allocation. File an extra budget request and get it approved before spending beyond the allocation.`
         ),
         { statusCode: 409 }
       );
@@ -1191,18 +1218,21 @@ export async function submitVendorForDepartmentInternal(input: {
         { workspaceId, planId, expenseKey: expenseId, monthKey: safeString(monthKey) }
       ).exec();
       if (existingExpense) {
-        // Actual spend can never exceed the expense's own projection; going
-        // over requires an approved extra budget request instead.
-        if (actualAmount > safeNumber(existingExpense.projectedAmount, 0)) {
+        // Actual may exceed the expense's own projection only by the month's
+        // unused APPROVED extra-budget headroom (projected + headroom).
+        const projected = safeNumber(existingExpense.projectedAmount, 0);
+        const headroom = await getMonthExtraHeadroom(plan, workspaceId, monthKey);
+        const maxActual = projected + headroom;
+        if (actualAmount > maxActual + 0.009) {
           throw Object.assign(
             new Error(
-              `Actual cost cannot exceed the projected amount (${safeNumber(existingExpense.projectedAmount, 0).toLocaleString()}). File an extra budget request for additional funds.`
+              `Actual cost cannot exceed the projected amount (${projected.toLocaleString()}) plus the month's unused approved extra budget (${headroom.toLocaleString()}). File an extra budget request and get it approved to spend more.`
             ),
             { statusCode: 409 }
           );
         }
         set.actualAmount = actualAmount;
-        set.savings = Math.max(0, safeNumber(existingExpense.projectedAmount, 0) - actualAmount);
+        set.savings = Math.max(0, projected - actualAmount);
       }
     }
     await FinanceExpense.updateOne(
@@ -1216,10 +1246,11 @@ export async function submitVendorForDepartmentInternal(input: {
         { workspaceId, planId, monthKey: safeString(monthKey), vendorName: "" },
         "projectedAmount"
       ).lean();
-      const overProjected = targetExpenses.some((t) => actualAmount > safeNumber(t.projectedAmount, 0));
-      if (overProjected) {
+      const headroom = await getMonthExtraHeadroom(plan, workspaceId, monthKey);
+      const overLimit = targetExpenses.some((t) => actualAmount > safeNumber(t.projectedAmount, 0) + headroom + 0.009);
+      if (overLimit) {
         throw Object.assign(
-          new Error("Actual cost cannot exceed the projected amount of the expense. File an extra budget request for additional funds."),
+          new Error("Actual cost exceeds the projected amount plus this month's unused approved extra budget. File an extra budget request and get it approved to spend more."),
           { statusCode: 409 }
         );
       }

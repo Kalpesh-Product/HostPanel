@@ -146,6 +146,7 @@ interface ExtraBudget {
   date: string;
   details: string;
   month: string;
+  monthKey?: string;
   dueDate: string;
   approvalFlow: ApprovalFlow;
   requestId: string;
@@ -438,6 +439,7 @@ function mapExtraRequestToBudget(request: any = {}): ExtraBudget {
     date: request.submittedAtLabel || request.date || '',
     details: request.reason || request.breakdown || request.description || '',
     month: request.month || '',
+    monthKey: String(request.monthKey || ''),
     dueDate: request.dueDate || '',
     approvalFlow,
     requestId,
@@ -861,6 +863,16 @@ export function ExpensesBudgetPage() {
     const scoped = String(flow?.[myApprovalScope]?.status || '').toLowerCase();
     return scoped === 'approved' || scoped === 'rejected' ? scoped : '';
   };
+
+  // Total APPROVED extra-budget funds for a department + month — used to badge
+  // expense rows whose actual over-projection was sanctioned via extra budget.
+  const getApprovedExtraForMonth = (department: string, monthKey: any) =>
+    extraBudgets
+      .filter((b) =>
+        String(b?.status || '').toLowerCase() === 'approved' &&
+        String(b?.department || '').trim().toLowerCase() === String(department || '').trim().toLowerCase() &&
+        String(b?.monthKey || b?.month || '').toLowerCase() === String(monthKey || '').toLowerCase())
+      .reduce((sum, b) => sum + Number(b?.requested || b?.approved || 0), 0);
 
   useEffect(() => {
     let alive = true;
@@ -1738,9 +1750,23 @@ export function ExpensesBudgetPage() {
                                           <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
                                         )}
                                         <div className="min-w-0 flex-1">
-                                          <div className="flex min-w-0 items-start justify-between gap-3">
+                                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                                             <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{expense.expenseLabel || expense.title || `Expense ${eIdx + 1}`}</p>
                                             <div className="flex shrink-0 items-center gap-2">
+                                              {(() => {
+                                                const over = Number(expense.actualAmount ?? expense.actualSpent ?? 0) - Number(expense.projectedAmount ?? getBudgetExpenseAmount(expense));
+                                                if (over > 0.009) {
+                                                  const approvedExtra = getApprovedExtraForMonth(viewingBudget.department, m.monthKey || m.month);
+                                                  if (approvedExtra + 0.009 >= over) {
+                                                    return (
+                                                      <span className="inline-flex shrink-0 items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">
+                                                        {formatCurrency(over)} via extra budget
+                                                      </span>
+                                                    );
+                                                  }
+                                                }
+                                                return null;
+                                              })()}
                                               <button
                                                 type="button"
                                                 onClick={() => openExpenseDetails(expense, m, eIdx, viewingBudget.department)}

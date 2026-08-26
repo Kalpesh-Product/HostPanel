@@ -784,14 +784,31 @@ export function FinancePage() {
                                       const paymentStatus = String(exp.paymentStatus || '');
                                       return (
                                         <tr key={`${month.key}-exp-${exp.id || eIdx}`} className="border-b border-slate-100 bg-white transition-colors hover:bg-blue-50/40">
-                                          <td className="px-4 py-4 align-top">
-                                            <div className="flex items-start gap-2">
-                                              {String(exp.expenseTag || '').toLowerCase() === 'add-on' && (
-                                                <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
-                                              )}
-                                              <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{exp.title || `Expense ${eIdx + 1}`}</p>
-                                            </div>
-                                          </td>
+                                        <td className="px-4 py-4 align-top">
+                                          <div className="flex items-start gap-2">
+                                            {String(exp.expenseTag || '').toLowerCase() === 'add-on' && (
+                                              <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
+                                            )}
+                                            <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{exp.title || exp.expenseLabel || `Expense ${eIdx + 1}`}</p>
+                                          </div>
+                                          {(() => {
+                                            const projectedAmt = Number(exp.projectedAmount ?? 0);
+                                            const over = Number(exp.actualAmount ?? exp.actualSpent ?? 0) - projectedAmt;
+                                            if (over <= 0.009) return null;
+                                            const approvedExtra = (Array.isArray(extraRequests) ? extraRequests : [])
+                                              .filter((r: any) =>
+                                                String(r?.status || '').toLowerCase() === 'approved' &&
+                                                String(r?.department || '') === String(viewingRequest?.department || '') &&
+                                                String(r?.monthKey || r?.month || '').toLowerCase() === month.key.toLowerCase())
+                                              .reduce((sum: number, r: any) => sum + Number(r?.amount || 0), 0);
+                                            if (approvedExtra + 0.009 < over) return null;
+                                            return (
+                                              <span className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
+                                                {formatCurrency(over)} via extra budget
+                                              </span>
+                                            );
+                                          })()}
+                                        </td>
                                           <td className="px-4 py-4 align-top">
                                             <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{exp.description || '—'}</p>
                                           </td>
@@ -1013,6 +1030,21 @@ export function FinancePage() {
                                             )}
                                             <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{exp.title || exp.expenseLabel || `Expense ${eIdx + 1}`}</p>
                                           </div>
+                                          {variance < 0 && (() => {
+                                            const over = Math.abs(variance);
+                                            const approvedExtra = (Array.isArray(extraRequests) ? extraRequests : [])
+                                              .filter((r: any) =>
+                                                String(r?.status || '').toLowerCase() === 'approved' &&
+                                                String(r?.department || '') === String(viewingDeptOverview?.name || '') &&
+                                                String(r?.monthKey || r?.month || '').toLowerCase() === month.key.toLowerCase())
+                                              .reduce((sum: number, r: any) => sum + Number(r?.amount || 0), 0);
+                                            if (approvedExtra + 0.009 < over) return null;
+                                            return (
+                                              <span className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
+                                                {formatCurrency(over)} via extra budget
+                                              </span>
+                                            );
+                                          })()}
                                           {exp.vendorName && (
                                             <div className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
                                               Vendor: {exp.vendorName}

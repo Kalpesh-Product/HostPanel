@@ -903,11 +903,28 @@ export function DepartmentFinancePageV2() {
   // Departments can only link vendors / record actuals once the annual budget
   // is approved; finance-privileged roles keep access for corrections.
   const canRecordSpend = isBudgetApproved || FINANCE_PAYMENT_ROLES.includes(userRole);
-  // Inline guard: the linked vendor's actual cost can never exceed this expense's projection.
+  // Inline guard: the linked vendor's actual cost may exceed this expense's own
+  // projection only by the month's unused APPROVED extra-budget headroom.
   const expenseDetail = viewingExpense?.expense;
   const expenseProjected = Number(expenseDetail?.projectedAmount ?? (expenseDetail as any)?.amount ?? 0);
+  const openMonth: any = viewingExpense?.month || null;
+  const openMonthKeyNorm = String(openMonth?.monthKey || openMonth?.month || '').toLowerCase();
+  // Total APPROVED extra-budget funds for a given month (this page is dept-scoped).
+  const getApprovedExtraForMonth = (monthKey: any) =>
+    (Array.isArray(extraRequests) ? extraRequests : [])
+      .filter((r: any) =>
+        String(r?.status || '').toLowerCase() === 'approved' &&
+        String(r?.monthKey || r?.month || '').toLowerCase() === String(monthKey || '').toLowerCase())
+      .reduce((sum: number, r: any) => sum + Number(r?.amount || 0), 0);
+  const approvedExtraForMonth = getApprovedExtraForMonth(openMonthKeyNorm);
+  const monthCommitted = (Array.isArray(openMonth?.expenses) ? openMonth.expenses : [])
+    .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
+    .reduce((sum: number, e: any) => sum + Number(e?.projectedAmount ?? e?.amount ?? 0), 0);
+  const monthAllocated = Number(openMonth?.allocatedBudget ?? openMonth?.projectedAmount ?? 0);
+  const monthHeadroom = Math.max(0, monthAllocated + approvedExtraForMonth - monthCommitted);
+  const maxActualAllowed = expenseProjected + monthHeadroom;
   const actualOverProjected =
-    !!expenseDetail && actualAmountToPay !== '' && Number(actualAmountToPay) > expenseProjected;
+    !!expenseDetail && actualAmountToPay !== '' && Number(actualAmountToPay) > maxActualAllowed + 0.009;
   const isDraftBudget = !financeData?.annualRequest;
   const draftTotalProjected = draftMonths.reduce(
     (sum, m) => sum + m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
@@ -1476,6 +1493,18 @@ export function DepartmentFinancePageV2() {
                                               {String(expense.expenseTag || '').toLowerCase() === 'add-on' && (
                                                 <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra Budget</span>
                                               )}
+                                              {(() => {
+                                                const over = Number(expense.actualSpent || 0) - Number(expense.projectedAmount || 0);
+                                                const approvedExtra = getApprovedExtraForMonth(month.monthKey || month.month);
+                                                if (over > 0.009 && approvedExtra + 0.009 >= over) {
+                                                  return (
+                                                    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">
+                                                      {formatCurrency(over)} via extra budget
+                                                    </span>
+                                                  );
+                                                }
+                                                return null;
+                                              })()}
                                             </div>
                                             {expense.invoiceNumber && (
                                               <div className="text-[8px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">INV: {expense.invoiceNumber}</div>
@@ -1696,6 +1725,18 @@ export function DepartmentFinancePageV2() {
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Actual Spent</p>
                     <p className="text-lg font-black text-slate-900">{formatCurrency(viewingExpense.expense.actualSpent)}</p>
                   </div>
+                  {(() => {
+                    const over = Number(viewingExpense.expense.actualSpent || 0) - Number(expenseProjected || 0);
+                    if (over <= 0.009) return null;
+                    if (approvedExtraForMonth + 0.009 < over) return null;
+                    return (
+                      <div className="col-span-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-wider text-blue-700">
+                          {formatCurrency(over)} via extra budget
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {(viewingExpense.expense.invoiceNumber || viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile) && (
                   <div>
@@ -1759,7 +1800,7 @@ export function DepartmentFinancePageV2() {
                         />
                         {actualOverProjected ? (
                           <p className="text-[10px] font-pmedium text-red-500">
-                            Actual cannot exceed the projected amount ({formatCurrency(expenseProjected)}). File an extra budget request for additional funds.
+                            Actual cannot exceed {formatCurrency(maxActualAllowed)} (projected {formatCurrency(expenseProjected)} + unused approved extra budget). File and get an extra budget approved to spend more.
                           </p>
                         ) : (
                           <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
