@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Search, DollarSign, TrendingUp, CheckCircle2, Clock, AlertCircle, 
+import {
+  Search, DollarSign, TrendingUp, CheckCircle2, Clock, AlertCircle,
   Eye, X, Check, MessageSquare, Building2,
   Calendar, Filter, Plus, FileText, Receipt, FileWarning, Download,
-  AlertTriangle, XCircle
+  AlertTriangle, XCircle, PieChart
 } from 'lucide-react';
 import { getStoredUser } from '@/lib/auth-session';
 import { applyFinanceApprovalDecision, getFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
@@ -14,6 +14,15 @@ import { statusPillClass } from '../../lib/status-pill';
 import { ApprovalFlowBadges, hasApprovalProgress } from '../../components/finance/ApprovalFlowBadges';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
+
+// Axios errors carry the API's real message inside response.data.message.
+function getApiErrorMessage(error: any, fallback: string): string {
+  const serverMessage = error?.response?.data?.message || error?.response?.data?.error;
+  if (typeof serverMessage === 'string' && serverMessage.trim()) return serverMessage;
+  const raw = typeof error?.message === 'string' ? error.message : '';
+  if (raw && !/^request failed/i.test(raw)) return raw;
+  return fallback;
+}
 
 export function FinancePage() {
   const currentUser = getStoredUser();
@@ -174,7 +183,7 @@ export function FinancePage() {
         const response = await getFinanceSnapshot(selectedFY);
         if (isMounted) applyFinanceData(response || {});
       } catch (error: any) {
-        if (isMounted) setErrorMessage(error?.message || 'Failed to load finance dashboard data.');
+        if (isMounted) setErrorMessage(getApiErrorMessage(error, 'Failed to load finance dashboard data.'));
       } finally {
         if (isMounted) {
           setHasLoadedFinanceSnapshot(true);
@@ -235,6 +244,43 @@ export function FinancePage() {
     ? departmentFinance.find((plan) => plan?.department === viewingDeptOverview.name)
     : null;
 
+  // Full month-by-month detail for the request the founder is reviewing.
+  // Prefers the department plan (expenses are joined server-side), falls back
+  // to whatever breakdown was stored on the annual request itself.
+  const viewingRequestDetail = React.useMemo(() => {
+    if (!viewingRequest) return null;
+    const plan = departmentFinance.find((p: any) => p?.department === viewingRequest.department);
+    const fallbackMonths = Array.isArray(viewingRequest.monthlyBreakdown)
+      ? viewingRequest.monthlyBreakdown
+      : Array.isArray(viewingRequest.monthlyPlan)
+        ? viewingRequest.monthlyPlan
+        : [];
+    const sourceMonths =
+      Array.isArray(plan?.monthlyPlan) && plan.monthlyPlan.length > 0 ? plan.monthlyPlan : fallbackMonths;
+    const months = sourceMonths.map((m: any, idx: number) => ({
+      key: m?.monthKey || m?.month || `m-${idx}`,
+      label: m?.month || m?.title || `Month ${idx + 1}`,
+      title: m?.title || '',
+      projected: Number(m?.projectedBudget ?? m?.amount ?? 0),
+      actualSpent: Number(m?.actualSpent ?? 0),
+      expenses: Array.isArray(m?.expenses) ? m.expenses : [],
+    }));
+    return { plan: plan || null, months };
+  }, [viewingRequest, departmentFinance]);
+
+  // Approved requests reveal vendor / payment / invoice detail columns,
+  // mirroring the finance manager's Budget Review modal.
+  const isViewingApprovedRequest = String(viewingRequest?.status || '').toLowerCase() === 'approved';
+
+  // Which approval step does the CURRENT user own? Founder/owner-side roles act on the
+  // "owner" step; finance managers act on the "financeManager" step.
+  const viewingUserScope = ['finance_manager', 'finance-manager', 'finance'].includes(normalizedCurrentUserRole)
+    ? 'financeManager'
+    : 'owner';
+  const viewingMyStepStatus = viewingRequest?.approvalFlow
+    ? String((viewingRequest.approvalFlow as any)[viewingUserScope]?.status || '').toLowerCase()
+    : '';
+
   const departmentRegisteredVendors = Array.isArray(viewingDepartmentFinancePlan?.vendors)
     ? viewingDepartmentFinancePlan.vendors
     : [];
@@ -244,12 +290,12 @@ export function FinancePage() {
     setIsSavingDecision(true);
     setErrorMessage('');
     try {
-      await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY });
+      await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY, scope: viewingUserScope });
       const response = await getFinanceSnapshot(selectedFY);
       applyFinanceData(response || {});
       setViewingRequest(null);
     } catch (error: any) {
-      setErrorMessage(error?.message || 'Unable to update approval decision.');
+      setErrorMessage(getApiErrorMessage(error, 'Unable to update approval decision.'));
     } finally {
       setIsSavingDecision(false);
     }
@@ -460,7 +506,7 @@ export function FinancePage() {
                         <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
                             <div className="font-pmedium text-slate-900 flex items-center gap-2"><Building2 size={14} className="text-[#2563EB]"/> {req.department}</div>
-                            <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">ID: {req.id}</div>
+                            <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">REF: {req.requestKey || req.id}</div>
                           </td>
                           <td className="px-5 py-4 font-pmedium text-[#2563EB] text-lg">{formatCurrency(req.requestedBudget)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(req.previousSpend)}</td>
@@ -576,28 +622,232 @@ export function FinancePage() {
       
       {/* MODALS */}
       {viewingRequest && (
-        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <Building2 size={20} className="text-[#2563EB]"/> {viewingRequest.department} Request
-              </h2>
-              <button onClick={() => setViewingRequest(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18}/></button>
-            </div>
-            <div className="p-6 overflow-y-auto">
-              <div className="mb-6 p-6 bg-blue-50 rounded-2xl border border-blue-100">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Total Requested Amount</p>
-                <p className="text-4xl font-black text-blue-900">{formatCurrency(viewingRequest.type === 'annual' ? viewingRequest.requestedBudget : viewingRequest.amount)}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+              <div>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
+                  {viewingRequest.type === 'annual' ? 'Annual Budget Request' : 'Extra Budget Request'}
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
+                  <PieChart size={20} /> Budget Review
+                </h2>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingRequest.requestKey || viewingRequest.id}</p>
               </div>
-              <p className="text-sm font-medium text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100 italic">"{viewingRequest.reason || 'No description provided.'}"</p>
+              <button onClick={() => setViewingRequest(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
+                <X size={16} />
+              </button>
             </div>
-            {viewingRequest.status === 'Pending' && (
-              <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Discuss')} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-pmedium text-xs uppercase hover:bg-slate-300 transition-colors">Discuss</button>
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Rejected')} className="px-5 py-2.5 bg-red-100 text-red-600 rounded-2xl font-pmedium text-xs uppercase hover:bg-red-200 transition-colors">Reject</button>
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="px-5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm">Approve</button>
+
+            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
+              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-100 bg-white">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Department</p>
+                  <p className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-1.5 mt-0.5">
+                    <Building2 size={14} className="text-[#2563EB] shrink-0" /> {viewingRequest.department}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Total Requested</p>
+                  <p className="text-xl sm:text-2xl font-black text-blue-900 mt-0.5">{formatCurrency(viewingRequest.type === 'annual' ? viewingRequest.requestedBudget : viewingRequest.amount)}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Submitted By</p>
+                  <p className="text-sm font-black text-gray-900 mt-0.5">{viewingRequest.submittedByName || 'Dept. Manager'}</p>
+                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRequest.date || viewingRequest.submittedAtLabel || ''}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
+                  <span className={`mt-1 inline-flex w-fit px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border ${String(viewingRequest.status).toLowerCase() === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : String(viewingRequest.status).toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{viewingRequest.status}</span>
+                  <span className="mt-1"><ApprovalFlowBadges flow={viewingRequest.approvalFlow} /></span>
+                </div>
               </div>
-            )}
+
+              <div className="px-6 sm:px-8 py-4 border-b border-gray-100 bg-white">
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+                  <FileText size={11} /> Business Justification
+                </p>
+                <p className="text-xs sm:text-sm font-medium text-gray-700 leading-relaxed">
+                  {viewingRequest.reason || viewingRequest.breakdown || 'No additional justification provided.'}
+                </p>
+              </div>
+
+              <div className="px-4 sm:px-8 py-6">
+              {viewingRequest.type === 'annual' && (
+                <div>
+                  <h4 className="mb-3 flex items-center gap-2 text-[10px] sm:text-xs font-pmedium uppercase tracking-widest text-gray-900">
+                    <Calendar size={13} className="text-[#2563EB]" /> Monthly Expense Plan
+                    {viewingRequestDetail && viewingRequestDetail.months.length > 0 && (
+                      <span className="ml-1 text-gray-400 font-bold normal-case tracking-normal">({viewingRequestDetail.months.length} months)</span>
+                    )}
+                  </h4>
+                  {!viewingRequestDetail || viewingRequestDetail.months.length === 0 ? (
+                    <p className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-400">No monthly breakdown has been submitted for this request.</p>
+                  ) : (
+                    <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="overflow-x-auto">
+                        <table className="w-full table-fixed text-left" style={{ minWidth: isViewingApprovedRequest ? '1280px' : '920px' }}>
+                          <thead className="sticky top-0 z-10">
+                            <tr className="border-b border-slate-200 bg-slate-50">
+                              <th className="w-[290px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
+                              <th className="px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</th>
+                              <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
+                              <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
+                              {isViewingApprovedRequest && <>
+                                <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
+                                <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
+                                <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Invoice</th>
+                              </>}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {viewingRequestDetail.months.map((month) => {
+                              const expenses = Array.isArray(month.expenses) ? month.expenses : [];
+                              const colSpan = isViewingApprovedRequest ? 7 : 4;
+                              return (
+                                <React.Fragment key={month.key}>
+                                  <tr className="border-y border-blue-100 bg-blue-50/80">
+                                    <td colSpan={colSpan} className="px-4 py-3">
+                                      <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <span className="flex min-w-0 items-center gap-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-900">
+                                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
+                                            <Calendar size={13} />
+                                          </span>
+                                          {month.label}{month.title ? ` — ${month.title}` : ''}
+                                        </span>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-slate-700">
+                                            Projected <span className="text-[#2563EB]">{formatCurrency(month.projected)}</span>
+                                          </span>
+                                          {isViewingApprovedRequest && month.actualSpent > 0 && (
+                                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pmedium text-emerald-700">
+                                              Used {formatCurrency(month.actualSpent)}
+                                            </span>
+                                          )}
+                                          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
+                                            {expenses.length} planned
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  {expenses.length === 0 ? (
+                                    <tr className="bg-white">
+                                      <td colSpan={colSpan} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
+                                        No expenses listed for this month.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    expenses.map((exp: any, eIdx: number) => {
+                                      const invoiceUrl = exp.invoiceUrl || exp.invoiceFile || '';
+                                      const paymentStatus = String(exp.paymentStatus || '');
+                                      return (
+                                        <tr key={`${month.key}-exp-${exp.id || eIdx}`} className="border-b border-slate-100 bg-white transition-colors hover:bg-blue-50/40">
+                                          <td className="px-4 py-4 align-top">
+                                            <div className="flex items-start gap-2">
+                                              {String(exp.expenseTag || '').toLowerCase() === 'add-on' && (
+                                                <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
+                                              )}
+                                              <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{exp.title || `Expense ${eIdx + 1}`}</p>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-4 align-top">
+                                            <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{exp.description || '—'}</p>
+                                          </td>
+                                          <td className="px-4 py-4 text-right align-top">
+                                            <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(exp.projectedAmount)}</p>
+                                          </td>
+                                          <td className="px-4 py-4 align-top">
+                                            <p className="text-xs font-bold text-slate-600">{exp.dueDate || '—'}</p>
+                                          </td>
+                                          {isViewingApprovedRequest && <>
+                                            <td className="px-4 py-4 align-top">
+                                              {exp.vendorName ? (
+                                                <div className="min-w-0">
+                                                  <p className="break-words text-xs font-black text-slate-900">{exp.vendorName}</p>
+                                                  {exp.vendorContactPerson && <p className="mt-0.5 break-words text-[10px] font-medium text-slate-400">{exp.vendorContactPerson}</p>}
+                                                </div>
+                                              ) : (
+                                                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Not Assigned</span>
+                                              )}
+                                            </td>
+                                            <td className="px-4 py-4 align-top">
+                                              <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${paymentStatus.includes('Done') || paymentStatus.includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : paymentStatus.includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : paymentStatus.includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                {exp.paymentStatus || 'Planned'}
+                                              </span>
+                                            </td>
+                                            <td className="px-4 py-4 align-top">
+                                              {exp.invoiceNumber || invoiceUrl ? (
+                                                <div className="space-y-1">
+                                                  <span className="flex w-fit items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[9px] font-black text-green-700">
+                                                    <Receipt size={9} /> {exp.invoiceNumber || 'Uploaded'}
+                                                  </span>
+                                                  {invoiceUrl && (
+                                                    <a href={invoiceUrl} target="_blank" rel="noreferrer" className="block text-[9px] font-bold text-blue-600 hover:underline">View file</a>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Pending</span>
+                                              )}
+                                            </td>
+                                          </>}
+                                        </tr>
+                                      );
+                                    })
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {viewingRequest.type === 'extra' && viewingRequest.monthKey && (
+                <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-pmedium text-amber-800">
+                  <Clock size={13} /> Requested for month: <span className="uppercase tracking-wider">{viewingRequest.month}</span> ({viewingRequest.monthKey})
+                </p>
+              )}
+              </div>
+            </div>
+
+            {(() => {
+              const requestStatus = String(viewingRequest.status || '').toLowerCase();
+              const actionable = (requestStatus === 'pending' || requestStatus === 'discuss') && viewingMyStepStatus === '';
+              if (actionable) {
+                return (
+                  <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
+                    <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Discuss')} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      <MessageSquare size={14} /> DISCUSS
+                    </button>
+                    <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Rejected')} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      <XCircle size={14} /> REJECT REQUEST
+                    </button>
+                    <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      APPROVE BUDGET <CheckCircle2 size={14} />
+                    </button>
+                  </div>
+                );
+              }
+              if (viewingMyStepStatus === 'approved' || viewingMyStepStatus === 'rejected') {
+                return (
+                  <div className="px-6 sm:px-8 py-4 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                    <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700">
+                      <CheckCircle2 size={14} /> You have already {viewingMyStepStatus === 'approved' ? 'approved' : 'rejected'} this request.
+                    </span>
+                    <button onClick={() => setViewingRequest(null)} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                  </div>
+                );
+              }
+              return (
+                <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
+                  <button onClick={() => setViewingRequest(null)} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

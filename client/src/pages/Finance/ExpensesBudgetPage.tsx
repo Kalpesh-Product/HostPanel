@@ -130,6 +130,7 @@ interface Budget {
   details: string;
   approvalFlow: ApprovalFlow;
   requestId: string;
+  requestKey: string;
   monthlyBreakdown: MonthlyBreakdown[];
   submittedByName: string;
   approvalStateLabel: string;
@@ -147,6 +148,7 @@ interface ExtraBudget {
   dueDate: string;
   approvalFlow: ApprovalFlow;
   requestId: string;
+  requestKey: string;
   submittedByName: string;
   approvalStateLabel: string;
 }
@@ -413,6 +415,7 @@ function mapAnnualRequestToBudget(request: any = {}): Budget {
     details: request.breakdown || request.reason || request.description || '',
     approvalFlow,
     requestId,
+    requestKey: String(request.requestKey || ''),
     monthlyBreakdown: Array.isArray(request.monthlyBreakdown) ? request.monthlyBreakdown : Array.isArray(request.monthlyPlan) ? request.monthlyPlan : [],
     submittedByName: request.submittedByName || '',
     approvalStateLabel: request.approvalStateLabel || '',
@@ -435,6 +438,7 @@ function mapExtraRequestToBudget(request: any = {}): ExtraBudget {
     dueDate: request.dueDate || '',
     approvalFlow,
     requestId,
+    requestKey: String(request.requestKey || ''),
     submittedByName: request.submittedByName || '',
     approvalStateLabel: request.approvalStateLabel || '',
   };
@@ -1576,7 +1580,7 @@ export function ExpensesBudgetPage() {
       {/* ── View Budget Modal ── */}
       {viewingBudget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-[96vw] 2xl:max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[96vh]">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
                 <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
@@ -1585,7 +1589,7 @@ export function ExpensesBudgetPage() {
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
                   <PieChart size={20} /> Budget Review
                 </h2>
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">ID: {viewingBudget.id}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingBudget.requestKey || viewingBudget.id}</p>
               </div>
               <button onClick={() => setViewingBudget(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
                 <X size={16} />
