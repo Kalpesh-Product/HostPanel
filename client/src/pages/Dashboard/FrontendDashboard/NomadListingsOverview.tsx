@@ -313,9 +313,10 @@ export default function NomadListingsOverview() {
                     type="button"
                     onClick={handleAddClick}
                     aria-disabled={isAtLimit}
+                    title={isAtLimit ? limitMessage : "Add a new listing"}
                     className={`px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap ${
                       isAtLimit
-                        ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                        ? "bg-[#2563EB] text-white opacity-60 cursor-not-allowed"
                         : "bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95"
                     }`}
                   >
