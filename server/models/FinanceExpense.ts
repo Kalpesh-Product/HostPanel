@@ -1,5 +1,17 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+export interface IFinanceExpenseInvoice {
+    invoiceKey: string;
+    invoiceNumber: string;
+    amount: number;
+    invoiceFile?: string;
+    invoiceUrl?: string;
+    invoicePublicId?: string;
+    uploadedByUserId?: mongoose.Types.ObjectId | null;
+    uploadedAt?: Date | null;
+    uploadedAtLabel?: string;
+}
+
 export interface IFinanceExpense extends Document {
     workspaceId: mongoose.Types.ObjectId;
     planId: mongoose.Types.ObjectId;
@@ -19,6 +31,7 @@ export interface IFinanceExpense extends Document {
     invoiceFile?: string;
     invoiceUrl?: string;
     invoicePublicId?: string;
+    invoices?: IFinanceExpenseInvoice[];
     sourceSheet?: string;
     sourceRowNumber: number;
     expenseTag?: string;
@@ -44,6 +57,21 @@ export interface IFinanceExpense extends Document {
     createdAt?: Date;
     updatedAt?: Date;
 }
+
+const financeExpenseInvoiceSchema = new Schema<IFinanceExpenseInvoice>(
+    {
+        invoiceKey: { type: String, trim: true, required: true, maxlength: 120 },
+        invoiceNumber: { type: String, trim: true, required: true, maxlength: 120 },
+        amount: { type: Number, required: true, min: 0 },
+        invoiceFile: { type: String, trim: true, default: "", maxlength: 180 },
+        invoiceUrl: { type: String, trim: true, default: "", maxlength: 300 },
+        invoicePublicId: { type: String, trim: true, default: "", maxlength: 180 },
+        uploadedByUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+        uploadedAt: { type: Date, default: null },
+        uploadedAtLabel: { type: String, trim: true, default: "", maxlength: 40 },
+    },
+    { _id: false }
+);
 
 const financeExpenseSchema = new Schema<IFinanceExpense>(
     {
@@ -80,6 +108,7 @@ const financeExpenseSchema = new Schema<IFinanceExpense>(
         invoiceFile: { type: String, trim: true, default: "", maxlength: 180 },
         invoiceUrl: { type: String, trim: true, default: "", maxlength: 300 },
         invoicePublicId: { type: String, trim: true, default: "", maxlength: 180 },
+        invoices: { type: [financeExpenseInvoiceSchema], default: [] },
         sourceSheet: { type: String, trim: true, default: "", maxlength: 80 },
         sourceRowNumber: { type: Number, min: 0, default: 0 },
         expenseTag: { type: String, trim: true, default: "", maxlength: 80, index: true },

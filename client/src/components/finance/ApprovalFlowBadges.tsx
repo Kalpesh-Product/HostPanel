@@ -31,23 +31,31 @@ export function hasApprovalProgress(flow?: ApprovalFlowLike | null): boolean {
  * - Nobody approved yet  -> renders nothing (pages fall back to the plain
  *   status pill, e.g. "Pending Review").
  * - One step approved    -> e.g. "Finance Mgr Approved".
- * - Both approved        -> green "Approved by Founder & Finance Mgr".
+ * - Both approved        -> green "Approved".
  */
 export function ApprovalFlowBadges({ flow }: { flow?: ApprovalFlowLike | null }) {
   const ownerState = String(flow?.owner?.status || "").toLowerCase();
   const fmState = String(flow?.financeManager?.status || "").toLowerCase();
   const ownerApproved = ownerState === "approved";
   const fmApproved = fmState === "approved";
+  const rejected = ownerState === "rejected" || fmState === "rejected";
+  const changesRequested = ownerState === "discuss" || fmState === "discuss";
 
-  if ((!ownerApproved && !fmApproved) || ownerState === "rejected" || fmState === "rejected") return null;
+  if (!ownerApproved && !fmApproved && !rejected && !changesRequested) return null;
 
   const tips = [stepTip("Founder", flow?.owner), stepTip("Finance Manager", flow?.financeManager)].filter(Boolean);
 
   let cls: string;
   let text: string;
-  if (ownerApproved && fmApproved) {
+  if (rejected) {
+    cls = "border-red-200 bg-red-50 text-red-700";
+    text = "Rejected";
+  } else if (changesRequested) {
+    cls = "border-blue-200 bg-blue-50 text-blue-700";
+    text = "Changes Requested";
+  } else if (ownerApproved && fmApproved) {
     cls = "border-emerald-200 bg-emerald-50 text-emerald-700";
-    text = "Approved by Founder & Finance Mgr";
+    text = "Approved";
   } else if (ownerApproved) {
     cls = "border-amber-200 bg-amber-50 text-amber-700";
     text = "Founder Approved";
@@ -61,7 +69,7 @@ export function ApprovalFlowBadges({ flow }: { flow?: ApprovalFlowLike | null })
       title={tips.join(" | ") || undefined}
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${cls}`}
     >
-      {ownerApproved && fmApproved ? <Check size={9} strokeWidth={3} /> : <Clock size={9} />}
+      {ownerApproved && fmApproved && !rejected && !changesRequested ? <Check size={9} strokeWidth={3} /> : <Clock size={9} />}
       {text}
     </span>
   );
