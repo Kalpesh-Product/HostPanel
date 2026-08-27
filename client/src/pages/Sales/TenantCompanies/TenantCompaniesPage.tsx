@@ -1273,6 +1273,7 @@ export default function TenantCompaniesPage() {
     },
     creditConfiguration: {
       monthlyTotalCredits: '', creditResetCycle: 'Monthly', creditUsageTracking: '',
+      ratePerCredit: '10',
     },
     addOnCredits: { purchasedCredits: '', remainingCredits: '' },
     billingDetails: {
@@ -2842,6 +2843,7 @@ export default function TenantCompaniesPage() {
         monthlyTotalCredits: activePackage ? packageDefaults.creditConfiguration.monthlyTotalCredits : String(tenant.creditConfiguration?.monthlyTotalCredits || tenant.packageDetails?.monthlyTotalCredits || tenant.creditsAllocated || 0),
         creditResetCycle: activePackage ? 'Monthly' : (tenant.creditConfiguration?.creditResetCycle || tenant.packageDetails?.creditResetCycle || 'Monthly'),
         creditUsageTracking: tenant.creditConfiguration?.creditUsageTracking || tenant.packageDetails?.creditUsageTracking || '',
+        ratePerCredit: String(tenant.creditConfiguration?.ratePerCredit ?? tenant.ratePerCredit ?? 10),
       },
       billingDetails: {
         securityDepositPaidStatus: tenant.billingDetails?.securityDepositPaidStatus || 'Pending',
@@ -4092,6 +4094,19 @@ export default function TenantCompaniesPage() {
                             <option>Quarterly</option>
                             <option>Yearly</option>
                           </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-sky-500 uppercase tracking-widest">Rate per Credit (Purchase)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-full rounded-xl border-2 border-sky-100 bg-sky-50 px-4 py-3.5 font-pmedium text-sky-900 outline-none focus:border-sky-600"
+                            value={companyForm.creditConfiguration.ratePerCredit ?? '10'}
+                            onChange={(e) => updateCompanySection('creditConfiguration', 'ratePerCredit', e.target.value)}
+                            placeholder="Price the tenant pays per credit when buying more (default 10)"
+                          />
+                          <p className="text-[9px] font-pmedium text-slate-400">Used on the tenant Buy Credits page — each company can have its own negotiated price.</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-emerald-500 uppercase tracking-widest">Purchased Credits</label>

@@ -310,11 +310,12 @@ interface EditFormAddOnCredits {
   remainingCredits: string;
 }
 
-interface EditFormCreditConfiguration {
-  monthlyTotalCredits: string;
-  creditResetCycle: string;
-  creditUsageTracking: string;
-}
+  interface EditFormCreditConfiguration {
+    monthlyTotalCredits: string;
+    creditResetCycle: string;
+    creditUsageTracking: string;
+    ratePerCredit: string;
+  }
 
 interface EditForm {
   companyName: string;
@@ -740,6 +741,7 @@ function normalizeTenantCompany(company: Record<string, unknown> = {}, packageLo
       monthlyTotalCredits: derivedMonthlyCredits,
       creditResetCycle: String((creditConfiguration as Record<string, unknown>).creditResetCycle || 'Monthly'),
       creditUsageTracking: String((creditConfiguration as Record<string, unknown>).creditUsageTracking || ''),
+      ratePerCredit: String((creditConfiguration as Record<string, unknown>).ratePerCredit ?? 10),
     },
     addOnCredits: {
       purchasedCredits,
@@ -822,6 +824,7 @@ function buildEditForm(company: TenantCompany): EditForm {
       monthlyTotalCredits: String(company.creditConfiguration?.monthlyTotalCredits || company.packageDetails?.monthlyTotalCredits || Math.max(0, Number(company.creditsAllocated || 0) - Number(company.addOnCredits?.purchasedCredits || 0))),
       creditResetCycle: company.creditConfiguration?.creditResetCycle || 'Monthly',
       creditUsageTracking: company.creditConfiguration?.creditUsageTracking || '',
+      ratePerCredit: String(company.creditConfiguration?.ratePerCredit ?? (company as Record<string, unknown>).ratePerCredit ?? 10),
     },
     creditsUsed: String(company.creditsUsed || 0),
     notes: company.notes || '',
@@ -1535,6 +1538,10 @@ export default function AdministrationTenantCompaniesPage() {
                           <option>Quarterly</option>
                           <option>Yearly</option>
                         </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Rate per Credit (Purchase)</label>
+                        <input type="number" min="0" step="0.01" title="Price the tenant pays per credit when buying more (default 10)" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.creditConfiguration.ratePerCredit ?? '10'} onChange={(event) => updateEditSection('creditConfiguration', 'ratePerCredit', event.target.value)} />
                       </div>
                       <div>
                         <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Purchased Credits</label>

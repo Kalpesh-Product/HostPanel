@@ -382,12 +382,12 @@ export default function TenantDashboardPage() {
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider border ${canManageTenant ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                   {canManageTenant ? 'Tenant Manager' : 'Tenant Employee'}
                 </span>
-                <p className="text-xs font-pmedium text-slate-500">
+                {/* <p className="text-xs font-pmedium text-slate-500">
                   Your tenant workspace at a glance — rooms, bookings, tickets and credits.
-                </p>
+                </p> */}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap" data-tour="tenant-dash-actions">
               <Link to="/dashboard/tenant/meeting-room-booking" className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-slate-200/60 px-3.5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] active:scale-95">
                 <Calendar size={14} /> Book Room
               </Link>
@@ -401,7 +401,7 @@ export default function TenantDashboardPage() {
           </div>
 
           {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0" data-tour="tenant-dash-summary">
             {summaryCards.map((card) => (
               <div key={card.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}>
                 <div className="min-w-0">
@@ -415,7 +415,7 @@ export default function TenantDashboardPage() {
 
           {/* ── Upcoming Bookings + Room Pool ── */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[320px] xl:col-span-2">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[320px] xl:col-span-2" data-tour="tenant-dash-upcoming">
               <div className="flex items-center justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:p-4 lg:p-5">
                 <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
                   <Clock size={15} className="text-[#2563EB]" />
@@ -476,7 +476,7 @@ export default function TenantDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[320px]">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[320px]" data-tour="tenant-dash-rooms">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
                   <MapPin size={15} className="text-[#2563EB]" /> Room Pool
@@ -512,7 +512,7 @@ export default function TenantDashboardPage() {
           {/* ── Tickets + Team Snapshot + Tenant Summary ── */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]" data-tour="tenant-dash-tickets">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
                   <Ticket size={15} className="text-amber-500" /> {canManageTenant ? 'Company Tickets' : 'My Tickets'}
@@ -549,7 +549,7 @@ export default function TenantDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]" data-tour="tenant-dash-team">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
                   <UserCheck size={15} className="text-emerald-600" /> Team Snapshot
@@ -625,7 +625,7 @@ export default function TenantDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col min-h-[360px]" data-tour="tenant-dash-balance">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
                   <CheckCircle2 size={15} className="text-emerald-600" /> Tenant Summary

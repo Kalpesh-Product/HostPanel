@@ -666,7 +666,7 @@ export default function TenantBookingHistoryPage() {
                 Track bookings, handle invites, and keep your tenant meetings in one place.
               </p>
             </div>
-            <button onClick={() => void handleRefresh()} disabled={isLoading}
+            <button onClick={() => void handleRefresh()} disabled={isLoading} data-tour="tenant-history-refresh"
               className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-slate-200/60 px-3.5 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] disabled:opacity-60">
               <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Refresh
             </button>
@@ -684,7 +684,7 @@ export default function TenantBookingHistoryPage() {
           )}
 
           {/* ── Main Pill Tabs ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm" data-tour="tenant-history-tabs">
             {visibleMainTabs.map((tab) => (
               <button
                 key={tab.key}
@@ -702,7 +702,7 @@ export default function TenantBookingHistoryPage() {
           </div>
 
           {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0" data-tour="tenant-history-summary">
             {[
               { label: 'Upcoming', value: upcomingCount, borderClass: 'border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600', icon: <Calendar size={16} /> },
               { label: 'Past Meetings', value: pastCount, borderClass: 'border-l-4 border-l-violet-500', iconClass: 'bg-violet-50 text-violet-600', icon: <History size={16} /> },
@@ -723,7 +723,7 @@ export default function TenantBookingHistoryPage() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
             {/* Panel header row: sub-tabs → book button */}
-            <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
+            <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5" data-tour="tenant-history-subtabs">
               <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {SUB_TABS.map((pill) => (
                   <button
@@ -743,7 +743,7 @@ export default function TenantBookingHistoryPage() {
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto flex-1 bg-white/20">
+            <div className="overflow-x-auto flex-1 bg-white/20" data-tour="tenant-history-table">
               <table className="w-full min-w-[1080px] text-left font-pmedium">
                 <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                   <tr>
@@ -774,7 +774,7 @@ export default function TenantBookingHistoryPage() {
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><MapPin size={16} /></div>
                             <div className="min-w-0">
                               <p className="text-[13px] font-pmedium text-slate-900 truncate">{booking.roomName}</p>
-                              <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{booking.bookingCode || booking.id}</p>
+                              {/* <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{booking.bookingCode || booking.id}</p> */}
                               <p className="mt-0.5 text-[11px] font-pregular text-slate-500 capitalize">{booking.bookingType || 'Tenant'}</p>
                             </div>
                           </div>

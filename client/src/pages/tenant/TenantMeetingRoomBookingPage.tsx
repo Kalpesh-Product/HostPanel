@@ -645,7 +645,7 @@ export default function TenantMeetingRoomBookingPage() {
           )}
 
           {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0" data-tour="tenant-rooms-summary">
             {[
               { label: 'Available Rooms', value: summary.total, borderClass: '', iconClass: 'bg-slate-50 text-slate-600', icon: <Building2 size={16} /> },
               { label: 'Meeting Rooms', value: summary.meeting, borderClass: 'border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600', icon: <Monitor size={16} /> },
@@ -667,7 +667,7 @@ export default function TenantMeetingRoomBookingPage() {
 
             {/* Panel header row: type pills → search → floor/wing/type filters */}
             <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
-              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" data-tour="tenant-rooms-type-pills">
                 {ROOM_TYPE_OPTIONS.map((option) => (
                   <button
                     key={option}
@@ -683,16 +683,18 @@ export default function TenantMeetingRoomBookingPage() {
 
               <div className="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap xl:w-auto">
                 <select value={selectedFloor} onChange={(e) => setSelectedFloor(e.target.value)}
+                  data-tour="tenant-rooms-floor-filter"
                   className="min-w-[110px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50">
                   <option value="all">All Floors</option>
                   {availableFloors.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
                 </select>
                 <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
+                  data-tour="tenant-rooms-wing-filter"
                   className="min-w-[100px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50">
                   <option value="all">All Wings</option>
                   {availableWings.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
                 </select>
-                <div className="relative min-w-[180px] flex-1">
+                <div className="relative min-w-[180px] flex-1" data-tour="tenant-rooms-search">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     type="text"
@@ -706,7 +708,7 @@ export default function TenantMeetingRoomBookingPage() {
             </div>
 
             {/* Room grid */}
-            <div className="flex-1 p-3 sm:p-4 lg:p-5 bg-white/20 overflow-y-auto">
+            <div className="flex-1 p-3 sm:p-4 lg:p-5 bg-white/20 overflow-y-auto" data-tour="tenant-rooms-grid">
               {groupedRooms.length === 0 ? (
                 <div className="py-16 text-center">
                   <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">

@@ -28,8 +28,10 @@ import {
   submitMyTenantCompanyCreditRequestPayment,
 } from '@/services/tenant-companies';
 
-const CREDIT_RATE = 10;
 const MIN_CREDIT_REQUEST = 50;
+// Fallback only — the live rate comes from the tenant company record
+// (creditConfiguration.ratePerCredit, set by Sales per contract).
+const DEFAULT_CREDIT_RATE = 10;
 
 function normalizeText(value: unknown): string {
   return String(value ?? '').trim();
@@ -94,6 +96,7 @@ export default function TenantBuyCreditsPage() {
   const [creditRequests, setCreditRequests] = useState<CreditRequest[]>([]);
   const [companyCreditsAllocated, setCompanyCreditsAllocated] = useState(0);
   const [companyCreditsRemaining, setCompanyCreditsRemaining] = useState(0);
+  const [creditRate, setCreditRate] = useState(DEFAULT_CREDIT_RATE);
   const [showNewRequestForm, setShowNewRequestForm] = useState(false);
   const [newCredits, setNewCredits] = useState('');
   const [newReason, setNewReason] = useState('');
@@ -121,6 +124,7 @@ export default function TenantBuyCreditsPage() {
         if (active) {
           setCreditRequests(requests);
           setCompanyCreditsAllocated(Number(tenant.creditsAllocated || 0));
+          setCreditRate(Number(tenant.ratePerCredit ?? DEFAULT_CREDIT_RATE) > 0 ? Number(tenant.ratePerCredit) : DEFAULT_CREDIT_RATE);
           if (typeof tenant.creditsRemaining === 'number') {
             setCompanyCreditsRemaining(Number(tenant.creditsRemaining || 0));
           } else {
@@ -145,6 +149,7 @@ export default function TenantBuyCreditsPage() {
     const tenant = payload.tenant || {};
     setCreditRequests(requests);
     setCompanyCreditsAllocated(Number(tenant.creditsAllocated || 0));
+    setCreditRate(Number(tenant.ratePerCredit ?? DEFAULT_CREDIT_RATE) > 0 ? Number(tenant.ratePerCredit) : DEFAULT_CREDIT_RATE);
     if (typeof tenant.creditsRemaining === 'number') {
       setCompanyCreditsRemaining(Number(tenant.creditsRemaining || 0));
     } else {
@@ -291,7 +296,7 @@ export default function TenantBuyCreditsPage() {
           )}
 
           {/* ── Stat Cards ── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 shrink-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 shrink-0" data-tour="tenant-credits-summary">
             <div className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 ${isCreditLow ? 'border-l-red-500' : 'border-l-emerald-500'}`}>
               <div className="min-w-0">
                 <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${isCreditLow ? 'text-red-600' : 'text-emerald-600'}`}>Remaining Credits</p>
@@ -319,16 +324,16 @@ export default function TenantBuyCreditsPage() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
             {/* Panel header row: pricing info → usage */}
-            <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
+            <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5" data-tour="tenant-credits-pricing">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="rounded-lg bg-white border border-blue-100 bg-blue-50/50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]">Pricing: 1 CR = {currencySymbol}{CREDIT_RATE}</span>
+                <span className="rounded-lg bg-white border border-blue-100 bg-blue-50/50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]">Pricing: 1 CR = {currencySymbol}{creditRate}</span>
                 <span className="rounded-lg bg-white border border-amber-100 bg-amber-50/50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-600">Minimum: {MIN_CREDIT_REQUEST} CR</span>
                 {companyCreditsAllocated > 0 && (
                   <span className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{creditUsagePercent}% used</span>
                 )}
               </div>
               {canManageTenant && (
-                <button onClick={openCreateModal}
+                <button onClick={openCreateModal} data-tour="tenant-credits-new-request"
                   className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] uppercase tracking-widest flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap">
                   <Plus size={13} strokeWidth={3} /> New Credit Request
                 </button>
@@ -336,7 +341,7 @@ export default function TenantBuyCreditsPage() {
             </div>
 
             {/* Request history table */}
-            <div className="overflow-x-auto flex-1 bg-white/20">
+            <div className="overflow-x-auto flex-1 bg-white/20" data-tour="tenant-credits-table">
               <table className="w-full min-w-[900px] text-left font-pmedium">
                 <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                   <tr>
@@ -383,7 +388,7 @@ export default function TenantBuyCreditsPage() {
                           <td className="px-5 py-4 whitespace-nowrap">
                             <p className="text-[13px] font-pmedium text-slate-900">{formatCurrency(request.totalAmount)}</p>
                             {Number(request.totalAmount || 0) > 0 && (
-                              <p className="mt-1 text-[10px] font-pmedium text-slate-400">{Number(request.requestedCredits || 0)} CR × {currencySymbol}{Number(request.ratePerCredit || CREDIT_RATE)}</p>
+                              <p className="mt-1 text-[10px] font-pmedium text-slate-400">{Number(request.requestedCredits || 0)} CR × {currencySymbol}{Number(request.ratePerCredit || creditRate)}</p>
                             )}
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap">
@@ -536,10 +541,10 @@ export default function TenantBuyCreditsPage() {
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-[12px]">
                   <div className="flex items-center justify-between font-pmedium text-slate-700">
                     <span>Estimated Price</span>
-                    <span className="font-pmedium text-slate-900">{formatCurrency(Number(newCredits || 0) * CREDIT_RATE)}</span>
+                    <span className="font-pmedium text-slate-900">{formatCurrency(Number(newCredits || 0) * creditRate)}</span>
                   </div>
                   <div className="mt-1 text-[11px] font-pregular text-slate-500">
-                    {newCredits ? `${newCredits} CR × ${currencySymbol}${CREDIT_RATE} = ${formatCurrency(Number(newCredits) * CREDIT_RATE)}` : `Enter credits to see price (${currencySymbol}${CREDIT_RATE} per CR)`}
+                    {newCredits ? `${newCredits} CR × ${currencySymbol}${creditRate} = ${formatCurrency(Number(newCredits) * creditRate)}` : `Enter credits to see price (${currencySymbol}${creditRate} per CR)`}
                   </div>
                 </div>
               </div>

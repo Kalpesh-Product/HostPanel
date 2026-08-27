@@ -233,6 +233,10 @@ const tenantCreditConfigurationSchema = new Schema(
     monthlyTotalCredits: { type: Number, default: 0, min: 0 },
     creditResetCycle: { type: String, default: "Monthly", trim: true, maxlength: 40 },
     creditUsageTracking: { type: String, default: "", trim: true, maxlength: 240 },
+    // Price charged per meeting-room credit when this tenant purchases more.
+    // Negotiated per contract — defaults to the standard 10 until Sales sets
+    // a company-specific value. Frozen onto each credit request at creation.
+    ratePerCredit: { type: Number, default: 10, min: 0 },
   },
   { _id: false },
 );

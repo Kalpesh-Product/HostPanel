@@ -486,6 +486,10 @@ export default function AdministrationTenantCompanyDetailPage() {
                         <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Remaining Credits</p>
                         <p className="text-xs font-pmedium text-slate-900 mt-1">{(cr)}</p>
                       </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Rate per Credit</p>
+                        <p className="text-xs font-pmedium text-slate-900 mt-1">{fmt(Number(tenant.creditConfiguration?.ratePerCredit ?? tenant.ratePerCredit ?? 10))}</p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -627,7 +631,10 @@ export default function AdministrationTenantCompanyDetailPage() {
                       <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Credit Utilization</p>
                       <p className="text-[15px] font-pmedium text-slate-900">{(cu)} of {(ca + pc)} used</p>
                     </div>
-                    <div className="p-2 rounded-2xl bg-blue-50 text-blue-600"><CreditCard size={20} /></div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium text-blue-700">Rate: {fmt(Number(tenant.creditConfiguration?.ratePerCredit ?? tenant.ratePerCredit ?? 10))} / CR</span>
+                      <div className="p-2 rounded-2xl bg-blue-50 text-blue-600"><CreditCard size={20} /></div>
+                    </div>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-500"

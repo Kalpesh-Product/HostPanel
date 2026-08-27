@@ -553,24 +553,20 @@ export const login = async (req, res, next) => {
     delete user.password;
     delete user.refreshToken;
 
+    // verifyJwt only ever reads userInfo._id off the decoded token (it
+    // re-fetches everything else fresh from the DB on every request), so the
+    // payload is kept to just the id. Embedding the full user document here
+    // previously made the Set-Cookie header balloon for accounts with a long
+    // passwordHistory or many workspaceAccess entries, large enough that
+    // nginx rejected it outright ("upstream sent too big header") on login.
     const accessToken = jwt.sign(
-      {
-        userInfo: {
-          ...user,
-          hasCompletedWorkspaceSetup: hasCompletedWorkspaceSetupForSession,
-        },
-      },
+      { userInfo: { _id: user._id } },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: "15m" }
     );
 
     const refreshToken = jwt.sign(
-      {
-        userInfo: {
-          ...user,
-          hasCompletedWorkspaceSetup: hasCompletedWorkspaceSetupForSession,
-        },
-      },
+      { userInfo: { _id: user._id } },
       process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "15d" }
     );

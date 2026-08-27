@@ -631,6 +631,7 @@ async function formatTenantCompany(company, preloaded = null) {
     packageDetails: { ...packageDetails, locationMappings },
     packageLocationLabels,
     creditConfiguration: company.creditConfiguration || {},
+    ratePerCredit: Number(company.creditConfiguration?.ratePerCredit ?? 10) || 10,
     addOnCredits: {
       ...(company.addOnCredits || {}),
       purchasedCredits,
@@ -896,6 +897,7 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       monthlyTotalCredits: Math.max(0, Number(input.creditConfiguration?.monthlyTotalCredits || 0)),
       creditResetCycle: normalizeText(input.creditConfiguration?.creditResetCycle || "Monthly") || "Monthly",
       creditUsageTracking: normalizeText(input.creditConfiguration?.creditUsageTracking || ""),
+      ratePerCredit: Math.max(0, Number(input.creditConfiguration?.ratePerCredit ?? 10)) || 10,
     },
     addOnCredits: {
       purchasedCredits: Math.max(0, Number(input.addOnCredits?.purchasedCredits || 0)),
@@ -1413,6 +1415,12 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
   }
 
   const requestedCredits = Math.max(1, Math.min(100000, Number(input.requestedCredits || 0)));
+  // Rate is negotiated per company on the tenant record (Sales sets it from
+  // the tenant company form). Fall back to the standard 10 for legacy
+  // companies created before the field existed.
+  const ratePerCredit = Number(company.creditConfiguration?.ratePerCredit ?? 10) > 0
+    ? Number(company.creditConfiguration.ratePerCredit)
+    : 10;
   const now = new Date();
   const request = await TenantCreditRequest.create({
     tenantCompanyId: company._id,
@@ -1420,8 +1428,8 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
     id: `CRQ-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     requestedCredits,
     approvedCredits: 0,
-    ratePerCredit: 10,
-    totalAmount: requestedCredits * 10,
+    ratePerCredit,
+    totalAmount: roundNumber(requestedCredits * ratePerCredit),
     status: "PENDING_SALES_APPROVAL",
     invoiceStatus: "Pending",
     requestedReason: normalizeText(input.requestedReason || ""),

@@ -11,6 +11,7 @@ import { getBasicPageTour } from "./basicPageTours";
 import type { BasicPageTourStep } from "./basicPageTours";
 import { getProfessionalPageTour } from "./professionalPageTours";
 import { getCustomPageTour } from "./customPageTours";
+import { getTenantPageTour } from "./tenantPageTours";
 
 type TourStatus = "completed" | "skipped";
 
@@ -185,7 +186,9 @@ export default function usePageTour() {
   );
   const currentTour = useMemo(
     () => {
-      if (user?.tenantRole) return null;
+      // Tenant portal users get the tenant registry — their pages are not
+      // plan-gated like host workspaces.
+      if (user?.tenantRole) return getTenantPageTour(location.pathname);
       if (access.plan === "basic") return getBasicPageTour(location.pathname);
       if (access.plan === "professional") return getProfessionalPageTour(location.pathname);
       if (access.plan === "custom") return getCustomPageTour(location.pathname);
@@ -201,11 +204,12 @@ export default function usePageTour() {
       return response?.data?.data?.progress || {};
     },
     enabled:
-      (access.plan === "basic" || access.plan === "professional" || access.plan === "custom") &&
+      ((access.plan === "basic" || access.plan === "professional" || access.plan === "custom") ||
+        Boolean(user?.tenantRole)) &&
       !access.isLoading &&
-      !auth?.impersonation &&
-      !user?.tenantRole,
+      !auth?.impersonation,
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const saveProgress = useCallback(
@@ -236,7 +240,8 @@ export default function usePageTour() {
 
   const startCurrentTour = useCallback(
     (automatic = false, allowIntroOnly = false) => {
-      if (!currentTour || (access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") || auth?.impersonation) return false;
+      const isTenantUser = Boolean(user?.tenantRole);
+      if (!currentTour || (!isTenantUser && access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") || auth?.impersonation) return false;
 
       const saved = progress[currentTour.id];
       if (automatic && saved && saved.version >= currentTour.version) return false;
@@ -305,14 +310,15 @@ export default function usePageTour() {
       instance.drive();
       return true;
     },
-    [access.plan, auth?.impersonation, currentTour, progress, saveProgress],
+    [access.plan, auth?.impersonation, currentTour, progress, saveProgress, user?.tenantRole],
   );
 
   useEffect(() => {
+    const isTenantUser = Boolean(user?.tenantRole);
     if (
       access.isLoading ||
       isProgressLoading ||
-      (access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") ||
+      (!isTenantUser && access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") ||
       !currentTour ||
       // Manual-only tours (autoStart: false) never play on page load;
       // they run only through the Guide button above.
@@ -346,6 +352,7 @@ export default function usePageTour() {
     isProgressLoading,
     progress,
     startCurrentTour,
+    user?.tenantRole,
     userScope,
   ]);
 
@@ -357,7 +364,10 @@ export default function usePageTour() {
   return {
     isTourAvailable: Boolean(
       currentTour &&
-      (access.plan === "basic" || access.plan === "professional" || access.plan === "custom") &&
+      (Boolean(user?.tenantRole) ||
+        access.plan === "basic" ||
+        access.plan === "professional" ||
+        access.plan === "custom") &&
       !auth?.impersonation,
     ),
     startCurrentTour: () => startCurrentTour(false, true),

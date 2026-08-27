@@ -687,35 +687,35 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   {
     pattern: "/dashboard/tenant",
     crumbs: [
-      { label: SECTION_LABELS.tenantPortal },
+      { label: SECTION_LABELS.tenantPortal, path: "/dashboard/tenant" },
       { label: "Dashboard" },
     ],
   },
   {
     pattern: "/dashboard/tenant/meeting-room-booking",
     crumbs: [
-      { label: SECTION_LABELS.tenantPortal },
+      { label: SECTION_LABELS.tenantPortal, path: "/dashboard/tenant" },
       { label: "Meeting Room Booking" },
     ],
   },
   {
     pattern: "/dashboard/tenant/booking-history",
     crumbs: [
-      { label: SECTION_LABELS.tenantPortal },
+      { label: SECTION_LABELS.tenantPortal, path: "/dashboard/tenant" },
       { label: "Booking History" },
     ],
   },
   {
     pattern: "/dashboard/tenant/buy-credits",
     crumbs: [
-      { label: SECTION_LABELS.tenantPortal },
+      { label: SECTION_LABELS.tenantPortal, path: "/dashboard/tenant" },
       { label: "Buy Credits" },
     ],
   },
   {
     pattern: "/dashboard/tenant/tickets",
     crumbs: [
-      { label: SECTION_LABELS.tenantPortal },
+      { label: SECTION_LABELS.tenantPortal, path: "/dashboard/tenant" },
       { label: "Tickets" },
     ],
   },
