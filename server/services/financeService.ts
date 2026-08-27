@@ -1094,42 +1094,12 @@ export async function submitVendorForDepartmentInternal(input: {
       // Strict line-item model: an expense's actual can never exceed its own
       // approved projection. Extra needs live on their own approved Add-on line.
       const projected = safeNumber(existingExpense.projectedAmount, 0);
-      let maxActual = projected;
-      if (existingIsAddon) {
-        // B-tightened pool: all approved extras for the month are shared across
-        // regular-line overages + other Add-on lines' recorded actuals.
-        const siblings = await FinanceExpense.find(
-          { workspaceId, planId, monthKey: safeString(monthKey) },
-          "expenseKey expenseTag projectedAmount actualAmount"
-        ).lean();
-        let regularOverages = 0;
-        let otherAddonActuals = 0;
-        for (const e of siblings) {
-          if (normalizeExpenseTag(safeString(e.expenseTag)) === "add-on") {
-            if (safeString(e.expenseKey) === expenseId) continue;
-            otherAddonActuals += Math.max(0, safeNumber(e.actualAmount, 0));
-          } else {
-            regularOverages += Math.max(0, safeNumber(e.actualAmount, 0) - safeNumber(e.projectedAmount, 0));
-          }
-        }
-        const approvedDocs = await ExtraFinanceRequest.find(
-          {
-            workspaceId,
-            department: safeString((plan as any).department),
-            fiscalYear: safeString((plan as any).fiscalYear),
-            monthKey: safeString(monthKey),
-            status: "Approved",
-          },
-          "amount"
-        ).lean();
-        const approvedTotal = approvedDocs.reduce((s, d) => s + safeNumber(d.amount, 0), 0);
-        maxActual = Math.min(projected, Math.max(0, approvedTotal - regularOverages - otherAddonActuals));
-      }
+      const maxActual = projected;
       if (actualAmount > maxActual + 0.009) {
         throw Object.assign(
           new Error(
             existingIsAddon
-              ? `This month's approved extra budget is exhausted (${Math.min(projected, maxActual).toLocaleString()} remains on this line). File a new extra budget request for additional funds.`
+              ? `Actual cost cannot exceed this Add-on line's approved amount (${projected.toLocaleString()}). File a new extra budget request for additional funds.`
               : `Actual cost cannot exceed the projected amount (${projected.toLocaleString()}). File an extra budget request for the additional funds — it becomes its own approved line.`
           ),
           { statusCode: 409 }
@@ -1215,8 +1185,7 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
   const planId = payload?.planId;
   const monthKey = safeString(payload?.monthKey || payload?.month || "", "");
   const amount = safeNumber(payload?.amount, 0);
-  const title = safeString(payload?.reason || payload?.title || "Extra budget expense", "");
-  const expenseTag = "Add-on";
+  const title = safeString(payload?.title, "");
   // Two amendment types: "new" adds a fresh line; "increase" tops up an
   // EXISTING projected line (its projection is raised once fully approved).
   const requestType = normalizeExpenseTag(safeString(payload?.type)) === "increase" ? "increase" : "new";
@@ -1225,6 +1194,9 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
   const dueDate = safeString(payload?.dueDate, "");
   if (!monthKey) throw Object.assign(new Error("monthKey is required."), { statusCode: 400 });
   if (!Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error("amount must be > 0."), { statusCode: 400 });
+  if (requestType === "new" && !title) {
+    throw Object.assign(new Error("Expense title is required for a new extra budget request."), { statusCode: 400 });
+  }
   if (requestType === "increase" && !targetExpenseKey) {
     throw Object.assign(new Error("Select the budget line that exceeded its projection."), { statusCode: 400 });
   }
@@ -1273,6 +1245,7 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
       department: plan.department,
       fiscalYear: plan.fiscalYear,
       amount,
+      title: safeString(targetExpense.title || "", ""),
       reason: safeString(payload?.reason || "", ""),
       type: "increase",
       targetExpenseKey,
@@ -1300,52 +1273,8 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
     return { plan, extraRequest };
   }
 
-  const expenseKey = `EXP-${plan.planKey}-${normalizeMonthKey(monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  const expense = await FinanceExpense.create({
-    workspaceId,
-    planId: plan._id,
-    expenseKey,
-    importKey: safeString(payload?.importKey, ""),
-    title,
-    description: safeString(payload?.breakdown || payload?.reason, ""),
-    monthKey,
-    month: safeString(payload?.month || monthKey, ""),
-    date: safeString(payload?.date, ""),
-    dueDate,
-    projectedAmount: amount,
-    actualAmount: 0,
-    savings: amount,
-    paymentStatus: safeString(payload?.paymentStatus, "Planned"),
-    invoiceNumber: "",
-    invoiceFile: "",
-    invoiceUrl: "",
-    invoicePublicId: "",
-    sourceSheet: safeString(payload?.sourceSheet, ""),
-    sourceRowNumber: Number(payload?.sourceRowNumber ?? 0),
-    expenseTag: expenseTag,
-    vendorId: "",
-    vendorObjectId: null,
-    vendorName: "",
-    vendorContactPerson: "",
-    vendorEmail: "",
-    vendorPhone: "",
-    vendorAddress: "",
-    vendorPaymentTerms: "",
-    vendorCategory: "",
-    vendorGstin: "",
-    vendorPanNumber: "",
-    vendorBankName: "",
-    vendorAccountName: "",
-    vendorAccountNumber: "",
-    vendorIfscCode: "",
-    vendorUpiId: "",
-    vendorWebsite: "",
-    vendorImportKey: "",
-    notes: safeString(payload?.notes, ""),
-  });
-
-  // Also create an ExtraFinanceRequest so the approval/decision endpoint can find it
+  // The request is the approval record. Its spendable Add-on expense is created
+  // only after both approvers sign off, then linked back through appliedExpenseId.
   const submittedAtLabel = new Date().toLocaleDateString("en-IN", {
     month: "short",
     day: "2-digit",
@@ -1359,7 +1288,9 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
     department: plan.department,
     fiscalYear: plan.fiscalYear,
     amount: amount,
-    reason: safeString(payload?.reason || payload?.title || "Extra budget request", ""),
+    title,
+    reason: safeString(payload?.reason, ""),
+    type: "new",
     monthKey,
     month: safeString(payload?.month || monthKey, ""),
     dueDate,
@@ -1380,8 +1311,6 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
     },
   });
 
-  await syncMonthlyPlanFromFinanceExpenses((plan._id as unknown) as mongoose.Types.ObjectId);
-
   const reminderId = buildPlanReminderId(plan, monthKey);
   const sentAtLabel = new Date().toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" });
   // Use updateOne with $push to avoid version conflict with syncMonthlyPlanFromFinanceExpenses
@@ -1394,7 +1323,7 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
             id: reminderId,
             importKey: "",
             monthKey,
-            message: `Extra budget ${expenseKey} added for ${plan.department} (${monthKey}).`,
+            message: `Extra budget request ${extraRequest.requestKey} submitted for ${plan.department} (${monthKey}).`,
             status: "Sent",
             sentAtLabel,
           }],
@@ -1404,7 +1333,7 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
     }
   ).exec();
 
-  return { plan, expense, extraRequest };
+  return { plan, extraRequest };
 }
 
 export async function uploadInvoiceForDepartmentInternal(input: {
@@ -1418,6 +1347,7 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   const expenseKey = safeString(payload?.expenseKey || payload?.expenseId || "", "");
   const monthKey = safeString(payload?.monthKey || payload?.month || "", "");
   const invoiceNumber = safeString(payload?.invoiceNumber || payload?.invoiceNo || "", "");
+  const invoiceAmount = safeNumber(payload?.invoiceAmount ?? payload?.amount, 0);
   // Request-stage mode: attach a proof invoice to a PENDING extra/increase
   // request so approvers can review it before deciding.
   const requestId = safeString(payload?.requestId || "", "");
@@ -1449,6 +1379,9 @@ export async function uploadInvoiceForDepartmentInternal(input: {
 
   if (!expenseKey) throw Object.assign(new Error("expenseKey is required."), { statusCode: 400 });
   if (!invoiceNumber) throw Object.assign(new Error("invoiceNumber is required."), { statusCode: 400 });
+  if (!Number.isFinite(invoiceAmount) || invoiceAmount <= 0) {
+    throw Object.assign(new Error("invoiceAmount must be greater than zero."), { statusCode: 400 });
+  }
 
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
@@ -1459,29 +1392,65 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   // already paid ("Payment Done - Invoice Pending" -> "Invoice Shared"). For a
   // department paying invoice-first, keep the pending/planned status so the
   // subsequent "mark paid" transition stays forward.
-  const existingExpense = await FinanceExpense.findOne({ workspaceId, planId, expenseKey, monthKey: monthKey || undefined })
-    .select("paymentStatus")
-    .lean()
-    .exec();
+  const existingExpense = await FinanceExpense.findOne({ workspaceId, planId, expenseKey, monthKey: monthKey || undefined }).exec();
   if (!existingExpense) throw Object.assign(new Error("Expense not found for invoice upload."), { statusCode: 404 });
 
-  const invoiceSet: Record<string, unknown> = {
+  const invoices: any[] = Array.isArray((existingExpense as any).invoices)
+    ? (existingExpense as any).invoices.map((invoice: any) => invoice?.toObject ? invoice.toObject() : { ...invoice })
+    : [];
+
+  // Preserve an existing pre-migration invoice as the first history entry.
+  if (invoices.length === 0 && safeString((existingExpense as any).invoiceNumber)) {
+    invoices.push({
+      invoiceKey: `LEGACY-${existingExpense._id}`,
+      invoiceNumber: safeString((existingExpense as any).invoiceNumber),
+      amount: safeNumber((existingExpense as any).actualAmount, 0),
+      invoiceFile: safeString((existingExpense as any).invoiceFile),
+      invoiceUrl: safeString((existingExpense as any).invoiceUrl || (existingExpense as any).invoiceFile),
+      invoicePublicId: safeString((existingExpense as any).invoicePublicId),
+      uploadedByUserId: null,
+      uploadedAt: (existingExpense as any).updatedAt || (existingExpense as any).createdAt || new Date(),
+      uploadedAtLabel: "Legacy invoice",
+    });
+  }
+
+  if (invoices.some((invoice: any) => safeString(invoice?.invoiceNumber).toLowerCase() === invoiceNumber.toLowerCase())) {
+    throw Object.assign(new Error("This invoice number is already attached to the expense."), { statusCode: 409 });
+  }
+
+  const nextActualAmount = invoices.reduce((sum: number, invoice: any) => sum + safeNumber(invoice?.amount, 0), 0) + invoiceAmount;
+  const projectedAmount = safeNumber((existingExpense as any).projectedAmount, 0);
+  if (nextActualAmount > projectedAmount + 0.009) {
+    throw Object.assign(
+      new Error(`Invoice total cannot exceed the approved projection (${projectedAmount.toLocaleString()}). Use Increase Projected first.`),
+      { statusCode: 409 }
+    );
+  }
+
+  const uploadedAt = new Date();
+  invoices.push({
+    invoiceKey: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     invoiceNumber,
+    amount: invoiceAmount,
     invoiceFile,
     invoiceUrl,
     invoicePublicId,
-  };
+    uploadedByUserId: input.userId,
+    uploadedAt,
+    uploadedAtLabel: formatBillingDateLabel(uploadedAt),
+  });
+
+  (existingExpense as any).invoices = invoices;
+  existingExpense.invoiceNumber = invoiceNumber;
+  existingExpense.invoiceFile = invoiceFile;
+  existingExpense.invoiceUrl = invoiceUrl;
+  existingExpense.invoicePublicId = invoicePublicId;
+  existingExpense.actualAmount = nextActualAmount;
+  existingExpense.savings = Math.max(0, projectedAmount - nextActualAmount);
   if (getPaymentStatusRank(safeString((existingExpense as any).paymentStatus)) >= 2) {
-    invoiceSet.paymentStatus = "Invoice Shared";
+    existingExpense.paymentStatus = "Invoice Shared";
   }
-
-  const updated = await FinanceExpense.findOneAndUpdate(
-    { workspaceId, planId, expenseKey, monthKey: monthKey || undefined },
-    { $set: invoiceSet },
-    { new: true }
-  ).exec();
-
-  if (!updated) throw Object.assign(new Error("Expense not found for invoice upload."), { statusCode: 404 });
+  const updated = await existingExpense.save();
 
   if (!Array.isArray(plan.reminders)) plan.reminders = [];
   plan.reminders.unshift({
@@ -1494,6 +1463,7 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   } as any);
 
   await plan.save();
+  await syncMonthlyPlanFromFinanceExpenses((plan._id as unknown) as mongoose.Types.ObjectId);
   return { plan, expense: updated };
 }
 
@@ -1974,6 +1944,7 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     const record = await ExtraFinanceRequest.findById(requestObjectId).exec();
     if (!record) throw Object.assign(new Error("Extra finance request not found."), { statusCode: 404 });
     if (String(record.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+    const wasApplied = Boolean((record as any).appliedAt);
 
     const step = role === "owner" ? "owner" : "financeManager";
     (record.approvalFlow as any)[step] = {
@@ -2012,30 +1983,58 @@ export async function applyFinanceApprovalDecisionInternal(input: {
 
     // Line-increase amendments auto-raise the target line's projection once
     // fully approved — no manual editing needed.
-    if (
-      record.status === "Approved" &&
-      safeString((record as any).type) === "increase" &&
-      safeString((record as any).targetExpenseKey)
-    ) {
-      const incPlan = await DepartmentFinancePlan.findOne({
+    if (record.status === "Approved" && !wasApplied) {
+      const targetPlan = await DepartmentFinancePlan.findOne({
         workspaceId,
         department: (record as any).department,
         fiscalYear: (record as any).fiscalYear,
       }).exec();
-      if (incPlan) {
+      if (!targetPlan) {
+        throw Object.assign(new Error("Department finance plan not found for this request."), { statusCode: 404 });
+      }
+
+      if (safeString((record as any).type) === "increase" && safeString((record as any).targetExpenseKey)) {
         const targetExpense = await FinanceExpense.findOne({
           workspaceId,
-          planId: incPlan._id,
+          planId: targetPlan._id,
           expenseKey: safeString((record as any).targetExpenseKey),
         }).exec();
-        if (targetExpense) {
-          const raiseBy = safeNumber((record as any).amount, 0);
-          targetExpense.projectedAmount = safeNumber(targetExpense.projectedAmount, 0) + raiseBy;
-          targetExpense.savings = Math.max(0, safeNumber(targetExpense.projectedAmount, 0) - safeNumber(targetExpense.actualAmount, 0));
-          await targetExpense.save();
-          await syncMonthlyPlanFromFinanceExpenses((incPlan._id as unknown) as mongoose.Types.ObjectId);
+        if (!targetExpense) {
+          throw Object.assign(new Error("Target budget line no longer exists."), { statusCode: 404 });
         }
+        const raiseBy = safeNumber((record as any).amount, 0);
+        targetExpense.projectedAmount = safeNumber(targetExpense.projectedAmount, 0) + raiseBy;
+        targetExpense.savings = Math.max(0, safeNumber(targetExpense.projectedAmount, 0) - safeNumber(targetExpense.actualAmount, 0));
+        await targetExpense.save();
+        (record as any).appliedExpenseId = targetExpense._id;
+      } else if (safeString((record as any).title)) {
+        const expenseKey = `EXP-${targetPlan.planKey}-${normalizeMonthKey((record as any).monthKey)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const addOnExpense = await FinanceExpense.create({
+          workspaceId,
+          planId: targetPlan._id,
+          expenseKey,
+          importKey: "",
+          title: safeString((record as any).title),
+          description: safeString((record as any).reason),
+          monthKey: safeString((record as any).monthKey),
+          month: safeString((record as any).month || (record as any).monthKey),
+          date: safeString((record as any).date),
+          dueDate: safeString((record as any).dueDate),
+          projectedAmount: safeNumber((record as any).amount, 0),
+          actualAmount: 0,
+          savings: safeNumber((record as any).amount, 0),
+          paymentStatus: "Planned",
+          expenseTag: "Add-on",
+          sourceSheet: "Extra Budget Request",
+          sourceRowNumber: 0,
+          notes: safeString((record as any).reason),
+        });
+        (record as any).appliedExpenseId = addOnExpense._id;
       }
+
+      (record as any).appliedAt = new Date();
+      await record.save();
+      await syncMonthlyPlanFromFinanceExpenses((targetPlan._id as unknown) as mongoose.Types.ObjectId);
     }
 
     return record;

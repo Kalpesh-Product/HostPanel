@@ -14,6 +14,7 @@ import { statusPillClass } from '../../lib/status-pill';
 import { ApprovalFlowBadges, hasApprovalProgress } from '../../components/finance/ApprovalFlowBadges';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
+import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 
 // Axios errors carry the API's real message inside response.data.message.
 function getApiErrorMessage(error: any, fallback: string): string {
@@ -592,7 +593,8 @@ export function FinancePage() {
                           </td>
                           <td className="px-5 py-4 font-pmedium text-[#2563EB] text-base">{formatCurrency(req.amount)}</td>
                           <td className="px-5 py-4">
-                            <div className="text-xs font-pmedium text-slate-600 max-w-[250px] truncate">{req.reason}</div>
+                            <div className="text-xs font-pmedium text-slate-800 max-w-[250px] truncate">{req.title || req.targetTitle || 'Extra Budget'}</div>
+                            <div className="mt-1 text-[10px] text-slate-500 max-w-[250px] truncate">{req.reason}</div>
                           </td>
                           <td className="px-5 py-4">
                             {hasApprovalProgress(req.approvalFlow)
@@ -851,7 +853,7 @@ export function FinancePage() {
                                             </td>
                                             <td className="px-4 py-4 align-top">
                                               <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${paymentStatus.includes('Done') || paymentStatus.includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : paymentStatus.includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : paymentStatus.includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                                {exp.paymentStatus || 'Planned'}
+                                                {formatFinancePaymentStatus(exp.paymentStatus)}
                                               </span>
                                             </td>
                                             <td className="px-4 py-4 align-top">
@@ -888,6 +890,12 @@ export function FinancePage() {
                 <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-pmedium text-amber-800">
                   <Clock size={13} /> Requested for month: <span className="uppercase tracking-wider">{viewingRequest.month}</span> ({viewingRequest.monthKey})
                 </p>
+              )}
+              {viewingRequest.type === 'extra' && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Expense Title</p>
+                  <p className="mt-1 text-sm font-black text-slate-900">{viewingRequest.title || viewingRequest.targetTitle || 'Extra Budget'}</p>
+                </div>
               )}
               </div>
             </div>
@@ -1084,7 +1092,7 @@ export function FinancePage() {
                                         </td>
                                         <td className="px-4 py-4 align-top">
                                           <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${(exp.paymentStatus || '').includes('Done') || (exp.paymentStatus || '').includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : (exp.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : (exp.paymentStatus || '').includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                            {exp.paymentStatus || 'Planned'}
+                                            {formatFinancePaymentStatus(exp.paymentStatus)}
                                           </span>
                                           {invoiceUrl && (
                                             <a href={invoiceUrl} target="_blank" rel="noreferrer" className="mt-1 block text-[9px] font-bold text-blue-600 hover:underline">

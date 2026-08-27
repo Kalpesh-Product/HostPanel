@@ -26,6 +26,7 @@ import {
 import { downloadReportFile } from '@/utils/report-download';
 import { extractDepartmentLabel, titleCase } from '@/utils/user-helpers';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
+import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 import { statusPillClass } from '@/lib/status-pill';
 import { ApprovalFlowBadges } from '@/components/finance/ApprovalFlowBadges';
 import PageFrame from '@/components/Pages/PageFrame';
@@ -57,6 +58,7 @@ interface VendorData {
 }
 
 interface ExpenseData {
+  _id?: string;
   id: string;
   importKey: string;
   title: string;
@@ -73,9 +75,19 @@ interface ExpenseData {
   invoiceUrl: string;
   invoiceFile: string;
   invoiceDate: string;
+  invoices?: ExpenseInvoice[];
   expenseTag: string;
   vendorId?: string;
   vendorName?: string;
+}
+
+interface ExpenseInvoice {
+  invoiceKey: string;
+  invoiceNumber: string;
+  amount: number;
+  invoiceUrl?: string;
+  invoiceFile?: string;
+  uploadedAtLabel?: string;
 }
 
 interface MonthlyPlan {
@@ -102,6 +114,8 @@ interface BudgetRequest {
 
 interface ExtraBudgetRequest {
   id: string;
+  title?: string;
+  appliedExpenseId?: string;
   month: string;
   monthKey: string;
   amount: number;
@@ -143,6 +157,21 @@ interface DepartmentFinanceData {
   status: string;
   notes: string;
   plan?: { _id?: string } | null;
+}
+
+function getExpenseInvoices(expense?: ExpenseData | null): ExpenseInvoice[] {
+  if (!expense) return [];
+  if (Array.isArray(expense.invoices) && expense.invoices.length > 0) return expense.invoices;
+  const legacyUrl = expense.invoiceUrl || expense.invoiceFile || '';
+  if (!expense.invoiceNumber && !legacyUrl) return [];
+  return [{
+    invoiceKey: `legacy-${expense.id}`,
+    invoiceNumber: expense.invoiceNumber || 'Legacy Invoice',
+    amount: Number(expense.actualSpent || 0),
+    invoiceUrl: legacyUrl,
+    invoiceFile: expense.invoiceFile || '',
+    uploadedAtLabel: expense.invoiceDate || '',
+  }];
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -267,13 +296,23 @@ export function DepartmentFinancePageV2() {
   const [draftMonths, setDraftMonths] = useState<DraftMonth[]>([]);
   const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
 
-  const [extraBudgetForm, setExtraBudgetForm] = useState({ monthKey: '', amount: '', reason: '' });
+  const [extraBudgetForm, setExtraBudgetForm] = useState({ monthKey: '', title: '', amount: '', reason: '' });
   // Line-Increase flow: tops up an EXISTING projected line that exceeded itself.
   const [showIncreaseForm, setShowIncreaseForm] = useState(false);
   const [increaseForm, setIncreaseForm] = useState({ monthKey: '', targetExpenseKey: '', amount: '', reason: '' });
   const [increaseFile, setIncreaseFile] = useState<File | null>(null);
   const [isSubmittingIncrease, setIsSubmittingIncrease] = useState(false);
   const [isSubmittingExtraBudget, setIsSubmittingExtraBudget] = useState(false);
+  const [invoiceTarget, setInvoiceTarget] = useState<{ month: MonthlyPlan; expense: ExpenseData } | null>(null);
+  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', amount: '', file: null as File | null });
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
+  const invoiceExistingTotal = getExpenseInvoices(invoiceTarget?.expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+  const invoiceEnteredAmount = Number(invoiceForm.amount || 0);
+  const invoiceApprovedProjection = Number(invoiceTarget?.expense?.projectedAmount || 0);
+  const invoiceNextTotal = invoiceExistingTotal + (Number.isFinite(invoiceEnteredAmount) ? invoiceEnteredAmount : 0);
+  const invoiceExcessAmount = Math.max(0, invoiceNextTotal - invoiceApprovedProjection);
+  const invoiceRemainingAmount = Math.max(0, invoiceApprovedProjection - invoiceNextTotal);
+  const invoiceExceedsProjection = Boolean(invoiceTarget && invoiceExcessAmount > 0.009);
 
   const [vendorForm, setVendorForm] = useState({
     name: '', contactPerson: '', phone: '', email: '', address: '',
@@ -436,7 +475,7 @@ export function DepartmentFinancePageV2() {
       ({ month, expense }) =>
         expense.title?.toLowerCase().includes(q) ||
         month.month?.toLowerCase().includes(q) ||
-        expense.invoiceNumber?.toLowerCase().includes(q),
+        getExpenseInvoices(expense).some((invoice) => invoice.invoiceNumber?.toLowerCase().includes(q)),
     );
   }, [monthlyExpenses, searchQuery]);
 
@@ -461,7 +500,7 @@ export function DepartmentFinancePageV2() {
     let count = 0;
     monthlyExpenses.forEach((month) => {
       (month.expenses || []).forEach((expense) => {
-        if (expense.status === 'Paid' && !expense.invoiceUrl) count += 1;
+        if (expense.status === 'Paid' && getExpenseInvoices(expense).length === 0) count += 1;
       });
     });
     return count;
@@ -500,7 +539,7 @@ export function DepartmentFinancePageV2() {
     [paidExpenseHistory],
   );
   const invoicedHistoryCount = useMemo(
-    () => paidExpenseHistory.filter(({ expense }) => Boolean(expense.invoiceUrl)).length,
+    () => paidExpenseHistory.filter(({ expense }) => getExpenseInvoices(expense).length > 0).length,
     [paidExpenseHistory],
   );
 
@@ -656,6 +695,10 @@ export function DepartmentFinancePageV2() {
       toast.error('Please select a month.');
       return;
     }
+    if (!extraBudgetForm.title.trim()) {
+      toast.error('Please enter an expense title.');
+      return;
+    }
     if (!extraBudgetForm.amount || Number(extraBudgetForm.amount) <= 0) {
       toast.error('Please enter a valid amount.');
       return;
@@ -668,12 +711,13 @@ export function DepartmentFinancePageV2() {
         department: departmentLabel,
         monthKey: extraBudgetForm.monthKey,
         month: monthLabels[extraBudgetForm.monthKey] || extraBudgetForm.monthKey,
+        title: extraBudgetForm.title.trim(),
         amount: Number(extraBudgetForm.amount),
         reason: extraBudgetForm.reason,
       });
       toast.success('Extra budget request submitted successfully.');
       setShowExtraBudgetForm(false);
-      setExtraBudgetForm({ monthKey: '', amount: '', reason: '' });
+      setExtraBudgetForm({ monthKey: '', title: '', amount: '', reason: '' });
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
       toast.error(getApiErrorMessage(error, 'Failed to submit extra budget request.'));
@@ -875,22 +919,46 @@ export function DepartmentFinancePageV2() {
     }
   };
 
-  const handleUploadInvoice = async (month: MonthlyPlan, expense: ExpenseData, file: File) => {
+  const openInvoiceForm = (month: MonthlyPlan, expense: ExpenseData) => {
+    setInvoiceTarget({ month, expense });
+    setInvoiceForm({ invoiceNumber: '', amount: '', file: null });
+  };
+
+  const handleUploadInvoice = async () => {
+    if (!invoiceTarget) return;
+    const { month, expense } = invoiceTarget;
+    const amount = Number(invoiceForm.amount);
+    if (!invoiceForm.invoiceNumber.trim()) { toast.error('Enter the invoice number.'); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { toast.error('Enter a valid invoice amount.'); return; }
+    if (!invoiceForm.file) { toast.error('Select an invoice file.'); return; }
+    const currentInvoiceTotal = getExpenseInvoices(expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+    if (currentInvoiceTotal + amount > Number(expense.projectedAmount || 0) + 0.009) {
+      toast.error('Invoice total exceeds the approved projection. Use Increase Projected first.');
+      return;
+    }
+
+    setIsUploadingInvoice(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', invoiceForm.file);
       formData.append('fiscalYear', selectedFY);
       formData.append('monthKey', month.monthKey);
       formData.append('expenseId', expense.id);
       formData.append('department', departmentLabel);
       formData.append('planId', String(financeData?.plan?._id || ''));
       formData.append('expenseKey', expense.id);
-      formData.append('invoiceNumber', expense.invoiceNumber || file.name);
+      formData.append('invoiceNumber', invoiceForm.invoiceNumber.trim());
+      formData.append('invoiceAmount', String(amount));
       await uploadInvoice(formData);
-      toast.success('Invoice uploaded successfully.');
+      toast.success('Invoice added successfully.');
+      setInvoiceTarget(null);
+      setViewingExpense(null);
+      setInvoiceForm({ invoiceNumber: '', amount: '', file: null });
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      toast.error(getApiErrorMessage(error, 'Failed to upload invoice.'));
+      toast.error(getApiErrorMessage(error, 'Failed to add invoice.'));
+    } finally {
+      setIsUploadingInvoice(false);
     }
   };
 
@@ -980,19 +1048,12 @@ export function DepartmentFinancePageV2() {
   // Extra budget requests are budget AMENDMENTS with a shared, capped pool —
   // spendable only after approval, and consumed by regular-line overages too.
   const viewingIsAddOn = String(expenseDetail?.expenseTag || '').toLowerCase() === 'add-on';
-  const addonLinkLocked = viewingIsAddOn && approvedExtraForMonth <= 0;
-  let maxActualAllowed = expenseProjected;
-  if (viewingIsAddOn && !addonLinkLocked) {
-    const regularOverages = (Array.isArray(openMonth?.expenses) ? openMonth.expenses : [])
-      .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
-      .reduce((sum: number, e: any) => sum + Math.max(0, Number(e?.actualSpent ?? e?.actualAmount ?? 0) - Number(e?.projectedAmount ?? e?.amount ?? 0)), 0);
-    const otherAddonActuals = (Array.isArray(openMonth?.expenses) ? openMonth.expenses : [])
-      .filter((e: any) =>
-        String(e?.expenseTag || '').toLowerCase() === 'add-on' &&
-        String(e?.id || '') !== String(expenseDetail?.id || ''))
-      .reduce((sum: number, e: any) => sum + Math.max(0, Number(e?.actualSpent ?? e?.actualAmount ?? 0)), 0);
-    maxActualAllowed = Math.max(0, Math.min(expenseProjected, approvedExtraForMonth - regularOverages - otherAddonActuals));
-  }
+  const hasLinkedExtraRequests = extraRequests.some((request: any) => Boolean(request?.appliedExpenseId));
+  const viewingHasApprovedRequest = extraRequests.some((request: any) =>
+    String(request?.status || '').toLowerCase() === 'approved' &&
+    String(request?.appliedExpenseId || '') === String((expenseDetail as any)?._id || ''));
+  const addonLinkLocked = viewingIsAddOn && (hasLinkedExtraRequests ? !viewingHasApprovedRequest : approvedExtraForMonth <= 0);
+  const maxActualAllowed = expenseProjected;
   const actualOverProjected =
     !!expenseDetail && actualAmountToPay !== '' && Number(actualAmountToPay) > maxActualAllowed + 0.009;
   const isDraftBudget = !financeData?.annualRequest;
@@ -1568,7 +1629,13 @@ export function DepartmentFinancePageV2() {
                                         .filter((expense) => {
                                           const tag = String(expense.expenseTag || '').toLowerCase();
                                           if (tag !== 'add-on') return true;
-                                          // Approved extras surface as sanctioned lines; pending ones stay hidden.
+                                          // New requests are linked to their exact expense. Keep the
+                                          // month-level fallback only for historical unlinked records.
+                                          if (hasLinkedExtraRequests) {
+                                            return extraRequests.some((request: any) =>
+                                              String(request?.status || '').toLowerCase() === 'approved' &&
+                                              String(request?.appliedExpenseId || '') === String((expense as any)?._id || ''));
+                                          }
                                           return getApprovedExtraForMonth(month.monthKey || month.month) > 0;
                                         })
                                         .map((expense) => (
@@ -1592,14 +1659,16 @@ export function DepartmentFinancePageV2() {
                                                 return null;
                                               })()}
                                             </div>
-                                            {expense.invoiceNumber && (
-                                              <div className="text-[8px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">INV: {expense.invoiceNumber}</div>
+                                            {getExpenseInvoices(expense).length > 0 && (
+                                              <div className="text-[8px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">
+                                                {getExpenseInvoices(expense).length} invoice{getExpenseInvoices(expense).length === 1 ? '' : 's'}
+                                              </div>
                                             )}
                                           </td>
                                           <td className="px-4 py-2.5 font-pmedium text-slate-700">{formatCurrency(expense.projectedAmount)}</td>
                                           <td className="px-4 py-2.5 font-pmedium text-slate-700">{formatCurrency(expense.actualSpent)}</td>
                                           <td className="px-4 py-2.5">
-                                            <span className={statusPillClass(expense.paymentStatus)}>{expense.paymentStatus || 'Unpaid'}</span>
+                                            <span className={statusPillClass(formatFinancePaymentStatus(expense.paymentStatus, 'Unpaid'))}>{formatFinancePaymentStatus(expense.paymentStatus, 'Unpaid')}</span>
                                           </td>
                                           <td className="px-4 py-2.5 text-right">
                                             <button
@@ -1703,7 +1772,7 @@ export function DepartmentFinancePageV2() {
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {paidExpenseHistory.map(({ month, expense }) => {
-                      const invoiceUrl = expense.invoiceUrl || expense.invoiceFile || '';
+                      const invoices = getExpenseInvoices(expense);
                       const saved = Math.max(0, Number(expense.projectedAmount || 0) - Number(expense.actualSpent || 0));
                       return (
                         <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all align-top">
@@ -1720,18 +1789,18 @@ export function DepartmentFinancePageV2() {
                             )}
                           </td>
                           <td className="px-5 py-4">
-                            {invoiceUrl ? (
-                              <a
-                                href={invoiceUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 text-[9px] font-pmedium text-emerald-600 hover:text-emerald-700 uppercase tracking-widest hover:underline"
-                              >
-                                <FileText size={12} /> View invoice
-                              </a>
-                            ) : (
-                              <span className="font-pmedium text-slate-700">{expense.invoiceNumber || '-'}</span>
-                            )}
+                            {invoices.length > 0 ? (
+                              <div className="space-y-1">
+                                {invoices.map((invoice) => {
+                                  const url = invoice.invoiceUrl || invoice.invoiceFile || '';
+                                  return url ? (
+                                    <a key={invoice.invoiceKey} href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] font-pmedium text-emerald-600 hover:text-emerald-700 uppercase tracking-widest hover:underline">
+                                      <FileText size={12} /> {invoice.invoiceNumber}
+                                    </a>
+                                  ) : <span key={invoice.invoiceKey} className="block font-pmedium text-slate-700">{invoice.invoiceNumber}</span>;
+                                })}
+                              </div>
+                            ) : <span className="font-pmedium text-slate-400">-</span>}
                           </td>
                           <td className="px-5 py-4 text-center">
                             <button
@@ -1784,8 +1853,8 @@ export function DepartmentFinancePageV2() {
                 </div>
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl">
                   <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Status</p>
-                  <span className={statusPillClass(viewingExpense.expense.status)}>
-                    {viewingExpense.expense.status || 'Pending'}
+                  <span className={statusPillClass(formatFinancePaymentStatus(viewingExpense.expense.paymentStatus || viewingExpense.expense.status, 'Pending'))}>
+                    {formatFinancePaymentStatus(viewingExpense.expense.paymentStatus || viewingExpense.expense.status, 'Pending')}
                   </span>
                 </div>
               </div>
@@ -1824,23 +1893,22 @@ export function DepartmentFinancePageV2() {
                     );
                   })()}
                 </div>
-                {(viewingExpense.expense.invoiceNumber || viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile) && (
+                {getExpenseInvoices(viewingExpense.expense).length > 0 && (
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Invoice</p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {viewingExpense.expense.invoiceNumber && (
-                        <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.invoiceNumber}</p>
-                      )}
-                      {(viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile) && (
-                        <a
-                          href={viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"
-                        >
-                          <FileText size={12} /> View Invoice
-                        </a>
-                      )}
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">Invoices</p>
+                    <div className="space-y-2">
+                      {getExpenseInvoices(viewingExpense.expense).map((invoice) => {
+                        const url = invoice.invoiceUrl || invoice.invoiceFile || '';
+                        return (
+                          <div key={invoice.invoiceKey} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{invoice.invoiceNumber}</p>
+                              <p className="mt-0.5 text-[10px] text-slate-500">{formatCurrency(invoice.amount)}{invoice.uploadedAtLabel ? ` • ${invoice.uploadedAtLabel}` : ''}</p>
+                            </div>
+                            {url && <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"><FileText size={12} /> View</a>}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1892,7 +1960,7 @@ export function DepartmentFinancePageV2() {
                         {actualOverProjected ? (
                           <p className="text-[10px] font-pmedium text-red-500">
                             {viewingIsAddOn
-                              ? `This month's approved extra budget is exhausted — ${formatCurrency(maxActualAllowed)} remains on this line. File a new extra request for more.`
+                              ? `Actual cost cannot exceed this Add-on line's approved amount of ${formatCurrency(maxActualAllowed)}. File a new extra request for more.`
                               : `Actual cannot exceed the projected amount (${formatCurrency(expenseProjected)}). File an extra budget request for the additional funds.`}
                           </p>
                         ) : (
@@ -1925,20 +1993,11 @@ export function DepartmentFinancePageV2() {
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.pdf,.jpg,.jpeg,.png';
-                    input.onchange = (e: any) => {
-                      const file = e.target?.files?.[0];
-                      if (file) handleUploadInvoice(viewingExpense.month, viewingExpense.expense, file);
-                    };
-                    input.click();
-                  }}
+                  onClick={() => openInvoiceForm(viewingExpense.month, viewingExpense.expense)}
                   className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
                   <UploadCloud size={14} />
-                  {(viewingExpense.expense.invoiceUrl || viewingExpense.expense.invoiceFile) ? 'Replace Invoice' : 'Upload Invoice'}
+                  Add Invoice
                 </button>
               </div>
               <button
@@ -1954,6 +2013,43 @@ export function DepartmentFinancePageV2() {
       )}
 
       {/* Vendor Detail Modal — sits above the vendor list (both would tie at z-100) */}
+      <AnimatePresence>
+        {invoiceTarget && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm" onClick={() => setInvoiceTarget(null)}>
+            <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }} className="w-full max-w-lg overflow-hidden rounded-[1.75rem] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+                <div><h2 className="text-lg font-pmedium text-slate-900">Add Invoice</h2><p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{invoiceTarget.expense.title}</p></div>
+                <button type="button" onClick={() => setInvoiceTarget(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-slate-700"><X size={15} /></button>
+              </div>
+              <div className="space-y-4 p-5">
+                <div className="grid grid-cols-2 gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Approved Projection</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(invoiceTarget.expense.projectedAmount)}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Already Invoiced</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(getExpenseInvoices(invoiceTarget.expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0))}</p></div>
+                </div>
+                <div><label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Invoice Number *</label><input value={invoiceForm.invoiceNumber} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, invoiceNumber: e.target.value }))} maxLength={120} placeholder="Example: INV-2026-0042" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100" /></div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Invoice Amount ({currency}) *</label>
+                  <input type="number" min="0.01" step="0.01" value={invoiceForm.amount} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, amount: e.target.value }))} placeholder="Enter this invoice amount" className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none focus:ring-2 ${invoiceExceedsProjection ? 'border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-[#2563EB] focus:ring-blue-100'}`} />
+                  {invoiceForm.amount && invoiceEnteredAmount > 0 && (
+                    <div className={`mt-2 rounded-xl border p-3 text-[10px] font-pmedium ${invoiceExceedsProjection ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                      {invoiceExceedsProjection
+                        ? `Invoice total exceeds the approved projection by ${formatCurrency(invoiceExcessAmount)}. Submit an Increase Projected request first.`
+                        : `${formatCurrency(invoiceRemainingAmount)} will remain after adding this invoice.`}
+                    </div>
+                  )}
+                </div>
+                <div><label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Invoice File *</label><input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setInvoiceForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))} className="w-full text-[11px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[10px] file:font-pmedium file:text-blue-700 hover:file:bg-blue-100" /></div>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+                <button type="button" onClick={() => setInvoiceTarget(null)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 hover:bg-slate-100">Cancel</button>
+                <button type="button" onClick={handleUploadInvoice} disabled={isUploadingInvoice || invoiceExceedsProjection} className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">{isUploadingInvoice ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}{isUploadingInvoice ? 'Uploading...' : 'Add Invoice'}</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Vendor detail modal */}
       <AnimatePresence>
         {viewingVendor && (
           <motion.div
@@ -2171,6 +2267,16 @@ export function DepartmentFinancePageV2() {
                       <option key={key} value={key}>{monthLabels[key]}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Expense Title *</label>
+                  <input
+                    value={extraBudgetForm.title}
+                    onChange={(e) => setExtraBudgetForm((prev) => ({ ...prev, title: e.target.value }))}
+                    placeholder="Example: Sales conference booth"
+                    maxLength={200}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                  />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Requested Amount ({currency})</label>

@@ -32,6 +32,7 @@ import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
+import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
 
 /* ───────────────────── Types ───────────────────── */
@@ -140,6 +141,7 @@ interface Budget {
 interface ExtraBudget {
   id: string;
   department: string;
+  title: string;
   requested: number;
   approved: number;
   status: string;
@@ -409,6 +411,7 @@ function mapAnnualRequestToBudget(request: any = {}): Budget {
   return {
     id: requestId,
     department: request.department || 'Unassigned',
+    title: request.title || request.targetTitle || 'Extra Budget',
     requested: Number(request.requestedBudget || 0),
     approved: status === 'Approved' ? Number(request.requestedBudget || 0) : 0,
     status: status === 'Approved' ? 'Active' : status === 'Rejected' ? 'Rejected' : 'Pending Review',
@@ -1496,6 +1499,7 @@ export function ExpensesBudgetPage() {
                           </td>
                           <td className="px-6 py-5">
                             <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1 sm:gap-2"><Building2 size={12} className="sm:w-3.5 sm:h-3.5 text-slate-400" /> {extra.department}</p>
+                            <p className="mt-1 text-[10px] font-pmedium text-slate-500">{extra.title}</p>
                           </td>
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(extra.requested)}</td>
                           <td className="px-6 py-5 hidden md:table-cell">
@@ -1806,7 +1810,7 @@ export function ExpensesBudgetPage() {
                                       </td>
                                       <td className="px-4 py-4 align-top">
                                         <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${(expense.paymentStatus || '').includes('Done') || (expense.paymentStatus || '').includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : (expense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : (expense.paymentStatus || '').includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                          {expense.paymentStatus || 'Planned'}
+                                          {formatFinancePaymentStatus(expense.paymentStatus)}
                                         </span>
                                       </td>
                                       <td className="px-4 py-4 align-top">
@@ -1916,7 +1920,7 @@ export function ExpensesBudgetPage() {
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Status</p>
-                  <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{viewingExpense.paymentStatus || 'Planned'}</p>
+                  <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{formatFinancePaymentStatus(viewingExpense.paymentStatus)}</p>
                 </div>
               </div>
 
@@ -1950,7 +1954,7 @@ export function ExpensesBudgetPage() {
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Payment Status</span>
                       <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-widest border ${(viewingExpense.paymentStatus || '').includes('Paid') || (viewingExpense.paymentStatus || '').includes('Done') ? 'bg-green-50 text-green-700 border-green-200' : (viewingExpense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                        {viewingExpense.paymentStatus || 'Planned'}
+                        {formatFinancePaymentStatus(viewingExpense.paymentStatus)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
@@ -2008,6 +2012,11 @@ export function ExpensesBudgetPage() {
                   <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Requested</p>
                   <p className="text-2xl sm:text-3xl font-black text-amber-600">{formatCurrency(viewingExtra.requested)}</p>
                 </div>
+              </div>
+
+              <div>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Expense Title</p>
+                <p className="text-sm font-black text-gray-900">{viewingExtra.title}</p>
               </div>
 
               <div>

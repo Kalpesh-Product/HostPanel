@@ -9,12 +9,15 @@ export interface IExtraFinanceRequest extends Document {
     department: string;
     fiscalYear: string;
     amount: number;
+    title?: string;
     reason?: string;
     // "new" = additional item for the month (creates its own line).
     // "increase" = top-up of an EXISTING projected line (auto-raised on approval).
     type?: "new" | "increase" | string;
     targetExpenseKey?: string;
     targetTitle?: string;
+    appliedExpenseId?: mongoose.Types.ObjectId | null;
+    appliedAt?: Date | null;
     invoiceNumber?: string;
     invoiceUrl?: string;
     invoiceFile?: string;
@@ -101,10 +104,13 @@ const extraFinanceRequestSchema = new Schema<IExtraFinanceRequest>(
         department: { type: String, trim: true, required: true, maxlength: 120, index: true },
         fiscalYear: { type: String, trim: true, required: true, maxlength: 20, index: true },
         amount: { type: Number, required: true, min: 0, default: 0 },
+        title: { type: String, trim: true, default: "", maxlength: 200 },
         reason: { type: String, trim: true, maxlength: 1000, default: "" },
         type: { type: String, trim: true, default: "new", maxlength: 16 },
         targetExpenseKey: { type: String, trim: true, default: "", maxlength: 120 },
         targetTitle: { type: String, trim: true, default: "", maxlength: 200 },
+        appliedExpenseId: { type: Schema.Types.ObjectId, ref: "FinanceExpense", default: null, index: true },
+        appliedAt: { type: Date, default: null },
         invoiceNumber: { type: String, trim: true, default: "", maxlength: 60 },
         invoiceUrl: { type: String, trim: true, default: "", maxlength: 500 },
         invoiceFile: { type: String, trim: true, default: "", maxlength: 300 },
