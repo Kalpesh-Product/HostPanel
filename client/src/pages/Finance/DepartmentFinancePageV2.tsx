@@ -116,6 +116,7 @@ interface ExtraBudgetRequest {
   id: string;
   title?: string;
   appliedExpenseId?: string;
+  type?: 'new' | 'increase' | string;
   month: string;
   monthKey: string;
   amount: number;
@@ -309,9 +310,11 @@ export function DepartmentFinancePageV2() {
   const invoiceExistingTotal = getExpenseInvoices(invoiceTarget?.expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
   const invoiceEnteredAmount = Number(invoiceForm.amount || 0);
   const invoiceApprovedProjection = Number(invoiceTarget?.expense?.projectedAmount || 0);
+  const invoiceVendorActual = Number(invoiceTarget?.expense?.actualSpent || 0);
+  const invoiceLimit = invoiceVendorActual > 0 ? invoiceVendorActual : invoiceApprovedProjection;
   const invoiceNextTotal = invoiceExistingTotal + (Number.isFinite(invoiceEnteredAmount) ? invoiceEnteredAmount : 0);
-  const invoiceExcessAmount = Math.max(0, invoiceNextTotal - invoiceApprovedProjection);
-  const invoiceRemainingAmount = Math.max(0, invoiceApprovedProjection - invoiceNextTotal);
+  const invoiceExcessAmount = Math.max(0, invoiceNextTotal - invoiceLimit);
+  const invoiceRemainingAmount = Math.max(0, invoiceLimit - invoiceNextTotal);
   const invoiceExceedsProjection = Boolean(invoiceTarget && invoiceExcessAmount > 0.009);
 
   const [vendorForm, setVendorForm] = useState({
@@ -932,8 +935,9 @@ export function DepartmentFinancePageV2() {
     if (!Number.isFinite(amount) || amount <= 0) { toast.error('Enter a valid invoice amount.'); return; }
     if (!invoiceForm.file) { toast.error('Select an invoice file.'); return; }
     const currentInvoiceTotal = getExpenseInvoices(expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
-    if (currentInvoiceTotal + amount > Number(expense.projectedAmount || 0) + 0.009) {
-      toast.error('Invoice total exceeds the approved projection. Use Increase Projected first.');
+    const invoiceLimit = Number(expense.actualSpent || 0) > 0 ? Number(expense.actualSpent) : Number(expense.projectedAmount || 0);
+    if (currentInvoiceTotal + amount > invoiceLimit + 0.009) {
+      toast.error(`Invoice total exceeds the ${Number(expense.actualSpent || 0) > 0 ? 'vendor actual amount' : 'approved projection'}.`);
       return;
     }
 
@@ -1563,20 +1567,17 @@ export function DepartmentFinancePageV2() {
                       const monthKeyNorm = String(month.monthKey || month.month || '').trim().toLowerCase();
                       const isExpanded = expandedMonthKey === monthKeyNorm;
                       const toggleExpand = () => setExpandedMonthKey(isExpanded ? null : monthKeyNorm);
-                      // Older records may store the month name ("May") instead of the
-                      // key ("may") — match against every known alias of the month.
-                      const monthAliases = new Set(
-                        [month.monthKey, month.month, monthLabels[month.monthKey], month.title]
-                          .filter(Boolean)
-                          .map((v) => String(v).trim().toLowerCase()),
-                      );
-                      const projectedTotal = month.projectedBudget || monthExpenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0);
-                      const actualTotal = month.actualSpent || monthExpenses.reduce((s, e) => s + Number(e.actualSpent || 0), 0);
-                      const monthExtraRequests = extraRequests.filter(
-                        (request) =>
-                          monthAliases.has(String(request.monthKey || '').trim().toLowerCase()) ||
-                          monthAliases.has(String(request.month || '').trim().toLowerCase()),
-                      );
+                      const approvedMonthExpenses = monthExpenses.filter((expense) => {
+                        if (String(expense.expenseTag || '').toLowerCase() !== 'add-on') return true;
+                        if (hasLinkedExtraRequests) {
+                          return extraRequests.some((request: any) =>
+                            String(request?.status || '').toLowerCase() === 'approved' &&
+                            String(request?.appliedExpenseId || '') === String((expense as any)?._id || ''));
+                        }
+                        return getApprovedExtraForMonth(month.monthKey || month.month) > 0;
+                      });
+                      const projectedTotal = approvedMonthExpenses.reduce((sum, expense) => sum + Number(expense.projectedAmount || 0), 0);
+                      const actualTotal = approvedMonthExpenses.reduce((sum, expense) => sum + Number(expense.actualSpent || 0), 0);
                       return (
                         <Fragment key={month.monthKey || month.month}>
                           <tr className="hover:bg-blue-50/30 transition-all align-top">
@@ -1590,14 +1591,14 @@ export function DepartmentFinancePageV2() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-5 py-4 font-pmedium text-slate-500">{monthExpenses.length} Item{monthExpenses.length === 1 ? '' : 's'}</td>
+                            <td className="px-5 py-4 font-pmedium text-slate-500">{approvedMonthExpenses.length} Item{approvedMonthExpenses.length === 1 ? '' : 's'}</td>
                             <td className="px-5 py-4 font-pmedium text-slate-900 whitespace-nowrap">{formatCurrency(projectedTotal)}</td>
                             <td className="px-5 py-4 font-pmedium text-emerald-600 whitespace-nowrap">{formatCurrency(actualTotal)}</td>
                             <td className="px-5 py-4">
                               <span className={status.className}>{status.label}</span>
                             </td>
                             <td className="px-5 py-4 text-center">
-                              {monthExpenses.length + monthExtraRequests.length > 0 ? (
+                              {approvedMonthExpenses.length > 0 ? (
                                 <button
                                   onClick={toggleExpand}
                                   className="px-3 py-1.5 bg-white border border-slate-200/60 rounded-lg shadow-sm hover:bg-slate-50 text-[9px] font-pmedium uppercase tracking-widest text-slate-600 transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
@@ -1610,7 +1611,7 @@ export function DepartmentFinancePageV2() {
                               )}
                             </td>
                           </tr>
-                          {isExpanded && (monthExpenses.length + monthExtraRequests.length) > 0 && (
+                          {isExpanded && approvedMonthExpenses.length > 0 && (
                             <tr>
                               <td colSpan={6} className="px-5 pb-4 bg-slate-50/40">
                                 <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -1625,26 +1626,19 @@ export function DepartmentFinancePageV2() {
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                      {monthExpenses
-                                        .filter((expense) => {
-                                          const tag = String(expense.expenseTag || '').toLowerCase();
-                                          if (tag !== 'add-on') return true;
-                                          // New requests are linked to their exact expense. Keep the
-                                          // month-level fallback only for historical unlinked records.
-                                          if (hasLinkedExtraRequests) {
-                                            return extraRequests.some((request: any) =>
-                                              String(request?.status || '').toLowerCase() === 'approved' &&
-                                              String(request?.appliedExpenseId || '') === String((expense as any)?._id || ''));
-                                          }
-                                          return getApprovedExtraForMonth(month.monthKey || month.month) > 0;
-                                        })
-                                        .map((expense) => (
+                                      {approvedMonthExpenses.map((expense) => (
                                         <tr key={`expanded-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
                                           <td className="px-4 py-2.5">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</span>
                                               {String(expense.expenseTag || '').toLowerCase() === 'add-on' && (
                                                 <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra Budget</span>
+                                              )}
+                                              {extraRequests.some((request: any) =>
+                                                String(request?.status || '').toLowerCase() === 'approved' &&
+                                                String(request?.type || '').toLowerCase() === 'increase' &&
+                                                String(request?.appliedExpenseId || '') === String((expense as any)?._id || '')) && (
+                                                <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
                                               )}
                                               {(() => {
                                                 const over = Number(expense.actualSpent || 0) - Number(expense.projectedAmount || 0);
@@ -1665,7 +1659,19 @@ export function DepartmentFinancePageV2() {
                                               </div>
                                             )}
                                           </td>
-                                          <td className="px-4 py-2.5 font-pmedium text-slate-700">{formatCurrency(expense.projectedAmount)}</td>
+                                          <td className="px-4 py-2.5 font-pmedium text-slate-700">
+                                            {(() => {
+                                              const approvedIncrease = extraRequests
+                                                .filter((request: any) =>
+                                                  String(request?.status || '').toLowerCase() === 'approved' &&
+                                                  String(request?.type || '').toLowerCase() === 'increase' &&
+                                                  String(request?.appliedExpenseId || '') === String((expense as any)?._id || ''))
+                                                .reduce((sum: number, request: any) => sum + Number(request?.amount || 0), 0);
+                                              if (approvedIncrease <= 0) return formatCurrency(expense.projectedAmount);
+                                              const originalProjection = Math.max(0, Number(expense.projectedAmount || 0) - approvedIncrease);
+                                              return <span title={`Current projection: ${formatCurrency(expense.projectedAmount)}`}>{formatCurrency(originalProjection)} <span className="text-blue-600">+ {formatCurrency(approvedIncrease)}</span></span>;
+                                            })()}
+                                          </td>
                                           <td className="px-4 py-2.5 font-pmedium text-slate-700">{formatCurrency(expense.actualSpent)}</td>
                                           <td className="px-4 py-2.5">
                                             <span className={statusPillClass(formatFinancePaymentStatus(expense.paymentStatus, 'Unpaid'))}>{formatFinancePaymentStatus(expense.paymentStatus, 'Unpaid')}</span>
@@ -1679,23 +1685,6 @@ export function DepartmentFinancePageV2() {
                                               <Eye size={14} strokeWidth={2.5} />
                                             </button>
                                           </td>
-                                        </tr>
-                                      ))}
-                                      {monthExtraRequests.map((request) => (
-                                        <tr key={`extra-${request.id}`} className="bg-amber-50/40 hover:bg-amber-50/70 transition-all">
-                                          <td className="px-4 py-2.5">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                              <TrendingUp size={12} className="text-amber-600 shrink-0" />
-                                              <span className="font-pmedium text-slate-900">{request.reason || 'Extra budget request'}</span>
-                                              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra Requested</span>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-2.5 font-pmedium text-amber-700 whitespace-nowrap">+{formatCurrency(request.amount)}</td>
-                                          <td className="px-4 py-2.5 text-slate-400">—</td>
-                                          <td className="px-4 py-2.5">
-                                            <span className={statusPillClass(request.status)}>{request.status}</span>
-                                          </td>
-                                          <td className="px-4 py-2.5" />
                                         </tr>
                                       ))}
                                     </tbody>
@@ -1871,15 +1860,25 @@ export function DepartmentFinancePageV2() {
                     </p>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Projected</p>
                     <p className="text-lg font-black text-slate-900">{formatCurrency(viewingExpense.expense.projectedAmount)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Actual Spent</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Vendor Actual</p>
                     <p className="text-lg font-black text-slate-900">{formatCurrency(viewingExpense.expense.actualSpent)}</p>
                   </div>
+                  {(() => {
+                    const invoiced = getExpenseInvoices(viewingExpense.expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+                    const difference = Number(viewingExpense.expense.actualSpent || 0) - invoiced;
+                    return (
+                      <>
+                        <div><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Total Invoiced</p><p className="text-lg font-black text-slate-900">{formatCurrency(invoiced)}</p></div>
+                        <div><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Difference</p><p className={`text-lg font-black ${difference < -0.009 ? 'text-red-600' : difference > 0.009 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(difference))}{difference < -0.009 ? ' over' : difference > 0.009 ? ' remaining' : ' matched'}</p></div>
+                      </>
+                    );
+                  })()}
                   {(() => {
                     const over = Number(viewingExpense.expense.actualSpent || 0) - Number(expenseProjected || 0);
                     if (over <= 0.009) return null;
@@ -1928,44 +1927,51 @@ export function DepartmentFinancePageV2() {
                           Extra budgets are amendments, not spendable expenses — record the actual cost against your regular expense line for this month.
                         </p>
                       )}
-                      <select
-                        value={selectedVendorToLink}
-                        onChange={(e) => setSelectedVendorToLink(e.target.value)}
-                        disabled={!canRecordSpend || addonLinkLocked}
-                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                      >
-                        <option value="">Select a registered vendor…</option>
-                        {vendors.map((vendor) => (
-                          <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
-                        ))}
-                      </select>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
-                          Actual Vendor Cost / Amount to Pay
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={actualAmountToPay}
-                          onChange={(e) => setActualAmountToPay(e.target.value)}
-                          disabled={!canRecordSpend || addonLinkLocked}
-                          placeholder={`Projected: ${formatCurrency(viewingExpense.expense.projectedAmount || viewingExpense.expense.amount || 0)}`}
-                          className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none transition-all focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
-                            actualOverProjected
-                              ? 'border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100'
-                              : 'border-blue-200 bg-blue-50 focus:border-[#2563EB] focus:ring-blue-100'
-                          }`}
-                        />
-                        {actualOverProjected ? (
-                          <p className="text-[10px] font-pmedium text-red-500">
-                            {viewingIsAddOn
-                              ? `Actual cost cannot exceed this Add-on line's approved amount of ${formatCurrency(maxActualAllowed)}. File a new extra request for more.`
-                              : `Actual cannot exceed the projected amount (${formatCurrency(expenseProjected)}). File an extra budget request for the additional funds.`}
-                          </p>
-                        ) : (
-                          <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
-                        )}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                            Select a registered vendor
+                          </label>
+                          <select
+                            value={selectedVendorToLink}
+                            onChange={(e) => setSelectedVendorToLink(e.target.value)}
+                            disabled={!canRecordSpend || addonLinkLocked}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                          >
+                            <option value="">Select a registered vendor…</option>
+                            {vendors.map((vendor) => (
+                              <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                            Actual Vendor Cost / Amount to Pay
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={actualAmountToPay}
+                            onChange={(e) => setActualAmountToPay(e.target.value)}
+                            disabled={!canRecordSpend || addonLinkLocked}
+                            placeholder={`Projected: ${formatCurrency(viewingExpense.expense.projectedAmount || viewingExpense.expense.amount || 0)}`}
+                            className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none transition-all focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
+                              actualOverProjected
+                                ? 'border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100'
+                                : 'border-blue-200 bg-blue-50 focus:border-[#2563EB] focus:ring-blue-100'
+                            }`}
+                          />
+                          {actualOverProjected ? (
+                            <p className="text-[10px] font-pmedium text-red-500">
+                              {viewingIsAddOn
+                                ? `Actual cost cannot exceed this Add-on line's approved amount of ${formatCurrency(maxActualAllowed)}. File a new extra request for more.`
+                                : `Actual cannot exceed the projected amount (${formatCurrency(expenseProjected)}). File an extra budget request for the additional funds.`}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
+                          )}
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -2024,7 +2030,9 @@ export function DepartmentFinancePageV2() {
               <div className="space-y-4 p-5">
                 <div className="grid grid-cols-2 gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
                   <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Approved Projection</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(invoiceTarget.expense.projectedAmount)}</p></div>
-                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Already Invoiced</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(getExpenseInvoices(invoiceTarget.expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0))}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Vendor Actual</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(invoiceVendorActual)}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Already Invoiced</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(invoiceExistingTotal)}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Remaining to Invoice</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(Math.max(0, invoiceLimit - invoiceExistingTotal))}</p></div>
                 </div>
                 <div><label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Invoice Number *</label><input value={invoiceForm.invoiceNumber} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, invoiceNumber: e.target.value }))} maxLength={120} placeholder="Example: INV-2026-0042" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100" /></div>
                 <div>
@@ -2033,7 +2041,7 @@ export function DepartmentFinancePageV2() {
                   {invoiceForm.amount && invoiceEnteredAmount > 0 && (
                     <div className={`mt-2 rounded-xl border p-3 text-[10px] font-pmedium ${invoiceExceedsProjection ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
                       {invoiceExceedsProjection
-                        ? `Invoice total exceeds the approved projection by ${formatCurrency(invoiceExcessAmount)}. Submit an Increase Projected request first.`
+                        ? `Invoice total exceeds the ${invoiceVendorActual > 0 ? 'vendor actual amount' : 'approved projection'} by ${formatCurrency(invoiceExcessAmount)}.`
                         : `${formatCurrency(invoiceRemainingAmount)} will remain after adding this invoice.`}
                     </div>
                   )}

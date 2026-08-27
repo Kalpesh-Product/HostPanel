@@ -1418,11 +1418,13 @@ export async function uploadInvoiceForDepartmentInternal(input: {
     throw Object.assign(new Error("This invoice number is already attached to the expense."), { statusCode: 409 });
   }
 
-  const nextActualAmount = invoices.reduce((sum: number, invoice: any) => sum + safeNumber(invoice?.amount, 0), 0) + invoiceAmount;
+  const nextInvoicedAmount = invoices.reduce((sum: number, invoice: any) => sum + safeNumber(invoice?.amount, 0), 0) + invoiceAmount;
   const projectedAmount = safeNumber((existingExpense as any).projectedAmount, 0);
-  if (nextActualAmount > projectedAmount + 0.009) {
+  const vendorActualAmount = safeNumber((existingExpense as any).actualAmount, 0);
+  const invoiceLimit = vendorActualAmount > 0 ? vendorActualAmount : projectedAmount;
+  if (nextInvoicedAmount > invoiceLimit + 0.009) {
     throw Object.assign(
-      new Error(`Invoice total cannot exceed the approved projection (${projectedAmount.toLocaleString()}). Use Increase Projected first.`),
+      new Error(`Invoice total cannot exceed the ${vendorActualAmount > 0 ? "vendor actual amount" : "approved projection"} (${invoiceLimit.toLocaleString()}).`),
       { statusCode: 409 }
     );
   }
@@ -1445,8 +1447,6 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   existingExpense.invoiceFile = invoiceFile;
   existingExpense.invoiceUrl = invoiceUrl;
   existingExpense.invoicePublicId = invoicePublicId;
-  existingExpense.actualAmount = nextActualAmount;
-  existingExpense.savings = Math.max(0, projectedAmount - nextActualAmount);
   if (getPaymentStatusRank(safeString((existingExpense as any).paymentStatus)) >= 2) {
     existingExpense.paymentStatus = "Invoice Shared";
   }
