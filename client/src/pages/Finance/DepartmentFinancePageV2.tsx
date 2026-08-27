@@ -977,23 +977,6 @@ export function DepartmentFinancePageV2() {
         String(r?.monthKey || r?.month || '').toLowerCase() === String(monthKey || '').toLowerCase())
       .reduce((sum: number, r: any) => sum + Number(r?.amount || 0), 0);
   const approvedExtraForMonth = getApprovedExtraForMonth(openMonthKeyNorm);
-  // How much of a month's approved extra budget has actually been consumed:
-  // sum of per-expense overages (actual beyond its own projection) on regular
-  // expense lines — e.g. a chair projected 500 spent 700 consumes 200.
-  const getExtraUsedForMonth = (monthKey: any) => {
-    const mk = String(monthKey || '').toLowerCase();
-    const month = monthlyExpenses.find(
-      (m: any) => String(m?.monthKey || m?.month || '').toLowerCase() === mk
-    );
-    if (!month || !Array.isArray(month.expenses)) return 0;
-    return month.expenses
-      .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
-      .reduce((sum: number, e: any) => {
-        const projected = Number(e?.projectedAmount ?? e?.amount ?? 0);
-        const actual = Number(e?.actualSpent ?? e?.actualAmount ?? 0);
-        return sum + Math.max(0, actual - projected);
-      }, 0);
-  };
   // Extra budget requests are budget AMENDMENTS with a shared, capped pool —
   // spendable only after approval, and consumed by regular-line overages too.
   const viewingIsAddOn = String(expenseDetail?.expenseTag || '').toLowerCase() === 'add-on';
@@ -1639,18 +1622,7 @@ export function DepartmentFinancePageV2() {
                                             </div>
                                           </td>
                                           <td className="px-4 py-2.5 font-pmedium text-amber-700 whitespace-nowrap">+{formatCurrency(request.amount)}</td>
-                                          <td className="px-4 py-2.5 font-pmedium whitespace-nowrap">
-                                            {String(request.status || '').toLowerCase() === 'approved' ? (
-                                              (() => {
-                                                const used = getExtraUsedForMonth(request.monthKey);
-                                                return used > 0
-                                                  ? <span className="font-pmedium text-blue-600">{formatCurrency(used)}</span>
-                                                  : <span className="text-slate-400">—</span>;
-                                              })()
-                                            ) : (
-                                              <span className="text-slate-400">—</span>
-                                            )}
-                                          </td>
+                                          <td className="px-4 py-2.5 text-slate-400">—</td>
                                           <td className="px-4 py-2.5">
                                             <span className={statusPillClass(request.status)}>{request.status}</span>
                                           </td>
@@ -1686,7 +1658,6 @@ export function DepartmentFinancePageV2() {
                     <tr>
                       <th className="px-5 py-4">Month</th>
                       <th className="px-5 py-4">Amount</th>
-                      <th className="px-5 py-4">Used</th>
                       <th className="px-5 py-4">Reason</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Submitted</th>
@@ -1697,25 +1668,6 @@ export function DepartmentFinancePageV2() {
                       <tr key={request.id} className="hover:bg-blue-50/30 transition-all">
                         <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[request.monthKey] || request.month}</td>
                         <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(request.amount)}</td>
-                        <td className="px-5 py-4 font-pmedium whitespace-nowrap">
-                          {String(request.status || '').toLowerCase() === 'approved' ? (
-                            (() => {
-                              const used = getExtraUsedForMonth(request.monthKey);
-                              return (
-                                <span className={used > 0 ? 'text-blue-600' : 'text-slate-400'}>
-                                  {formatCurrency(used)}
-                                  {used > 0 && Number(request.amount) > 0 && (
-                                    <span className="ml-1 text-[9px] uppercase tracking-wider text-slate-400">
-                                      of {formatCurrency(request.amount)}
-                                    </span>
-                                  )}
-                                </span>
-                              );
-                            })()
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
                         <td className="px-5 py-4 text-xs text-slate-600 max-w-[300px] truncate">{request.reason || '-'}</td>
                         <td className="px-5 py-4">
                           <span className={statusPillClass(request.status)}>{request.status}</span>
@@ -1725,7 +1677,7 @@ export function DepartmentFinancePageV2() {
                     ))}
                     {extraRequestsFiltered.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
                           No extra budget requests submitted for this fiscal year.
                         </td>
                       </tr>

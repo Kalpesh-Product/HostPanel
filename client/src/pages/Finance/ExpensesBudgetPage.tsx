@@ -834,33 +834,14 @@ export function ExpensesBudgetPage() {
     'Finance Team',
   ).trim();
 
-  // Which approval step does the CURRENT user own? Founder/owner-side roles act
-  // on the "owner" step; finance managers on the "financeManager" step.
-  const normalizedCurrentUserRole = String(
-    currentUser?.workspaceMembership?.role || currentUser?.role || currentUser?.designation || '',
-  ).trim().toLowerCase();
-  const myApprovalScope = /finance[-_ ]?manager|^finance$/.test(normalizedCurrentUserRole)
-    ? 'financeManager'
-    : 'owner';
-
-  // Role strings can be unreliable (objects/ids/custom names), so the primary
-  // check is "which steps did THIS user id decide?" — approverUserId is stamped
-  // server-side on every decision. Falls back to role-based scope.
-  const currentUserId = String(currentUser?._id || currentUser?.id || '');
+  // This page is the Finance approval desk. Its action state must always come
+  // from the financeManager step. Finance managers may be stored under the
+  // generic Manager role plus a Finance department assignment, so inferring
+  // the scope from the client-side role string can incorrectly read the
+  // founder's owner step and hide Finance's action buttons.
   const getMyApprovalDecision = (flow: any): string => {
     if (!flow) return '';
-    for (const key of ['owner', 'financeManager']) {
-      const step: any = flow[key];
-      const status = String(step?.status || '').toLowerCase();
-      if (
-        (status === 'approved' || status === 'rejected') &&
-        currentUserId &&
-        String(step?.approverUserId || '') === currentUserId
-      ) {
-        return status;
-      }
-    }
-    const scoped = String(flow?.[myApprovalScope]?.status || '').toLowerCase();
+    const scoped = String(flow?.financeManager?.status || '').toLowerCase();
     return scoped === 'approved' || scoped === 'rejected' ? scoped : '';
   };
 
@@ -873,31 +854,6 @@ export function ExpensesBudgetPage() {
         String(b?.department || '').trim().toLowerCase() === String(department || '').trim().toLowerCase() &&
         String(b?.monthKey || b?.month || '').toLowerCase() === String(monthKey || '').toLowerCase())
       .reduce((sum, b) => sum + Number(b?.requested || b?.approved || 0), 0);
-
-  // Spend beyond a department-month's original allocation = extra budget used.
-  // Computed as per-expense overages (actual beyond own projection) so a single
-  // line going over consumes exactly what it overspent.
-  const getExtraUsedForMonthDept = (department: string, monthKey: any) => {
-    const mk = String(monthKey || '').toLowerCase();
-    const budget = estimatedBudgets.find(
-      (b) => String(b?.department || '').trim().toLowerCase() === String(department || '').trim().toLowerCase()
-    );
-    const month = Array.isArray(budget?.monthlyBreakdown)
-      ? budget.monthlyBreakdown.find((m: any) => String(m?.monthKey || m?.month || '').toLowerCase() === mk)
-      : null;
-    if (!month) return 0;
-    const allExpenses = [
-      ...(Array.isArray(month.expenses) ? month.expenses : []),
-      ...(Array.isArray(month.extraExpenses) ? month.extraExpenses : []),
-    ];
-    return allExpenses
-      .filter((e: any) => String(e?.expenseTag || '').toLowerCase() !== 'add-on')
-      .reduce((sum: number, e: any) => {
-        const projected = Number(e?.projectedAmount ?? e?.estimatedAmount ?? e?.amount ?? 0);
-        const actual = Number(e?.actualAmount ?? e?.actualSpent ?? 0);
-        return sum + Math.max(0, actual - projected);
-      }, 0);
-  };
 
   useEffect(() => {
     let alive = true;
@@ -1526,7 +1482,6 @@ export function ExpensesBudgetPage() {
                         <th className="px-6 py-5">Date & ID</th>
                         <th className="px-6 py-5">Dept</th>
                         <th className="px-6 py-5">Amount</th>
-                        <th className="px-6 py-5">Used</th>
                         <th className="px-6 py-5 hidden md:table-cell">Reason</th>
                         <th className="px-6 py-5 text-center">Status</th>
                         <th className="px-6 py-5 text-center">Action</th>
@@ -1543,18 +1498,6 @@ export function ExpensesBudgetPage() {
                             <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1 sm:gap-2"><Building2 size={12} className="sm:w-3.5 sm:h-3.5 text-slate-400" /> {extra.department}</p>
                           </td>
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(extra.requested)}</td>
-                          <td className="px-6 py-5 whitespace-nowrap text-xs sm:text-sm">
-                            {String(extra.status || '').toLowerCase() === 'approved' ? (
-                              (() => {
-                                const used = getExtraUsedForMonthDept(extra.department, extra.monthKey || extra.month);
-                                return used > 0
-                                  ? <span className="font-pmedium text-blue-600">{formatCurrency(used)}</span>
-                                  : <span className="font-bold text-slate-400">—</span>;
-                              })()
-                            ) : (
-                              <span className="font-bold text-slate-400">—</span>
-                            )}
-                          </td>
                           <td className="px-6 py-5 hidden md:table-cell">
                             <p className="text-xs font-medium text-slate-600 truncate max-w-[200px]">{extra.details}</p>
                           </td>
@@ -1572,7 +1515,7 @@ export function ExpensesBudgetPage() {
                       ))}
                       {visibleExtraBudgets.length === 0 && (
                         <tr>
-                            <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                            <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
                               No extra budget requests found.
                             </td>
                         </tr>
