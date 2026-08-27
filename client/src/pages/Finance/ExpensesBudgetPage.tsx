@@ -23,6 +23,7 @@ import {
   DollarSign,
   FileDown,
   FileSpreadsheet,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
@@ -155,6 +156,9 @@ interface ExtraBudget {
   requestKey: string;
   submittedByName: string;
   approvalStateLabel: string;
+  revision?: number;
+  type?: string;
+  appliedExpenseId?: string;
 }
 
 interface LedgerEntry {
@@ -414,7 +418,7 @@ function mapAnnualRequestToBudget(request: any = {}): Budget {
     title: request.title || request.targetTitle || 'Extra Budget',
     requested: Number(request.requestedBudget || 0),
     approved: status === 'Approved' ? Number(request.requestedBudget || 0) : 0,
-    status: status === 'Approved' ? 'Active' : status === 'Rejected' ? 'Rejected' : 'Pending Review',
+    status: status === 'Approved' ? 'Active' : status === 'Rejected' ? 'Rejected' : status === 'Discuss' ? 'Changes Requested' : status === 'Draft' ? 'Draft' : 'Pending Review',
     date: request.submittedAtLabel || request.submittedAt || '',
     used,
     actualSpent: used,
@@ -426,6 +430,7 @@ function mapAnnualRequestToBudget(request: any = {}): Budget {
     monthlyBreakdown: Array.isArray(request.monthlyBreakdown) ? request.monthlyBreakdown : Array.isArray(request.monthlyPlan) ? request.monthlyPlan : [],
     submittedByName: request.submittedByName || '',
     approvalStateLabel: request.approvalStateLabel || '',
+    revision: Number(request.revision || 1),
   };
 }
 
@@ -449,6 +454,8 @@ function mapExtraRequestToBudget(request: any = {}): ExtraBudget {
     requestKey: String(request.requestKey || ''),
     submittedByName: request.submittedByName || '',
     approvalStateLabel: request.approvalStateLabel || '',
+    type: String(request.type || ''),
+    appliedExpenseId: String(request.appliedExpenseId || ''),
   };
 }
 
@@ -1150,9 +1157,10 @@ export function ExpensesBudgetPage() {
   const handleRejectConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingRequest) return;
+    const decision = rejectingRequest.decisionAction === 'Discuss' ? 'Discuss' : 'Rejected';
     if (rejectingRequest.modalType === 'estimated') {
       try {
-        await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: 'Rejected', fiscalYear: selectedFY });
+        await applyFinanceApprovalDecision('annual', rejectingRequest.id, { status: decision, fiscalYear: selectedFY, note: rejectReason.trim() });
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
@@ -1160,13 +1168,13 @@ export function ExpensesBudgetPage() {
         setEstimatedBudgets(enrichedAnnualRequests.map(mapAnnualRequestToBudget));
         setExtraBudgets(Array.isArray(payload.extraRequests) ? payload.extraRequests.map(mapExtraRequestToBudget) : []);
         syncExpenseHistoryFromPayload(payload, enrichedAnnualRequests);
-        toast.success(`Request rejected for ${rejectingRequest.department}.`);
+        toast.success(decision === 'Discuss' ? `Changes requested from ${rejectingRequest.department}.` : `Request rejected for ${rejectingRequest.department}.`);
         setRejectingRequest(null);
         setRejectReason('');
       } catch (error: any) { toast.error(error?.message || 'Failed to reject annual budget.'); }
     } else if (rejectingRequest.modalType === 'extra') {
       try {
-        await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: 'Rejected', fiscalYear: selectedFY });
+        await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: decision, fiscalYear: selectedFY, note: rejectReason.trim() });
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
           ? payload.annualRequests.map((request: any) => enrichAnnualRequestWithDepartmentPlan(request, getDepartmentFinancePlan(payload, request?.department || '')))
@@ -1559,7 +1567,9 @@ export function ExpensesBudgetPage() {
                             <p className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">PO: {log.refPoId}</p>
                           </td>
                           <td className="px-6 py-5 font-black text-red-600 text-xs sm:text-sm">-{formatCurrency(log.amount)}</td>
-                          <td className="px-6 py-5 text-center">{getStatusBadge(log.status)}</td>
+                          <td className="px-6 py-5 text-center">
+                            {getStatusBadge(formatFinancePaymentStatus(log.paymentStatus || log.status, 'Planned'))}
+                          </td>
                           <td className="px-6 py-5 text-center">
                             <div className="flex flex-wrap items-center justify-center gap-2">
                               <button
@@ -1610,7 +1620,7 @@ export function ExpensesBudgetPage() {
       {/* ── View Budget Modal ── */}
       {viewingBudget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full sm:w-[95vw] max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
                 <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
@@ -1619,7 +1629,7 @@ export function ExpensesBudgetPage() {
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
                   <PieChart size={20} /> Budget Review
                 </h2>
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingBudget.requestKey || viewingBudget.id}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingBudget.requestKey || viewingBudget.id} • Revision {Number(viewingBudget.revision || 1)}</p>
               </div>
               <button onClick={() => setViewingBudget(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
                 <X size={16} />
@@ -1677,12 +1687,13 @@ export function ExpensesBudgetPage() {
 
                 <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                   <div className="overflow-x-auto">
-                    <table className="w-full table-fixed text-left" style={{ minWidth: viewingBudget.status === 'Active' ? '1280px' : '920px' }}>
+                    <table className="w-full table-fixed text-left" style={{ minWidth: viewingBudget.status === 'Active' ? '1410px' : '1050px' }}>
                       <thead className="sticky top-0 z-10">
                         <tr className="border-b border-slate-200 bg-slate-50">
                           <th className="w-[290px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
                           <th className="px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</th>
                           <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
+                          <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Actual</th>
                           <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
                           {viewingBudget.status === 'Active' && <>
                             <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
@@ -1699,7 +1710,7 @@ export function ExpensesBudgetPage() {
                             const allExpenses = [...expenses, ...extraExpenses.map((e: any) => ({ ...e, _isExtra: true }))];
                             const projected = Number(m.projectedBudget ?? m.amount ?? 0);
                             const actual = Number(m.actualSpent ?? 0);
-                            const colSpan = viewingBudget.status === 'Active' ? 7 : 4;
+                            const colSpan = viewingBudget.status === 'Active' ? 8 : 5;
                             return (
                               <React.Fragment key={mIdx}>
                                 <tr className="border-y border-blue-100 bg-blue-50/80">
@@ -1791,7 +1802,38 @@ export function ExpensesBudgetPage() {
                                       <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{getBudgetExpenseDetails(expense) || '—'}</p>
                                     </td>
                                     <td className="px-4 py-4 text-right align-top">
-                                      <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(getBudgetExpenseAmount(expense))}</p>
+                                      {(() => {
+                                        const currentProjection = Number(expense.projectedAmount ?? getBudgetExpenseAmount(expense));
+                                        const approvedIncrease = extraBudgets
+                                          .filter((request) =>
+                                            String(request?.status || '').toLowerCase() === 'approved' &&
+                                            String(request?.type || '').toLowerCase() === 'increase' &&
+                                            String(request?.appliedExpenseId || '') === String(expense?._id || expense?.id || ''))
+                                          .reduce((sum, request) => sum + Number(request?.requested || request?.approved || 0), 0);
+                                        if (approvedIncrease <= 0) {
+                                          return <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(currentProjection)}</p>;
+                                        }
+                                        const originalProjection = Math.max(0, currentProjection - approvedIncrease);
+                                        return (
+                                          <div title={`Current projection: ${formatCurrency(currentProjection)}`}>
+                                            <p className="whitespace-nowrap text-xs font-black text-slate-700 sm:text-sm">
+                                              {formatCurrency(originalProjection)} <span className="text-[#2563EB]">+ {formatCurrency(approvedIncrease)}</span>
+                                            </p>
+                                            <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
+                                          </div>
+                                        );
+                                      })()}
+                                    </td>
+                                    <td className="px-4 py-4 text-right align-top">
+                                      {(() => {
+                                        const actualAmount = Number(expense.actualAmount ?? expense.actualSpent ?? 0);
+                                        const currentProjection = Number(expense.projectedAmount ?? getBudgetExpenseAmount(expense));
+                                        return (
+                                          <p className={`whitespace-nowrap text-xs font-black sm:text-sm ${actualAmount > currentProjection ? 'text-rose-600' : actualAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                            {formatCurrency(actualAmount)}
+                                          </p>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="px-4 py-4 align-top">
                                       <p className="text-xs font-bold text-slate-600">{expense.dueDate ? formatDateLabel(expense.dueDate) : '—'}</p>
@@ -1814,18 +1856,44 @@ export function ExpensesBudgetPage() {
                                         </span>
                                       </td>
                                       <td className="px-4 py-4 align-top">
-                                        {expense.invoiceNumber || expense.invoiceUrl ? (
-                                          <div className="space-y-1">
-                                            <span className="flex w-fit items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[9px] font-black text-green-700">
-                                              <Receipt size={9} /> {expense.invoiceNumber || 'Uploaded'}
-                                            </span>
-                                            {expense.invoiceUrl && (
-                                              <a href={expense.invoiceUrl} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-blue-600 hover:underline block">View file</a>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Pending</span>
-                                        )}
+                                        {(() => {
+                                          const legacyInvoiceUrl = expense.invoiceUrl || expense.invoiceFile || '';
+                                          const invoices = Array.isArray(expense.invoices) && expense.invoices.length > 0
+                                            ? expense.invoices
+                                            : (expense.invoiceNumber || legacyInvoiceUrl
+                                              ? [{ invoiceNumber: expense.invoiceNumber, amount: expense.invoiceAmount, invoiceUrl: legacyInvoiceUrl }]
+                                              : []);
+                                          if (invoices.length === 0) {
+                                            return <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">No Invoice</span>;
+                                          }
+                                          return (
+                                            <div className="space-y-2">
+                                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                                                {invoices.length} invoice{invoices.length === 1 ? '' : 's'}
+                                              </p>
+                                              {invoices.map((invoice: any, invoiceIndex: number) => {
+                                                const fileUrl = invoice?.invoiceUrl || invoice?.url || invoice?.invoiceFile || '';
+                                                const label = invoice?.invoiceNumber || `Invoice ${invoiceIndex + 1}`;
+                                                const content = (
+                                                  <>
+                                                    <Receipt size={11} className="shrink-0" />
+                                                    <span className="min-w-0 truncate font-black">{label}</span>
+                                                    {Number(invoice?.amount || 0) > 0 && <span className="ml-auto shrink-0">{formatCurrency(invoice.amount)}</span>}
+                                                  </>
+                                                );
+                                                return fileUrl ? (
+                                                  <a key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} href={fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[10px] text-blue-700 transition-colors hover:bg-blue-100" title={`View ${label}`}>
+                                                    {content}
+                                                  </a>
+                                                ) : (
+                                                  <div key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] text-slate-600">
+                                                    {content}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          );
+                                        })()}
                                       </td>
                                     </>}
                                   </tr>
@@ -1842,7 +1910,7 @@ export function ExpensesBudgetPage() {
                           })
                         ) : (
                           <tr>
-                            <td colSpan={viewingBudget.status === 'Active' ? 7 : 4} className="px-4 py-12 text-center text-sm font-bold text-slate-400">
+                            <td colSpan={viewingBudget.status === 'Active' ? 8 : 5} className="px-4 py-12 text-center text-sm font-bold text-slate-400">
                               No monthly breakdown has been submitted for this request.
                             </td>
                           </tr>
@@ -1857,9 +1925,12 @@ export function ExpensesBudgetPage() {
             {(() => {
               const overall = String(viewingBudget.status || '').toLowerCase();
               const myDecision = getMyApprovalDecision(viewingBudget.approvalFlow);
-              if (!myDecision && overall !== 'active' && overall !== 'rejected') {
+              if (!myDecision && overall === 'pending review') {
                 return (
                   <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
+                    <button onClick={() => { setRejectReason(''); setRejectingRequest({ ...viewingBudget, modalType: 'estimated', decisionAction: 'Discuss' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                      <MessageSquare size={14} /> REQUEST CHANGES
+                    </button>
                     <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                       <XCircle size={14} /> REJECT REQUEST
                     </button>
@@ -2096,9 +2167,9 @@ export function ExpensesBudgetPage() {
       {rejectingRequest && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-md">
           <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-sm sm:max-w-md shadow-2xl overflow-hidden flex flex-col animate-in zoom-in duration-200">
-            <div className="p-4 sm:p-6 lg:p-8 bg-red-600 text-white flex justify-between items-center">
+            <div className={`p-4 sm:p-6 lg:p-8 text-white flex justify-between items-center ${rejectingRequest.decisionAction === 'Discuss' ? 'bg-blue-600' : 'bg-red-600'}`}>
               <div>
-                <h2 className="text-lg sm:text-xl font-black flex items-center gap-2"><XCircle size={18} className="sm:w-5 sm:h-5" /> Deny Request</h2>
+                <h2 className="text-lg sm:text-xl font-black flex items-center gap-2">{rejectingRequest.decisionAction === 'Discuss' ? <MessageSquare size={18} /> : <XCircle size={18} />} {rejectingRequest.decisionAction === 'Discuss' ? 'Request Changes' : 'Deny Request'}</h2>
                 <p className="text-[9px] sm:text-[10px] font-pmedium text-red-200 uppercase">{rejectingRequest.department} Dept</p>
               </div>
               <button onClick={() => setRejectingRequest(null)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-slate-900 transition-all"><X size={16} /></button>
@@ -2111,13 +2182,13 @@ export function ExpensesBudgetPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase">Reason for Rejection *</label>
-                <textarea required rows={3} placeholder="Explain why this request is denied..." className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl font-medium text-gray-700 focus:border-red-500 outline-none resize-none text-sm" value={rejectReason} onChange={e => setRejectReason(e.target.value)} />
+                <label className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase">{rejectingRequest.decisionAction === 'Discuss' ? 'Changes Required' : 'Reason for Rejection'} *</label>
+                <textarea required rows={3} placeholder={rejectingRequest.decisionAction === 'Discuss' ? 'Explain what the manager must revise...' : 'Explain why this request is denied...'} className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl font-medium text-gray-700 focus:border-blue-500 outline-none resize-none text-sm" value={rejectReason} onChange={e => setRejectReason(e.target.value)} />
               </div>
 
               <div className="flex gap-3 sm:gap-4 pt-2">
                 <button type="button" onClick={() => setRejectingRequest(null)} className="flex-1 py-3 sm:py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-xs sm:text-sm">Cancel</button>
-                <button type="submit" className="flex-[2] py-3 sm:py-3.5 bg-red-600 text-white rounded-xl font-pmedium shadow-lg shadow-red-200 hover:bg-red-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button type="submit" className={`flex-[2] py-3 sm:py-3.5 text-white rounded-xl font-pmedium transition-all text-xs sm:text-sm flex items-center justify-center gap-2 ${rejectingRequest.decisionAction === 'Discuss' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}>
                   Confirm
                 </button>
               </div>

@@ -56,6 +56,8 @@ export function FinancePage() {
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [decisionPrompt, setDecisionPrompt] = useState<{ action: 'Rejected' | 'Discuss'; request: any } | null>(null);
+  const [decisionComment, setDecisionComment] = useState('');
   
   // Modal States
   const [viewingRequest, setViewingRequest] = useState<any>(null);
@@ -348,14 +350,16 @@ export function FinancePage() {
   }, [viewingDeptOverview, viewingDepartmentFinancePlan, departmentFinance]);
 
   // --- HANDLERS ---
-  const handleAction = async (type: string, id: string, action: string) => {
+  const handleAction = async (type: string, id: string, action: string, note = '') => {
     setIsSavingDecision(true);
     setErrorMessage('');
     try {
-      await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY });
+      await applyFinanceApprovalDecision(type, id, { status: action, fiscalYear: selectedFY, note });
       const response = await getFinanceSnapshot(selectedFY);
       applyFinanceData(response || {});
       setViewingRequest(null);
+      setDecisionPrompt(null);
+      setDecisionComment('');
     } catch (error: any) {
       setErrorMessage(getApiErrorMessage(error, 'Unable to update approval decision.'));
     } finally {
@@ -392,6 +396,21 @@ export function FinancePage() {
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = (amount: number) =>
     formatWorkspaceCurrency(Number(amount || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
+  const getDepartmentActualSpend = (departmentName = '') => {
+    const plan = departmentFinance.find(
+      (item: any) => normalizeDepartmentKey(item?.department || '') === normalizeDepartmentKey(departmentName),
+    );
+    if (!Array.isArray(plan?.monthlyPlan)) return 0;
+
+    return plan.monthlyPlan.reduce((yearTotal: number, month: any) => {
+      if (!Array.isArray(month?.expenses)) return yearTotal + Number(month?.actualSpent || 0);
+      const monthActual = month.expenses.reduce(
+        (monthTotal: number, expense: any) => monthTotal + Number(expense?.actualAmount ?? expense?.actualSpent ?? 0),
+        0,
+      );
+      return yearTotal + monthActual;
+    }, 0);
+  };
 
   // Shared UI logic
   const tabs = [
@@ -548,7 +567,7 @@ export function FinancePage() {
                       <tr>
                         <th className="px-5 py-4">Department</th>
                         <th className="px-5 py-4">Total Requested Budget</th>
-                        <th className="px-5 py-4">Previous Year Spend</th>
+                        <th className="px-5 py-4">Actual Spend (FY)</th>
                         <th className="px-5 py-4">Status</th>
                         <th className="px-5 py-4 text-center">Action</th>
                       </tr>
@@ -571,7 +590,7 @@ export function FinancePage() {
                             <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">REF: {req.requestKey || req.id}</div>
                           </td>
                           <td className="px-5 py-4 font-pmedium text-[#2563EB] text-lg">{formatCurrency(req.requestedBudget)}</td>
-                          <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(req.previousSpend)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(getDepartmentActualSpend(req.department))}</td>
                           <td className="px-5 py-4">
                             {hasApprovalProgress(req.approvalFlow)
                               ? <ApprovalFlowBadges flow={req.approvalFlow} />
@@ -686,7 +705,7 @@ export function FinancePage() {
       {/* MODALS */}
       {viewingRequest && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full sm:w-[95vw] max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
                 <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
@@ -695,7 +714,7 @@ export function FinancePage() {
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
                   <PieChart size={20} /> Budget Review
                 </h2>
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingRequest.requestKey || viewingRequest.id}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingRequest.requestKey || viewingRequest.id} • Revision {Number(viewingRequest.revision || 1)}</p>
               </div>
               <button onClick={() => setViewingRequest(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
                 <X size={16} />
@@ -721,8 +740,11 @@ export function FinancePage() {
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
-                  <span className={`mt-1 inline-flex w-fit px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border ${String(viewingRequest.status).toLowerCase() === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : String(viewingRequest.status).toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{viewingRequest.status}</span>
-                  <span className="mt-1"><ApprovalFlowBadges flow={viewingRequest.approvalFlow} /></span>
+                  {hasApprovalProgress(viewingRequest.approvalFlow) ? (
+                    <span className="mt-1"><ApprovalFlowBadges flow={viewingRequest.approvalFlow} /></span>
+                  ) : (
+                    <span className={`mt-1 inline-flex w-fit px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border ${String(viewingRequest.status).toLowerCase() === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : String(viewingRequest.status).toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{viewingRequest.status}</span>
+                  )}
                 </div>
               </div>
 
@@ -749,12 +771,13 @@ export function FinancePage() {
                   ) : (
                     <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                       <div className="overflow-x-auto">
-                        <table className="w-full table-fixed text-left" style={{ minWidth: isViewingApprovedRequest ? '1280px' : '920px' }}>
+                        <table className="w-full table-fixed text-left" style={{ minWidth: isViewingApprovedRequest ? '1410px' : '1050px' }}>
                           <thead className="sticky top-0 z-10">
                             <tr className="border-b border-slate-200 bg-slate-50">
                               <th className="w-[290px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
                               <th className="px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</th>
                               <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
+                              <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Actual</th>
                               <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
                               {isViewingApprovedRequest && <>
                                 <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
@@ -766,7 +789,7 @@ export function FinancePage() {
                           <tbody className="divide-y divide-slate-100">
                             {viewingRequestDetail.months.map((month) => {
                               const expenses = Array.isArray(month.expenses) ? month.expenses : [];
-                              const colSpan = isViewingApprovedRequest ? 7 : 4;
+                              const colSpan = isViewingApprovedRequest ? 8 : 5;
                               return (
                                 <React.Fragment key={month.key}>
                                   <tr className="border-y border-blue-100 bg-blue-50/80">
@@ -803,7 +826,21 @@ export function FinancePage() {
                                   ) : (
                                     expenses.map((exp: any, eIdx: number) => {
                                       const invoiceUrl = exp.invoiceUrl || exp.invoiceFile || '';
+                                      const invoices = Array.isArray(exp.invoices) && exp.invoices.length > 0
+                                        ? exp.invoices
+                                        : (exp.invoiceNumber || invoiceUrl
+                                          ? [{ invoiceNumber: exp.invoiceNumber, amount: exp.invoiceAmount, invoiceUrl }]
+                                          : []);
                                       const paymentStatus = String(exp.paymentStatus || '');
+                                      const approvedIncrease = (Array.isArray(extraRequests) ? extraRequests : [])
+                                        .filter((request: any) =>
+                                          String(request?.status || '').toLowerCase() === 'approved' &&
+                                          String(request?.type || '').toLowerCase() === 'increase' &&
+                                          String(request?.appliedExpenseId || '') === String(exp?._id || exp?.id || ''))
+                                        .reduce((sum: number, request: any) => sum + Number(request?.amount || 0), 0);
+                                      const currentProjection = Number(exp.projectedAmount || 0);
+                                      const originalProjection = Math.max(0, currentProjection - approvedIncrease);
+                                      const actualAmount = Number(exp.actualAmount ?? exp.actualSpent ?? 0);
                                       return (
                                         <tr key={`${month.key}-exp-${exp.id || eIdx}`} className="border-b border-slate-100 bg-white transition-colors hover:bg-blue-50/40">
                                         <td className="px-4 py-4 align-top">
@@ -835,7 +872,21 @@ export function FinancePage() {
                                             <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{exp.description || '—'}</p>
                                           </td>
                                           <td className="px-4 py-4 text-right align-top">
-                                            <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(exp.projectedAmount)}</p>
+                                            {approvedIncrease > 0 ? (
+                                              <div title={`Current projection: ${formatCurrency(currentProjection)}`}>
+                                                <p className="whitespace-nowrap text-xs font-black text-slate-700 sm:text-sm">
+                                                  {formatCurrency(originalProjection)} <span className="text-[#2563EB]">+ {formatCurrency(approvedIncrease)}</span>
+                                                </p>
+                                                <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
+                                              </div>
+                                            ) : (
+                                              <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(currentProjection)}</p>
+                                            )}
+                                          </td>
+                                          <td className="px-4 py-4 text-right align-top">
+                                            <p className={`whitespace-nowrap text-xs font-black sm:text-sm ${actualAmount > currentProjection ? 'text-rose-600' : actualAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                              {formatCurrency(actualAmount)}
+                                            </p>
                                           </td>
                                           <td className="px-4 py-4 align-top">
                                             <p className="text-xs font-bold text-slate-600">{exp.dueDate || '—'}</p>
@@ -857,17 +908,34 @@ export function FinancePage() {
                                               </span>
                                             </td>
                                             <td className="px-4 py-4 align-top">
-                                              {exp.invoiceNumber || invoiceUrl ? (
-                                                <div className="space-y-1">
-                                                  <span className="flex w-fit items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[9px] font-black text-green-700">
-                                                    <Receipt size={9} /> {exp.invoiceNumber || 'Uploaded'}
-                                                  </span>
-                                                  {invoiceUrl && (
-                                                    <a href={invoiceUrl} target="_blank" rel="noreferrer" className="block text-[9px] font-bold text-blue-600 hover:underline">View file</a>
-                                                  )}
+                                              {invoices.length > 0 ? (
+                                                <div className="space-y-2">
+                                                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                                                    {invoices.length} invoice{invoices.length === 1 ? '' : 's'}
+                                                  </p>
+                                                  {invoices.map((invoice: any, invoiceIndex: number) => {
+                                                    const fileUrl = invoice?.invoiceUrl || invoice?.url || invoice?.invoiceFile || '';
+                                                    const label = invoice?.invoiceNumber || `Invoice ${invoiceIndex + 1}`;
+                                                    const content = (
+                                                      <>
+                                                        <Receipt size={11} className="shrink-0" />
+                                                        <span className="min-w-0 truncate font-black">{label}</span>
+                                                        {Number(invoice?.amount || 0) > 0 && <span className="ml-auto shrink-0">{formatCurrency(invoice.amount)}</span>}
+                                                      </>
+                                                    );
+                                                    return fileUrl ? (
+                                                      <a key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} href={fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[10px] text-blue-700 transition-colors hover:bg-blue-100" title={`View ${label}`}>
+                                                        {content}
+                                                      </a>
+                                                    ) : (
+                                                      <div key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] text-slate-600">
+                                                        {content}
+                                                      </div>
+                                                    );
+                                                  })}
                                                 </div>
                                               ) : (
-                                                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Pending</span>
+                                                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">No Invoice</span>
                                               )}
                                             </td>
                                           </>}
@@ -902,14 +970,14 @@ export function FinancePage() {
 
             {(() => {
               const requestStatus = String(viewingRequest.status || '').toLowerCase();
-              const actionable = (requestStatus === 'pending' || requestStatus === 'discuss') && !viewingHasDecided;
+              const actionable = requestStatus === 'pending' && !viewingHasDecided;
               if (actionable) {
                 return (
                   <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                    <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Discuss')} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: viewingRequest }); }} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                       <MessageSquare size={14} /> DISCUSS
                     </button>
-                    <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Rejected')} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: viewingRequest }); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
                       <XCircle size={14} /> REJECT REQUEST
                     </button>
                     <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
@@ -940,7 +1008,7 @@ export function FinancePage() {
 
       {viewingDeptOverview && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full sm:w-[95vw] max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
               <div>
                 <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
@@ -996,13 +1064,17 @@ export function FinancePage() {
                 ) : (
                   <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div className="overflow-x-auto">
-                      <table className="w-full table-fixed text-left" style={{ minWidth: '1080px' }}>
+                      <table className="w-full table-fixed text-left" style={{ minWidth: '1580px' }}>
                         <thead>
                           <tr className="border-b border-slate-200 bg-slate-50">
                             <th className="w-[280px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
+                            <th className="w-[260px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</th>
                             <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
                             <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Actual</th>
+                            <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
+                            <th className="w-[200px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
                             <th className="w-[140px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
+                            <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Invoice</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1012,7 +1084,7 @@ export function FinancePage() {
                             return (
                               <React.Fragment key={month.key}>
                                 <tr className="border-y border-blue-100 bg-blue-50/80">
-                                  <td colSpan={4} className="px-4 py-3">
+                                  <td colSpan={8} className="px-4 py-3">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                       <span className="flex min-w-0 items-center gap-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-900">
                                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
@@ -1039,16 +1111,28 @@ export function FinancePage() {
                                 </tr>
                                 {expenses.length === 0 ? (
                                   <tr className="bg-white">
-                                    <td colSpan={4} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
+                                    <td colSpan={8} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
                                       No expenses recorded for this month.
                                     </td>
                                   </tr>
                                 ) : (
                                   expenses.map((exp: any, eIdx: number) => {
                                     const invoiceUrl = exp.invoiceUrl || exp.invoiceFile || '';
+                                    const invoices = Array.isArray(exp.invoices) && exp.invoices.length > 0
+                                      ? exp.invoices
+                                      : (exp.invoiceNumber || invoiceUrl
+                                        ? [{ invoiceNumber: exp.invoiceNumber, amount: exp.invoiceAmount, invoiceUrl }]
+                                        : []);
                                     const projected = Number(exp.projectedAmount ?? 0);
                                     const actual = Number(exp.actualAmount ?? exp.actualSpent ?? 0);
                                     const variance = projected - actual;
+                                    const approvedIncrease = (Array.isArray(extraRequests) ? extraRequests : [])
+                                      .filter((request: any) =>
+                                        String(request?.status || '').toLowerCase() === 'approved' &&
+                                        String(request?.type || '').toLowerCase() === 'increase' &&
+                                        String(request?.appliedExpenseId || '') === String(exp?._id || exp?.id || ''))
+                                      .reduce((sum: number, request: any) => sum + Number(request?.amount || 0), 0);
+                                    const originalProjection = Math.max(0, projected - approvedIncrease);
                                     return (
                                       <tr key={`${month.key}-exp-${exp.id || eIdx}`} className="border-b border-slate-100 bg-white transition-colors hover:bg-blue-50/40">
                                         <td className="px-4 py-4 align-top">
@@ -1074,13 +1158,23 @@ export function FinancePage() {
                                             );
                                           })()}
                                           {exp.vendorName && (
-                                            <div className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">
-                                              Vendor: {exp.vendorName}
-                                            </div>
+                                            <span className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">Vendor Linked</span>
                                           )}
                                         </td>
+                                        <td className="px-4 py-4 align-top">
+                                          <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{exp.description || '—'}</p>
+                                        </td>
                                         <td className="px-4 py-4 text-right align-top">
-                                          <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(projected)}</p>
+                                          {approvedIncrease > 0 ? (
+                                            <div title={`Current projection: ${formatCurrency(projected)}`}>
+                                              <p className="whitespace-nowrap text-xs font-black text-slate-700 sm:text-sm">
+                                                {formatCurrency(originalProjection)} <span className="text-[#2563EB]">+ {formatCurrency(approvedIncrease)}</span>
+                                              </p>
+                                              <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
+                                            </div>
+                                          ) : (
+                                            <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(projected)}</p>
+                                          )}
                                         </td>
                                         <td className="px-4 py-4 align-top">
                                           <p className={`whitespace-nowrap text-xs font-black sm:text-sm ${actual > projected ? 'text-rose-600' : 'text-emerald-600'}`}>{formatCurrency(actual)}</p>
@@ -1091,13 +1185,52 @@ export function FinancePage() {
                                           )}
                                         </td>
                                         <td className="px-4 py-4 align-top">
+                                          <p className="text-xs font-bold text-slate-600">{exp.dueDate || '—'}</p>
+                                        </td>
+                                        <td className="px-4 py-4 align-top">
+                                          {exp.vendorName ? (
+                                            <div className="min-w-0">
+                                              <p className="break-words text-xs font-black text-slate-900">{exp.vendorName}</p>
+                                              {exp.vendorContactPerson && <p className="mt-0.5 break-words text-[10px] font-medium text-slate-400">{exp.vendorContactPerson}</p>}
+                                            </div>
+                                          ) : (
+                                            <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Not Assigned</span>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-4 align-top">
                                           <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${(exp.paymentStatus || '').includes('Done') || (exp.paymentStatus || '').includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : (exp.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : (exp.paymentStatus || '').includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                                             {formatFinancePaymentStatus(exp.paymentStatus)}
                                           </span>
-                                          {invoiceUrl && (
-                                            <a href={invoiceUrl} target="_blank" rel="noreferrer" className="mt-1 block text-[9px] font-bold text-blue-600 hover:underline">
-                                              {exp.invoiceNumber || 'View Invoice'}
-                                            </a>
+                                        </td>
+                                        <td className="px-4 py-4 align-top">
+                                          {invoices.length > 0 ? (
+                                            <div className="space-y-2">
+                                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                                                {invoices.length} invoice{invoices.length === 1 ? '' : 's'}
+                                              </p>
+                                              {invoices.map((invoice: any, invoiceIndex: number) => {
+                                                const fileUrl = invoice?.invoiceUrl || invoice?.url || invoice?.invoiceFile || '';
+                                                const label = invoice?.invoiceNumber || `Invoice ${invoiceIndex + 1}`;
+                                                const content = (
+                                                  <>
+                                                    <Receipt size={11} className="shrink-0" />
+                                                    <span className="min-w-0 truncate font-black">{label}</span>
+                                                    {Number(invoice?.amount || 0) > 0 && <span className="ml-auto shrink-0">{formatCurrency(invoice.amount)}</span>}
+                                                  </>
+                                                );
+                                                return fileUrl ? (
+                                                  <a key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} href={fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[10px] text-blue-700 transition-colors hover:bg-blue-100" title={`View ${label}`}>
+                                                    {content}
+                                                  </a>
+                                                ) : (
+                                                  <div key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] text-slate-600">
+                                                    {content}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          ) : (
+                                            <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">No Invoice</span>
                                           )}
                                         </td>
                                       </tr>
@@ -1118,6 +1251,46 @@ export function FinancePage() {
             <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
               <button onClick={() => setViewingDeptOverview(null)} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {decisionPrompt && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/85 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className={`px-6 py-5 text-white ${decisionPrompt.action === 'Rejected' ? 'bg-red-600' : 'bg-blue-600'}`}>
+              <h3 className="text-lg font-black">{decisionPrompt.action === 'Rejected' ? 'Reject Budget Request' : 'Request Changes'}</h3>
+              <p className="mt-1 text-xs opacity-80">{decisionPrompt.request.department}</p>
+            </div>
+            <form
+              className="space-y-4 p-6"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const comment = decisionComment.trim();
+                if (!comment) return;
+                handleAction(decisionPrompt.request.type, decisionPrompt.request.id, decisionPrompt.action, comment);
+              }}
+            >
+              <div>
+                <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                  {decisionPrompt.action === 'Rejected' ? 'Reason for rejection' : 'Changes required'} *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={decisionComment}
+                  onChange={(event) => setDecisionComment(event.target.value)}
+                  placeholder={decisionPrompt.action === 'Rejected' ? 'Explain why this budget is rejected…' : 'Explain what the manager must revise…'}
+                  className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => { setDecisionPrompt(null); setDecisionComment(''); }} className="flex-1 rounded-xl bg-slate-100 py-3 text-xs font-pmedium text-slate-700">Cancel</button>
+                <button disabled={isSavingDecision || !decisionComment.trim()} type="submit" className={`flex-[2] rounded-xl py-3 text-xs font-pmedium text-white disabled:opacity-50 ${decisionPrompt.action === 'Rejected' ? 'bg-red-600' : 'bg-blue-600'}`}>
+                  {isSavingDecision ? 'Saving…' : decisionPrompt.action === 'Rejected' ? 'Confirm Rejection' : 'Send Back for Revision'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -355,7 +355,7 @@ export async function getDepartmentFinanceForManagerInternal(input: {
   const [expenses, vendors, annualRequest, extraRequests] = await Promise.all([
     FinanceExpense.find({ workspaceId, planId: plan._id }).sort({ createdAt: 1 }).lean(),
     FinanceVendor.find({ workspaceId }).sort({ createdAt: -1 }).lean(),
-    AnnualFinanceRequest.findOne({ workspaceId, department, fiscalYear }).sort({ createdAt: -1 }).lean(),
+    AnnualFinanceRequest.findOne({ workspaceId, department, fiscalYear }).sort({ revision: -1, createdAt: -1 }).lean(),
     ExtraFinanceRequest.find({ workspaceId, department, fiscalYear }).sort({ createdAt: -1 }).lean(),
   ]);
 
@@ -426,16 +426,51 @@ export async function resetRejectedAnnualBudgetForDepartmentInternal(input: {
     fiscalYear: input.fiscalYear,
   }).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
-  if (safeString(plan.status).toLowerCase() !== "rejected") {
-    throw Object.assign(new Error("Only a rejected annual budget can be reset."), { statusCode: 409 });
+  const previousRequest = await AnnualFinanceRequest.findOne({
+    workspaceId: input.workspaceId,
+    department: input.department,
+    fiscalYear: input.fiscalYear,
+  }).sort({ revision: -1, createdAt: -1 }).exec();
+  const previousStatus = safeString(previousRequest?.status || plan.status).toLowerCase();
+  if (!previousRequest || !["rejected", "discuss"].includes(previousStatus)) {
+    throw Object.assign(new Error("Only a rejected or changes-requested annual budget can be revised."), { statusCode: 409 });
   }
 
-  await Promise.all([
-    FinanceExpense.deleteMany({ workspaceId: input.workspaceId, planId: plan._id }),
-    AnnualFinanceRequest.deleteMany({ workspaceId: input.workspaceId, department: input.department, fiscalYear: input.fiscalYear }),
-    DepartmentFinancePlan.deleteOne({ _id: plan._id, workspaceId: input.workspaceId }),
-  ]);
-  return { reset: true };
+  const nextRevision = Math.max(1, safeNumber((previousRequest as any).revision, 1)) + 1;
+  const approvalFlow = {
+    owner: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
+    financeManager: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
+    finalStatus: "Pending",
+    lastDecisionByRole: "",
+    lastDecisionAt: null,
+    lastDecisionAtLabel: "",
+    decisionHistory: [],
+  };
+  const revisionDraft = await AnnualFinanceRequest.create({
+    snapshotId: plan.snapshotId,
+    workspaceId: input.workspaceId,
+    requestKey: `${safeString(previousRequest.requestKey).replace(/-R\d+$/i, "")}-R${nextRevision}`,
+    department: input.department,
+    fiscalYear: input.fiscalYear,
+    requestedBudget: safeNumber(previousRequest.requestedBudget, 0),
+    previousSpend: safeNumber(previousRequest.previousSpend, 0),
+    status: "Draft",
+    breakdown: safeString(previousRequest.breakdown, ""),
+    submittedByUserId: input.userId,
+    submittedByName: safeString(previousRequest.submittedByName, ""),
+    submittedAt: null,
+    submittedAtLabel: "",
+    revision: nextRevision,
+    supersedesRequestId: previousRequest._id,
+    approvalFlow,
+    monthlyBreakdown: previousRequest.monthlyBreakdown || [],
+  });
+  plan.status = "Draft";
+  plan.requestId = String(revisionDraft._id);
+  plan.approvalFlow = approvalFlow as any;
+  plan.approvedAnnualBudget = 0;
+  await plan.save();
+  return { reset: true, revision: nextRevision, request: revisionDraft };
 }
 
 export async function submitBudgetRequestForDepartmentInternal(input: {
@@ -480,9 +515,9 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
 
   const existing = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
   const existingAnnualRequest = existing
-    ? await AnnualFinanceRequest.findOne({ workspaceId, fiscalYear, department }).select("_id").lean().exec()
+    ? await AnnualFinanceRequest.findOne({ workspaceId, fiscalYear, department }).sort({ revision: -1, createdAt: -1 }).exec()
     : null;
-  if (existingAnnualRequest) {
+  if (existingAnnualRequest && safeString(existingAnnualRequest.status).toLowerCase() !== "draft") {
     throw Object.assign(new Error("Department finance plan already exists for this fiscal year."), { statusCode: 409 });
   }
 
@@ -568,10 +603,10 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
     day: "2-digit",
     year: "numeric",
   });
-  const annualRequest = await AnnualFinanceRequest.create({
+  const annualRequestPayload = {
     snapshotId: plan.snapshotId,
     workspaceId,
-    requestKey: `BUD-${safeString(department).slice(0, 8).toUpperCase()}-${fiscalYear.replace(/[^a-zA-Z0-9]/g, "")}`,
+    requestKey: safeString(existingAnnualRequest?.requestKey) || `BUD-${safeString(department).slice(0, 8).toUpperCase()}-${fiscalYear.replace(/[^a-zA-Z0-9]/g, "")}`,
     department,
     fiscalYear,
     requestedBudget: safeNumber(annualBudgetRequested, 0),
@@ -582,6 +617,7 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
     submittedByName: managerName || "",
     submittedAt: new Date(),
     submittedAtLabel,
+    revision: safeNumber((existingAnnualRequest as any)?.revision, 1),
     approvalFlow: {
       owner: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
       financeManager: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
@@ -603,10 +639,19 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
       savings: safeNumber(m.projectedBudget, 0),
       expenses: [],
     })),
-  });
+  };
+  const annualRequest = existingAnnualRequest || await AnnualFinanceRequest.create(annualRequestPayload);
+  if (existingAnnualRequest) {
+    existingAnnualRequest.set(annualRequestPayload);
+    await existingAnnualRequest.save();
+  }
 
   // Link the plan back to the annual request so the approval flow can update the plan
   plan.requestId = String(annualRequest._id);
+  plan.status = "Pending";
+  plan.submittedAt = new Date();
+  plan.submittedAtLabel = submittedAtLabel;
+  plan.approvalFlow = (annualRequest as any).approvalFlow;
   await plan.save();
 
   return { plan, annualRequest };
@@ -1600,10 +1645,22 @@ export async function listFinanceSnapshotForManagerInternal(input: {
     };
   });
 
+  const latestAnnualRequests = Array.from(annualRequests.reduce((latestByDepartment: Map<string, any>, request: any) => {
+    const key = safeString(request.department).trim().toLowerCase();
+    const current = latestByDepartment.get(key);
+    const requestRevision = safeNumber(request.revision, 1);
+    const currentRevision = safeNumber(current?.revision, 1);
+    if (!current || requestRevision > currentRevision || (requestRevision === currentRevision && new Date(request.createdAt || 0).getTime() > new Date(current.createdAt || 0).getTime())) {
+      latestByDepartment.set(key, request);
+    }
+    return latestByDepartment;
+  }, new Map<string, any>()).values());
+
   return {
     fiscalYear,
     departments,
-    annualRequests,
+    annualRequests: latestAnnualRequests,
+    annualRequestHistory: annualRequests,
     extraRequests,
     departmentFinance: plansWithExpenses,
   };
@@ -1891,6 +1948,12 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     const record = await AnnualFinanceRequest.findById(requestObjectId).exec();
     if (!record) throw Object.assign(new Error("Annual finance request not found."), { statusCode: 404 });
     if (String(record.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+    if (safeString(record.status).toLowerCase() !== "pending") {
+      throw Object.assign(new Error("Only a pending annual budget revision can receive an approval decision."), { statusCode: 409 });
+    }
+    if ((status === "Rejected" || status === "Discuss") && !safeString(note).trim()) {
+      throw Object.assign(new Error(`${status === "Rejected" ? "Rejection" : "Discussion"} reason is required.`), { statusCode: 400 });
+    }
 
     const step = role === "owner" ? "owner" : "financeManager";
     (record.approvalFlow as any)[step] = {
@@ -1927,12 +1990,15 @@ export async function applyFinanceApprovalDecisionInternal(input: {
 
     await record.save();
 
-    if (record.status === "Approved") {
-      await DepartmentFinancePlan.updateOne(
-        { workspaceId, department: record.department, fiscalYear: { $exists: true } },
-        { $set: { status: "Approved", approvedAnnualBudget: record.requestedBudget } },
-      ).exec();
-    }
+    await DepartmentFinancePlan.updateOne(
+      { workspaceId, department: record.department, fiscalYear: record.fiscalYear },
+      { $set: {
+        status: record.status,
+        approvedAnnualBudget: record.status === "Approved" ? record.requestedBudget : 0,
+        approvalFlow: record.approvalFlow,
+        requestId: String(record._id),
+      } },
+    ).exec();
 
     return record;
   }

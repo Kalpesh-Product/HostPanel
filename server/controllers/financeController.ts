@@ -394,7 +394,7 @@ export async function resetRejectedAnnualBudget(req: Request, res: Response, nex
     if (!fiscalYear) return res.status(400).json({ message: "fiscalYear is required" });
 
     const result = await resetRejectedAnnualBudgetForDepartmentInternal({ workspaceId, userId, department, fiscalYear });
-    return res.status(200).json({ success: true, message: "Rejected annual budget reset successfully.", data: result });
+    return res.status(200).json({ success: true, message: "Annual budget revision draft created successfully.", data: result });
   } catch (error) {
     next(error);
   }

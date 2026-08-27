@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
   Send, Plus, Eye, Receipt, UserPlus, UploadCloud,
-  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil
+  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil, MessageSquare
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -249,7 +249,7 @@ export function DepartmentFinancePageV2() {
   const fiscalYearOptions = getFiscalYearOptions();
   const location = useLocation();
   const navigate = useNavigate();
-  const confirm = useAppConfirm();
+  const { confirm } = useAppConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspacePreferences = useWorkspacePreferences();
   const currency = workspacePreferences.currency;
@@ -392,7 +392,7 @@ export function DepartmentFinancePageV2() {
         const data = response?.data || response || {};
         setFinanceData(data);
         setMonthlyExpenses(Array.isArray(data.monthlyPlan) ? data.monthlyPlan : []);
-        if (!data.annualRequest && Array.isArray(data.monthlyPlan)) {
+        if ((!data.annualRequest || String(data.annualRequest?.status || '').toLowerCase() === 'draft') && Array.isArray(data.monthlyPlan)) {
           setDraftMonths(data.monthlyPlan.map((month: any, index: number) => ({
             id: String(month?.monthKey || month?.month || index),
             month: String(month?.month || monthLabels[month?.monthKey] || ''),
@@ -906,14 +906,14 @@ export function DepartmentFinancePageV2() {
   const handleResetRejectedBudget = async () => {
     const ok = await confirm({
       title: 'Reset Rejected Budget',
-      message: 'This will reset your rejected annual budget request so you can resubmit. Continue?',
-      confirmLabel: 'Reset',
+      message: 'This creates a new revision draft and keeps the previous decision in the audit history. Continue?',
+      confirmLabel: 'Create Revision',
     });
     if (!ok) return;
     setIsResettingBudget(true);
     try {
       await resetRejectedAnnualBudget({ fiscalYear: selectedFY, department: departmentLabel });
-      toast.success('Budget request reset. You can now resubmit.');
+      toast.success('Revision draft created. Update it and resubmit for both approvals.');
       setRefreshKey((k) => k + 1);
     } catch (error: any) {
       toast.error(getApiErrorMessage(error, 'Failed to reset budget request.'));
@@ -1030,6 +1030,10 @@ export function DepartmentFinancePageV2() {
   ];
 
   const isBudgetRejected = financeData?.status?.toLowerCase() === 'rejected';
+  const isBudgetDiscuss = financeData?.status?.toLowerCase() === 'discuss';
+  const latestAnnualDecision = [...(financeData?.annualRequest?.approvalFlow?.decisionHistory || [])]
+    .reverse()
+    .find((decision: any) => String(decision?.note || '').trim());
   const isBudgetPending = financeData?.status?.toLowerCase() === 'pending';
   const isBudgetApproved = financeData?.status?.toLowerCase() === 'approved';
   // Departments can only link vendors / record actuals once the annual budget
@@ -1060,7 +1064,7 @@ export function DepartmentFinancePageV2() {
   const maxActualAllowed = expenseProjected;
   const actualOverProjected =
     !!expenseDetail && actualAmountToPay !== '' && Number(actualAmountToPay) > maxActualAllowed + 0.009;
-  const isDraftBudget = !financeData?.annualRequest;
+  const isDraftBudget = !financeData?.annualRequest || String(financeData?.annualRequest?.status || '').toLowerCase() === 'draft';
   const draftTotalProjected = draftMonths.reduce(
     (sum, m) => sum + m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
     0,
@@ -1245,14 +1249,32 @@ export function DepartmentFinancePageV2() {
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-bold text-rose-700 flex items-center gap-3">
               <AlertCircle size={18} className="shrink-0" />
               <div className="flex-1">
-                <span className="font-black">Budget Request Rejected</span> — Your annual budget request was rejected. You can reset and resubmit.
+                <span className="font-black">Budget Request Rejected</span> — Create a revision, update the budget, and resubmit it for both approvals.
+                {latestAnnualDecision?.note && <p className="mt-1 font-medium">Reason: {latestAnnualDecision.note}</p>}
               </div>
               <button
                 onClick={handleResetRejectedBudget}
                 disabled={isResettingBudget}
                 className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-pmedium uppercase tracking-wider hover:bg-rose-50 transition-all shrink-0"
               >
-                {isResettingBudget ? 'Resetting...' : 'Reset & Resubmit'}
+                {isResettingBudget ? 'Creating...' : 'Create Revision'}
+              </button>
+            </div>
+          )}
+
+          {isBudgetDiscuss && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-xs font-bold text-blue-700 flex items-center gap-3">
+              <MessageSquare size={18} className="shrink-0" />
+              <div className="flex-1">
+                <span className="font-black">Changes Requested</span> — Review the approver comment, create a revision, and resubmit it for both approvals.
+                {latestAnnualDecision?.note && <p className="mt-1 font-medium">Comment: {latestAnnualDecision.note}</p>}
+              </div>
+              <button
+                onClick={handleResetRejectedBudget}
+                disabled={isResettingBudget}
+                className="px-3 py-1.5 rounded-lg bg-white border border-blue-200 text-blue-700 text-[10px] font-pmedium uppercase tracking-wider hover:bg-blue-50 transition-all shrink-0"
+              >
+                {isResettingBudget ? 'Creating...' : 'Create Revision'}
               </button>
             </div>
           )}
@@ -1530,6 +1552,7 @@ export function DepartmentFinancePageV2() {
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Requested</p>
                         <p className="text-sm font-bold text-slate-900">{formatCurrency(financeData.annualRequest.requestedBudget)}</p>
+                        <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-400">Revision {Number(financeData.annualRequest.revision || 1)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Previous Spend</p>
