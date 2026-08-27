@@ -59,6 +59,7 @@ export default function CompanyReviews() {
   const [stageFilter, setStageFilter] = useState("all");
   const [ratingFilter, setRatingFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [listingFilter, setListingFilter] = useState("all");
   const [selectedReviewId, setSelectedReviewId] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
 
@@ -147,6 +148,15 @@ export default function CompanyReviews() {
     return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [reviews]);
 
+  const listingOptions = useMemo(() => {
+    const seen = new Set();
+    reviews.forEach((r) => {
+      const name = String(r.listingName || "").trim();
+      if (name) seen.add(name);
+    });
+    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  }, [reviews]);
+
   const visibleReviews = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return reviews.filter((r) => {
@@ -155,11 +165,12 @@ export default function CompanyReviews() {
       const matchesRating = ratingFilter === "all" || rating === Number(ratingFilter);
       const normalizedType = String(r.companyType || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
       const matchesType = typeFilter === "all" || normalizedType === typeFilter;
-      const matchesQuery = !query || [r.name, r.reviewerName, r.reviewSource, r.companyType, r.description, r.review]
+      const matchesListing = listingFilter === "all" || String(r.listingName || "").trim() === listingFilter;
+      const matchesQuery = !query || [r.name, r.reviewerName, r.reviewSource, r.companyType, r.listingName, r.description, r.review]
         .filter(Boolean).some((v) => String(v).toLowerCase().includes(query));
-      return matchesStage && matchesRating && matchesType && matchesQuery;
+      return matchesStage && matchesRating && matchesType && matchesListing && matchesQuery;
     });
-  }, [reviews, searchQuery, stageFilter, ratingFilter, typeFilter]);
+  }, [reviews, searchQuery, stageFilter, ratingFilter, typeFilter, listingFilter]);
 
   const selectedReview = useMemo(
     () => reviews.find((r) => r._id === selectedReviewId) || null,
@@ -311,6 +322,16 @@ export default function CompanyReviews() {
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
+                <select
+                  value={listingFilter}
+                  onChange={(e) => setListingFilter(e.target.value)}
+                  className="px-3 py-2.5 bg-slate-100/70 text-slate-500 rounded-lg text-[11px] sm:text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all hover:bg-slate-200/70 hover:text-slate-700 border-0"
+                >
+                  <option value="all">All Listings</option>
+                  {listingOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                   <input data-tour="nomad-reviews-search" type="text" placeholder="Search"
@@ -327,10 +348,11 @@ export default function CompanyReviews() {
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
-                <table data-tour="nomad-reviews-table" className="w-full text-left min-w-[920px]">
+                <table data-tour="nomad-reviews-table" className="w-full text-left min-w-[1040px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Reviewer</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Listing</th>
                       <th className="px-5 py-4">Rating</th>
                       <th className="px-5 py-4">Description</th>
                       <th className="px-5 py-4">Source</th>
@@ -356,6 +378,9 @@ export default function CompanyReviews() {
                                 <p className="text-[12px] font-pmedium text-slate-900">{review.name || review.reviewerName || "—"}</p>
                               </div>
                             </div>
+                          </td>
+                          <td className="px-5 py-4 max-w-[180px]">
+                            <p className="text-[12px] font-pmedium text-slate-700 truncate">{review.listingName || "—"}</p>
                           </td>
                           <td className="px-5 py-4">
                             <StarRating count={review.starCount || review.rating || review.ratingValue} />
@@ -439,6 +464,10 @@ export default function CompanyReviews() {
                       <Star size={14} /> Review Details
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Listing</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{selectedReview.listingName || "—"}</p>
+                      </div>
                       <div>
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Rating</p>
                         <StarRating count={selectedReview.starCount || selectedReview.rating || selectedReview.ratingValue} />

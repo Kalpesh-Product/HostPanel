@@ -775,21 +775,35 @@ export const getReviewsByCompany = async (req, res, next) => {
           method: "get",
           url: `/api/company/get-listings/${encodeURIComponent(companyId)}`,
         });
+        const listings = parseListingList(listingsResponse);
         const listingTypeById = new Map(
-          parseListingList(listingsResponse)
+          listings
             .map((listing) => [
               sanitizeValue(listing?._id),
               sanitizeValue(listing?.companyType),
             ])
             .filter(([listingId]) => Boolean(listingId)),
         );
+        const listingNameById = new Map(
+          listings
+            .map((listing) => [
+              sanitizeValue(listing?._id),
+              sanitizeValue(listing?.companyTitle) ||
+                sanitizeValue(listing?.businessId),
+            ])
+            .filter(([listingId]) => Boolean(listingId)),
+        );
 
-        enrichedRemoteReviews = enrichedRemoteReviews.map((review) => ({
-          ...review,
-          companyType:
-            listingTypeById.get(getReviewCompanyRecordId(review)) ||
-            sanitizeValue(review?.companyType),
-        }));
+        enrichedRemoteReviews = enrichedRemoteReviews.map((review) => {
+          const listingId = getReviewCompanyRecordId(review);
+          return {
+            ...review,
+            companyType:
+              listingTypeById.get(listingId) ||
+              sanitizeValue(review?.companyType),
+            listingName: listingNameById.get(listingId) || "",
+          };
+        });
       } catch {
         // Reviews still load if the Nomads listing lookup is temporarily unavailable.
       }

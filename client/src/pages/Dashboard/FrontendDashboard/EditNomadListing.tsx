@@ -283,7 +283,7 @@ const EditNomadListing = () => {
 
             rating: Number(r.starCount ?? r.rating ?? r.rate ?? 5),
           }))
-        : [defaultReview];
+        : [];
 
     const splitCommaList = (value) =>
       Array.isArray(value)
@@ -445,7 +445,7 @@ const EditNomadListing = () => {
       images: [],
       logo: [],
       googleMap: "",
-      reviews: [defaultReview], // keep one empty review, or [] if you prefer
+      reviews: [], // no reviews by default — business may not have any yet
     });
   };
 

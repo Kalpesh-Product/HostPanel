@@ -233,7 +233,7 @@ const NomadListing = () => {
       address: "",
       images: [],
       logo: [],
-      reviews: [defaultReview], // ✅ initialize with one review
+      reviews: [], // ✅ no reviews by default — business may not have any yet
       googleMap: "",
     },
   });
@@ -392,7 +392,7 @@ const NomadListing = () => {
       address: "",
       images: [],
       logo: [],
-      reviews: [defaultReview],
+      reviews: [],
       googleMap: "",
     });
   };
